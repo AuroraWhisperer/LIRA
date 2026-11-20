@@ -6,6 +6,14 @@ const { songIdentity, summarizeSongs, SONG_STATS_DAYS } = require('../fans/song-
 const { dayOf, addDays } = require('../fans/dates');
 const { compactRosterObservation, pruneRosterTemplates, rosterTransaction } = require('./fan-roster-observation-storage');
 
+function decodeData(row) {
+  if (row.roster_template_id) return { ...JSON.parse(row.roster_data), observedAt: row.occurred_at };
+  const data = JSON.parse(row.data);
+  // SQLite 3.54 could persist the aggregate as JSON text on the old retention path.
+  if (row.kind === 'song' && typeof data.dailyCounts === 'string') data.dailyCounts = JSON.parse(data.dailyCounts);
+  return data;
+}
+
 function decodeRecord(row) {
   if (row?.roster_template_id && (!row.roster_data || !row.roster_original))
     throw new Error('大航海名单原始依据缺失。');
@@ -16,7 +24,7 @@ function decodeRecord(row) {
         kind: row.kind,
         sourceKey: row.source_key,
         occurredAt: row.occurred_at,
-        data: row.roster_template_id ? { ...JSON.parse(row.roster_data), observedAt: row.occurred_at } : JSON.parse(row.data),
+        data: decodeData(row),
         original: row.roster_template_id ? { ...JSON.parse(row.roster_original), observedAt: row.occurred_at } : JSON.parse(row.original),
         revisions: JSON.parse(row.revisions),
         revision: row.revision,
@@ -32,7 +40,7 @@ function decodeProjectionInput(row) {
     profileId: row.profile_id,
     kind: row.kind,
     occurredAt: row.occurred_at,
-    data: row.roster_template_id ? { ...JSON.parse(row.roster_data), observedAt: row.occurred_at } : JSON.parse(row.data),
+    data: decodeData(row),
     original: row.roster_template_id ? { ...JSON.parse(row.roster_original), observedAt: row.occurred_at } : JSON.parse(row.original),
   };
 }
@@ -153,12 +161,15 @@ function createFanRecordStore(db) {
   function pruneSongCounts(at, scope, profileId) {
     if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'fan_records'").get()) return;
     const start = addDays(dayOf(at), 1 - SONG_STATS_DAYS);
-    db.prepare(`UPDATE fan_records SET data = json_set(data, '$.dailyCounts', (
-        SELECT json_group_array(json(bucket.value) ORDER BY bucket.key) FROM json_each(data, '$.dailyCounts') bucket
+    db.prepare(`UPDATE fan_records SET data = json_set(data, '$.dailyCounts', json((
+        SELECT json_group_array(json(bucket.value) ORDER BY bucket.key) FROM json_each(data ->> '$.dailyCounts') bucket
         WHERE bucket.value ->> '$.date' >= ?
-      )) WHERE kind = 'song'
+      ))) WHERE kind = 'song'
       ${scope === undefined ? '' : 'AND scope = ?'} ${profileId === undefined ? '' : 'AND profile_id = ?'}
-      AND EXISTS (SELECT 1 FROM json_each(data, '$.dailyCounts') bucket WHERE bucket.value ->> '$.date' < ?)`)
+      AND CASE json_type(data, '$.dailyCounts')
+        WHEN 'array' THEN EXISTS (SELECT 1 FROM json_each(data, '$.dailyCounts') bucket WHERE bucket.value ->> '$.date' < ?)
+        WHEN 'text' THEN CASE WHEN json_valid(data ->> '$.dailyCounts') THEN json_type(data ->> '$.dailyCounts') = 'array' END
+      END`)
       .run(start, ...[scope, profileId].filter((value) => value !== undefined), start);
   }
 

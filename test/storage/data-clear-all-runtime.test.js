@@ -147,6 +147,7 @@ test('real runtime context exposes writer controls and resumes after successful 
 });
 
 test('clear-all retires old-source pending gifts without deleting their history or terminal settlements', async (t) => {
+  t.mock.method(performance, 'now', () => 0);
   const f = fixture(t);
   const { gifts, overtime } = f.services;
   overtime.act('pause');

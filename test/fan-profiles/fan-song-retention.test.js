@@ -149,6 +149,25 @@ test('startup retention expires daily counts but preserves totals, latest dates 
   assert.ok(f.db.songDb.prepare('SELECT 1 FROM requests WHERE id = ?').get(request.id));
 });
 
+test('retention repairs double-encoded daily buckets from earlier SQLite writes', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const song = { songName: '长期歌曲', category: '国语' };
+  f.record(p.id, 'song', song);
+  f.setNow('2026-10-17T04:00:00Z');
+  const record = f.record(p.id, 'song', song);
+  const db = f.db.songDb;
+  db.prepare("UPDATE fan_records SET data = json_set(data, '$.dailyCounts', ?) WHERE id = ?")
+    .run(JSON.stringify(record.data.dailyCounts), record.id);
+  assert.deepEqual(f.store.records.list(SCOPE, p.id)[0].data.dailyCounts, record.data.dailyCounts);
+
+  f.setNow('2026-10-18T04:00:00Z');
+  const detail = f.detail(p.id);
+  assert.equal(detail.songs[0].data.count, 2);
+  const stored = JSON.parse(db.prepare('SELECT data FROM fan_records WHERE id = ?').get(record.id).data);
+  assert.deepEqual(stored.dailyCounts, [{ date: '2026-10-17', category: '国语', count: 1 }]);
+});
+
 test('summary backup restores the full combined notes from multiple valid supplements', (t) => {
   const f = fanFixture(t);
   const p = f.create();

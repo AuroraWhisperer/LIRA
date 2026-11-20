@@ -1,6 +1,6 @@
 # 发布指南
 
-在仓库根目录使用 Windows PowerShell；发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）、已安装的项目依赖、Git 和 GitHub CLI。下文 `X.Y.Z` 替换为待发布版本，每条命令成功后再继续。
+在仓库根目录使用 Windows PowerShell。发布验证需要已安装的项目依赖、Git、GitHub CLI 和 Node.js 24 LTS 最新补丁版（至少 24.16.0）。开始时将 `node -v` 与 [Node.js 官方版本索引](https://nodejs.org/dist/index.json) 中最新的 24.x LTS 版本核对并记录。下文 `X.Y.Z` 替换为待发布版本，每条命令成功后再继续。
 
 ## 0. 选择发布流程与审查范围
 
@@ -89,6 +89,8 @@ npm run release:win
 ```
 
 脚本先检查凭据与版本标签冲突，在构建和一次完整安装包验证通过后创建并推送版本标签，再创建或复用 Release，只上传缺失或内容不一致的附件。输出 `All expected assets uploaded` 且正常退出即完成，无需再人工检查附件完整性。实现细节见[构建与发布参考](docs/reference/engineering/build.md#7-发布流程scriptspublish-releasejs)。
+
+从独立检出发布时，还需把同次构建的产物交回主工作区的 `release/`。先保留上一版的安装包、块图、清单和解包目录，再交付新版 EXE、blockmap、`builder-debug.yml` 和整个 `win-unpacked/`，最后替换原始 `latest.yml`。核对副本与构建输出的文件摘要，在发布回复中给出主工作区的产物路径。
 
 ## 失败处理与可选设置
 

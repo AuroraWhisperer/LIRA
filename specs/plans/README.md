@@ -14,7 +14,7 @@
 | [2026-11-11-gift-retention-tiers](2026-11-11-gift-retention-tiers.md) | Awaiting Verification | 服务器90天/凌晨窗口、本地365天、旧投影一次性重置与后台批处理已实现；Server144项、隔离桌面200天查询/导出通过。百万条提交延迟仍超50ms调优门槛，完整规模/发布验收待补；未启用生产删除。 |
 | [2026-11-06-gift-frame-independent-styles](2026-11-06-gift-frame-independent-styles.md) | Awaiting Verification | 导入样式独立触发、统一效果卡片及文档已完成；11-11既有canvas-gift-components 3/3通过，消除旧超时。剩真实礼物在直播软件中驱动导入图层的指定环境验收。 |
 | [2026-11-06-standalone-component-sources](2026-11-06-standalone-component-sources.md) | Awaiting Verification | 已修复加班机零高度、投票/评分旧正则解析和盲盒高度限制；当前 17 个、6.0.0 的 15 个入口在 Chromium 106 通过，相关检查 40/40 通过；待含修复版本在用户另一台电脑的直播姬实机验收。 |
-| [2026-11-06-efficient-client-update](2026-11-06-efficient-client-update.md) | Awaiting Verification | 实现/隔离下载/安装器验证已有记录；11-11 更新与资源30项通过，线上6.1.2块图和Range可用，本地6.2.1产物匹配。剩下一次实际发布同步与真实旧版升级；旧块图仅在需差分优化时补齐。 |
+| [2026-11-06-efficient-client-update](2026-11-06-efficient-client-update.md) | Awaiting Verification | 6.3.2 本地交付及 6.3.1 正式更新器的差分下载已验证。安装、重启和数据保留待隔离实机验收，详见[交付记录](open-items.md#u1-下一次客户端发布的交付与升级验收)。 |
 | [2026-11-02-update-install-progress](2026-11-02-update-install-progress.md) | Awaiting Verification | 5.7.8 正式安装包已构建并通过完整资源验包，原生进度、自动关闭、启动意图与数据保护回归通过；旧版客户端触发真实升级的端到端验收待补。 |
 | [2026-11-02-client-download-manifest](2026-11-02-client-download-manifest.md) | Awaiting Verification | 2026-11-03 已核实线上 5.7.8 清单禁止缓存、原名安装包完整下载及 SHA-512 匹配、官网 302 正确，本机安装目录为 5.7.8；旧版客户端自动更新端到端验收待补。 |
 | [2026-11-02-cdn-client-resources](2026-11-02-cdn-client-resources.md) | Awaiting Verification | 资源交付与构建证据已具备；11-11更新/资源30项覆盖冷暖缓存、离线、完整性和回退。实际安装后资源可用性并入下一次真实升级验收，不重复列为未实现。 |
