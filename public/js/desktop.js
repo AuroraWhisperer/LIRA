@@ -101,7 +101,7 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
   }
 
   function maybeShowDesktopUpdateNotice(state) {
-    if (state?.status === 'downloading') desktopUpdateAction = 'download';
+    if (state?.status === 'available' || state?.status === 'downloading') desktopUpdateAction = 'download';
     if (state?.status === 'error' && desktopUpdateAction) {
       const titles = { check: '暂时查不了新版本', download: '更新没下载成功', install: '更新没能安装' };
       showStackedToast({
@@ -109,14 +109,13 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
         update: true,
         type: 'error',
         title: titles[desktopUpdateAction],
-        message: desktopUpdateAction === 'install' ? '请到更新页查看原因，再试一次。' : '请检查网络，再到更新页重试。',
+        message: state.message ? desktopUpdateStatusText(state) : '请到更新页查看原因，再试一次。',
         actionLabel: '打开更新页',
         onClick: openUpdatePage,
       });
       desktopUpdateAction = '';
     }
     if (['not-available', 'downloaded', 'dev-disabled'].includes(state?.status)) desktopUpdateAction = '';
-    if (state?.status === 'available' && desktopUpdateAction === 'check') desktopUpdateAction = '';
     if (!state || (state.status !== 'available' && state.status !== 'downloaded')) return;
 
     const updateVersion = state.updateVersion || state.version || '';
@@ -168,7 +167,7 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
       if (shouldRender) {
         handleDesktopUpdateState({
           status: 'error',
-          message: desktopActionErrorMessage(error),
+          message: desktopActionErrorMessage(error, true),
           canDownload: false,
           canInstall: false,
           progress: null,
@@ -284,15 +283,18 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
     return '';
   }
 
-  function desktopActionErrorMessage(error) {
+  function desktopActionErrorMessage(error, isUpdate = false) {
     const text = String((error && error.message) || error || '');
-    if (/\b404\b/.test(text) && /latest\.yml|ERR_UPDATER_CHANNEL_FILE_NOT_FOUND/i.test(text)) {
-      return '更新清单暂不可用，请稍后再试。';
+    if (isUpdate && /\b404\b/.test(text)) {
+      return error?.code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' || /latest\.yml|ERR_UPDATER_CHANNEL_FILE_NOT_FOUND/i.test(text)
+        ? '找不到更新清单（HTTP 404），请稍后重新检查更新。'
+        : '找不到更新包，请稍后重试。如需联系管理员，请提供错误码 HTTP 404。';
     }
-    if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)) {
+    if (isUpdate && /checksum mismatch|sha512|sha256|hash mismatch/i.test(text)) return '更新包校验失败，请重新检查并下载更新。';
+    if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ERR_CONNECTION|ERR_INTERNET|network|timeout/i.test(text)) {
       return '暂时无法连接更新服务，请稍后再试。';
     }
-    return '操作失败，详细原因已写入日志。';
+    return isUpdate ? '更新操作失败，请重新检查更新。' : '操作失败，详细原因已写入日志。';
   }
 
   function desktopUpdateStatusText(state) {

@@ -407,7 +407,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   desktop.off('request', countIdle);
   assert.ok(idleRequests <= 20, `five idle sessions sent ${idleRequests} requests in two seconds`);
   t.diagnostic(`five-session idle requests over two seconds: ${idleRequests}`);
-  const names = { clock: '萌时钟', queue: '点歌板', danmaku: '弹幕姬', overtime: '加班机' };
+  const names = { clock: '时钟', queue: '点歌板', danmaku: '弹幕姬', overtime: '加班机' };
   const add = async id => {
     await page.getByRole('button', { name: '添加组件', exact: true }).click();
     await page.locator(`[data-category="${id}"]`).click();
@@ -445,7 +445,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
     await page.getByRole('spinbutton', { name, exact: true }).fill(value);
     await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
   }
-  const moving = page.locator('.scene-editor-item[aria-label="萌时钟 2"]');
+  const moving = page.locator('.scene-editor-item[aria-label="时钟 2"]');
   const box = await moving.boundingBox();
   await page.mouse.move(box.x + 12, box.y + 12);
   await page.mouse.down(); await page.mouse.move(box.x + 52, box.y + 42, { steps: 8 }); await page.mouse.up();

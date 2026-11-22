@@ -489,7 +489,7 @@ test('empty editor adds independent styles and publishes every layer through one
   await add('danmaku', 'signal');
   await add('overtime', 'default');
   assert.equal(await page.locator('iframe').count(), 5);
-  await page.locator('.preview-canvas-layer-select').filter({ hasText: '萌时钟 1' }).click();
+  await page.locator('.preview-canvas-layer-select').filter({ hasText: '时钟 1' }).click();
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('仅第一只时钟');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
@@ -513,7 +513,7 @@ test('empty editor adds independent styles and publishes every layer through one
   await output.goto(source);
   await output.waitForFunction(() => document.querySelectorAll('.scene-version:not(.is-staging) iframe').length === 5);
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="点歌板 1"]').getByText('合成实时歌曲').waitFor();
-  assert.equal(await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 2"]').locator('html').getAttribute('data-clock-style'), 'flip');
+  assert.equal(await output.frameLocator('.scene-version:not(.is-staging) iframe[title="时钟 2"]').locator('html').getAttribute('data-clock-style'), 'flip');
   const danmaku = output.frames().find(frame => new URL(frame.url()).pathname === '/danmaku');
   assert.equal(new URL(danmaku.url()).searchParams.get('componentLayer'), '1');
   assert.equal(await danmaku.getByText('示例观众', { exact: true }).count(), 0);
@@ -526,11 +526,11 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '模拟发布失败' }).waitFor();
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
-  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
+  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="时钟 1"]').getByText('更新后的时钟').waitFor();
   fixture.failPublication(false);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
-  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
+  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="时钟 1"]').getByText('更新后的时钟').waitFor();
   await page.evaluate(() => { window.copiedSource = ''; });
   await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
   await page.waitForFunction(() => window.copiedSource);
@@ -544,7 +544,7 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.close();
   await desktop.close();
   await output.reload();
-  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
+  await output.frameLocator('.scene-version:not(.is-staging) iframe[title="时钟 1"]').getByText('更新后的时钟').waitFor();
   fixture.runtime.queue.waiting[0].song_name = '关闭编辑器后的歌曲';
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="点歌板 1"]').getByText('关闭编辑器后的歌曲').waitFor();
   fixture.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '合成观众', message: '关闭编辑器后的弹幕' });

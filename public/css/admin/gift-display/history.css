@@ -114,7 +114,7 @@ body.desktop-shell #giftHistoryDrawer .gift-drawer-head > button {
 }
 
 #giftHistorySelectedCount {
-  min-width: 84px;
+  min-width: 13em;
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
   font-variant-numeric: tabular-nums;

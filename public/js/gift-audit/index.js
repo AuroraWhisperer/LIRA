@@ -105,7 +105,7 @@ async function fetchServerGifts() {
   const btn = document.getElementById('btnFetchServer');
   const status = document.getElementById('serverStatus');
   btn.disabled = true;
-  status.textContent = '加载中...';
+  status.textContent = '加载中…';
   try {
     const resp = await fetch('/api/state');
     const json = await resp.json();
@@ -185,9 +185,9 @@ function clearAll() {
   comparisonRevision++;
   document.getElementById('bubbleHtml').value = '';
   document.getElementById('bubbleTableBody').innerHTML =
-    '<tr><td colspan="5" class="empty-state">等待解析...</td></tr>';
+    '<tr><td colspan="5" class="empty-state">等待解析…</td></tr>';
   document.getElementById('serverTableBody').innerHTML =
-    '<tr><td colspan="7" class="empty-state">点击「拉取服务器记录」获取 WebSocket 捕获数据</td></tr>';
+    '<tr><td colspan="7" class="empty-state">点击「拉取服务器礼物记录」获取 WebSocket 捕获数据</td></tr>';
   document.getElementById('comparisonBody').innerHTML = '';
   document.getElementById('comparisonSection').style.display = 'none';
   document.getElementById('statsRow').style.display = 'none';

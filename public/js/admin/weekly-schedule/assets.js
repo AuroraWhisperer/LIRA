@@ -5,7 +5,7 @@ const MAX_IMAGE_PIXELS = 32 * 1024 * 1024;
 const RASTER_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 function assertSafeSvg(source) {
-  if (/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet/i.test(source)) throw new Error('图标 SVG 不能包含文档类型或外部实体。');
+  if (/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet/i.test(source)) throw new Error('无法读取这个 SVG 图标，请重新导出为仅含静态图形的 SVG 或改用 PNG。');
   const svg = new DOMParser().parseFromString(source, 'image/svg+xml');
   if (svg.querySelector('parsererror') || svg.documentElement.localName !== 'svg') throw new Error('无法读取 SVG 图标。');
   const forbidden = new Set(['script', 'foreignobject', 'iframe', 'object', 'embed', 'image', 'style', 'a', 'animate', 'animatetransform', 'set']);
@@ -51,15 +51,16 @@ function readDataUrl(file) {
 
 export async function readWeeklyScheduleAsset(file, { allowSvg = false } = {}) {
   if (!file || !Number.isFinite(file.size) || file.size <= 0 || file.size > MAX_ASSET_BYTES) {
-    throw new Error('请选择不超过 12 MiB 的图片。');
+    throw new Error('请选择有效的图片文件，单张不能超过 12 MB（12,582,912 字节）。');
   }
   const svg = allowSvg && file.type === 'image/svg+xml';
   if (!svg && !RASTER_TYPES.has(file.type)) throw new Error(allowSvg ? '请选择 PNG、JPEG、WebP 或静态 SVG 图标。' : '请选择 PNG、JPEG 或 WebP 图片。');
   if (svg) assertSafeSvg(await file.text());
   const image = await imageFromFile(file);
-  if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth > MAX_IMAGE_EDGE
+  if (!image.naturalWidth || !image.naturalHeight) throw new Error('无法读取图片尺寸，请重新选择图片。');
+  if (image.naturalWidth > MAX_IMAGE_EDGE
     || image.naturalHeight > MAX_IMAGE_EDGE || image.naturalWidth * image.naturalHeight > MAX_IMAGE_PIXELS) {
-    throw new Error('图片尺寸过大，请使用边长不超过 8192 像素、总像素不超过 33,554,432 的图片。');
+    throw new Error('请缩小图片。长边最多 8192 像素，总像素最多 33,554,432（约 3355 万）。');
   }
   if (!svg) {
     const result = await readDataUrl(file);

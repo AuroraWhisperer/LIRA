@@ -8,6 +8,23 @@ const entry = path.resolve('public/js/admin/audio-assistant-feedback.js');
 
 const missingChannel = '请先选择已有的独立原声通道；没有可用通道时可使用本地歌曲。';
 
+test('component errors keep their specific guidance without exposing native diagnostics', async () => {
+  const { formatAudioFailure } = await loadModuleExports(entry);
+  const diagnostic = 'private-fixture-path/worker.exe';
+  for (const [reason, guidance] of [
+    ['找不到音频组件', /重新检查组件文件/],
+    ['音频组件已关闭', /重新打开 LIRA/],
+    ['下载音频组件需要 LIRA 账号授权', /授权/],
+    ['这台设备不支持音频组件', /不支持/],
+    ['音频组件准备失败', /关于与更新.*重试/],
+  ]) {
+    const { message } = formatAudioFailure(`${reason}。\n${diagnostic}`, 'get');
+    assert.match(message, guidance);
+    assert.ok(!message.includes(diagnostic));
+  }
+  assert.ok(!formatAudioFailure(diagnostic, 'get').message.includes(diagnostic));
+});
+
 test('restored deferred recovery stays inline during startup and polling, but an explicit retry gives feedback', async () => {
   const { createAudioFeedback } = await loadModuleExports(entry);
   const notices = [];

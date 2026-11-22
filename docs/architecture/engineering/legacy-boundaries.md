@@ -1,139 +1,52 @@
-# Legacy Boundary Registry
+# 遗留边界登记表
 
-This registry describes qualitative legacy boundaries and their migration
-direction. It does not own numeric baselines. When a numeric debt budget exists,
-the named test and test case are the only numeric authority.
+本文记录存量遗留边界的现状与收敛方向，不维护具体数字上限。若某项债务存在数量冻结限制，以对应测试文件及测试用例中的数值为唯一准绳。
 
-## Admin Global State
+## 已收敛的遗留边界（保留防回流检查）
 
-- **Current shape:** Retired on 2026-11-06. Admin composition directly creates the
-  desktop UI and initializes playback; feature modules, shared utilities, theme,
-  logging and events use named imports or explicit callbacks. The final
-  fullscreen-close consumer receives a callback through playback composition.
-  The bridge and publishers have no remaining production consumers and are removed;
-  tests load the actual module owners instead of preserving a test-only registry.
-- **New-code rule:** Do not reintroduce `window.AdminApp` dependencies or a
-  replacement global service registry. Use named ESM imports and narrow interfaces.
-- **Enforcement:** `test/engineering/module-boundaries.test.js`, test
-  `frontend modules use explicit dependencies without an Admin registry`, scans
-  all frontend modules. The former numeric debt budget is removed; computed
-  property access and other implicit dependency mechanisms still require review.
+以下历史边界已在生产代码中完成收敛，详细依赖方向与架构适应度函数见 [模块化规范](modularity-standard.md)：
 
-## Domain SQL Outside Storage
+- **Admin 全局状态（已于 2026-11-06 退役）**：管理端组合根现直接创建桌面界面并初始化播放模块，业务模块、共享工具、主题、日志与事件全部改用具名导入或显式回调（含全屏关闭回调），旧 `window.AdminApp` 桥接与发布器已彻底移除，测试直接加载真实归属模块。新代码禁止重新引入全局服务注册表；由 `test/engineering/module-boundaries.test.js` 中的 `frontend modules use explicit dependencies without an Admin registry` 全量扫描防护，计算属性等隐式访问继续依靠代码评审把关。
+- **存储层外的领域 SQL（已知例外已清零）**：歌库（`song-store.js`）、礼物投影/统计/查询/维护四类专用存储（`gift-projection-store.js`、`gift-statistics-store.js`、`gift-query-store.js`、`maintenanceStore`，`src/bilibili/gift/index.js` 中的旧数据库上下文降级已于 2026-11-06 退役，门面仅装配领域能力并管理活动来源与视图纪元）、AI 配置与配额（`ai-state-store.js`、`ai-api-usage-store`）以及加班机（`overtime-store.js`）均已由组合根注入专用存储接口，不再直调 SQLite 语句。新领域逻辑必须依赖专用存储/仓储接口；由 `test/engineering/module-boundaries.test.js` 中的 `domain SQL receivers stay inside storage`（零白名单）配合目录级导入守卫与行为测试共同防护。
+- **组合根中的可变子系统逻辑（`desktop-state` 已移除）**：桌面端退出截止时间与窗口状态已归入 `desktop-lifecycle` 与 `desktop-main-window`，日志与更新模块各自管理内部状态，跨领域的全局可变状态对象 `desktop-state` 已删除；服务端消息决策与维护恢复已归属应用层模块。新代码保持组合根仅负责装配与生命周期管理，由非数值边界断言及代码评审守护。
 
-Song service migration is complete: the composition root creates
-`src/storage/song-store.js`, and song domain functions receive that store rather
-than a database. Its old SQL debt budget is removed and a strict no-SQL assertion
-protects the boundary. Gift projection and statistics now receive narrow stores
-from the composition root; SQL and the statistics delivery transaction live in
-`gift-projection-store.js` and `gift-statistics-store.js`. Gift queries and
-blind-box analysis now receive `queryStore`; recent clearing receives
-`maintenanceStore`. Structured local/source/unavailable scopes are translated
-to SQL only inside `gift-query-store.js`.
+## 共享工具函数聚合
 
-The database-context fallback in `src/bilibili/gift/index.js` is retired on
-2026-11-06. Production composition and isolated test fixtures explicitly create
-the four gift stores. The facade only assembles domain capabilities and owns
-active-source/view-epoch state. Domain directories are checked for imports of
-storage, transport and desktop implementations; gift projection/import tests
-protect transaction, retry and idempotency behavior.
+- **现状**：`src/shared/utils.js` 仍是依赖面较广的领域无关工具聚合点。B 站醒目留言价格与大航海等级已抽离至纯模块 `src/shared/bilibili-value-contract.js`，房间号解析归 `src/bilibili/room-input.js`，对外错误文案归 `src/bilibili/api-error.js`；存储层直接使用共享值规范，不依赖平台运行时。
+- **新代码规则**：领域无关的辅助函数按单一主题拆分为独立小模块；业务或协议逻辑留在各自归属模块内。
+- **按需迁移**：仅在当前任务需要改动某组工具时抽离，并同步更新直接调用方与专项测试。
+- **目标架构**：小而稳定的共享模块仅暴露主题清晰的纯工具，不管理运行时资源。
+- **检查手段**：常规主题依靠代码评审；`test/engineering/module-boundaries.test.js` 中的回归断言禁止表格/ZIP 编解码及 B 站业务规则回流至聚合文件。
 
-AI configuration receives `src/storage/ai-state-store.js` from `server/ai-runtime.js`; the domain retains codec, persona, TTL and key-origin rules. AI quota now receives `ai-api-usage-store` from the same runtime and retains reservation/refund/month rules. Overtime receives `src/storage/overtime-store.js` from `server/domain-services.js`, preserving the same gift database and transaction boundaries. These former SQL/implicit storage-construction exceptions are removed.
+<a id="frontend-pure-helpers-and-compatibility"></a>
+### 前端纯工具函数与兼容保留
 
-- **Current shape:** Known database receivers no longer issue SQL outside `src/storage/`; the text scan is not a complete semantic dependency analysis.
-- **New-code rule:** New domain behavior depends on a narrow store or repository;
-  it does not call SQLite statement APIs.
-- **Task-scoped migration:** Move only the SQL needed by the current change into
-  an owning store, preserve return shapes and transaction behavior, and add a
-  focused regression test.
-- **Target architecture:** SQL, table knowledge, and transaction ownership live
-  under `src/storage/`.
-- **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
-  test `domain SQL receivers stay inside storage`, with no allowlist. It uses receiver-aware raw-text scanning; directory-wide domain import guards and behavioral tests complement it.
+HTML/属性转义由 `public/js/shared/html-escape.js` 负责，展示格式化由 `display-format.js` 负责，多语言字体回退由 `font-family.js` 负责。播放辅助模块、当前播放渲染及管理端队列等直接调用方单独导入这些纯模块，避免顺带拉起无关弹窗或请求代码。原有假值（falsy）输入语义保持不变；经典叠加层与确认弹窗的转义规则维持各自原有约束。
 
-## Shared Utility Aggregation
+`shared/utils.js` 仅为现有界面与请求调用方保留具名导出（含 `withMultilingualFallback` 的兼容重导出）。现有字体调用方均已直接使用 `font-family.js`，待明确移除旧工具导入约定后再下线该兼容重导出。原无用聚合对象及全局挂载已删除，播放源操作改用注入的工具接口执行登出确认。`module-boundaries.test.js` 防止纯工具具名导入回流至界面/请求入口；`test/ui/frontend-pure-utils.test.js` 在无界面全局对象与无网络环境下验证真实 ESM 导入及字体选择。
 
-- **Current shape:** `src/shared/utils.js` remains a high-fan-in aggregation point for domain-neutral utilities. Bilibili SC prices and guard levels live in the pure `src/shared/bilibili-value-contract.js`; room parsing lives in `src/bilibili/room-input.js`, and public error wording lives in `src/bilibili/api-error.js`. Storage consumes the shared value contract without depending on platform runtimes.
-- **New-code rule:** Add domain-neutral helpers to a focused, single-topic shared
-  module; domain or protocol behavior stays with its owner.
-- **Task-scoped migration:** Extract a coherent helper only when the current task
-  needs to change it, then update direct consumers and focused tests.
-- **Target architecture:** Small stable shared modules expose pure utilities with
-  clear subjects and no runtime resource ownership.
-- **Enforcement:** N/A - prose boundary. Selected regression assertions in
-  `test/engineering/module-boundaries.test.js` prevent known spreadsheet/ZIP codecs and Bilibili rules from
-  returning to the aggregation point; review covers other topics.
+## 空 `catch` 块
 
-### Frontend pure helpers and compatibility
+- **现状**：`src/` 与 `public/js/` 仍存留少量空 `catch` 或仅含注释的 `catch` 代码块（含内嵌原生代码字符串中的匹配项）。
+- **新代码规则**：`catch` 块必须执行恢复、上报、清理或显式向上抛出，禁止新增空 `catch` 或纯注释 `catch`。
+- **按需迁移**：仅当当前任务明确界定了正确失败行为时顺带修复存量，不要为无关路径臆造日志或异常传播。
+- **目标架构**：错误处理逻辑清晰可见，由具备安全恢复或上报能力的层级负责。
+- **检查手段**：由 `test/engineering/module-boundaries.test.js` 中的 `empty catch text debt is frozen and can only decrease` 渐进强制执行；该测试是唯一数字上限准绳，注释不构成豁免。
 
-`public/js/shared/html-escape.js` owns HTML/attribute escaping; `display-format.js` owns display formatting; `font-family.js` owns multilingual font fallback. Direct consumers, including playback helpers, now-playing rendering and the Admin queue, import these modules without loading unrelated dialogs or requests for pure helpers. The original falsy-input semantics remain unchanged; classic overlays and confirmation-dialog escaping retain their separate contracts.
+## 经典脚本全局注册
 
-`shared/utils.js` retains its named exports for existing explicit UI/request consumers, including a compatibility re-export of `withMultilingualFallback`. Current font consumers use `font-family.js` directly; retire the old export only when the retained utils import contract is explicitly removed. Its unused aggregate object and global publication are removed; playback provider operations use the already injected utility capability for logout confirmation. `module-boundaries.test.js` prevents named pure-helper imports from returning to the UI/request entry; `test/ui/frontend-pure-utils.test.js` exercises real ESM imports and font selection without UI globals or network access.
+- **现状**：少量旧浏览器代码仍通过传统 `<script>` 向全局挂载对象，尚未并入目标 ESM 架构。
+- **新代码规则**：新前端模块统一使用显式具名 ESM 导入导出；仅在确有既有兼容需求时保留传统脚本例外。
+- **按需迁移**：改动涉及时按完整的生产—调用链分批迁移，保持原有加载顺序与页面行为不变。
+- **目标架构**：浏览器端依赖关系通过 ESM 边界静态可见，残余传统脚本仅保留最小化兼容适配层。
+- **检查手段**：`test/engineering/esm-module-boundaries.test.js` 校验 `public/js/` 下 ES 模块中未声明、未导入的标识符；传统脚本例外与显式导出依靠代码评审把关。
 
-## Mutable Behavior In Composition Roots
+## Bilibili 身份缓存兼容
 
-- **Current shape:** Composition roots historically mixed dependency wiring with
-  mutable subsystem behavior. Desktop close/deadline and window state now belong
-  to `desktop-lifecycle` and `desktop-main-window`; logger and updater own their
-  state. The former cross-domain `desktop-state` bag is removed. Server message
-  decisions and maintenance recovery belong to application owners.
-- **New-code rule:** Entrypoints create components, connect callbacks, start
-  resources, and close them in reverse order. Mutable policy belongs to the
-  owning runtime or service.
-- **Task-scoped migration:** Extract only behavior directly involved in the
-  current change and preserve lifecycle ordering.
-- **Target architecture:** Composition roots contain wiring and lifecycle only.
-- **Enforcement:** Nonnumeric boundary assertions in
-  `test/engineering/module-boundaries.test.js` plus code review.
+- **现状**：`IdentityCache` 过去混杂了 UID/昵称索引、最近与在线观众名单及字段合并策略，消息处理器和轮询器曾直接调用其中的合并方法。
+- **新代码规则**：`UserInfoService` 是生产环境唯一的合并策略归属模块（详见 [ADR-0010](../adr/0010-bilibili-user-info-facade.md)）。解析器与轮询器通过显式注入的接收器提交 `IdentityHint`；小游戏与运行时调用方统一经过门面或其注入的专用查询接口。
+- **按需迁移**：`IdentityCache` 暂留作为底层精确存储与索引兼容原语，所有被触及的生产方与调用方逐步迁至门面之后；旧方法仅保留给既有兼容测试，待直接调用方清零后移除。
+- **目标架构**：生产代码不得越过门面边界直接导入或调用缓存合并策略、资料查询提供方或头像代理内部实现，并移除 `onMessage()` 隐式触发头像拉取的旧机制。
+- **检查手段**：由 `test/bilibili/bilibili-user-info-service.test.js`、`test/bilibili/bilibili-user-info-pollers.test.js`、既有 B 站客户端/解析器/运行时测试套及架构评审共同保护。
 
-## Empty Catch Blocks
-
-- **Current shape:** `src/` and `public/js/` contain empty or comment-only catch
-  bodies, including matches inside embedded native-source strings.
-- **New-code rule:** A catch performs recovery, reporting, cleanup, or explicit
-  propagation. New empty or comment-only catches are not allowed.
-- **Task-scoped migration:** Improve a catch only when the task establishes the
-  correct behavior; do not invent logging or error propagation for unrelated
-  paths.
-- **Target architecture:** Failure behavior is explicit and owned by the layer
-  that can recover or report safely.
-- **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
-  test `empty catch text debt is frozen and can only decrease`. That test is the
-  only numeric authority. Comments do not exempt a match.
-
-## Classic-Script Global Registration
-
-- **Current shape:** Some browser code registers globals from classic scripts
-  outside the target ESM architecture.
-- **New-code rule:** New frontend modules use explicit named ESM imports and
-  exports. A classic-script exception requires an existing compatibility need.
-- **Task-scoped migration:** Convert a coherent producer-consumer slice only when
-  the current task touches it, keeping load order and page behavior intact.
-- **Target architecture:** Browser dependencies are statically visible through
-  ESM boundaries, with narrow compatibility adapters for remaining classic
-  scripts.
-- **Enforcement:** `test/engineering/esm-module-boundaries.test.js` checks declared and
-  imported identifiers in public ES modules. Classic-script exceptions and
-  explicit exports remain review-enforced.
-
-## Bilibili Identity Cache Compatibility
-
-- **Current shape:** `IdentityCache` historically combined UID/name indexing,
-  recent/online audience lists, and field merge policy; message handlers and
-  pollers used those merge methods directly.
-- **New-code rule:** `UserInfoService` is the only production merge owner.
-  Parsers and pollers submit `IdentityHint` values through explicit sinks;
-  games and runtime consumers use the facade or its injected narrow resolver.
-- **Task-scoped migration:** the cache remains in place as an exact storage/index
-  compatibility primitive while all touched producers/consumers move behind the
-  facade. Keep legacy methods only for existing compatibility tests until their
-  direct consumers are gone.
-- **Target architecture:** no production code imports or calls cache merge
-  policy, profile providers, or avatar proxy internals across the facade boundary;
-  implicit `onMessage()` avatar hydration is removed.
-- **Enforcement:** focused tests in
-  `test/bilibili/bilibili-user-info-service.test.js`,
-  `test/bilibili/bilibili-user-info-pollers.test.js`, and the existing Bilibili client,
-  parser, and runtime suites, plus architecture review.
-
-Migration Target entries intentionally have no artificial numeric baseline.
+标注为“迁移目标”的条目有意不设人为数字基线。

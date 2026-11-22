@@ -517,7 +517,7 @@ Admin 预览通过「预览」打开并选中 `opening` 图层；固定浏览器
 
 画布的示例数据携带 `preview: true`；金额门槛过滤全部示例时，在组件内说明原因及调整方法。正式来源不携带该标记，空集合保持透明，不输出预览提示。
 
-`shared/gift-card-model.js` 同时供滚动展示和导出运行时派生卡片：仅对北京时间今天的记录，按送礼人 UID、相同礼物 ID 和礼物名合并，累加数量及各条历史单价乘数量的整数分金额，颜色按合计金额计算。身份来自 `/api/gifts/card-profiles`，对同人今日全部卡片使用最新已知昵称、头像及大航海等级；null 不覆盖已知等级，0 明确移除头像框，同等级续费保留未变化的卡片节点。未知 UID 不按昵称合并，旧日期和原始流水保持独立。导出只合并所选记录，资料更新可使用今日未选记录的证据。滚动阈值按合并后的卡片数计算，稳定分组键保留滚动锚点；资料暂不可用时预览说明未完成身份合并。
+`shared/gift-card-model.js` 同时供滚动展示和导出运行时派生卡片：仅对北京时间今天的记录，按送礼人 UID、相同礼物 ID 和礼物名合并，累加数量及各条历史单价乘数量的整数分金额，颜色按合计金额计算。身份来自 `/api/gifts/card-profiles`，对同人今日全部卡片使用最新已知昵称、头像及大航海等级；null 不覆盖已知等级，0 明确移除头像框，同等级续费保留未变化的卡片节点。未知 UID 不按昵称合并，滚动展示的旧日期和原始流水保持独立。导出可选[跨日期合并](../backend/bilibili/gift.md)，计数仅取所选记录，展示资料可使用今日未选记录的证据。滚动阈值按合并后的卡片数计算，稳定分组键保留滚动锚点；资料暂不可用时预览说明未完成身份合并。
 
 礼物助手的滚动礼物面板生成当前本地端口的 `127.0.0.1/gift-feed` 地址，`?preview=1` 只增加预览底色和状态。页面独立于管理面板生命周期，按北京时间遍历今天全部分页，包含未参与冲刺的有效付费历史。“最小礼物金额（元）”支持整数或一位小数，默认 0 不限制；正数在完整分页、合并卡片后按 `cardTotalCents` 严格大于门槛过滤，未知 UID 独立记录按历史单价乘数量计价，比较使用整数分。该过滤只作用于滚动集合，不改变历史记录、分色金额或图片导出；配置契约见 [API 设置端点](../backend/api.md)。`gift-feed-state.js` 用 eventId 去重并保留轮播锚点；默认 3 行、速率 12（每行 3.9 秒），速率 1–50 线性对应每行 `5000 - (scrollSpeed - 1) * 4900 / 49` 毫秒。过滤后的条目超过显示行数时连续匀速向上滚动，最后一条紧接第一条；不足或刚好填满时静态显示，不复制填满。动画按帧时间累计位移，换行保留余量，无间隔等待，DOM 只保留可见行及最多一条动画缓冲，并复用未变化的节点。页面隐藏时释放动画帧，恢复后接着当前位置移动。暂停和低功耗选项已移除。
 
@@ -941,7 +941,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 大航海感谢按事件 `guardAction` 区分开通、续费与未知动作的“支持”；沿用真实等级、数量和结算金额。
 
-客户端内置样式 `spooky`（幽灵便笺）以 Melonturtle 的 [Spooky Notes 公开预览](https://www.etsy.com/listing/1578936439/spooky-notes-chat-widget-cute-halloween)为美术参考，保留贴纸、错位纸片及 Chat Box；这不是作者的付费源码。专属装饰由 `danmaku-spooky.js` 创建，素材位于 `public/img/overlays/danmaku-spooky/`，样式由 `danmaku/spooky.css` 维护；公共渲染核心及来源哈希不变，队列、适配、移动、删除与销毁继续由 `danmaku-feed.js` 负责。
+客户端内置样式 `spooky`（幽灵便笺）以 Melonturtle 的 [Spooky Notes 公开预览](https://www.etsy.com/listing/1578936439/spooky-notes-chat-widget-cute-halloween)为美术参考，保留贴纸、错位纸片及消息区外框；这不是作者的付费源码。专属装饰由 `danmaku-spooky.js` 创建，素材位于 `public/img/overlays/danmaku-spooky/`，样式由 `danmaku/spooky.css` 维护；公共渲染核心及来源哈希不变，队列、适配、移动、删除与销毁继续由 `danmaku-feed.js` 负责。
 
 固定区域默认值由 [danmaku-layout.js](../../../public/js/shared/danmaku-layout.js) 定义为 `spooky: [480,700]`，缺少它的旧布局回填默认值，不移动已有区域。`spookyTheme` 仅接受 `default/autumn/graveyard/moonlight`，默认 `default`；`spookyFrame` 仅接受 `show/hide`，默认 `show`。专属选项仅对该样式有效，浏览器和 Node 合同镜像同步；字号 16–36、默认 25。外框是页面中单份装饰节点，其可见性和配色由样式控制，不插入消息队列。带外框时，内边框顶部保留 60px 的 CHAT 标题区，弹幕容器下边界与内边框对齐；容器可用高度随区域尺寸、内容缩放和舞台留白计算，内部保留头像与贴纸所需的上下留白；`danmaku-canvas.js` 的 530px 是内部设计宽度，不是默认放置宽度。
 
@@ -1124,7 +1124,7 @@ UID、未激活页签、陪伴天数、底栏提示和空列表文字复用元�
 | `stargazerPalette` / `stargazerColor` | mixed、purple、gold、chat-purple、chat-gold、custom；默认 mixed；自定义单色默认 `#c04efe` |
 | `stargazerLayout` / `stargazerWidth` | vertical／horizontal，默认纵向；横排每条宽 220–600px、默认 320px |
 | `stargazerGap` / `stargazerAlign` | 间距 6–40px、默认 24px；未铺满靠新消息入口 bottom 或旧消息出口 top，默认 bottom |
-| `stargazerFrame` | show／hide，默认隐藏 Chat Box 外框 |
+| `stargazerFrame` | show／hide，默认隐藏消息区外框 |
 | `stargazerPerspective` / `stargazerAngle` | none／left／right，默认平面；角度 0–12°、默认 6° |
 | `stargazerGlow` / `stargazerGradient` / `stargazerGradientOpacity` | 霓虹 0–20、默认 8；双边渐变 on／off、默认开启；浓度 0–100%、默认 40% |
 | `stargazerMaxMessages` / `stargazerHideSeconds` | 最多 1–50 条、默认 13；保留 0–999 秒、默认 0，0 表示只按区域／数量淘汰 |

@@ -61,6 +61,7 @@ for (const operation of ['checkForUpdates', 'downloadUpdate']) {
     const state = await manager[operation]();
     assert.equal(state.status, 'error');
     assert.equal(states.at(-1).status, 'error');
+    assert.match(state.message, /清单.*HTTP 404/);
     assert.equal(state.canDownload, false);
     assert.equal(state.canInstall, false);
     assert.equal(logs.length, 1);
@@ -74,6 +75,7 @@ for (const operation of ['checkForUpdates', 'downloadUpdate']) {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       const state = await manager[operation]();
       assert.equal(state.status, 'error');
+      assert.match(state.message, /更新包.*HTTP 404/);
       assert.equal(logs.length, attempt);
       assert.equal(logs.at(-1)[1], error);
     }

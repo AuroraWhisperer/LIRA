@@ -62,8 +62,12 @@ export function openComponentSourceImport({ type, request, onSaved, onUse, onMed
       else status.textContent = '';
     } catch (error) {
       if (!closed) {
-        status.textContent = error.code === 'FILE_PICKER_UNAVAILABLE' ? '' : error.message;
-        if (error.code === 'FILE_PICKER_UNAVAILABLE') file.click();
+        if (error.code === 'FILE_PICKER_UNAVAILABLE') {
+          status.textContent = '';
+          file.click();
+        } else {
+          status.textContent = error.message;
+        }
       }
     } finally { busy = false; submit.disabled = pick.disabled = false; }
   }
@@ -97,7 +101,7 @@ export function openComponentSourceImport({ type, request, onSaved, onUse, onMed
     if (/\.zip$/i.test(selected.name) && onArchive) { dialog.close(); onArchive(selected); return; }
     if (/\.(png|jpe?g|gif|webp|mp4|webm)$/i.test(selected.name)) {
       if (!MEDIA_STYLE_TYPES.includes(type)) { status.textContent = '这个组件不能使用图片或视频，请选择作者提供的样式文件。'; return; }
-      if (selected.size > 512 * 1024 * 1024) { status.textContent = '单个素材不能超过 512 MiB。'; return; }
+      if (selected.size > 512 * 1024 * 1024) { status.textContent = '单个素材不能超过 512 MB（536,870,912 字节），请选择较小的文件。'; return; }
       dialog.close(); onMedia(selected); return;
     }
     status.textContent = '暂不支持这个文件，请选择样式文件、图片、视频或样式压缩包。';

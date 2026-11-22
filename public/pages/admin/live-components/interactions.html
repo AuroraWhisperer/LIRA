@@ -27,7 +27,7 @@
                 <div id="pollOptions" aria-label="投票选项"></div>
                 <button id="pollAddOption" type="button" class="secondary interaction-quiet">添加选项</button>
                 <p class="interaction-rule">
-                  发送完整选项，每个账号仅计首次有效投票。<lira-help label="查看计票规则"><span id="pollRule"></span></lira-help>
+                  观众用弹幕发送完整选项，每个账号只计首次有效投票。<lira-help label="查看计票规则"><span id="pollRule"></span></lira-help>
                 </p>
               </div>
               <div
@@ -111,7 +111,7 @@
               ><button id="interactionClear" class="secondary" type="button">取消本场</button>
             </div>
           </section>
-          <p id="interactionHostStatus" role="status" aria-live="polite">正在读取实时连接状态</p>
+          <p id="interactionHostStatus" role="status" aria-live="polite">正在读取实时连接状态…</p>
         </div>
         <div id="interactionAppearanceView" hidden>
           <div class="interaction-section-heading">
@@ -130,7 +130,7 @@
                 <label>画面标题<input id="interactionOverlayTitle" type="text" placeholder="留空不显示标题" /></label>
                 <label>提示文字<input id="interactionOverlayHint" type="text" placeholder="留空不显示" /></label>
                 <label id="interactionRatingRulesField" hidden
-                  >评分规则<textarea
+                  >画面上的评分说明<textarea
                     id="interactionRatingRules"
                     rows="3"
                     placeholder="支持换行，留空不显示"

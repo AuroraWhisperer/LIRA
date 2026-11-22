@@ -153,7 +153,7 @@ export function createBlindboxSettings({
       if (!outputsRaw) return invalid('blindBoxOutputs', '请输入可能开出的礼物');
 
       const outputs = parseBlindboxOutputs(outputsRaw);
-      if (!outputs?.length) return invalid('blindBoxOutputs', '请按“产物 ID:名称:价格”填写礼物');
+      if (!outputs?.length) return invalid('blindBoxOutputs', '请按「产物 ID:名称」或「产物 ID:名称:价格」填写，多个产物用逗号分隔。');
 
       const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
       const config = readCustomConfig(textarea);

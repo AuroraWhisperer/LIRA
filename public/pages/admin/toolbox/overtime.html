@@ -28,7 +28,7 @@
           <button id="overtimeApplyTimeBtn" class="secondary" type="button" disabled>应用时长并暂停</button>
           <button id="overtimeResetBtn" class="secondary" type="button" disabled>重置倒计时</button>
           <button id="overtimeEnableBtn" class="secondary" type="button" disabled>只启用收礼</button>
-          <lira-help label="时间操作说明">「应用时长并暂停」或「重置倒计时」会把剩余时间直接改成上方的初始时长并暂停；「只启用收礼」会暂停倒计时，但观众送礼依然能加减时间；「关闭加班机」则会同时停止倒计时和收礼，并保留当前剩余时间。</lira-help>
+          <lira-help label="时间操作说明">「应用时长并暂停」保存刚填的时长，「重置倒计时」使用已保存的初始时长。两者都会把剩余时间改为相应时长并停表。计时中点「暂停」可继续收礼加减时。加班机关闭时点「只启用收礼」可收礼加减时，倒计时保持暂停。点「关闭加班机」会停止计时和收礼，并保留剩余时间。</lira-help>
         </div>
         <div class="overtime-consumer-status" aria-label="收礼服务状态">
           <span id="overtimeCoreStatus" class="pill warn">礼物处理：未运行</span>

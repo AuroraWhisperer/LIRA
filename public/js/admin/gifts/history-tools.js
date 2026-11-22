@@ -57,10 +57,14 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   }
 
   function update() {
-    rowSelection.refresh();
+    const addedCount = rowSelection.refresh();
     const count = state.selected.size;
     if (get('giftHistoryDeselect')) get('giftHistoryDeselect').disabled = count === 0;
-    if (get('giftHistorySelectedCount')) get('giftHistorySelectedCount').textContent = `已选 ${count} 条`;
+    const counter = get('giftHistorySelectedCount');
+    if (counter) {
+      const suffix = addedCount === null ? '' : `（本次 +${addedCount}）`;
+      counter.textContent = `已选 ${count} 条${suffix}`;
+    }
     if (get('giftHistoryExport')) {
       get('giftHistoryExport').disabled = count === 0;
       get('giftHistoryExport').textContent = count ? `导出所选 ${count} 条` : '导出所选';
@@ -144,7 +148,7 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
       selectionController = new AbortController();
       const current = operation;
       get('giftHistoryCancelSelect').hidden = false;
-      get('giftHistorySelectionNotice').textContent = '正在取得固定记录快照…';
+      get('giftHistorySelectionNotice').textContent = '正在选中全部筛选结果…';
       try {
         const response = await fetch('/api/gifts/selection', {
           method: 'POST',

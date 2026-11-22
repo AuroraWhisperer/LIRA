@@ -455,7 +455,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 写入时 `JSON.stringify(parseCustomReplyRules(rawValue))` 落库；读取时再次 `parseCustomReplyRules(stored)` 反序列化使用。
 
-## 2.4 萌时钟域(clock)
+## 2.4 时钟域(clock)
 
 > 模块文件:[src/server/routes/clock-routes.js](../../../src/server/routes/clock-routes.js)
 > 前缀:`/api/clock`
@@ -533,13 +533,13 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | `POST /api/music/playlists/tracks/add` | `{platform \| source?`（默认 `qq`）, `playlist: {id \| tid, dirId?, title \| dirName?`（截断 200）}, `tracks[]`（**≤100 条**，空数组报错）} | `{source, operation:'add', playlist, result}` | 400（无效平台）/501（含空曲目列表） |
 | `POST /api/music/playlists/tracks/remove` | 同上(`tracks` ≤ 100)                                                                                                                                                                                                                                                          | `{source, operation:'remove', playlist, result}`                                          | 501、400                                              |
 | `POST /api/music/lyrics`                  | `{track}`(经 `normalizeMusicTrackForProvider` 归一化;命中 30 天歌词缓存时附 `cached: true`)                                                                                                                                                                                   | 歌词数据                                                                                  | 400（含 `LYRIC_EXPANSION_LIMIT`）/501 |
-| `POST /api/music/lyrics/parse` | `{lyric, translation, wordLyric 或 yrc, roma?}`（每段截 512 Ki 个 JS 字符；展开预算见下文） | `{lines: 解析后的时间轴行}` | 400 `LYRIC_EXPANSION_LIMIT` |
+| `POST /api/music/lyrics/parse` | `{lyric, translation, wordLyric 或 yrc, roma?}`（每段截取前 524,288 个 UTF-16 代码单元；展开预算见下文） | `{lines: 解析后的时间轴行}` | 400 `LYRIC_EXPANSION_LIMIT` |
 | `POST /api/music/match-track` | `{songName \| title`（必填，截断 120）, `artist`（截断 80）, `durationMs?`, `candidates[]`（≤50）} | `{request, threshold: 70, results}` | 400（缺歌名） |
 | `POST /api/music/cache/clear`             | 无                                                                                                                                                                                                                                                                            | 清空音乐 API/歌词缓存结果                                                                 | —                                                     |
 
 目录查询与歌单写入的校验由 [music-catalog-service.js](../../../src/music/music-catalog-service.js) 拥有；歌词获取/解析见 [lyrics-service.js](../../../src/music/lyrics-service.js)，候选匹配见 [song-matcher.js](../../../src/music/song-matcher.js)。
 
-在线歌词与手动解析均在昂贵消费者之前检查[解析展开预算](music/services.md#14-歌词解析器srcmusiclyric-parserjs)：最多 4096 行、累计文本 512 Ki 个 JS 字符。超预算返回 HTTP 400，`{ok:false,code:"LYRIC_EXPANSION_LIMIT",error:整理提示}`，不返回截断歌词。
+在线歌词与手动解析均在昂贵消费者之前检查[解析展开预算](music/services.md#14-歌词解析器srcmusiclyric-parserjs)：最多 4096 行、累计文本 524,288 个 UTF-16 代码单元。超预算返回 HTTP 400，`{ok:false,code:"LYRIC_EXPANSION_LIMIT",error:固定错误提示}`，不返回截断歌词。
 
 行为文档:[music/services.md](music/services.md)(在线音源、播放器领域)。
 
@@ -614,7 +614,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | 端点 | 请求 | 成功响应 `data` | 错误 |
 | --- | --- | --- | --- |
 | `POST /api/songs/import-preview` | `{rows?,base64?,replaceAll?:boolean,allowEmptyClear?:boolean}`，XLSX 用 base64，否则提供保留实际列的原始行对象，1–5000 行 | `{previewToken,counts:{inserted,updated,unchanged,conflict,invalid,deleted?},rows:[{row,name,artist,status,differences:[{field,before,after}],reason?}],canApply}` | 400 `SONG_IMPORT_INPUT_INVALID`，500 `SONG_IMPORT_FAILED` |
-| `POST /api/songs/import-apply` | 同一原始输入和导入选项，加 `previewToken`；客户端不传执行计划 | `{total,inserted,updated,unchanged,conflict,invalid,deleted?,createdCategories}` | 409 `SONG_IMPORT_PREVIEW_STALE`，422 `SONG_IMPORT_PREVIEW_INVALID`，400 输入无效，500 事务失败 |
+| `POST /api/songs/import-apply` | 同一原始输入和导入选项，加 `previewToken`；客户端不传执行计划 | `{total,inserted,updated,unchanged,conflict,invalid,deleted?,createdCategories}` | 409 `SONG_IMPORT_PREVIEW_STALE`，422 `SONG_IMPORT_PREVIEW_INVALID`，400 输入无效，500 `SONG_IMPORT_FAILED`。保存、后续广播或请求同步失败时均可能返回此错误，重试前需核对歌库 |
 
 错误体 `{ok:false,error,message}`；请求体必须是对象（`null`、数组、同时传 rows/base64 均为 400）。预览纯读取；应用在本地事务内重读全部歌曲及全部曲风，重算变更并核对绑定输入和快照的 SHA-256 token。任一冲突/无效行或零变更不能应用；过期无写入。未启用替换时，最终完整歌库超过 5000 首会拒绝新增/更新，包括历史超限库的纯更新。管理页固定传 `replaceAll: true`：以表格为完整歌库，删除未匹配的旧歌曲，完整覆盖匹配歌曲字段（空白/缺列用默认值），输入仍限 1–5000 行；历史超限库允许替换为限额内歌库。替换预览额外返回 `deleted` 计数及 `status: deleted, row: null` 的删除明细；`total` 只统计输入行。相同规范化歌曲的重复行折叠，不同内容冲突。没有 `replaceAll` 时兼容原更新/空值规则。token 同时绑定替换选项，不能拿更新预览执行删除。成功一次 `songs:import` 广播与一次 `cloudSync.request('songs')`，由既有 dirty/retry 控制器上传完整歌曲快照；失败不触发。token 是乐观并发检查，不替代 API 授权。
 

@@ -269,16 +269,16 @@ async function installUpdate() {
 
 function friendlyUpdateError(error) {
   const text = `${error && error.message ? error.message : ''}\n${String(error || '')}`;
-  if (/\b404\b/.test(text) && /latest\.yml|ERR_UPDATER_CHANNEL_FILE_NOT_FOUND/i.test(text)) {
+  if (/\b404\b/.test(text) && (error?.code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' || /latest\.yml|ERR_UPDATER_CHANNEL_FILE_NOT_FOUND/i.test(text))) {
     return {
       status: 'error',
-      message: '更新清单暂不可用，请稍后再试。',
+      message: '找不到更新清单（HTTP 404），请稍后重新检查更新。',
     };
   }
   if (/\b404\b/.test(text)) {
     return {
       status: 'error',
-      message: '更新包暂不可用（HTTP 404），请稍后重试或反馈发布者。',
+      message: '找不到更新包，请稍后重试。如需联系管理员，请提供错误码 HTTP 404。',
     };
   }
   if (/checksum mismatch|sha512|sha256|hash mismatch/i.test(text)) {

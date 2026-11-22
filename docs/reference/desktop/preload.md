@@ -212,9 +212,9 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 | `desktop-notifications:get-state` | `desktopNotifications.getState()`，无参数 | `{ok:true,supported:boolean,settings:DesktopNotificationSettings}` | [desktop-notifications-ipc.js](../../../src/electron/ipc/desktop-notifications-ipc.js) / [desktop-notification-settings.js](../../../public/js/admin/desktop-notification-settings.js) |
 | `desktop-notifications:update` | `desktopNotifications.update(patch)`，一个参数 | 同上；失败 `{ok:false,error}` | 同上；持久化及礼物原生通知由 [desktop-notifications.js](../../../src/electron/desktop-notifications.js) 拥有 |
 | `fan-profiles:invoke` | `fanProfiles.invoke({action,contextId?,payload?})` | `{ok:true,contextId,data,syncStatus,roomId,accountName}`；失败见 §5 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js) / [fans/index.js](../../../public/js/admin/fans/index.js)、[automatic-update.js](../../../public/js/admin/fans/automatic-update.js) |
-| `gift-export:settings` | `giftExport.settings(options?)` | `{ok:true,data:{mode,background,directory,custom}}` | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) / [export-preview.js](../../../public/js/admin/gifts/export-preview.js) |
+| `gift-export:settings` | `giftExport.settings(options?)` | `{ok:true,data:{mode,background,mergeAcrossDates,directory,custom}}` | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) / [export-preview.js](../../../public/js/admin/gifts/export-preview.js) |
 | `gift-export:prepare` | `giftExport.prepare(selection)` | `{ok:true,data:ExportTask}` | 同上 |
-| `gift-export:configure` | `giftExport.configure({id,mode,background,directoryAction?,remember?})` | `{ok:true,data:ExportTask}` | 同上 |
+| `gift-export:configure` | `giftExport.configure({id,mode,background,mergeAcrossDates?,directoryAction?,remember?})` | `{ok:true,data:ExportTask}` | 同上 |
 | `gift-export:save` | `giftExport.save(id)` → `{id}` | **直接**返回 `{ok:true,saved,directory}` 或 `{ok:false,cancelled,saved,directory,error}`；启动前异常可仅 `{ok:false,error}` | 同上 |
 | `gift-export:cancel` | `giftExport.cancel(id?)`，原始 id | `{ok:true,data:undefined}`；不匹配的非空 id 不取消当前任务 | 同上 |
 | `gift-export:open-folder` | `giftExport.openFolder(id)` → `{id}` | `{ok:true,data:{ok:true}}`，要求该任务已保存≥1张 | 同上 |
@@ -341,9 +341,10 @@ BackupV1 为 `{format:'lira-fan-profiles',version:1,scope,exportedAt,profiles,se
 
 Owner：[gift-export-controller.js](../../../src/electron/gift-export-controller.js)、[gift-export-runtime.js](../../../src/server/gift-export-runtime.js)、[query-service.js](../../../src/bilibili/gift/query-service.js) 的 getGiftSelection。
 
-- settings 不传参数读取默认值；写入只含可选 mode=combined/separate、background=transparent/white、directoryAction=choose/default，拒绝未知字段与非法值。renderer 不传保存路径，目录由原生对话框或系统图片目录产生。取消目录选择不写入；导航/任务代次变化/销毁后忽略迟到选择。
+- settings 不传参数读取默认值；写入只含可选 mode=combined/separate、background=transparent/white、布尔值 mergeAcrossDates、directoryAction=choose/default，拒绝未知字段与非法值。renderer 不传保存路径，目录由原生对话框或系统图片目录产生。取消目录选择不写入；导航/任务代次变化/销毁后忽略迟到选择。
 - prepare 的 selection 必须带当前 viewRevision；可带 eventIds（1–10000个非空字符串，各≤64）或历史筛选/排序条件，规则见 [礼物 HTTP 契约](../backend/api.md)。查回数量必须匹配去重 ID 数；筛选结果最多10000条且不能为空。冻结当前来源、流水、展示设置、目录和礼物卡片；后续默认设置只影响新任务。
-- ExportTask 为 `{id,snapshot,root,directory,mode,background,files:[{start,count,fileName}],custom}`。snapshot 含 viewRevision/asOf/items、同步元数据、selectedCount/cardsPartial、config/catalog；卡片转换可改变 items 的组织，selectedCount 保留原选中记录数。预览按 files 切出当前页，保存时同一份局部布局用于窗口初始尺寸、逐张输出和进度总数。
+- ExportTask 为 `{id,snapshot,root,directory,mode,background,mergeAcrossDates,files:[{start,count,fileName}],custom}`。snapshot 含 viewRevision/asOf/items、同步元数据、selectedCount/cardsPartial、config/catalog；卡片转换可改变 items 的组织，selectedCount 保留原选中记录数。预览按 files 切出当前页，保存时同一份局部布局用于窗口初始尺寸、逐张输出和进度总数。
+- `mergeAcrossDates` 默认关闭。开启后按服务端确认的同人同礼物分组累计冻结卡片。已按今日身份合并的卡片用首条 `sourceEventId` 参与查询。每个任务复用一次分组结果，关闭开关即可恢复原预览。
 - configure 要求当前 id、合法 mode/background；directoryAction 可省略，remember===true 只记忆目录。条目数1–10000；combined 每图最多39行，separate 每图1行。运行中不可改配置或再次 prepare；完成的任务不可重复 save。失败后 configure 生成新目录并重置保存计数。
 - save 使用独占任务目录/文件，逐张 render/capture/write，渲染步骤有20秒期限；viewRevision 变化立即使任务失效。进度 `{id,saved,total}` 表示已完成文件，不表示所有文件必然成功。取消或部分失败保留已写文件，返回 saved/directory；不承诺取消能撤回正在完成的文件写入。
 - 主窗口非原地导航或 destroyed 调用 cancel；dispose 也取消并销毁隐藏渲染窗口。取消不匹配的旧 id 不影响新任务；preparationGeneration 防止旧 prepare 覆盖新任务。renderer 按 id 过滤迟到 progress，关闭预览解除订阅。openFolder 只允许已保存至少一张的任务，不能传任意路径。

@@ -65,6 +65,13 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     } finally { await fs.rm(staging, { recursive: true, force: true }); }
   }
 
+  function preparationErrorMessage(error) {
+    if (controller.signal.aborted) return '音频组件已关闭，请重新打开 LIRA。';
+    if (error.message === 'AUDIO_AUTHORIZATION_REQUIRED') return '下载音频组件需要 LIRA 账号授权，请确认授权后重试。';
+    if (error.message === 'AUDIO_PLATFORM_UNSUPPORTED') return '这台设备不支持音频组件。';
+    return '音频组件准备失败。请打开「百宝箱 → 设置 → 关于与更新」，在音频组件下载任务旁点击「重试」。';
+  }
+
   function initialize({ retry = false } = {}) {
     if (controller.signal.aborted) return Promise.reject(new Error('AUDIO_COMPONENT_CLOSED'));
     if (executable) return Promise.resolve(executable);
@@ -77,8 +84,8 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
       return filename;
     }).catch(error => {
       failure = error.message === 'AUDIO_AUTHORIZATION_REQUIRED' ? null : error;
-      publish({ status: controller.signal.aborted || !failure ? 'idle' : 'error',
-        error: '音频组件准备失败，请在下载任务中重试。' });
+      const hasRetryTask = failure && !controller.signal.aborted && error.message !== 'AUDIO_PLATFORM_UNSUPPORTED';
+      publish({ status: hasRetryTask ? 'error' : 'idle', error: preparationErrorMessage(error) });
       throw error;
     }).finally(() => { task = null; });
     return task;
@@ -86,7 +93,9 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
 
   async function getExecutable() {
     try { return await initialize(); }
-    catch { throw new Error('音频组件尚未就绪，请在下载任务中查看进度或重试。'); }
+    catch (cause) {
+      throw new Error(preparationErrorMessage(cause), { cause });
+    }
   }
 
   function retry() {

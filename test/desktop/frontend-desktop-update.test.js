@@ -50,16 +50,44 @@ test('update failures notify once for manual checks and active downloads, keepin
   };
   desktop.initDesktopShell();
   await new Promise(setImmediate);
-  onState({ status: 'error' });
+  onState({ status: 'error', message: '后台检查的诊断' });
   assert.equal(notices.length, 0);
+  assert.equal(nodes.desktopUpdateStatus.textContent, '后台检查的诊断');
   nodes.desktopCheckUpdateBtn.listeners.get('click')();
   await new Promise(setImmediate);
   assert.equal(notices.length, 1, 'state event plus rejected action must not notify twice');
   onState({ status: 'downloading', updateVersion: '1.2.3' });
-  onState({ status: 'error', updateVersion: '1.2.3' });
-  onState({ status: 'error', updateVersion: '1.2.3' });
+  const failure = { status: 'error', updateVersion: '1.2.3', message: '安装包诊断：HTTP 404' };
+  onState(failure);
+  onState(failure);
+  assert.equal(notices.at(-1).message, failure.message);
+  assert.equal(nodes.desktopUpdateStatus.textContent, failure.message);
   assert.equal(notices.length, 2);
   assert.notEqual(notices[1].title, notices[0].title, 'download failure must not reuse the check failure notice');
+});
+
+test('IPC-only update errors show the missing resource and its status in the notice and update page', async () => {
+  const notices = [];
+  const { desktop, nodes, windowRef } = await createFixture({ showStackedToast: notice => notices.push(notice) });
+  let onState;
+  windowRef.songAssistantDesktop = {
+    getInfo: async () => ({}), onShowUpdatePage() {}, onUpdateState(callback) { onState = callback; },
+    async checkForUpdates() { throw new Error('HTTP 404 /latest.yml'); },
+    async downloadUpdate() { throw new Error('HTTP 404 /lira-setup.exe'); },
+  };
+  desktop.initDesktopShell();
+  await new Promise(setImmediate);
+  for (const [button, diagnostic] of [['desktopCheckUpdateBtn', /清单.*HTTP 404/], ['desktopDownloadUpdateBtn', /更新包.*HTTP 404/]]) {
+    nodes[button].listeners.get('click')();
+    await new Promise(setImmediate);
+    assert.match(nodes.desktopUpdateStatus.textContent, diagnostic);
+    assert.equal(notices.at(-1).message, nodes.desktopUpdateStatus.textContent);
+  }
+  assert.equal(notices.length, 2);
+  onState({ status: 'available', updateVersion: '1.2.3' });
+  onState({ status: 'error', updateVersion: '1.2.3', message: '自动下载出错 HTTP 404' });
+  assert.equal(notices.length, 4, 'an automatic download can fail before its first progress event');
+  assert.equal(notices.at(-1).message, nodes.desktopUpdateStatus.textContent);
 });
 
 test('resource checks ignore stale revisions and render bounded details as text', async () => {

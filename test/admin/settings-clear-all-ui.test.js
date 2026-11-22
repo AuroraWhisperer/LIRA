@@ -100,7 +100,7 @@ test('Admin clear-all alerts and reloads for a structured partial failure', asyn
     ok: false,
     partial: true,
     error: 'Commit failed at superChatDb',
-    data: { committed: ['songDb'], failed: ['superChatDb'] },
+    data: { committed: ['songDb'], failed: ['superChatDb'], rollbackFailed: ['giftDb'] },
   };
   const error = new Error(payload.error);
   error.payload = payload;
@@ -148,8 +148,10 @@ test('Admin clear-all alerts and reloads for a structured partial failure', asyn
   await operations.clearAll();
 
   assert.equal(alerts.length, 1);
-  assert.match(alerts[0], /songDb/);
-  assert.match(alerts[0], /superChatDb/);
+  assert.match(alerts[0], /已清空：[^\n]*歌库/);
+  assert.match(alerts[0], /清空失败：醒目留言/);
+  assert.match(alerts[0], /待核对：礼物与加班机记录/);
+  assert.doesNotMatch(alerts[0], /Commit failed|(?:song|superChat|gift)Db/);
   assert.match(alerts[0], /仍暂停.*刷新页面不会恢复/);
   assert.match(alerts[0], /日志目录.*再次完整清空/);
   assert.equal(reloadCount, 1);
@@ -157,7 +159,7 @@ test('Admin clear-all alerts and reloads for a structured partial failure', asyn
   assert.equal((await restorePlayback(localStorageRef)).current.id, 'old-song', 'uncommitted music data keeps its local fallback');
 });
 
-for (const [phase, message] of [['runtime-reset', '运行状态重载失败'], ['resume', '写入恢复失败']]) {
+for (const [phase, expected] of [['runtime-reset', /数据已清空[^。]*运行状态[^。]*刷新/], ['resume', /数据已清空[^。]*写入[^。]*恢复/]]) {
   test(`Admin clear-all describes ${phase} without an empty failed-database row`, async () => {
     const { createSettingsOperations } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-operations.js'));
     const alerts = [];
@@ -167,17 +169,17 @@ for (const [phase, message] of [['runtime-reset', '运行状态重载失败'], [
       documentRef: {}, windowRef: {}, locationRef: { reload() { reloads++; } }, localStorageRef,
       alertRef: value => alerts.push(value), dangerConfirm: async () => true,
       api: async () => {
-        const error = new Error(message);
-        error.payload = { partial: true, error: message, data: { phase, committed: ['songDb', 'giftDb', 'musicDb'], failed: [] } };
+        const error = new Error('fixture failure');
+        error.payload = { partial: true, error: error.message, data: { phase, committed: ['songDb', 'giftDb', 'musicDb'], failed: [] } };
         throw error;
       },
       toast() { assert.fail('partial failure must use a blocking explanation'); },
     });
     await operations.clearAll();
     assert.equal(reloads, 1);
-    assert.match(alerts[0], new RegExp(message));
-    assert.match(alerts[0], /数据库已提交/);
-    assert.doesNotMatch(alerts[0], /✗ 失败/);
+    assert.match(alerts[0], expected);
+    assert.match(alerts[0], /已清空：[^\n]*播放记录/);
+    assert.doesNotMatch(alerts[0], /清空失败：/);
     assert.match(alerts[0], /仍暂停.*刷新页面不会恢复/);
     assert.equal(await restorePlayback(localStorageRef), null, 'committed music clear must not restore legacy local state');
   });

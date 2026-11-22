@@ -82,7 +82,7 @@
           </label>
           <p id="xiaomiAiChatGptState" class="hint" role="status" aria-live="polite">正在读取 ChatGPT 登录状态…</p>
           <div class="xiaomi-ai-connection-actions xiaomi-ai-access-links">
-            <button id="xiaomiAiChatGptLogin" class="secondary" type="button">Continue with ChatGPT</button>
+            <button id="xiaomiAiChatGptLogin" class="secondary" type="button">连接 ChatGPT 订阅</button>
             <button id="xiaomiAiChatGptAdd" class="secondary" type="button" hidden>添加账号</button>
             <button id="xiaomiAiChatGptCancel" class="secondary" type="button" hidden>取消登录</button>
             <button id="xiaomiAiChatGptLogout" class="secondary" type="button" hidden>退出当前账号</button>
@@ -98,7 +98,7 @@
             id="xiaomiAiDeepSeekUrl"
             type="url"
             autocomplete="off"
-            placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"
+            placeholder="例如：https://api.deepseek.com 或 https://api.openai.com/v1"
         /></label>
         <div id="xiaomiAiDoubaoAccount" class="wide" hidden>
           <p id="xiaomiAiDoubaoState" class="hint" role="status" aria-live="polite">正在读取豆包登录状态…</p>
@@ -106,7 +106,8 @@
             <button id="xiaomiAiDoubaoLogin" class="secondary" type="button">扫码登录豆包</button>
             <button id="xiaomiAiDoubaoLogout" class="secondary" type="button" hidden>退出豆包</button>
           </div>
-          <p class="hint">使用手机豆包扫码，电脑无需安装豆包。仅文字对话，不需要 API Key。请求受限时会暂停，请按豆包窗口提示处理，再点「测试 AI 连接」。网页未必显示验证码，以连接测试成功为恢复依据。</p>
+          <p class="hint">使用手机豆包扫码，电脑无需安装豆包。仅文字对话，不需要 API Key。提示需要验证时，点「打开豆包完成验证」，按网页提示操作，再点「测试 AI 连接」。网页未必显示验证码，以连接测试成功为恢复依据。</p>
+          <p class="hint">若提示「豆包未确认会话或上下文隔离」，先关闭「启用 AI」，保持选中豆包。开关保存成功后重启 LIRA，再点「测试 AI 连接」。测试通过后再按需开启 AI。</p>
           <p class="hint">测试连接使用单独对话。</p>
         </div>
         <label id="xiaomiAiKeyControl" class="wide"
@@ -274,7 +275,7 @@
                 inputmode="url"
                 autocomplete="off"
                 spellcheck="false"
-                placeholder="nn7mdbwku9.re.qweatherapi.com"
+                placeholder="例如 example.re.qweatherapi.com"
             /></label>
             <label class="wide"
               >密钥（API Key）<input
@@ -300,11 +301,11 @@
           </div>
           <div id="xiaomiAiMapCredentials" class="xiaomi-ai-field-grid" hidden>
             <label class="wide"
-              >Web 服务 API Host<input
+              >Web 服务接口地址（API Host）<input
                 id="xiaomiAiAmapHost"
                 type="url"
                 autocomplete="off"
-                placeholder="填写你的高德 API Host"
+                placeholder="例如 https://restapi.amap.com"
             /></label>
             <label class="wide"
               >Web 服务 Key<input

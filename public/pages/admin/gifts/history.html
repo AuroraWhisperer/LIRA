@@ -102,7 +102,7 @@
     <div id="giftHistoryMarquee" class="gift-history-marquee" aria-hidden="true" hidden></div>
   </div>
   <div class="gift-drawer-footer" data-gift-pane="list">
-    <span id="giftHistorySelectionHelp" class="hint">点击整行选择 · 拖动框选本页 · Ctrl 拖动追加</span>
+    <span id="giftHistorySelectionHelp" class="hint">点击行可勾选或取消 · 拖动框选本页 · 按住 Ctrl 可从行或勾选框拖动追加</span>
     <button id="giftHistoryPrev" type="button" class="secondary" disabled>← 上一页</button>
     <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
     <button id="giftHistoryNext" type="button" class="secondary" disabled>下一页 →</button>
@@ -128,7 +128,7 @@
           <fieldset id="giftExportSettingsFields" class="gift-export-settings" data-dropdown-variant="toolbox">
             <legend class="gift-export-section-title">导出设置</legend>
             <p class="gift-export-autosave hint">修改自动保存，并应用于本次导出。</p>
-            <p class="hint">礼物价格分色沿用「组件 › 礼物姬 › 滚动礼物 › 价格分色」的设置。</p>
+            <p class="hint">要调整礼物价格的显示颜色，请到「组件 → 礼物姬 → 滚动礼物」修改「价格分色（元）」。</p>
             <div class="gift-export-settings-grid">
               <label
                 >输出方式<select id="giftExportMode" aria-describedby="giftExportModeHint">
@@ -144,6 +144,14 @@
               >
             </div>
             <p id="giftExportModeHint" class="hint">拼图超长时会自动分成多张。</p>
+            <label class="switch-control gift-export-merge">
+              <span>
+                <span id="giftExportMergeLabel">跨日期合并同种礼物</span>
+                <span id="giftExportMergeHint" class="hint">把所选记录中同一位观众送的同种礼物合为一张卡片。</span>
+              </span>
+              <input id="giftExportMergeAcrossDates" type="checkbox" role="switch" aria-labelledby="giftExportMergeLabel" aria-describedby="giftExportMergeHint" />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
             <div class="gift-export-settings-directory">
               <div class="gift-export-directory-head">
                 <label for="giftExportSettingsDirectory">保存文件夹</label>

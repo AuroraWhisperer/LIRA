@@ -137,7 +137,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | catalog | `getMusicHomeContent(registry, body)` | 首页内容及推荐缓存，见 §6.2 |
 | catalog | `writeMusicPlaylistTracks(registry, body, operation)` | 歌单写入及加载会话失效，见 §6.4 |
 | lyrics | `getMusicTrackLyrics(registry, body)` | 歌词及缓存，见 §6.3 |
-| lyrics | `parseLyricPayload(body)` | `lyric/translation/wordLyric(yrc)/roma` 各**截 512 Ki 个 JS 字符**；`cleanTextPreserveLines` 保留换行后交给 `parseLyricResult`；超出 §14 展开预算时报 `LYRIC_EXPANSION_LIMIT` |
+| lyrics | `parseLyricPayload(body)` | `lyric/translation/wordLyric(yrc)/roma` 各**截取前 524,288 个 UTF-16 代码单元**；`cleanTextPreserveLines` 保留换行后交给 `parseLyricResult`；超出 §14 展开预算时报 `LYRIC_EXPANSION_LIMIT` |
 
 曲目匹配输入门面归 `song-matcher.js`（§9），Provider 曲目归一化直接使用 `track-contract.js`（§4.1）。
 
@@ -489,7 +489,7 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 
 `lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 `parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine` 及仅由网易云调用的 `estimateWordTimings`([lyric-parser.js](../../../../src/music/lyric-parser.js))。
 
-解析器在多时间戳展开、逐字行提取和四路文本组合时检查资源预算：每份结果最多 4096 行，累计文本最多 512 Ki 个 JS 字符（组合结果包含正文、翻译、罗马音及词文本）。超预算抛出 `LYRIC_EXPANSION_LIMIT`（`statusCode:400`），不返回截断结果；检查在逐字估算和 HTTP 序列化之前执行。正常同行多时间戳语义不变。歌词与手动解析 HTTP 将该错误映射为 400、`code:LYRIC_EXPANSION_LIMIT` 及固定整理提示；QQ 保留新版到旧版的正常回退，最终失败不丢失该错误类型。
+解析器在多时间戳展开、逐字行提取和四路文本组合时检查资源预算：每份结果最多 4096 行，累计文本最多 524,288 个 UTF-16 代码单元（组合结果包含正文、翻译、罗马音及词文本）。超预算抛出 `LYRIC_EXPANSION_LIMIT`（`statusCode:400`），不返回截断结果；检查在逐字估算和 HTTP 序列化之前执行。正常同行多时间戳语义不变。歌词与手动解析 HTTP 将该错误映射为 400、`code:LYRIC_EXPANSION_LIMIT` 及固定错误提示；QQ 保留新版到旧版的正常回退，最终失败不丢失该错误类型。
 
 ### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)([lyric-parser.js:45-75](../../../../src/music/lyric-parser.js#L45-L75))
 

@@ -114,7 +114,7 @@ export function bindClockParameters(root, controller) {
 }
 
 export function createClockPreview({ controller, source = document, onOpen, onClose, panelPrefix = 'preview-clock' }) {
-  return { id: 'clock', title: '萌时钟', controller,
+  return { id: 'clock', title: '时钟', controller,
     url: new URL('/clock?componentPreview=1', location.href).href, dataLabel: '设备当前时间',
     size: (draft) => draft.style === 'timeline-vertical' ? [48, 80]
       : draft.style === 'moonlit-fan' ? [580, 380] : [580, 210],

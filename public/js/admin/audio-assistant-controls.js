@@ -159,6 +159,7 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
   const mainPage = page.closest('.main-page');
   const panel = document.getElementById('audioAssistantPanel');
   const roots = [page, panel];
+  const resetTitle = page.querySelector('[data-audio-action="reset"]').title;
   const controls = roots.flatMap((root) => [...root.querySelectorAll('[data-audio-controls]')]);
   for (const root of controls) createControls(root);
   const feedback = createAudioFeedback();
@@ -259,8 +260,9 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       for (const button of root.querySelectorAll('[data-audio-action]')) {
         const action = button.dataset.audioAction;
         const stoppedAction = { recover: '恢复原声', refresh: '刷新设备', file: '选择歌曲' }[action];
-        button.title = preparing || (busy && stoppedAction ? `请先关闭「${deviceSource ? '处理声音' : '当前歌曲'}」，停止处理后再${stoppedAction}。` : '');
-        button.disabled = Boolean(button.title);
+        const disabledHint = preparing || (busy && stoppedAction ? `请先关闭「${deviceSource ? '处理声音' : '当前歌曲'}」，停止处理后再${stoppedAction}。` : '');
+        button.title = disabledHint || (action === 'reset' ? resetTitle : '');
+        button.disabled = Boolean(disabledHint);
       }
       for (const group of root.querySelectorAll('[data-audio-group="speedPercent"]')) group.classList.toggle('is-unavailable', !speedAvailable);
       for (const group of root.querySelectorAll('[data-audio-group="strength"]')) group.classList.toggle('is-unavailable', !musicAvailable);

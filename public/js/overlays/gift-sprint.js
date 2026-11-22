@@ -17,7 +17,7 @@ const socket = createOverlaySocket({
   onMessage(message) {
     if (message.type !== 'snapshot') return;
     renderGiftSprintText(text, message.state?.giftSprint);
-    setStatus(text.hidden ? '请在「礼物 → 月底冲刺」设置冲刺目标。' : '');
+    setStatus(text.hidden ? '请在「组件 → 礼物姬 → 月底冲刺」设置冲刺目标。' : '');
   },
   onClose() {
     renderGiftSprintText(text, null);

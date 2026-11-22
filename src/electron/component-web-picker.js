@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { WEB_MIME, webFilePath } = require('../server/component-web-files');
 const { webFileReferences, localWebReference, webDocumentBase } = require('../server/component-web-references');
-const { MAX_MEDIA_BYTES } = require('../server/component-media-files');
+const { MAX_MEDIA_BYTES, componentFileSizeError } = require('../server/component-media-files');
 const { MAX_PACKAGE_BYTES } = require('../server/component-style-library');
 
 const SOURCE_EXTENSIONS = ['html', 'htm', 'css', 'zip', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'webm'];
@@ -67,7 +67,7 @@ function createComponentWebPicker({ dialog, getWindow }) {
       }
       if (kind === 'auto' && !['html', 'htm', 'css'].includes(extension)) {
         const limit = extension === 'zip' ? MAX_PACKAGE_BYTES : MAX_MEDIA_BYTES;
-        if (stat.size > limit) throw Object.assign(new Error(`文件不能超过 ${limit / 1024 / 1024} MiB。`), { statusCode: 413 });
+        if (stat.size > limit) throw componentFileSizeError(limit);
         return { name: path.basename(selected), size: stat.size, open: () => fs.createReadStream(selected) };
       }
       let root = await packageRoot(selected);

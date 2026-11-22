@@ -20,7 +20,7 @@ function normalizeState(input, checkSize = false) {
       if (value && !isWeeklyScheduleAsset(value)) throw new Error('周表素材记录无法读取，请先保留本机数据后重试。');
     }
     if (checkSize && ASSET_KEYS.reduce((total, key) => total + getWeeklyScheduleAssetBytes(template.assets?.[key]), 0) > MAX_TEMPLATE_ASSET_BYTES) {
-      throw new Error('每份周表的素材合计不能超过 48 MiB，请先移除或缩小部分图片。');
+      throw new Error('每份周表的素材总量不能超过 48 MB（50,331,648 字节），请移除或缩小部分图片。');
     }
     return normalizeWeeklyScheduleTemplate(template);
   });

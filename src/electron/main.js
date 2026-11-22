@@ -530,6 +530,10 @@ async function startDesktopApp() {
         if (!licenseManager?.isAuthorized()) throw new Error('LICENSE_NOT_AUTHORIZED');
         return licenseManager.getGiftCardProfilesInternal(request);
       },
+      cardGroups: (request) => {
+        if (!licenseManager?.isAuthorized()) throw new Error('LICENSE_NOT_AUTHORIZED');
+        return licenseManager.getGiftCardGroupsInternal(request);
+      },
       cardAvatars: (request) => {
         if (!licenseManager?.isAuthorized()) throw new Error('LICENSE_NOT_AUTHORIZED');
         return licenseManager.getGiftCardAvatarsInternal(request);

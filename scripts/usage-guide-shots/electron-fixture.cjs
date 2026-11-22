@@ -28,7 +28,7 @@ let requestAuth;
 let fanController;
 let stopping = false;
 const fixture = {
-  license: { state: 'needs_activation' },
+  license: { state: 'authorized' }, // Seed the demo through its account-scoped API before opening a shot.
   catalog: { status: 'ready' },
   update: { status: 'idle' },
   profile: {

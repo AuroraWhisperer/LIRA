@@ -12,7 +12,7 @@ const ERRORS = Object.freeze({
   DOUBAO_UNAVAILABLE: '豆包暂时无法连接，请打开豆包窗口检查登录或网络。',
   DOUBAO_TIMEOUT: '豆包回复超时，请稍后再试。',
   DOUBAO_SESSION_CHANGED: '豆包登录会话已变化，本次回复已取消。',
-  DOUBAO_CONTEXT_UNCONFIRMED: '豆包未确认会话或上下文隔离，已停止请求。请重启 LIRA 后测试；若仍出现此提示，请暂停使用豆包。',
+  DOUBAO_CONTEXT_UNCONFIRMED: '豆包未确认会话或上下文隔离，已停止请求。请关闭「启用 AI」，保持选中豆包。保存后重启 LIRA，在开关关闭时点「测试 AI 连接」。测试通过后再按需启用。',
 });
 
 function doubaoError(code) {

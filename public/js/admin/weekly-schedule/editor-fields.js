@@ -220,7 +220,7 @@ export function renderWeeklyScheduleFields(container, template) {
   const uploadDetails = element('details', 'weekly-upload-details');
   uploadDetails.open = true;
   uploadDetails.append(element('summary', '', '上传与替换图片'));
-  uploadDetails.append(element('p', 'weekly-field-help', 'PNG / JPG / WebP，单张最多 12 MiB，每模板合计 48 MiB；最大边 8192 像素、总像素 33,554,432。图标也支持静态 SVG。'));
+  uploadDetails.append(element('p', 'weekly-field-help', '支持 PNG、JPG 和 WebP，图标也支持静态 SVG。单张最多 12 MB，每份周表的素材合计最多 48 MB。图片长边最多 8192 像素，总像素上限约 3355 万。'));
   const uploads = element('div', 'weekly-upload-grid');
   ASSETS.forEach(([key, title]) => {
     const slot = element('div', 'weekly-upload');

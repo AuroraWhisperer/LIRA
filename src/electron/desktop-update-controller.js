@@ -80,7 +80,7 @@ function createDesktopUpdateController({
     state = {
       ...state,
       status: 'dev-disabled',
-      message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
+      message: '开发模式不检查更新；打包安装后自动启用。',
       canDownload: false,
       canInstall: false,
     };

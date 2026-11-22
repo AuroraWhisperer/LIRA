@@ -4,24 +4,26 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { DEFAULT_CLIENT_THEME_ID } = require('../../src/shared/client-theme');
+const { CLIENT_THEMES } = require('../../src/shared/client-theme');
 
 const css = fs.readFileSync(path.resolve(__dirname, '../../public/css/desktop/palettes.css'), 'utf8');
-const blocks = [...css.matchAll(/([^{}]+)\{([^{}]+)\}/g)];
+const blocks = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]+)\}/g)];
 const declarations = (body) => Object.fromEntries([...body.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, key, value]) => [key, value]));
-const defaultBlock = blocks.find(([, selector, body]) => selector.includes('html[data-client-theme],') && /--color-primary:/.test(body));
-const aliasBlock = blocks.find(([, , body]) => /--primary:/.test(body));
-const paletteBlocks = Object.fromEntries(blocks.flatMap((block) => {
-  const id = block[1].match(/(?:^|[,\n])\s*html\[data-client-theme='([^']+)'\](?:\s*,|\s*$)/)?.[1];
-  return id ? [[id, block]] : [];
-}));
-paletteBlocks[DEFAULT_CLIENT_THEME_ID] = defaultBlock;
-const palettes = Object.fromEntries(Object.entries(paletteBlocks).map(([id, block]) => [id, declarations(block[2])]));
-const aliases = declarations(aliasBlock[2]);
 
-function resolveColor(palette, value) {
-  const tokens = { ...aliases, ...palette };
-  return (tokens[value] || value).replace(/var\((--[\w-]+)\)/g, (_, name) => resolveColor(palette, name));
+function themeTokens(id) {
+  const tokens = {};
+  for (const [, selector, body] of blocks) {
+    if (!selector.trimStart().startsWith('html')) continue;
+    const selectors = selector.split(',').map((part) => part.trim());
+    if (selectors.includes('html[data-client-theme]') || selectors.includes(`html[data-client-theme='${id}']`)) {
+      Object.assign(tokens, declarations(body));
+    }
+  }
+  return tokens;
+}
+
+function resolveColor(tokens, value) {
+  return (tokens[value] || value).replace(/var\((--[\w-]+)\)/g, (_, name) => resolveColor(tokens, name));
 }
 
 function luminance(hex) {
@@ -36,12 +38,16 @@ function contrast(first, second) {
 }
 
 test('client text, action states, semantic pairs and functional boundaries meet their contrast budgets', () => {
-  for (const [id, palette] of Object.entries(palettes)) {
+  for (const { id, background } of CLIENT_THEMES) {
+    const palette = themeTokens(id);
+    assert.equal(palette['--color-bg-page'], background, `${id}: native window and page background`);
     const check = (foreground, background, minimum) => {
       const ratio = contrast(resolveColor(palette, foreground), resolveColor(palette, background));
       assert.ok(ratio >= minimum, `${id}: ${foreground} on ${background} is ${ratio.toFixed(3)}; expected ${minimum}`);
     };
-    for (const surface of ['--color-bg-page', '--color-bg-primary', '--color-bg-secondary', '--color-control-surface', '--color-quick-panel-surface']) {
+    const surfaces = ['--color-bg-page', '--color-bg-primary', '--color-bg-secondary', '--color-control-surface', '--color-quick-panel-surface'];
+    if (palette['--client-gradient-end']) surfaces.push('--client-gradient-end');
+    for (const surface of surfaces) {
       for (const text of ['--color-text-primary', '--color-text-secondary', '--color-text-muted']) check(text, surface, 4.5);
       check('--color-control-border', surface, 3);
       check('--color-control-border-hover', surface, 3);

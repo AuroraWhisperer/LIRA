@@ -8,9 +8,7 @@ export function formatDateTime(v) {
   return new Date(v).toLocaleString('zh-CN', { hour12: false });
 }
 
-export function formatBytes(v) {
-  const bytes = Number(v);
-  if (!Number.isFinite(bytes) || bytes < 0) return '--';
+function scaleBytes(bytes) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let size = bytes;
   let unitIndex = 0;
@@ -18,7 +16,19 @@ export function formatBytes(v) {
     size /= 1024;
     unitIndex += 1;
   }
-  return `${size >= 10 ? size.toFixed(1) : size.toFixed(2)} ${units[unitIndex]}`;
+  return { size, unit: units[unitIndex] };
+}
+
+export function formatBytes(v) {
+  const bytes = Number(v);
+  if (!Number.isFinite(bytes) || bytes < 0) return '--';
+  const { size, unit } = scaleBytes(bytes);
+  return `${size.toFixed(size >= 10 ? 1 : 2)} ${unit}`;
+}
+
+export function formatByteLimit(bytes) {
+  const { size, unit } = scaleBytes(bytes);
+  return `${size} ${unit}（${bytes.toLocaleString('zh-CN')} 字节）`;
 }
 
 export function formatDuration(seconds) {

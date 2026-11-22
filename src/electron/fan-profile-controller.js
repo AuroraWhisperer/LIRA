@@ -185,7 +185,9 @@ function createFanProfileController({
       formerNameJobs.set(key, job);
     }
     const names = await job.promise;
-    if (!same(captured) || job.controller.signal.aborted) throw new Error('登录状态已变化，本次没有补充。');
+    if (!same(captured) || job.controller.signal.aborted) {
+      throw new Error(supplement ? '登录状态已变化，本次未补充曾用名。' : '登录状态已变化，请重新查询曾用名。');
+    }
     const data = supplement
       ? service.supplementFormerNames(captured.scope, { id: profile.id, identity: selected, names })
       : { uid: selected.value, names };
@@ -246,7 +248,7 @@ function createFanProfileController({
         const observedAt = new Date(now()).toISOString();
         try {
           const profile = await fetchUserProfile(target.identity.value, { signal: controller.signal });
-          if (!profile.name) throw new Error('B站用户资料读取失败。');
+          if (!profile.name) throw new Error('B 站用户资料读取失败。');
           refresh.observations.push({
             ...target, name: profile.name, avatar: profile.avatarUrl, nameComplete: true, observedAt,
           });

@@ -7,6 +7,7 @@ const { Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const { validateImageBytes } = require('../bilibili/gift/remote-gift-image-cache');
 const { sendJson } = require('./http-utils');
+const { formatByteLimit } = require('../../public/js/shared/display-format.js');
 
 const MAX_MEDIA_BYTES = 512 * 1024 * 1024;
 const MEDIA_MIME = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', mp4: 'video/mp4', webm: 'video/webm' };
@@ -14,12 +15,16 @@ const RESOURCE_MIME = { ...MEDIA_MIME, svg: 'image/svg+xml', woff2: 'font/woff2'
 const MEDIA_URL = /^\/component-media\/([a-f0-9-]{36})\/([a-f0-9]{64}\.(png|jpg|gif|webp|mp4|webm|svg|woff2))$/;
 const invalid = message => Object.assign(new Error(message), { statusCode: 400 });
 
+function componentFileSizeError(maxBytes) {
+  return Object.assign(new Error(`文件不能超过 ${formatByteLimit(maxBytes)}，请选择较小的文件。`), { statusCode: 413 });
+}
+
 async function receiveMedia(stream, destination, maxBytes = MAX_MEDIA_BYTES) {
   let size = 0;
   const hash = createHash('sha256');
   const bound = new Transform({ transform(chunk, _encoding, callback) {
     size += chunk.length;
-    if (size > maxBytes) return callback(Object.assign(new Error('文件超过允许大小，请压缩后重试。'), { statusCode: 413 }));
+    if (size > maxBytes) return callback(componentFileSizeError(maxBytes));
     hash.update(chunk); callback(null, chunk);
   } });
   await pipeline(stream, bound, fs.createWriteStream(destination, { flags: 'wx', mode: 0o600 }));
@@ -97,4 +102,4 @@ async function serveComponentMedia(dataDir, req, res, url) {
   stream.pipe(res);
 }
 
-module.exports = { MAX_MEDIA_BYTES, MEDIA_MIME, receiveMedia, identifyMedia, saveMedia, serveComponentMedia };
+module.exports = { MAX_MEDIA_BYTES, MEDIA_MIME, componentFileSizeError, receiveMedia, identifyMedia, saveMedia, serveComponentMedia };

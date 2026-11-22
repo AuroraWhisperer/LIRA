@@ -1,44 +1,44 @@
-# ADR-0005: V1 Restricts Overtime Backgrounds to Built-In Images
+# ADR-0005: 加班机 V1 仅支持透明或内置背景图
 
-- Status: Accepted
-- Date: 2026-08-10
-- Original ID: ADR-OT-004
+## 状态
 
-## Context
+已采纳（2026-08-10，原编号：ADR-OT-004）
 
-Allowing arbitrary local file uploads as overlay backgrounds would introduce a writable directory in installed deployments, file-type validation, path-traversal risks, and a cleanup policy. The V1 goal is to complete the core countdown and gift settlement chain with a configurable look for browser sources. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/overtime/overtime-contract.js` `validateBackground`, `public/img/overtime-machine/`).
+## 背景
 
-## Decision
+若在初版中允许上传任意本地文件作为叠加层背景，就会引入安装目录写入、文件类型校验、路径穿越防护以及资源清理策略等额外负担。V1 的核心目标是先打通倒计时与礼物结算主链路，同时为浏览器源提供可配置的外观。本 ADR 提炼自加班机设计规格（2026-08-10 采纳），并在 v3.3.14 代码库（`src/overtime/overtime-contract.js` 的 `validateBackground`、`public/img/overtime-machine/`）中验证落地。
 
-V1 supports a transparent background or built-in images under `public/img/overtime-machine/`, with three fit modes: `cover` (default), `contain`, and `fill`. Server-side validation accepts only an empty string or a relative site path matching `/img/overtime-machine/...`; paths containing `..`, backslashes, protocol prefixes, or absolute URLs are rejected, and no arbitrary upload endpoint exists. When a background fails to load, the overlay falls back to transparency without hiding the foreground, and the shade overlay is drawn only when a background image is configured (so transparent mode composites cleanly into OBS or Bilibili Livehime).
+## 决策
 
-## Consequences
+V1 仅支持透明背景或 `public/img/overtime-machine/` 下的内置图片，提供三种适配模式：`cover`（默认）、`contain` 与 `fill`。服务端校验仅接受空字符串或 `/img/overtime-machine/...` 形式的站内相对路径，拒绝包含 `..`、反斜杠、协议前缀或绝对 URL 的输入，且不提供任意文件上传接口。背景图加载失败时自动回退为透明而不遮挡前景；遮罩层仅在配置了背景图时绘制，确保透明模式能够干净地叠加在 OBS 或哔哩哔哩直播姬画面中。
 
-### Positive
+## 影响
 
-- No new security surface: no install-directory writes, no file-type validation, no local-file protocol paths, no cleanup policy.
-- The core timing and gift settlement chain shipped first; the background model is a pure configuration value.
+### 正面影响
 
-### Negative
+- 不引入新的安全风险面：无需向安装目录写入文件，也无需维护文件类型校验、本地文件协议路径与清理策略。
+- 倒计时与礼物结算主链路得以优先交付，背景配置保持为纯粹的配置项。
 
-- V1 administrators cannot upload custom backgrounds.
+### 代价
 
-### Neutral
+- V1 阶段主播无法上传自定义背景图。
 
-- Custom background import into a dedicated data directory (for example `data/overtime-assets/`) remains a possible separate iteration with its own design.
+### 中性影响
 
-## Alternatives Considered
+- 后续仍可通过独立迭代将自定义背景导入至专用数据目录（如 `data/overtime-assets/`）。
 
-**Arbitrary local file upload in V1**
+## 备选方案
 
-- Rejected: it adds a new security and maintenance surface without contributing to the core timing and gift chain.
+**在 V1 支持任意本地文件上传**
 
-**No background configuration at all**
+- 否决：对核心计时与结算链路没有直接价值，却会大幅增加安全校验与文件维护成本。
 
-- Rejected: the overlay needs a configurable look so it can be composited into live streams.
+**完全不提供背景配置**
 
-## References
+- 否决：直播叠加层需要基础外观配置以便融入不同直播画面。
+
+## 参考
 
 - [overtime.md](../../reference/backend/overtime.md)
-- `src/overtime/overtime-contract.js` (`validateBackground`, `isAllowedImagePath`)
+- `src/overtime/overtime-contract.js`（`validateBackground`、`isAllowedImagePath`）
 - `public/img/overtime-machine/`

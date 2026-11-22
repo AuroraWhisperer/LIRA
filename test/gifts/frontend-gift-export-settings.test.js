@@ -27,15 +27,16 @@ async function openExport(t) {
       },
     }));
     window.exportCalls = [];
-    window.exportDefaults = { mode: 'combined', background: 'transparent', root: 'Pictures/LIRA' };
+    window.exportDefaults = { mode: 'combined', background: 'transparent', mergeAcrossDates: false, root: 'Pictures/LIRA' };
     let task;
     let batch = 0;
     const describe = () => ({
       ...task,
-      files: Array.from({ length: task.mode === 'combined' ? 1 : 2 }, (_, index) => ({
+      snapshot: { ...task.snapshot, items: task.mergeAcrossDates ? [items[0]] : items, selectedCount: 2 },
+      files: Array.from({ length: task.mode === 'combined' || task.mergeAcrossDates ? 1 : 2 }, (_, index) => ({
         fileName: '礼物_' + (index + 1) + '.png',
         start: task.mode === 'combined' ? 0 : index,
-        count: task.mode === 'combined' ? items.length : 1,
+        count: task.mode === 'combined' && !task.mergeAcrossDates ? items.length : 1,
       })),
     });
     window.giftExport = {
@@ -55,6 +56,7 @@ async function openExport(t) {
           await new Promise((resolve) => {
             window.finishConfigure = resolve;
           });
+        task.mergeAcrossDates = options.mergeAcrossDates ?? task.mergeAcrossDates;
         task.mode = options.mode;
         task.background = options.background;
         if (options.directoryAction)
@@ -106,6 +108,9 @@ test('history export settings update the current preview and remember the next e
   assert.deepEqual(await visibleCards(), ['2']);
   await page.locator('#giftExportPrev').click();
   assert.deepEqual(await visibleCards(), ['1']);
+  await page.getByText('跨日期合并同种礼物', { exact: true }).click();
+  await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+  assert.equal(await page.locator('#giftExportNext').isDisabled(), true);
   await page.locator('#giftExportBackground').selectOption('white');
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   await page.locator('#giftExportChoose').click();
@@ -116,6 +121,7 @@ test('history export settings update the current preview and remember the next e
   assert.equal(await page.evaluate(() => window.savedExportId), '1');
   await page.locator('#giftExportBack').click();
   await page.evaluate(() => window.preview.open({ eventIds: ['1', '2'] }));
+  assert.equal(await page.getByRole('switch', { name: '跨日期合并同种礼物' }).isChecked(), true);
   assert.equal(await page.locator('#giftExportMode').inputValue(), 'separate');
   assert.equal(await page.locator('#giftExportBackground').inputValue(), 'white');
   assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Chosen/Gifts');

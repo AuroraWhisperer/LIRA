@@ -324,7 +324,7 @@ test('midnight and runtime reset reject late replies and reset clears cached sen
   assert.deepEqual((await runtime.getProfiles()).items, []);
 });
 
-test('export derives the merged snapshot before pagination while leaving selected raw rows untouched', async () => {
+test('cross-date export adds the frozen daily total only once and retains selection order', async () => {
   const items = ['one', 'two'].map((eventId) => ({
     eventId,
     gift: {
@@ -337,6 +337,9 @@ test('export derives the merged snapshot before pagination while leaving selecte
       createdAt: new Date(time).toISOString(),
     },
   }));
+  items[0].gift.unitPrice = 10;
+  const older = { eventId: 'older', gift: { ...items[0].gift, createdAt: '2026-09-17T05:00:00Z', num: 100 } };
+  items.unshift(older);
   const before = structuredClone(items);
   const runtime = createGiftExportRuntime({
     getServices: () => ({
@@ -346,14 +349,36 @@ test('export derives the merged snapshot before pagination while leaving selecte
     getSettingsStore: () => ({ getSettings: () => ({}) }),
     giftCards: { getProfiles: async () => ({ day, items: [profile, { ...profile, eventId: 'two' }], partial: false }) },
   });
-  const result = await runtime.prepareGiftExport({});
-  assert.equal(result.selectedCount, 2);
-  assert.equal(result.items.length, 1);
-  assert.equal(result.items[0].gift.num, 4);
-  assert.equal(result.items[0].cardTotalCents, '8000');
-  assert.equal(result.items[0].gift.userName, '新名字');
-  assert.equal(result.items[0].gift.guardLevel, 2);
+  runtime.configureGiftSync({ cardGroups: async ({ eventIds }) => {
+    assert.deepEqual(eventIds, ['older', 'one']);
+    return { ok: true, groups: [['one', 'older']], partial: false };
+  } });
+  const snapshot = await runtime.prepareGiftExport({});
+  assert.equal(snapshot.items.length, 2);
+  assert.equal(snapshot.items[1].gift.num, 4);
+  assert.equal(snapshot.items[1].cardTotalCents, '6000');
+  assert.equal(snapshot.items[1].gift.userName, '新名字');
+  assert.equal(snapshot.items[1].gift.guardLevel, 2);
+  const grouped = await runtime.mergeGiftExport(snapshot, new AbortController().signal);
+  assert.equal(grouped.selectedCount, 3);
+  assert.equal(grouped.items.length, 1);
+  assert.equal(grouped.items[0].eventId, 'older');
+  assert.equal(grouped.items[0].gift.num, 104);
+  assert.equal(grouped.items[0].cardTotalCents, '106000');
   assert.deepEqual(items, before);
+});
+
+test('unavailable or invalid cross-date evidence preserves the original cards', async () => {
+  const runtime = createGiftExportRuntime({ giftCards: {} });
+  const items = ['first', 'second'].map(eventId => ({ eventId, gift: { giftId: '1', giftName: '花', userName: '同名' } }));
+  const signal = new AbortController().signal;
+  for (const cardGroups of [async () => { throw new Error('offline'); },
+    async () => ({ ok: true, groups: [['first', 'unselected']], partial: false })]) {
+    runtime.configureGiftSync({ cardGroups });
+    const snapshot = await runtime.mergeGiftExport({ items }, signal);
+    assert.equal(snapshot.cardsPartial, true);
+    assert.equal(snapshot.items, items);
+  }
 });
 
 test('export fills historical selected avatars without changing the gift rows or grouping', async () => {

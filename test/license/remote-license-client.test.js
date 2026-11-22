@@ -457,7 +457,7 @@ test('gift card profiles use a fixed authenticated endpoint and encode the curso
   }
 });
 
-test('export avatar lookup sends only the selected event IDs to the fixed Device route', async () => {
+test('export lookups send only selected event IDs to their authorized Device routes', async () => {
   const requests = [];
   const client = createRemoteLicenseClient({
     baseUrl: 'https://review.example.test',
@@ -467,12 +467,14 @@ test('export avatar lookup sends only the selected event IDs to the fixed Device
     },
   });
   await client.getGiftCardAvatars(['guard-1'], 'device-token');
-  assert.equal(requests.length, 1);
-  const [{ url, init }] = requests;
-  assert.equal(url, 'https://review.example.test/api/device/gift-card-avatars');
-  assert.equal(init.method, 'POST');
-  assert.equal(init.headers.Authorization, 'Bearer device-token');
-  assert.deepEqual(JSON.parse(init.body), { eventIds: ['guard-1'] });
+  await client.getGiftCardGroups(['guard-1'], 'device-token');
+  assert.deepEqual(requests.map(({ url }) => new URL(url).pathname), ['/api/device/gift-card-avatars', '/api/device/gift-card-groups']);
+  for (const { url, init } of requests) {
+    assert.equal(new URL(url).origin, 'https://review.example.test');
+    assert.equal(init.method, 'POST');
+    assert.equal(init.headers.Authorization, 'Bearer device-token');
+    assert.deepEqual(JSON.parse(init.body), { eventIds: ['guard-1'] });
+  }
 });
 
 test('external abort is not misreported as a request timeout', async () => {

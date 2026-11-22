@@ -1407,7 +1407,7 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   neonGlassEntrance: { label: '入场方式', type: 'select', default: 'layered', capability: 'neonGlassOptions', group: 'neonGlass', choices: [['layered', '玻璃与文字分层渐显'], ['none', '直接显示']] },
   neonGlassEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 200, max: 1000, default: 480, unit: 'ms', capability: 'neonGlassOptions', group: 'neonGlass', disabledWhen: ['neonGlassEntrance', 'none'] },
   fontFamily: { label: '字体', type: 'font', default: 'default', defaultKey: 'defaultFontFamily' },
-  fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize', help: '控制弹幕正文和行内表情大小（昵称、粉丝牌、金额等可在上方表格里单独调）。建议让 OBS / 直播姬浏览器源的宽高与画布保持一致，这样看到的字号才和实际推流一样。' },
+  fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize', help: '控制弹幕正文和行内表情大小（昵称、粉丝牌、金额等可在上方表格里单独调）。建议让 OBS 或直播姬的浏览器源宽高与画布保持一致，方便对照预览中的字号。' },
   textColor: { label: '正文颜色', type: 'color', alpha: true, default: '#eaf2ff', defaultKey: 'defaultTextColor' },
   backgroundOpacity: { label: '背景不透明度', type: 'number', input: 'range', min: 0, max: 100, default: 100, defaultKey: 'defaultBackgroundOpacity', capability: 'background', unit: '%' },
   christmasBackground: { label: '卡片背景', type: 'select', default: 'card', capability: 'christmasOptions',
@@ -1449,7 +1449,7 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
     label: ['＜50 元', '50～99.99 元', '100～999.99 元', '≥1000 元'][index], type: 'color', alpha: true, default: value, capability: 'twitterOptions', group: 'twitterColors',
   }])),
   spookyTheme: { label: '便笺配色', type: 'select', default: 'default', capability: 'spookyOptions', choices: [['default', 'Default · 紫色'], ['autumn', 'Autumn · 秋日'], ['graveyard', 'Graveyard · 灰紫'], ['moonlight', 'Moonlight · 月光']] },
-  spookyFrame: { label: 'Chat Box 外框', type: 'select', default: 'show', capability: 'spookyOptions', choices: [['show', '显示'], ['hide', '隐藏']] },
+  spookyFrame: { label: '消息区外框', type: 'select', default: 'show', capability: 'spookyOptions', choices: [['show', '显示'], ['hide', '隐藏']] },
   ...Object.fromEntries(SPOOKY_COLOR_KEYS.filter(key => key !== 'textColor').map((key, index) => [key, {
     label: ['外框底色', '消息底色', '事件卡底色', '装饰强调色'][index], type: 'color', alpha: true, allowDefault: true, default: 'default', capability: 'spookyOptions', group: 'spookyColors',
   }])),
@@ -1458,7 +1458,7 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   }])),
   ...Object.fromEntries(Object.entries(RIPPLOID_COLOR_DEFAULTS).map(([key, value], index) => [key, {
     label: key.startsWith('guard') ? ['舰长', '提督', '总督'][index - 6]
-      : ['＜50 元', '50～＜100 元', '100～＜500 元', '500～＜1000 元', '1000～＜2000 元', '≥2000 元'][index < 6 ? index : index - 9],
+      : ['＜50 元', '50 至不足 100 元', '100 至不足 500 元', '500 至不足 1000 元', '1000 至不足 2000 元', '≥2000 元'][index < 6 ? index : index - 9],
     type: 'color', default: value, capability: 'ripploidColors',
     group: key.startsWith('gift') ? 'ripploidGift' : key.startsWith('guard') ? 'ripploidGuard' : 'ripploidSuperchat',
   }])),
@@ -1524,7 +1524,7 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   stargazerWidth: { label: '横排消息宽度', type: 'number', input: 'range', min: 220, max: 600, default: 320, unit: 'px', capability: 'stargazerOptions', group: 'stargazer' },
   stargazerGap: { label: '消息间距', type: 'number', input: 'range', min: 6, max: 40, default: 24, unit: 'px', capability: 'stargazerOptions', group: 'stargazer' },
   stargazerAlign: { label: '未铺满时对齐', type: 'select', default: 'bottom', capability: 'stargazerOptions', group: 'stargazer', choices: [['bottom', '靠近新消息入口'], ['top', '靠近旧消息出口']] },
-  stargazerFrame: { label: 'Chat Box 外框', type: 'select', default: 'hide', capability: 'stargazerOptions', group: 'stargazer', choices: [['hide', '隐藏'], ['show', '显示']] },
+  stargazerFrame: { label: '消息区外框', type: 'select', default: 'hide', capability: 'stargazerOptions', group: 'stargazer', choices: [['hide', '隐藏'], ['show', '显示']] },
   stargazerPerspective: { label: '透视方向', type: 'select', default: 'none', capability: 'stargazerOptions', group: 'stargazer', choices: [['none', '平面'], ['left', '左侧向远处倾斜'], ['right', '右侧向远处倾斜']] },
   stargazerAngle: { label: '透视角度', type: 'number', input: 'range', min: 0, max: 12, default: 6, unit: '°', capability: 'stargazerOptions', group: 'stargazer' },
   stargazerGlow: { label: '霓虹强度', type: 'number', input: 'range', min: 0, max: 20, default: 8, capability: 'stargazerOptions', group: 'stargazer' },

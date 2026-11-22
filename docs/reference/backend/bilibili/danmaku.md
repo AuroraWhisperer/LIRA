@@ -2,42 +2,40 @@
 
 > 涉及文件:[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[danmaku/message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)、[danmaku/feed-buffer.js](../../../../src/bilibili/danmaku/feed-buffer.js)、[danmaku/history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku/online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js)、[danmaku/fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)、[danmaku/live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js)、[danmaku/identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)、[users/user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[users/profile-provider.js](../../../../src/bilibili/users/profile-provider.js)、[danmaku/message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js)、[danmaku/sender-service.js](../../../../src/bilibili/danmaku/sender-service.js)、[danmaku/mention-policy.js](../../../../src/bilibili/danmaku/mention-policy.js)、[danmaku/command-text.js](../../../../src/bilibili/danmaku/command-text.js)、[bilibili-message-handler.js](../../../../src/bilibili/bilibili-message-handler.js)、[custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)、[server.js](../../../../src/server.js) 的装配段、[domain-services.js](../../../../src/server/domain-services.js) 的 messages 段
 
-本文档是 **Bilibili 弹幕监听管线与机器人行为**的唯一事实源:客户端回调契约、轮询器/缓存间隔、命令解析、云端签到/抽签边界、自定义回复、弹幕发送与诊断快照在此说明；云端业务契约见 [云端签到与抽签规格](../../../../specs/cloud-daily-bots.md)。**服务端侧**的客户端生命周期(configure/reconnect/_replaceClientChain)归 [server-core.md](../server-core.md) §6 所有,本文只描述客户端内部行为。线协议(HTTP/WBI/WS/解析)见 [protocol.md](protocol.md),礼物入库见 [gift.md](gift.md)。
+本文档是 **Bilibili 弹幕监听管线与机器人行为**的单一事实来源，说明客户端回调契约、轮询与缓存策略、命令解析、云端签到/抽签边界、自定义回复、弹幕发送及诊断快照；云端业务规则见 [云端签到与抽签规格](../../../../specs/cloud-daily-bots.md)。服务端侧的客户端生命周期编排（`configure` / `reconnect` / `_replaceClientChain`）见 [server-core.md](../server-core.md) §6，本文只描述客户端内部行为。底层传输与解析协议（HTTP/WBI/WS）见 [protocol.md](protocol.md)，礼物入库见 [gift.md](gift.md)。
 
 ## 1. 客户端回调契约
 
 `BilibiliDanmakuClient` 通过 handlers 与外部通信，回调由 [bilibili-client.js](../../../../src/server/bilibili-client.js) 的 `createBilibiliClient` 装配：
 
-| 回调                     | 触发                                                                                  | 运行时消费                                                                                                                                                                                                                                                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `onMessage(danmaku)`     | 每条实时弹幕、SC 命令文本、历史轮询命令                                               | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
-| `UserInfoService` 更新   | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知                                                                                                                                                                                                                                  |
-| `onSuperChat(superChat)` | 新增 SC 到达 | 先 `publishDanmaku` 发布到公开弹幕流，再 `superChats.add` 入库，成功则广播 `bilibili:superchat`；入库见 [gift.md](gift.md) §7 |
-| `onSuperChatDelete(platformIds)` | SC 平台下线 | 先 `publishSuperChatDelete` 从公开弹幕流撤回，实际删除公开项才广播 `danmaku:superchat-delete`；随后 `superChats.retract` 按平台 ID 删除内容并保留最小防重 ID，实际删除显示项才广播 `bilibili:superchat`，不触发新增或点歌命令 |
-| `onLiveLottery(event)` | 已鉴权长连接收到红包 / 天选消息 | 独立交给运行时活动订阅者；字段见 [protocol.md §6.6](protocol.md#66-直播红包与天选事件)，使用见 §4.3 |
-| `onStatus(liveStatus)`   | 连接状态变化                                                                          | `updateLiveStatus` 写入快照 `liveStatus` 字段（[bilibili-client.js](../../../../src/server/bilibili-client.js) 接收回调，[bilibili-runtime.js](../../../../src/server/bilibili-runtime.js) 更新状态）                                                                                                                                                                                    |
+| 回调 | 触发 | 运行时处理 |
+| --- | --- | --- |
+| `onMessage(danmaku)` | 每条实时弹幕、SC 命令文本、历史轮询命令 | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`（[bilibili-client.js](../../../../src/server/bilibili-client.js)） |
+| `UserInfoService` 更新 | 业务缺资料时显式调用 `ensure(uid, { fields })` | 你画我猜等业务缺头像时显式调用专用头像解析入口，再通过 `games.updateDanmakuAvatar` 回填；头像补全不由 `onMessage` 返回值触发（合并与缓存策略见 §10） |
+| `onSuperChat(superChat)` | 新增 SC 到达 | 先 `publishDanmaku` 发布到公开弹幕流，再经 `superChats.add` 入库，成功则广播 `bilibili:superchat`（完整流转见 §4.1 与 [gift.md §7](gift.md#7-醒目留言服务superchat-service)） |
+| `onSuperChatDelete(platformIds)` | SC 平台下线 | 先从公开弹幕流撤回，再经 `superChats.retract` 删除正文并保留最小防重 ID，不触发新增或点歌命令（详见 §4.1 与 [gift.md §7](gift.md#7-醒目留言服务superchat-service)） |
+| `onLiveLottery(event)` | 已鉴权长连接收到红包 / 天选消息 | 独立交给运行时活动订阅者；字段见 [protocol.md §6.6](protocol.md#66-直播红包与天选事件)，订阅语义见 §4.3 |
+| `onStatus(liveStatus)` | 连接状态变化 | `updateLiveStatus` 写入快照 `liveStatus` 字段（[bilibili-client.js](../../../../src/server/bilibili-client.js) 接收回调，[bilibili-runtime.js](../../../../src/server/bilibili-runtime.js) 更新状态） |
 
 客户端构造时还注入 `diagnostics`（§8）与 `isCommandText`；礼物检测回调、动态命令前缀和原始礼物调试缓冲已删除。
 
-`onMessage` 在命令结果非 `cloud-owned` 时继续交给现有 AI service，传入房间、正文、作者及 `source/messageTimestamp/sessionKey/isSessionCurrent/autoReplyExcluded/captureReplySession`。`autoReplyExcluded` 标记已由命令、小游戏或其他回复处理的事件，避免再成为自动闲聊候选；定向关键词问答仍按自身准入。`getReplySessionKey` 只读取监听/房间/账号修订等轻量状态，每条消息不读取凭据；候选确立时才捕获完整发送会话。普通消息仍可能重复，AI 自己承担有界去重，不新增弹幕订阅。自动候选、时效、模型与发送策略归 [AI 领域](../ai.md#34-自动接话)；此入口未新增平台提及目标 UID 或普通弹幕撤回语义。
+命令结果不是 `cloud-owned` 时，`onMessage` 会把消息继续交给 AI 服务，并透传房间、正文、发送者以及 `source` / `messageTimestamp` / `sessionKey` / `isSessionCurrent` / `autoReplyExcluded` / `captureReplySession`。其中 `autoReplyExcluded` 用于标记已被命令、小游戏或其他回复处理的消息，避免再次成为自动闲聊候选；定向关键词问答仍按自身规则准入。`getReplySessionKey` 只读取监听、房间和账号修订号等轻量状态，不在每条消息上读取凭据，待确定候选后再捕获完整发送会话。普通弹幕仍可能重复到达，由 AI 服务自行做有界去重，不额外建立弹幕订阅。自动接话的筛选、时效、模型与发送策略见 [AI 领域](../ai.md#34-自动接话)；该入口不扩展平台 `@` 目标 UID 或普通弹幕撤回逻辑。
 
-点歌回复与关键词回复统一通过 [live-reply-sender.js](../../../../src/bilibili/danmaku/live-reply-sender.js) 发送。只有确认直播中才接纳，每个分段在原账号/房间会话检查之外核对捕获的本场对象；下播、连接重建、停止或未知状态使旧对象失效，下一场不能复活旧回复。`onLiveStatus(boolean)` 是客户端内部回调：房间 REST 初始化/轮询及已认证的 `LIVE/PREPARING` 提供事实，不从连接文案猜测直播状态，也不新增公开快照字段。手动发送、AI 和点歌入队策略保持各自所有权。
+点歌回复与关键词回复统一经 [live-reply-sender.js](../../../../src/bilibili/danmaku/live-reply-sender.js) 发送，仅在确认处于直播状态时受理。每次分段发送除核对账号与房间会话外，还会校验当前场次令牌；下播、连接重建、停止监听或状态未知都会令旧场次令牌失效，避免旧回复在下一场继续发出。开播状态通过内部回调 `onLiveStatus(boolean)` 同步，仅以房间 REST 初始化/轮询结果以及已鉴权连接收到的 `LIVE` / `PREPARING` 事件为准，不根据连接状态文案推测，也不新增公开快照字段。手动发弹幕、AI 回复与点歌入队仍按各自原有链路处理。
 
 ## 2. 客户端内部生命周期
 
-房间舰徽人数由运行时单独拥有的 `src/bilibili/room-guard-service.js` 读取：按当前配置房间调用 `fetchRoomGuardCount`，每次读取结束后间隔 60 秒继续，最多一个有效请求。该展示状态不依赖本地弹幕监听开关。换房立即发布 `{ roomId, count: null }`、取消旧请求并拒绝迟到结果；失败回退未知，停止时取消请求与定时器。快照由 `bilibili-runtime.getRoomGuardState()` 提供，变化原因是 `bilibili:room-guard`；不保存到设置或礼物账本。
-
-> 服务端何时调用 start/restart/stop、`_replaceClientChain` 串行化见 [server-core.md](../server-core.md) §6。此处只描述客户端内部行为。
+> 服务端何时调用 `start` / `restart` / `stop` 及 `_replaceClientChain` 串行化见 [server-core.md](../server-core.md) §6。此处只描述客户端内部行为。
 
 ### 2.1 start / restart / stop
 
-| 方法        | 语义                                                                                                                                | 出处                                                                              |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `start()`   | `stopped=false`、递增 `connectionGeneration`、重置 `startedAtMs`;**不等待握手**即返回;首连失败 → 启动历史轮询 + `scheduleReconnect` | [danmaku-client.js:69-92](../../../../src/bilibili/danmaku-client.js#L69-L92)     |
+| 方法 | 语义 | 出处 |
+| --- | --- | --- |
+| `start()` | `stopped=false`、递增 `connectionGeneration`、重置 `startedAtMs`；**不等待握手**即返回；首连失败 → 启动历史轮询 + `scheduleReconnect` | [danmaku-client.js:69-92](../../../../src/bilibili/danmaku-client.js#L69-L92) |
 | `restart()` | 重建连接并等待 B 站鉴权通过。失败时安排重连，再向调用方返回错误 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
-| `stop()`    | `stopped=true`、递增 generation(使在途异步失效)、清重连定时器、关 WS、停全部轮询器、销毁 MessageHandlers                            | [danmaku-client.js:122-134](../../../../src/bilibili/danmaku-client.js#L122-L134) |
+| `stop()` | `stopped=true`、递增 `connectionGeneration`（使在途异步失效）、清重连定时器、关 WS、停全部轮询器、销毁 `MessageHandlers` | [danmaku-client.js:122-134](../../../../src/bilibili/danmaku-client.js#L122-L134) |
 
-`connectionGeneration` 是 start/restart/stop 的**代际屏障**；同一代内还以 `connectionAttempt` 标识当前尝试。连接 HTTP 返回、socket 状态与消息事件、失败回调同时核对 generation 和 attempt，被后续尝试取代的结果不能覆盖状态、替换新 socket 或安排重连（[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)）。
+`connectionGeneration` 是 `start` / `restart` / `stop` 周期的**代次防护校验**，同一代次内再用 `connectionAttempt` 区分各次连接尝试。所有 HTTP 返回、socket 状态与消息事件以及失败回调都会同时核对 `generation` 和 `attempt`，被后续尝试取代的回调不得覆盖当前状态、替换新连接或安排重连（[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)）。
 
 ### 2.2 connect 流程
 
@@ -54,23 +52,23 @@
 | 场景                                            | 延迟                                                                        | 出处                                                                              |
 | ----------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | WS close 或连接失败后自动恢复                 | **1/2/4/8/16/30 秒**指数退避，达到 30 秒后封顶；同一次失败只保留首个重连 timer | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
-| 退避清零                                     | 显式 start/restart；或断开前已连续连接至少 60 秒且有成功认证及心跳回复证据；仅 open 不清零 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
+| 退避清零                                     | 显式调用 `start` / `restart`；或断线前已持续连接至少 60 秒，且完成过认证并收到过心跳回包（仅建立 `open` 不清零） | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | 开播检测触发的重连（`reconnectAfterLiveStarted`） | 取消既有重连定时器，重置 `startedAtMs` 并立即走完整连接流程。保留历史轮询直至通过鉴权 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 
-重连失败路径:报告状态(`connected: historyFallbackActive`)→ 再次 `scheduleReconnect` 无限循环,直到 `stop()`([danmaku-client.js:376-396](../../../../src/bilibili/danmaku-client.js#L376-L396))。
+重连失败路径：报告状态（`connected: historyFallbackActive`）→ 再次 `scheduleReconnect` 循环重试，直到 `stop()`（[danmaku-client.js:376-396](../../../../src/bilibili/danmaku-client.js#L376-L396)）。
 
-自动尝试次数不设总上限，但请求频率有上述上限；历史消息回退在等待期间继续工作。start/restart 取消旧恢复 timer；stop 取消 timer 并递增 generation，旧回调不得重新安排任务。连接尝试序号同时用于诊断和同代尝试归属校验，与退避失败计数分开。
+自动尝试次数不设总上限，但请求频率受上述退避上限约束；历史消息回退在等待期间继续工作。`start` / `restart` 取消旧恢复定时器；`stop` 取消定时器并递增 `connectionGeneration`，旧回调不得重新安排任务。连接尝试序号同时用于诊断和同代次尝试归属校验，与退避失败计数分开。
 
 ## 3. 轮询器与缓存(全部间隔速查)
 
 | 组件                                    | 间隔/容量                                                                                     | 行为                                                                                                                                                | 出处                                                                                                                                                                                                                                                                                                  |
 | --------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HistoryPoller                           | **2.5s**(首轮立即)                                                                            | 拉 `gethistory`(`data.admin` + `data.room` 按 timeline 排序),只处理命令文本且通过可捕获窗口的消息;产出 `source:'history'`                           | [history-poller.js:26-31](../../../../src/bilibili/danmaku/history-poller.js#L26-L31)、[history-poller.js:42-74](../../../../src/bilibili/danmaku/history-poller.js#L42-L74)                                                                                                                          |
+| HistoryPoller                           | **2.5s**（首轮立即）                                                                            | 拉 `gethistory`（`data.admin` + `data.room` 按 timeline 排序），只处理命令文本且通过可捕获窗口的消息；产出 `source:'history'`                           | [history-poller.js:26-31](../../../../src/bilibili/danmaku/history-poller.js#L26-L31)、[history-poller.js:42-74](../../../../src/bilibili/danmaku/history-poller.js#L42-L74)                                                                                                                          |
 | OnlineRankPoller | **60s**，两种在线榜排序各 **100 人** | `queryContributionRank` 的 `type=online_rank`，并行读取 `switch=contribution_rank` / `entry_time_rank`；均使用 `page=1&page_size=100&platform=web&web_location=444.8`。按 `data.item[].uid` 合并去重，最多 200 人；同 UID 优先贡献值排序的身份线索。后续页重复名单，不按总人数翻页；进房时间排序实测 `data.count=0` 仍有名单，不能据此跳过。通过 `UserInfoService.ingestHint` 提交线索，再 `replaceOnlineSnapshot` 替换 UID 集合。手动刷新共享整个在途任务，每次最多两次上游请求；一路失败采用另一路成功名单，两路均失败保留旧快照，成功空名单清空；API 成功且 `count=0,item=null` 时按空列表处理，非零业务码或缺失/矛盾结构仍报错；停止/重连丢弃旧结果。 | [online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js) |
-| FansMedalPoller | 完整刷新目标 **5min**，pageSize **30** | 同房间/generation/runToken 的 start 幂等；每批最多 30 页或 10 秒，暂停 1 秒续下一页。失败重试 5/10/20/30min，增加最多 10% 抖动但总等待不超过 30min；完成全量后恢复五分钟节奏。最多 10000 页为异常上限，触及上限报错。写入 UserInfoService，不更新过期证据有效期；切房/停止丢弃旧结果。完整轮次记录页数、条数、耗时。 | [fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js) |
-| LiveStatusMonitor                       | **10min**,`timer.unref()`                                                                     | 开播与下播时都保持轮询;检测到非直播→直播触发 `reconnectAfterLiveStarted`;实时 `LIVE/PREPARING` 更新同一状态并使迟到轮询失效;`checkInFlight/reconnectInFlight` 防重入                               | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)、[live-status-monitor.js:27-37](../../../../src/bilibili/danmaku/live-status-monitor.js#L27-L37)、[live-status-monitor.js:49-93](../../../../src/bilibili/danmaku/live-status-monitor.js#L49-L93)              |
-| UserInfoService + IdentityCache adapter | service 内存 TTL **10min**; cache 只保存 service 已合并的最终状态和 audience index            | `DANMU_MSG`/SC/历史消息/礼物/榜单统一提交 `IdentityHint`; service 按字段质量/验证/authority/freshness 合并、投影和订阅；cache 不再决定覆盖策略      | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)                                                                                                                                                  |
-| MessageDeduplicator                     | 精确键包含发送者线索、秒桶和清洗后的文本。跨源匹配窗 **1.5s**，候选保留 **30min**，最多 **500** 条。精确键超过 **1000** 个时修剪至最多 **500** 个。 | 同源重放只记录一次拒绝日志。跨源只查同文本候选，每条消息与每个来源最多配对一次，精确命中也占用这次配对。年龄清理根据已知最早接收时间跳过尚不可能过期的扫描，超容量按插入顺序淘汰并同步文本索引。 | [message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js) |
+| FansMedalPoller | 完整刷新目标 **5 分钟**，每页 **30 条** | 同一房间 / `generation` / `runToken` 下重复 `start` 幂等；每批最多拉 30 页或连续运行 10 秒后暂停 1 秒再继续。失败按 5/10/20/30 分钟退避（附带最多 10% 随机抖动，总等待上限仍为 30 分钟），跑完一轮全量后恢复 5 分钟周期；单轮超过 10000 页视为异常并报错。拉取结果写入 `UserInfoService`，但不续期已过期资料的有效期；切房或停止时丢弃在途结果。每轮完成后记录页数、条数和耗时。 | [fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js) |
+| LiveStatusMonitor                       | **10 分钟**，`timer.unref()`                                                                     | 开播与下播时都保持轮询；检测到非直播→直播触发 `reconnectAfterLiveStarted`；实时 `LIVE/PREPARING` 更新同一状态并使迟到轮询失效；`checkInFlight/reconnectInFlight` 防重入                               | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)、[live-status-monitor.js:27-37](../../../../src/bilibili/danmaku/live-status-monitor.js#L27-L37)、[live-status-monitor.js:49-93](../../../../src/bilibili/danmaku/live-status-monitor.js#L49-L93)              |
+| UserInfoService + IdentityCache adapter | 内存 TTL **10 分钟**，定期清理 **5 分钟** | 统一接收 `DANMU_MSG` / SC / 历史消息 / 礼物 / 榜单提交的 `IdentityHint` 并维护合并后的最终状态与观众索引（完整边界与头像补全见 §10） | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js) |
+| MessageDeduplicator                     | 精确键含发送者线索、秒桶与清洗文本；跨源匹配窗 **1.5s**，候选保留 **30 分钟**，最多 **500** 条；精确键超 **1000** 时修剪至最多 **500** | 同源重放只记录一次拒绝日志。跨源只查同文本候选，每条消息与每个来源最多配对一次，精确命中也占用这次配对。年龄清理根据已知最早接收时间跳过尚不可能过期的扫描，超容量按插入顺序淘汰并同步文本索引。 | [message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js) |
 
 **精确键。** 有可靠 UID 时按 UID 去重，改昵称仍使用同一键。UID 缺失、为 `0` 或 `'0'` 时，使用平台传入的原样昵称，保留大小写和掩码中的每个字符。空白昵称和占位名 `观众` 都按空昵称处理。同源同秒同文的 `Alpha` 和 `alpha` 各派发一次，各自原包重放时均被过滤。`has(uid, message, timestampMs, { userName })` 与 `remember()` 使用同一精确键，缺少可靠 UID 且省略昵称时查询空昵称的记录。
 
@@ -87,48 +85,54 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 
 ## 4. 消息管道(MessageHandlers)
 
-`handlePackets(buffer)` 更新 `lastPacketAt` → 逐条 `parseBilibiliPackets` → 按命令分发弹幕、SC 新增/下线、礼物身份、点赞状态或红包/天选事件；精确命令与冒号后缀规则见 [protocol.md](protocol.md) §6。命令消费使用可捕获窗口和去重，具体路径如下：
+`handlePackets(buffer)` 更新 `lastPacketAt` → 逐条 `parseBilibiliPackets` → 按命令分发弹幕、SC 新增/下线、礼物身份、点赞状态或红包/天选事件；精确命令与冒号后缀规则见 [protocol.md](protocol.md) §6。命令处理使用可捕获窗口和去重，具体路径如下：
 
-**弹幕**(`handleDanmaku`,[message-handlers.js:75-114](../../../../src/bilibili/danmaku/message-handlers.js#L75-L114)):仅命令文本参与窗口校验与去重;`onMessage` 载荷含 `source:'danmaku'`、归一化 cmd 和发送者 `avatarUrl`。头像优先取该条 `DANMU_MSG` 的用户扩展资料，缺失时按 uid 复用在线榜/历史身份缓存；`DANMU_MSG` 前缀统一为 `DANMU_MSG`([message-handlers.js:242-247](../../../../src/bilibili/danmaku/message-handlers.js#L242-L247))。实时弹幕和历史回补命令的发送者 UID 等于当前房主 UID 时，`onMessage` 均携带 `isStreamer: true`。
+**弹幕**（`handleDanmaku`，[message-handlers.js:75-114](../../../../src/bilibili/danmaku/message-handlers.js#L75-L114)）：仅命令文本参与窗口校验与去重；`onMessage` 载荷含 `source:'danmaku'`、归一化 cmd 和发送者 `avatarUrl`。头像优先取该条 `DANMU_MSG` 的用户扩展资料，缺失时按 uid 复用在线榜/历史身份缓存；`DANMU_MSG` 前缀统一为 `DANMU_MSG`（[message-handlers.js:242-247](../../../../src/bilibili/danmaku/message-handlers.js#L242-L247)）。实时弹幕和历史回补命令的发送者 UID 等于当前房主 UID 时，`onMessage` 均携带 `isStreamer: true`。
 
-**SC**(`handleSuperChat`,[message-handlers.js:115-176](../../../../src/bilibili/danmaku/message-handlers.js#L115-L176)):每条 SC 都先 `onSuperChat`(入库,见 [gift.md](gift.md) §7);若文本是命令,再过窗口 + 去重后二次 `onMessage(source:'superchat', isPinned: price>=2)`,命令拒绝仅发生在 `onMessage` 一路,不影响 SC 入账。
+**SC**（`handleSuperChat`，[message-handlers.js:115-176](../../../../src/bilibili/danmaku/message-handlers.js#L115-L176)）：每条 SC 先走 `onSuperChat`（发布弹幕流并入库，见 [gift.md §7](gift.md#7-醒目留言服务superchat-service)）；若正文为命令，再过窗口与去重后二次触发 `onMessage(source:'superchat', isPinned: price>=2)`，命令拒绝仅影响 `onMessage`，不影响 SC 入账。
 
-**SC 下线**：`SUPER_CHAT_MESSAGE_DELETE` 直接调用独立 `onSuperChatDelete`，不做新增 SC 或命令文本二次分发。重复下线和未找到平台 ID 不产生新记录；存储与快照规则见 [gift.md](gift.md) §7。
+**SC 下线**：`SUPER_CHAT_MESSAGE_DELETE` 直接调用独立 `onSuperChatDelete`，不做新增 SC 或命令文本二次分发。重复下线和未找到平台 ID 不产生新记录；存储与防重规则见 [gift.md §7](gift.md#7-醒目留言服务superchat-service)。
 
-**礼物类消息身份**：`handleIdentityMessage` 仅提取发送者 UID、姓名、头像及舰队提示，交给用户信息服务；它不生成礼物记录或触发 `onGift`。服务器结果独立进入礼物投影器，见 [protocol.md](protocol.md) §6.4 和 [gift.md](gift.md) §2。
+**礼物类消息身份**：`handleIdentityMessage` 仅提取发送者 UID、昵称、头像及大航海提示并交给 `UserInfoService`，不生成礼物记录；解析边界见 [protocol.md](protocol.md) §6.4，服务器投影见 [gift.md](gift.md) §2。
 
 ### 4.1 实时弹幕流
 
-`createDanmakuFeedBuffer().push()` 接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`，并保留明确的 `isStreamer`。`source:'superchat'` 的 SC 也经 `push()` 发布，要求非空正文和正有限 `price`，额外公开 `kind:'superchat'`、实际 `price` 及由平台 ID 投影的可选 `messageId`，不重复进入点歌命令链。
+`createDanmakuFeedBuffer().push()` 接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`，并保留明确的 `isStreamer`。`source:'superchat'` 的 SC 也经 `push()` 发布，要求非空正文和正有限 `price`，额外输出 `kind:'superchat'`、实际 `price` 及可选 `messageId`（由平台 ID 映射），不重复进入点歌命令链。
 
-`pushGift()` 接收已结算的 `detection_status:'final'` 礼物行，额外投影 `kind:'gift'`、`giftName`、`giftCount`，并提供 `送出 礼物名 × 数量` 的兼容文本。可用的非负有限 `total_price` 原值通过 `giftTotalPrice` 展示，单位为人民币元，已经是本组总额，不再次乘数量；缺失或非法金额省略。可选 `avatarUrl` 保留送礼头像，`giftGuardLevel` 表示本次购买的舰长／提督／总督而非当前房间身份；`giftImageUrl` 由现有礼物目录按礼物 ID 与 `gift_variant_id` 解析，只保留合法 B 站 CDN HTTPS 图片或安全 `/overtime-gift-images/` 路径。礼物数量必须为正安全整数，头像和身份未知时使用空值。三类消息共用连续编号和最近 50 条的上限，不暴露原始载荷、其他账本字段或单价。切换直播间时清空旧房间数据；`getSnapshot()` 返回防御性副本。
+`pushGift()` 接收已定稿（`detection_status:'final'`）的礼物记录，补充 `kind:'gift'`、`giftName`、`giftCount` 及兼容文案 `送出 礼物名 × 数量`。有效的非负 `total_price` 原样输出到 `giftTotalPrice`（单位人民币元，本身已是整组总价，不再乘数量），缺失或非法时省略。可选字段包括：`avatarUrl`（送礼人头像）、`giftGuardLevel`（本次购买的大航海等级，非当前房间身份）和 `giftImageUrl`（按礼物 ID 与 `gift_variant_id` 从礼物目录解析，仅保留合法 B 站 CDN HTTPS 地址或本地 `/overtime-gift-images/` 路径）。礼物数量须为正安全整数，头像和身份缺失时置空。
 
-每条新消息由 `runtime-transport.js` 广播 `danmaku:message`，完整有界列表同时进入全量快照的 `danmakuFeed` 字段。礼物由现有 final 回调在快照发布前加入缓冲区，再向 `topic=danmaku` 发布同一消息；沿用礼物投影层的单次 final 交付，不依赖礼物特效框开关或金额门槛。SC 新增先由 `superChats.isDeleted` 查询已有删除收据，命中则不发布晚到或重放消息；未命中时仍在记录写入前发布，公开显示不受 SC 列表的记录价格门槛影响。`server.js` 将既有 `publishSuperChatDelete` 接到 B 站客户端；`removeSuperChats(messageIds)` 从实时缓冲和后续快照移除匹配 `messageId` 的 SC，只有实际删除时才向同一 topic 广播 `{type:'danmaku:superchat-delete',messageIds}`，随后持久化撤回仍由原有服务拥有。头像和表情地址只保留可信的 B 站 CDN HTTPS 地址；头像可由浏览器直接加载，表情继续通过现有 `/api/bilibili/avatar` 本地图片代理加载。
+弹幕、SC、礼物三类消息共用连续递增编号与最近 50 条的容量上限，均不暴露原始载荷、单价及其他内部账本字段；切换直播间时清空缓冲，`getSnapshot()` 返回副本。
+
+每条新消息由 `runtime-transport.js` 广播 `danmaku:message`，完整有界列表同时进入全量快照的 `danmakuFeed` 字段。礼物由既有 `final` 回调在快照发布前加入缓冲区，再向 `topic=danmaku` 发布同一消息；沿用礼物投影层的单次 `final` 交付，不依赖礼物特效框开关或金额门槛。SC 新增先经 `superChats.isDeleted` 检查删除收据，命中则不发布迟到或重放消息；未命中时仍在入库前发布，公开显示不受 SC 列表的记录价格门槛限制。`server.js` 将 `publishSuperChatDelete` 接到 B 站客户端：`removeSuperChats(messageIds)` 从实时缓冲与后续快照移除匹配 `messageId` 的 SC，仅实际删除公开项时向同一 topic 广播 `{type:'danmaku:superchat-delete',messageIds}`，随后持久化撤回仍由 SC 服务负责（仅实际删除显示项时广播 `bilibili:superchat`）。头像和表情地址均经 B 站头像/CDN 白名单校验（见 [protocol.md](protocol.md) §2.3）；头像可由浏览器直接加载，表情继续通过 `/api/bilibili/avatar` 本地图片代理加载。
 
 ### 4.2 直播间点赞状态
 
-`MessageHandlers` 拥有当前点赞总数快照，字段及清理规则见 [protocol.md](protocol.md#65-直播间累计点赞)。`BilibiliDanmakuClient.getLikeState()` 返回 `{roomId,count,updatedAt,connected}`：`roomId` 优先为解析后的长房号；`connected` 仅表示当前 WebSocket 已打开且平台鉴权通过，历史弹幕轮询不算已连接。未连接或已停止时隐藏数值和时间；连接正常但尚未收到有效推送时，二者也为 `null`，未知不等于 0。
+点赞总数快照的解析与清零时机归 `MessageHandlers`（见 [protocol.md §6.5](protocol.md#65-直播间累计点赞)）。`BilibiliDanmakuClient.getLikeState()` 返回 `{roomId,count,updatedAt,connected}`：`roomId` 优先取解析后的长房号；`connected` 仅表示当前 WebSocket 已打开且平台鉴权通过（历史弹幕轮询不算已连接）。未连接或已停止时隐藏数值和时间；连接正常但尚未收到有效推送时二者也为 `null`（未知不等于 0）。
 
-本机 `bilibili-runtime.getLikeState()` 只读取当前配置房间的客户端；换房或没有客户端时返回配置房号、两个 `null` 和 `connected:false`。两层 API context 透传至管理接口 `GET /api/bilibili/likes/state`（响应见 [api.md](../api.md#14-bilibili-域bilibili)），读取不发上游请求。监听沿用现有弹幕监听开关与长连接，状态仅存于客户端内存；没有新增数据库、远程 LIRA Server 接口、广播或展示组件。
+本机 `bilibili-runtime.getLikeState()` 只读取当前配置房间的客户端；换房或无客户端时返回配置房号、两个 `null` 和 `connected:false`。该状态仅存于客户端内存，经管理接口 `GET /api/bilibili/likes/state` 透传（不发上游请求，响应见 [api.md §14](../api.md#14-bilibili-域bilibili)）。
 
 ### 4.3 直播红包与天选订阅
 
-[bilibili-runtime.js](../../../../src/server/bilibili-runtime.js) 提供 `subscribeLiveLottery(listener)`，返回取消订阅函数。沿用当前配置房间的弹幕监听开关、登录态及已鉴权 WebSocket，不增加连接或轮询。`BilibiliDanmakuClient` 的直接使用者也可传入 `handlers.onLiveLottery`；重放或其他模块可独立调用[纯解析函数](../../../../src/bilibili/parsers/live-lottery-parser.js)，输入及字段唯一合同见 [protocol.md §6.6](protocol.md#66-直播红包与天选事件)。
+[bilibili-runtime.js](../../../../src/server/bilibili-runtime.js) 提供 `subscribeLiveLottery(listener)` 并返回取消订阅函数，复用当前配置房间的弹幕监听开关、登录态及已鉴权 WebSocket，不新增连接或轮询。`BilibiliDanmakuClient` 的直接调用方也可传入 `handlers.onLiveLottery`；重放或其他模块可直接调用[纯解析函数](../../../../src/bilibili/parsers/live-lottery-parser.js)，输入及字段契约见 [protocol.md §6.6](protocol.md#66-直播红包与天选事件)。
 
 ```js
 const unsubscribe = bilibiliRuntime.subscribeLiveLottery((event) => {
-  // 处理器由消费模块实现；跨房公告可按 event.roomId/sourceRoomId 过滤。
+  // 处理器由订阅方实现；跨房公告可按 event.roomId/sourceRoomId 过滤。
   if (event.kind === 'anchor-lottery') handleAnchorLottery(event);
   else handleRedPocket(event);
 });
 
-// 消费模块销毁时取消订阅。
+// 订阅方销毁时取消订阅。
 unsubscribe();
 ```
 
-运行时订阅跨客户端重连保留，取消订阅后停止交付，运行时停止时清空。旧客户端、账号切换前的客户端、已关闭监听及与当前配置不符的房间不能继续发布。每个订阅者获得独立深拷贝；同步异常和异步拒绝只记录不含载荷的告警，不阻断其他订阅者或后续消息。
+运行时订阅在客户端重连期间保持有效，取消订阅后停止投递，运行时停止时清空。旧客户端、账号切换前的客户端、已关闭监听及与当前配置不符的房间不能继续发布。每个订阅方收到独立深拷贝；同步异常和异步拒绝只记录不含载荷的告警，不阻断其他订阅方或后续消息。
 
-这是连接期间的新事件流，没有当前活动查询、连接前历史补齐、断线补发或平台消息去重；`new`、`start`、`end` 和 `award` 是不同消息，消费方如需业务幂等应按自身职责处理。活动只在进程内交付，不进入点歌、礼物记账、SC 或公开弹幕展示管线，不新增 HTTP/WS/IPC、数据库、界面、自动参与或领取能力。真实活动推送仍需直播现场核验，协议与运行时测试分别见 [bilibili-live-lottery.test.js](../../../../test/bilibili/bilibili-live-lottery.test.js) 和 [bilibili-runtime.test.js](../../../../test/bilibili/bilibili-runtime.test.js)。
+该订阅只推送当前连接期间收到的新事件，不提供活动状态查询、建连前补齐、断线补发或消息去重；`new`、`start`、`end` 和 `award` 作为独立事件派发，业务幂等由订阅方自行保证。事件仅在进程内分发，不接入点歌、礼物记账、SC 或公开弹幕流，也不对外暴露 HTTP/WS/IPC、持久化或自动参与功能（协议核对说明见 [protocol.md §6.6](protocol.md#66-直播红包与天选事件)）。
+
+### 4.4 房间舰徽人数
+
+房间大航海总人数由运行时独立管理的 `src/bilibili/room-guard-service.js` 拉取：按当前配置房间调用 `fetchRoomGuardCount`，单次完成后间隔 60 秒再拉取，同一时间最多保留一个在途请求，且不依赖本地弹幕监听开关。换房时立即发布 `{ roomId, count: null }`、中止旧请求并丢弃迟到响应；拉取失败时回退为 `null`，停止服务时同步取消请求与定时器。状态通过 `bilibili-runtime.getRoomGuardState()` 暴露，快照变更事件为 `bilibili:room-guard`，不落盘到设置或礼物账本。
 
 ## 5. 命令解析与点歌桥接
 
@@ -136,7 +140,7 @@ unsubscribe();
 
 文字判定使用 [chinese-text.js](../../../../src/shared/chinese-text.js) 的 `toSimplifiedChinese`，对输入与配置关键词做简繁字形等价比较；字表固定为 OpenCC 1.1.9 的 TSCharacters 首选映射并展平连续映射，随客户端内置，无联网转换或新增运行依赖。该工具只生成比较副本，不改写弹幕、昵称、歌库字段或身份键，也不扩展地区词汇同义词。
 
-点歌、随机点歌、取消点歌、签到、抽签和云端完整匹配命令占用都支持繁体，例如 `點歌 後來`、`隨機點歌 國語＋懷舊`、`取消點歌`、`簽到`、`抽籤`。实时入口、历史轮询与诊断采用一致的命令判断；完整匹配、菜单和礼物相关指令仍由对应 Server owner 执行，必须更新配套服务端代码。
+点歌、随机点歌、取消点歌、签到、抽签以及云端精确匹配指令均支持繁体输入（如 `點歌 後來`、`隨機點歌 國語＋懷舊`、`取消點歌`、`簽到`、`抽籤`）。实时弹幕、历史轮询与诊断共用同一套判定规则；精确匹配、菜单及礼物类指令仍在对应的 LIRA Server 服务中执行，繁体支持需配套升级服务端（云端签到/抽签边界见 §6）。
 
 `isBilibiliCommandText`([command-text.js:9-14](../../../../src/bilibili/danmaku/command-text.js#L9-L14))是 WebSocket / 历史轮询 / SC 二次分发的统一名单:
 

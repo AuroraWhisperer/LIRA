@@ -219,6 +219,23 @@
   font-size: var(--type-size-control);
 }
 
+.gift-export-settings .gift-export-merge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.gift-export-merge .hint {
+  display: block;
+  margin: var(--spacing-xs) 0 0;
+  font-weight: var(--type-weight-regular);
+}
+
 .gift-export-settings-directory {
   margin-top: var(--spacing-md);
   padding-top: var(--spacing-md);

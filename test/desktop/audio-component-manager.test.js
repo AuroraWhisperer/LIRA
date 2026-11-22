@@ -84,6 +84,27 @@ test('6.0.0 installer preservation is promoted without download or a duplicate l
   assert.equal(await fs.readFile(path.join(f.destination, 'dependency.dll'), 'utf8'), 'isolated library');
 });
 
+test('a deferred audio download reports why there is no retry task', async t => {
+  const f = await fixture(t);
+  const manager = f.manager({ canDownload: () => false });
+  await assert.rejects(manager.getExecutable(), error => {
+    assert.equal(error.cause?.message, 'AUDIO_AUTHORIZATION_REQUIRED');
+    assert.match(error.message, /授权/);
+    assert.doesNotMatch(error.message, /下载任务/);
+    return true;
+  });
+  assert.equal(manager.getState().status, 'idle');
+  assert.equal(f.requests(), 0);
+});
+
+test('an unsupported platform reports the cause without creating a download task', async t => {
+  const f = await fixture(t);
+  const manager = f.manager({ arch: 'arm64' });
+  await assert.rejects(manager.getExecutable(), /不支持/);
+  assert.equal(manager.getState().status, 'idle');
+  assert.equal(f.requests(), 0);
+});
+
 test('download corruption leaves no partial executable and retries only when explicitly requested', async t => {
   const f = await fixture(t);
   let requests = 0;
@@ -94,7 +115,7 @@ test('download corruption leaves no partial executable and retries only when exp
     return new Response(bytes);
   } });
   await assert.rejects(manager.initialize(), /HASH_INVALID/);
-  await assert.rejects(manager.getExecutable());
+  await assert.rejects(manager.getExecutable(), /关于与更新.*重试/);
   assert.equal(requests, 1);
   assert.deepEqual(await fs.readdir(f.root), []);
   await manager.retry();

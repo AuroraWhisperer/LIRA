@@ -161,7 +161,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
         setState(state, '已导入并选中预设。', 'good');
       });
     } catch (error) {
-      setState(state, error instanceof SyntaxError ? '文件不是有效的 JSON，请检查角色包。' : error.message, 'warn');
+      setState(state, error instanceof SyntaxError ? '角色包格式不正确，请选择 LIRA 导出的 .lira-persona.json 文件。' : error.message, 'warn');
     }
   });
   byId('PersonaExport').addEventListener('click', () => void runOperation(async () => {

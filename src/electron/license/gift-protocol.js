@@ -86,6 +86,9 @@ function createGiftEndpoints({ request, readEventStream }) {
         options.signal,
       );
     },
+    getGiftCardGroups(eventIds, token, signal) {
+      return request('POST', '/api/device/gift-card-groups', { eventIds }, token, { maxResponseBytes: 1024 * 1024, signal });
+    },
     getGiftCardAvatars(eventIds, token, signal) {
       return request('POST', '/api/device/gift-card-avatars', { eventIds }, token, { maxResponseBytes: 512 * 1024, signal });
     },
@@ -137,7 +140,7 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
       limit > 200 ||
       (syncEpoch !== null && (typeof syncEpoch !== 'string' || !syncEpoch || syncEpoch.length > 128))
     ) {
-      throw new RemoteLicenseError('INVALID_GIFT_CURSOR', '礼物事件游标无效。');
+      throw new RemoteLicenseError('INVALID_GIFT_CURSOR', '礼物记录同步未完成，读取位置或范围无效。');
     }
     return withAuthorizedToken(
       async (token) => {
@@ -158,7 +161,7 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
   async function getGiftHistoryInternal(input = {}) {
     const pageToken = input.pageToken === null || input.pageToken === undefined ? null : input.pageToken;
     if (pageToken !== null && (typeof pageToken !== 'string' || !pageToken || pageToken.length > 4096)) {
-      throw new RemoteLicenseError('INVALID_BOOTSTRAP_TOKEN', '礼物历史页令牌无效。');
+      throw new RemoteLicenseError('INVALID_BOOTSTRAP_TOKEN', '礼物历史同步未完成，无法确定下一批记录的读取位置。');
     }
     return withAuthorizedToken(
       async (token) => {
@@ -238,6 +241,9 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
 
   return {
     getGiftEventsInternal, getGiftHistoryInternal, getGiftSummariesInternal, clearGiftHistoryInternal, watchGiftEventsInternal, getGiftCatalog,
+    getGiftCardGroupsInternal: ({ eventIds, signal }) => withAuthorizedToken(
+      (token) => remote.getGiftCardGroups(eventIds, token, signal), { signal },
+    ),
     getGiftCardAvatarsInternal: ({ eventIds, signal }) => withAuthorizedToken(
       (token) => remote.getGiftCardAvatars(eventIds, token, signal), { signal },
     ),

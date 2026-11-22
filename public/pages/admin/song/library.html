@@ -19,7 +19,7 @@
         <label>
           <span class="song-form-label-line">
             是否可点
-            <span class="hint">停用后不公开</span>
+            <span class="hint">选「否」后不列入公开歌单 <lira-help label="是否可点说明">随机点歌也会跳过这条记录。允许库外点歌时，观众仍可手动点同名歌曲。</lira-help></span>
           </span>
           <select id="songIsEnabled" data-dropdown-variant="settings">
             <option value="true">是</option>
@@ -46,7 +46,7 @@
       <div class="song-form-details">
         <label>
           <span class="song-form-detail-heading">歌切</span>
-          <textarea id="songClip" rows="3" placeholder="链接 / BV号 / 时间点 / 说明"></textarea>
+          <textarea id="songClip" rows="3" placeholder="链接 / BV 号 / 时间点 / 说明"></textarea>
         </label>
         <div class="song-form-pricing">
           <div class="song-form-detail-heading">
@@ -130,9 +130,9 @@
         </details>
       </div>
       <label>
-        只看可点
+        可点状态
         <select id="enabledFilter" data-dropdown-variant="filter">
-          <option value="false">全部歌曲</option>
+          <option value="false">全部（含停用）</option>
           <option value="true">只看可点</option>
         </select>
       </label>

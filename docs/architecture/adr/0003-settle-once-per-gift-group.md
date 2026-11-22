@@ -1,53 +1,54 @@
-# ADR-0003: Settle Exactly Once Per Gift Group
+# ADR-0003: 每个礼物分组仅结算一次
 
-- Status: Accepted
-- Date: 2026-08-10
-- Original ID: ADR-OT-002
-- Quantity semantics: Extended by the [quantity-mode specification](../../../specs/overtime-rule-quantity-mode_design.md); the one-settlement-per-group decision remains accepted.
-- Finalization semantics: [LIRA Server ADR-0107](https://github.com/AuroraWhisperer/LIRA-server/blob/d125d93c52190d377973dfaecfae8388b6c17b92/docs/architecture/decisions/0107-six-second-gift-combo-continuations.md) governs quiet windows and additive late segments; idempotency remains per finalized event ID.
+## 状态
 
-## Context
+已采纳（2026-08-10，原编号：ADR-OT-002）
 
-The gift service returns the existing record when a duplicate platform event arrives and updates the same record as a combo progresses; a single combo of cheap gifts can end up as `num=100`. At original acceptance, product required both one settlement per gift group and one rule application regardless of final quantity. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase. The later quantity-mode specification extends rule application counts while preserving group-level idempotency.
+- 数量模式扩展：由 [加班机按数量结算规格](../../../specs/overtime-rule-quantity-mode_design.md) 扩展，每组一次结算的幂等决策保持不变。
+- 终态判定语义：静默窗口与迟到增量分段遵循 [LIRA Server ADR-0107](https://github.com/AuroraWhisperer/LIRA-server/blob/d125d93c52190d377973dfaecfae8388b6c17b92/docs/architecture/decisions/0107-six-second-gift-combo-continuations.md)，幂等仍以终态事件 ID 为键。
 
-## Decision
+## 背景
 
-`gift_events.id` identifies a server-finalized gift event segment and is the sole settlement key. The finalized `num` and total price remain audit snapshots; `quantityMode='group'` applies the rule once, while `quantityMode='item'` uses the segment's finalized quantity as the application count within that same settlement. Missing quantity mode preserves the original `group` behavior. The server-owned detection core determines finalization and emits at most one `final` per segment; the overtime consumer settles immediately, without a second client-side waiting window. Later positive cumulative growth can produce a new segment containing only the unrecorded difference, without modifying an existing final. Current finalization behavior is documented in the [overtime contract](../../reference/backend/overtime.md#31-结算键与生命周期).
+礼物服务收到平台重复推送时会复用既有记录，连击增长时也会持续更新同一条记录；一次低价礼物的连击最终可能累加到 `num=100`。最初产品要求每个礼物分组只结算一次，且无论最终数量多少只触发一次规则。本 ADR 提炼自加班机设计规格（2026-08-10 采纳）并在 v3.3.14 代码中验证落地；后续的数量模式规格扩展了规则触发次数，但仍保留分组级幂等性。
 
-Before finalization the consumer persists a `pending` settlement row with an idempotent upsert over the `UNIQUE(gift_event_id)` key. At finalization, the entire flow — confirm enabled and epoch match, ensure the pending row exists, re-read the frozen group snapshot and the current rules, materialize the clock, draw the random result, mark the row `applied` or `ignored`, and update the clock — commits in a single `BEGIN IMMEDIATE` transaction. `applied`/`ignored` rows are never modified by duplicate, late, or quantity-growing packets.
+## 决策
 
-Fixed rules repeat their configured operation for the application count; time blind boxes draw independently for each application with `node:crypto.randomInt` over cumulative weights. The versioned results are persisted so a page refresh, WebSocket reconnect, or repeated gift packet can never re-roll them. Settlements record requested and applied delta seconds (negative adjustments clamp the clock at zero) together with a versioned rule snapshot for audit. A failed settlement transaction keeps the row `pending` with an exponential 1–30 second backoff, and a compensating scan resumes eligible `final` events after restart. Capacity limits and quantity-limit recovery are owned by the quantity-mode specification.
+`gift_events.id` 标识服务端确认终态的礼物事件段，是唯一的结算主键。终态 `num` 与总价保留为审计快照：`quantityMode='group'` 按组触发一次规则，`quantityMode='item'` 在同一次结算内按终态数量触发多次；缺失数量模式字段时默认保持原有 `group` 行为。终态由服务端检测核心裁定，每个事件段最多发出一次 `final`；加班机消费者收到后立即结算，不再叠加二次客户端静默窗口。若后续累计数量继续增长，服务端仅生成包含新增差额的新事件段，不回改既有终态记录。现行终态行为详见 [加班机参考](../../reference/backend/overtime.md#31-结算键与生命周期)。
 
-## Consequences
+在终态到达前，消费者通过 `UNIQUE(gift_event_id)` 幂等写入 `pending` 结算记录。终态到达后，整个流程——校验启用状态与纪元（`epoch`）匹配、确保 `pending` 记录存在、重读冻结的分组快照与当前规则、折算倒计时、抽取随机结果、将记录标记为 `applied` 或 `ignored` 并更新时钟——在单个 `BEGIN IMMEDIATE` 事务中提交。已处于 `applied`/`ignored` 的记录绝不再被重复包、迟到包或数量增长包改写。
 
-### Positive
+固定规则按触发次数重复计算，时间盲盒每次触发使用 `node:crypto.randomInt` 按累计权重独立抽取，并将带版本的抽取结果持久化，确保页面刷新、WebSocket 重连或重复推送都不会重新随机。结算记录同时保存请求与实际生效的秒数变化（扣时下限截断为 0）以及带版本的规则快照供审计。事务失败时记录保持 `pending`，按 1–30 秒指数退避重试，重启后由补偿扫描续跑符合条件的 `final` 事件。容量上限与数量超限恢复归属数量模式规格。
 
-- In `group` mode, 100 one-cent gifts apply one rule once; `item` mode deliberately applies it 100 times within one settlement.
-- Fixed and random results are auditable, idempotent, and stable across refresh and reconnect.
-- Restart recovery completes without relying on platform resends.
+## 影响
 
-### Negative
+### 正面影响
 
-- Time feedback waits for the server-owned group finalization window.
-- Updates never rewrite an existing final or its settlement; an additive late segment has its own event ID and settles independently.
+- `group` 模式下 100 个一角礼物仅触发一次规则；`item` 模式下则在单次结算内明确按 100 次计算。
+- 固定与随机结算结果均可审计、幂等，且在刷新和重连后保持稳定。
+- 重启恢复无需依赖直播平台重发事件。
 
-### Neutral
+### 代价
 
-- Each `gift_event_id` occupies exactly one settlement row (`pending`/`applied`/`ignored`), which also serves as the dedup checkpoint.
+- 倒计时变更需要等待服务端分组终态静默窗口结束。
+- 已有终态及其结算永不回写，迟到增量分段作为独立事件 ID 单独结算。
 
-## Alternatives Considered
+### 中性影响
 
-**Settle on every progress broadcast**
+- 每个 `gift_event_id` 对应唯一一条结算记录（`pending`/`applied`/`ignored`），同时充当去重检查点。
 
-- Rejected: duplicate platform events and growing `num` would settle repeatedly, and an `x1 -> x100` progression could not be handled. Applying the finalized quantity once in `item` mode does not introduce this repeated-progress behavior.
+## 备选方案
 
-**Add time in the browser from the last received gift message**
+**每次进度广播都直接结算**
 
-- Rejected: browsers may re-broadcast stale snapshots on reconnect and would double-settle.
+- 否决：重复推送和递增 `num` 会导致反复结算，无法正确处理 `x1 -> x100` 的连击增长。`item` 模式在终态一次性按最终数量结算，不会引入进度重复结算问题。
 
-## References
+**由浏览器按最后收到的礼物消息自行加时**
 
-- [Overtime runtime contract](../../reference/backend/overtime.md)
-- [Quantity-mode requirements and limits](../../../specs/overtime-rule-quantity-mode_design.md)
-- [Settlement storage](../../../src/storage/overtime-store.js)
-- [Settlement calculation](../../../src/overtime/overtime-settlement.js) (`resolveGiftSettlement`)
+- 否决：浏览器重连时可能重播旧快照，容易造成重复结算。
+
+## 参考
+
+- [加班机运行时规范](../../reference/backend/overtime.md)
+- [按数量结算需求与限制](../../../specs/overtime-rule-quantity-mode_design.md)
+- [结算存储](../../../src/storage/overtime-store.js)
+- [结算计算](../../../src/overtime/overtime-settlement.js)（`resolveGiftSettlement`）

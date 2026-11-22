@@ -183,7 +183,7 @@ function sendStableError(res, error) {
     sendJson(res, 400, {
       ok: false,
       code: 'LYRIC_EXPANSION_LIMIT',
-      error: '歌词展开后超过允许的行数或文本总量，请减少重复时间戳或歌词内容。',
+      error: '这份歌词太大，无法读取。',
     });
     return;
   }

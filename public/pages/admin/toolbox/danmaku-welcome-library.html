@@ -1,6 +1,6 @@
 <section id="danmakuWelcomePanel" data-fixed-editor="welcome" hidden aria-label="进场欢迎设置">
   <p id="danmakuWelcomeCapability" class="hint" role="status" hidden>
-    当前服务暂不支持新设置，请联系管理员；欢迎开关和原词库仍可使用。
+    当前服务器暂不支持新设置，请联系管理员；欢迎开关和原词库仍可使用。
   </p>
   <div id="danmakuWelcomeParameters">
     <p class="hint danmaku-welcome-rule-summary">首次欢迎只选一句：个人文案 → 多天未到 → 高荣耀 → 时段或普通。二次问候是首次发送成功后的可选追加；粉丝牌筛选和黑白名单在「欢迎对象」中设置。</p>
@@ -120,15 +120,15 @@
       </div>
       <div class="danmaku-welcome-rule">
         <div class="danmaku-welcome-rule-heading">
-          <strong><span id="danmakuWelcomeReturningTitle">多天未到欢迎</span><lira-help label="多天未到欢迎规则">距上次进场满 24 小时算 1 天，可在文案中用 {days} 代入未到天数（第一次被系统记录到的观众不会触发）。进场时间按云端监控记录计算。</lira-help></strong>
+          <strong><span id="danmakuWelcomeReturningTitle">多天未到欢迎</span><lira-help label="多天未到欢迎规则">{days} 表示云端记录的两次进场之间相隔的完整天数。首次记录到的观众没有上次进场时间，不会触发这条欢迎。</lira-help></strong>
           <label class="switch-control">
             <input id="danmakuWelcomeReturningToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeReturningTitle" aria-describedby="danmakuWelcomeEnableHint" />
             <span class="switch-track"></span>
           </label>
         </div>
         <div class="danmaku-welcome-rule-controls">
-          <p class="danmaku-welcome-returning-summary">超过 1 天没来，随机说一句欢迎，不按天数分组。</p>
-          <p id="danmakuWelcomeReturningCapability" class="hint" role="status" hidden>当前服务暂不支持多天未到欢迎，请联系管理员。</p>
+          <p class="danmaku-welcome-returning-summary">距上次进场超过 24 小时才会用到这个词库。欢迎词随机选取，不按天数分组。</p>
+          <p id="danmakuWelcomeReturningCapability" class="hint" role="status" hidden>当前服务器暂不支持多天未到欢迎，请联系管理员。</p>
           <div class="danmaku-welcome-rule-library">
             <button id="danmakuWelcomeReturningLibraryBtn" class="secondary" type="button" data-welcome-library="returningMessages" disabled>多天未到词库</button>
           </div>
@@ -174,7 +174,7 @@
         <span class="switch-track"></span>
       </label>
     </div>
-    <p id="danmakuWelcomeTimeCapability" class="hint" role="status" hidden>当前服务暂不支持时段欢迎，请更新服务端后刷新。</p>
+    <p id="danmakuWelcomeTimeCapability" class="hint" role="status" hidden>当前服务器暂不支持时段欢迎，请联系管理员更新服务器后刷新。</p>
     <div class="danmaku-welcome-library-heading">
       <span class="danmaku-welcome-library-label"><label for="danmakuWelcomeLibraryKind">通用词库</label><lira-help id="danmakuWelcomeTemplateHelp" label="词库文案说明">{username} 代表观众昵称，没填也会自动补上。舰长、提督、总督头衔会放在昵称前。内容太长时，会保留完整昵称，改用短句。</lira-help></span>
       <select id="danmakuWelcomeLibraryKind">
@@ -190,7 +190,7 @@
       <label for="danmakuWelcomeTimePeriod">北京时间</label>
       <select id="danmakuWelcomeTimePeriod" disabled></select>
     </div>
-    <p id="danmakuWelcomeReturningLibraryHint" class="hint" hidden>每条填写一句完整欢迎语，统一随机选用，不按天数分组。{username}（也可写 {uname}）是昵称，{days} 是未到的完整天数。旧的无变量客套话仍自动补上昵称和天数；内容太长时会改用保留完整昵称的短句。</p>
+    <p id="danmakuWelcomeReturningLibraryHint" class="hint" hidden>每条写一句，发送时随机选。昵称用 {username} 或 {uname}，天数用 {days}。只写「最近好吗？」会自动补上昵称和天数。只填昵称就照原句发，只填天数会在开头加上昵称。弹幕太长会试着改发短句，保留完整昵称。有些旧服务器自带问候开头，只需填后面的话。</p>
     <div id="danmakuWelcomeLibraryDrafts" class="hint" role="status"></div>
     <div id="danmakuWelcomeList" class="danmaku-blessing-list" aria-live="polite"></div>
     <div id="danmakuWelcomePagination" class="danmaku-library-pagination" hidden>

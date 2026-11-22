@@ -84,9 +84,9 @@ export function confirmedSettings(result) {
     throw new Error('尚未确认服务器设置，请检查连接后重试。');
   if (result.schemaVersion === 1) return result;
   if (result.timeWelcomeEnabled !== undefined || result.timeWelcomeMessages !== undefined) {
-    if (typeof result.timeWelcomeEnabled !== 'boolean') throw new Error('服务器设置回包无效，请刷新核对。');
+    if (typeof result.timeWelcomeEnabled !== 'boolean') throw new Error('服务器返回的进场欢迎设置无效，请刷新状态后核对。');
     normalizeTimeWelcomeMessages(result.timeWelcomeMessages, (messages) => {
-      if (!validMessages(messages)) throw new Error('服务器设置回包无效，请刷新核对。');
+      if (!validMessages(messages)) throw new Error('服务器返回的进场欢迎设置无效，请刷新状态后核对。');
       return messages;
     });
   }
@@ -108,6 +108,6 @@ export function confirmedSettings(result) {
       (!Array.isArray(result.userWelcomeMessages) ||
         result.userWelcomeMessages.some((item) => typeof item?.uid !== 'string' || typeof item?.message !== 'string')))
   )
-    throw new Error('服务器设置回包无效，请刷新核对。');
+    throw new Error('服务器返回的进场欢迎设置无效，请刷新状态后核对。');
   return result;
 }

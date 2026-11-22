@@ -2,6 +2,9 @@ import { previewElement } from './component-preview-elements.js';
 import { createWishPicker } from './gifts/wish-picker.js';
 import { normalizeTextBoxImageSource } from '../shared/text-box-config.js';
 import { setGiftArtwork } from '../shared/gift-image.js';
+import { formatByteLimit } from '../shared/display-format.js';
+
+const MAX_TEXT_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function requestTextBoxMedia(kind, { source, file, signal } = {}, access) {
   const url = new URL(`${access ? '/api/component-preview' : '/api/scenes'}/text-${kind}`, location.origin);
@@ -87,7 +90,7 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
     const file = upload.files[0]; upload.value = '';
     if (!file || uploading || disabled) return;
     if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) { onError(new Error('请选择 PNG、JPEG、GIF 或 WebP 图片。')); return; }
-    if (file.size > 5 * 1024 * 1024) { onError(new Error('图片不能超过 5 MB，请压缩后重新上传。')); return; }
+    if (file.size > MAX_TEXT_IMAGE_BYTES) { onError(new Error(`图片不能超过 ${formatByteLimit(MAX_TEXT_IMAGE_BYTES)}，请压缩后重新上传。`)); return; }
     uploading = true; uploadButton.disabled = true; uploadButton.textContent = '上传中…';
     const submitted = requests;
     try {

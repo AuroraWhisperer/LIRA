@@ -53,10 +53,10 @@ async function openHistory(t) {
 
 const selected = (page) => page.evaluate(() => [...historyState.selected].sort());
 
-async function dragRows(page, from, to) {
-  const start = await page.locator(`#giftHistoryBody tr:nth-child(${from + 1})`).boundingBox();
-  const end = await page.locator(`#giftHistoryBody tr:nth-child(${to + 1})`).boundingBox();
-  await page.mouse.move(start.x + 180, start.y + start.height / 2);
+async function dragRows(page, from, to, startSelector = 'td:last-child') {
+  const rows = page.locator('#giftHistoryBody tr');
+  await rows.nth(from).locator(startSelector).hover();
+  const end = await rows.nth(to).boundingBox();
   await page.mouse.down();
   await page.mouse.move(end.x + 360, end.y + end.height / 2, { steps: 5 });
 }
@@ -74,10 +74,10 @@ test('whole rows toggle once, slight movement stays a click, and checkboxes reta
   await page.mouse.move(box.x + 22, box.y + 21);
   await page.mouse.up();
   assert.deepEqual(await selected(page), ['gift-0']);
-  const checkbox = page.locator('[data-gift-select="gift-0"]');
-  await checkbox.click();
-  assert.deepEqual(await selected(page), []);
-  await checkbox.press('Space');
+  const checkbox = page.locator('[data-gift-select="gift-1"]');
+  await checkbox.click({ modifiers: ['Control'] });
+  assert.deepEqual(await selected(page), ['gift-0', 'gift-1']);
+  await page.keyboard.press('Space');
   assert.deepEqual(await selected(page), ['gift-0']);
 });
 
@@ -88,14 +88,25 @@ test('marquee replaces the page selection, preserves other pages, supports rever
     historyState.selected.add('gift-4');
     historyTools.update();
   });
-  await dragRows(page, 1, 3);
+  await dragRows(page, 2, 3);
   await page.mouse.up();
-  assert.deepEqual(await selected(page), ['gift-1', 'gift-2', 'gift-3', 'other-page']);
+  assert.deepEqual(await selected(page), ['gift-2', 'gift-3', 'other-page']);
   await page.keyboard.down('Control');
   await dragRows(page, 4, 3);
   await page.mouse.up();
+  assert.deepEqual(await selected(page), ['gift-2', 'gift-3', 'gift-4', 'other-page']);
+
+  const count = page.locator('#giftHistorySelectedCount');
+  await dragRows(page, 2, 0, 'input');
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  assert.deepEqual((await count.textContent()).match(/\d+/g), ['6', '2']);
+  await page.locator('[data-gift-select="gift-1"]').hover();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  assert.deepEqual((await count.textContent()).match(/\d+/g), ['5', '1']);
+  await page.mouse.up();
   await page.keyboard.up('Control');
   assert.deepEqual(await selected(page), ['gift-1', 'gift-2', 'gift-3', 'gift-4', 'other-page']);
+  assert.deepEqual((await count.textContent()).match(/\d+/g), ['5']);
   await page.locator('#giftHistoryDeselect').click();
   assert.deepEqual(await selected(page), []);
 });
@@ -167,9 +178,13 @@ test('100-row marquee flushes batched movement and the release position', async 
 
 test('manual selection supersedes pending select-all and exports the same selected IDs', async (t) => {
   const page = await openHistory(t);
+  await page.locator('[data-gift-select="gift-0"]').check();
   await page.locator('#giftHistorySelectAll').click();
   await page.waitForFunction(() => typeof window.finishSelection === 'function');
-  await page.locator('#giftHistoryBody tr').first().locator('td').last().click();
+  await page.keyboard.down('Control');
+  await dragRows(page, 0, 2, 'input');
+  await page.mouse.up();
+  await page.keyboard.up('Control');
   await page.evaluate(async () => {
     finishSelection({ json: async () => ({ ok: true, data: { items: historyState.items } }) });
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -180,10 +195,11 @@ test('manual selection supersedes pending select-all and exports the same select
       },
     };
   });
-  assert.deepEqual(await selected(page), ['gift-0']);
+  const expectedIds = ['gift-0', 'gift-1', 'gift-2'];
+  assert.deepEqual(await selected(page), expectedIds);
   await page.locator('#giftHistoryExport').click();
   await page.waitForFunction(() => window.exportedSelection);
-  assert.deepEqual(await page.evaluate(() => exportedSelection.eventIds), ['gift-0']);
+  assert.deepEqual(await page.evaluate(() => exportedSelection.eventIds.toSorted()), expectedIds);
   await page.locator('#giftHistorySelectPage').check();
   assert.equal((await selected(page)).length, 100);
   await page.locator('#giftHistorySelectPage').uncheck();

@@ -123,18 +123,19 @@ function validateWeeklyScheduleExportTemplate(input, nativeImage) {
   for (const [key, value] of Object.entries(template.assets)) {
     if (!ASSET_KEYS.has(key) || typeof value !== 'string') invalid();
     if (!value) continue;
-    if (value.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 64) invalid('单张周表素材不能超过 12 MiB。');
+    if (value.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 64) invalid('单张周表素材不能超过 12 MB（12,582,912 字节），请缩小图片后重试。');
     const match = /^data:image\/(png|jpeg|webp);base64,([a-z\d+/]+={0,2})$/i.exec(value);
     if (!match) invalid('周表素材必须是本机 PNG、JPEG 或 WebP 图片。');
     const bytes = Buffer.from(match[2], 'base64');
     totalBytes += bytes.length;
-    if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) invalid('单张周表素材不能超过 12 MiB。');
-    if (totalBytes > MAX_TOTAL_IMAGE_BYTES) invalid('周表素材合计不能超过 48 MiB，请缩小图片后重试。');
+    if (!bytes.length) invalid('周表素材无法读取，请重新上传。');
+    if (bytes.length > MAX_IMAGE_BYTES) invalid('单张周表素材不能超过 12 MB（12,582,912 字节），请缩小图片后重试。');
+    if (totalBytes > MAX_TOTAL_IMAGE_BYTES) invalid('每份周表的素材总量不能超过 48 MB（50,331,648 字节），请移除或缩小部分图片。');
     // Reject a declared oversized PNG before asking the native decoder to allocate its bitmap.
     if (bytes.length >= 24 && bytes.subarray(0, 8).equals(PNG_SIGNATURE)
       && (bytes.readUInt32BE(16) > 8192 || bytes.readUInt32BE(20) > 8192
         || bytes.readUInt32BE(16) * bytes.readUInt32BE(20) > 32 * 1024 * 1024)) {
-      invalid('周表素材的长边不能超过 8192 像素，像素总量不能超过 32 Mi。');
+      invalid('请缩小图片。长边最多 8192 像素，总像素最多 33,554,432（约 3355 万）。');
     }
     let size;
     if (match[1].toLowerCase() === 'webp') {
@@ -149,7 +150,7 @@ function validateWeeklyScheduleExportTemplate(input, nativeImage) {
     }
     if (!size.width || !size.height) invalid('周表素材无法读取，请重新上传。');
     if (size.width > 8192 || size.height > 8192 || size.width * size.height > 32 * 1024 * 1024) {
-      invalid('周表素材的长边不能超过 8192 像素，像素总量不能超过 32 Mi。');
+      invalid('请缩小图片。长边最多 8192 像素，总像素最多 33,554,432（约 3355 万）。');
     }
   }
   return template;

@@ -53,7 +53,7 @@ export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm 
 
   const isDesktop = Boolean(windowRef.bilibiliAuth);
   if (!isDesktop) {
-    statusEl.textContent = 'Web 模式（不可用）';
+    statusEl.textContent = '仅桌面版可用';
     statusEl.className = 'pill';
     loginBtn.disabled = true;
     loginBtn.title = 'B 站账号扫码登录仅在桌面版中可用';
@@ -125,7 +125,7 @@ export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm 
       title: '退出登录',
       platform: 'B 站',
       message:
-        '退出后会同步当前 LIRA 账号的 B 站账号退出状态；同步成功后停止该账号的云端监听。离线时不会回退为匿名采集。',
+        '这台电脑将退出 B 站账号。退出状态同步成功后，云端才会停止为当前 LIRA 账号监听弹幕和礼物。离线退出时，需等 LIRA 联网完成同步。',
       icon: '→',
       confirmLabel: '确认退出',
     });

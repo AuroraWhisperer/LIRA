@@ -1,8 +1,8 @@
 import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { loadComponentStyleCss, requestComponentStyles } from './component-style-api.js';
+import { formatBytes } from '../shared/display-format.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 
-const size = bytes => `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
 const categoryName = type => SCENE_EXTRA_COMPONENTS[type]?.title
   || ({ suite: '套装', clock: '时钟', danmaku: '弹幕姬', queue: '点歌板', browser: '浏览器源', 'text-box': '文本框', overtime: '加班机' })[type] || type;
 
@@ -54,10 +54,10 @@ export function openComponentLibraryManager({ request = requestComponentStyles, 
   close.setAttribute('aria-label', '关闭'); close.title = '关闭';
   close.append(previewToolbarIcon('close'));
   const cleanup = button(storageHeading, '清理未使用文件', () => askConfirmation(
-    `将清理 ${size(inventory.reclaimableBytes)} 已从样式库移除且未被场景使用的素材。需要恢复时请重新导入原安装包。`, async () => {
+    `将清理 ${formatBytes(inventory.reclaimableBytes)} 已从样式库移除且未被场景使用的素材。需要恢复时请重新导入原安装包。`, async () => {
       const result = await request('cleanup', { ids: inventory.entries.filter(entry => entry.state === 'reclaimable').map(entry => entry.id), signal: requests.signal });
       await refresh();
-      status.textContent = result.failed.length ? `已释放 ${size(result.freedBytes)}，部分文件仍被占用，请稍后重试。` : `已释放 ${size(result.freedBytes)}。`;
+      status.textContent = result.failed.length ? `已释放 ${formatBytes(result.freedBytes)}，部分文件仍被占用，请稍后重试。` : `已释放 ${formatBytes(result.freedBytes)}。`;
     })); cleanup.disabled = true;
   button(actions, '导出素材与场景备份', async () => {
     if (busy) return;
@@ -106,7 +106,7 @@ export function openComponentLibraryManager({ request = requestComponentStyles, 
       pendingBackup = preview.id;
       if (closed) { await cancelBackup(); return; }
       status.textContent = '';
-      askConfirmation(`备份包含 ${preview.packages} 个素材包、${preview.scenes} 份已保存或已发布布局，共 ${size(preview.bytes)}。将恢复为副本，当前场景和直播保持原样。${preview.warnings.join('')}`, async () => {
+      askConfirmation(`备份包含 ${preview.packages} 个素材包、${preview.scenes} 份已保存或已发布布局，共 ${formatBytes(preview.bytes)}。将恢复为副本，当前场景和直播保持原样。${preview.warnings.join('')}`, async () => {
         const result = await request('restore-backup', { id: pendingBackup, signal: requests.signal }); pendingBackup = null;
         const { refreshComponentPreviewPresets } = await import('./component-preview-canvas-controller.js');
         try { await refreshComponentPreviewPresets(); } catch (error) { result.refreshError = error.message; }
@@ -152,9 +152,9 @@ export function openComponentLibraryManager({ request = requestComponentStyles, 
     if (usage.status === 'fulfilled') {
       inventory = usage.value;
       const retained = inventory.entries.filter(entry => entry.state === 'referenced').reduce((sum, entry) => sum + entry.bytes, 0);
-      total.textContent = `共占用 ${size(inventory.totalBytes)}`;
-      [retained, inventory.reclaimableBytes, inventory.pendingBytes].forEach((bytes, index) => { values[index].textContent = size(bytes); });
-      storage.textContent = inventory.unregisteredBytes ? `待核对文件 ${size(inventory.unregisteredBytes)}。` : '';
+      total.textContent = `共占用 ${formatBytes(inventory.totalBytes)}`;
+      [retained, inventory.reclaimableBytes, inventory.pendingBytes].forEach((bytes, index) => { values[index].textContent = formatBytes(bytes); });
+      storage.textContent = inventory.unregisteredBytes ? `待核对文件 ${formatBytes(inventory.unregisteredBytes)}。` : '';
       if (!inventory.integrity.backupCurrent) storage.textContent += '恢复副本暂未保存成功，已暂停文件清理。';
       if (inventory.integrity.recovery) storage.textContent += '索引曾从恢复副本还原，请核对最近的样式设置。';
       cleanup.disabled = busy || !inventory.reclaimableBytes || !inventory.integrity.backupCurrent;

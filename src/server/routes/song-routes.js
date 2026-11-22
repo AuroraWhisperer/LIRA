@@ -47,7 +47,7 @@ function sendImportError(res, error) {
   sendJson(res, error.statusCode || 500, {
     ok: false,
     error: error.statusCode ? error.code : 'SONG_IMPORT_FAILED',
-    message: error.statusCode ? error.message : '导入未完成，已回滚，请重试。',
+    message: error.statusCode ? error.message : '无法确认本次操作的结果，请刷新并核对歌库后重新预览。',
   });
 }
 

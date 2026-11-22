@@ -90,7 +90,7 @@ export function renderComparison(results) {
           rowClass = 'diff-highlight';
           break;
         case 'extra':
-          statusBadge = '<span class="badge badge-extra">📡 仅WS</span>';
+          statusBadge = '<span class="badge badge-extra">📡 仅 WebSocket</span>';
           rowClass = 'row-fade';
           break;
         default:

@@ -548,13 +548,9 @@ test('canvas dragging retains a visible corner and negative coordinate edits sur
   await x.press('Tab');
   await y.fill('-80');
   await y.press('Tab');
-  const published = page.waitForResponse(async response => {
-    if (response.frame() !== page.mainFrame() || !response.url().endsWith('/api/component-preview')) return false;
-    const { data } = await response.json();
-    return (data?.updates || [data]).some(update => update?.display?.result?.publishedVersion === 1);
-  });
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await published;
+  await page.getByText('已保存并应用到直播源', { exact: true }).waitFor();
+  assert.equal(fixture.service.getCanvas().publishedVersion, 1);
   const saved = fixture.service.list()[0];
   assert.deepEqual([saved.document.items[0].x, saved.document.items[0].y], [-120, -80]);
   assert.deepEqual(await desktop.evaluate(() => {

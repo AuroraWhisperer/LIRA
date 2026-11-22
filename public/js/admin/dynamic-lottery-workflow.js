@@ -3,6 +3,7 @@
 import { copyText, readJsonResponse, toast } from '../shared/utils.js';
 
 const BASE = '/api/bilibili/dynamic-lottery';
+const NEW_LOTTERY_HINT = '另开一场前，请先复制要保留的旧中奖名单，再点「新建抽奖」。点击「获取参与名单」时会重新确定评论截止时间，建场成功后会清理当前 LIRA 账号已结束的场次。';
 const ERRORS = {
   LOTTERY_IDENTITY_UNAVAILABLE: '请先完成 LIRA 账号授权。',
   LOTTERY_DESKTOP_REQUIRED: '请在 LIRA 桌面客户端使用动态抽奖。',
@@ -24,7 +25,7 @@ const ERRORS = {
   LOTTERY_UPSTREAM_INVALID: 'B 站返回的名单或分页不完整，已停止；不会用部分名单开奖。请稍后继续。',
   LOTTERY_REACTION_UNKNOWN: 'B 站返回了无法识别的互动类型，已暂停，不能把它当作点赞或转发。',
   LOTTERY_REACTION_INCOMPLETE:
-    '互动用户名单少于内容显示的数量，无法确认完整性。已暂停，不会用部分名单开奖；请稍后新建活动重新采集。',
+    `获取到的互动人数少于内容页显示的人数，采集已停止。这份名单不完整，不能开奖。${NEW_LOTTERY_HINT}`,
   LOTTERY_BILIBILI_API_ERROR: 'B 站接口暂时无法读取，请稍后重试；已保存的名单不会丢失。',
   LOTTERY_REQUEST_TIMEOUT: 'B 站请求超时，进度已保存，可稍后继续。',
   LOTTERY_RELATION_UNKNOWN: '无法确认当前候选人是否关注作者。停在该候选人，继续时不会跳过或重新乱序。',
@@ -32,13 +33,13 @@ const ERRORS = {
   LOTTERY_COLLECTION_PAUSED: '采集已暂停，可从保存的位置继续。',
   LOTTERY_OPERATION_PAUSED: '操作已暂停；名单、顺序和已确认的中奖者均已保留。',
   LOTTERY_COLLECTION_INCOMPLETE: '请先完成所有所选来源的采集，再开始开奖。',
-  LOTTERY_CURSOR_CONFLICT: '分页游标重复或发生冲突，不能继续确认完整名单。请新建活动重新采集。',
-  LOTTERY_COLLECTION_LIMIT: '名单超过本版采集上限（10 万条证据），已停止；不能使用截断名单开奖。',
-  LOTTERY_DRAW_CONFLICT: '活动状态已更新，请刷新后再操作。',
+  LOTTERY_CURSOR_CONFLICT: `名单翻页时出现重复或冲突，无法确认名单是否完整，不能开奖。${NEW_LOTTERY_HINT}`,
+  LOTTERY_COLLECTION_LIMIT: '已达到本次采集上限，名单不完整，不能开奖。',
+  LOTTERY_DRAW_CONFLICT: '抽奖信息有冲突，请点「刷新进度」后重试。',
   LOTTERY_BUSY: '已有采集或开奖操作在进行，请先等待或暂停。',
   LOTTERY_RULES_INVALID: '请填写链接和 1–100 的整数中奖人数。',
-  LOTTERY_LEGACY_TASK: '这是旧版规则的活动，仅供查看。请新建活动使用当前流程。',
-  LOTTERY_TASK_NOT_FOUND: '活动不存在或不属于当前 LIRA 账号。',
+  LOTTERY_LEGACY_TASK: `这是旧版规则的抽奖，仅供查看。${NEW_LOTTERY_HINT}`,
+  LOTTERY_TASK_NOT_FOUND: '当前 LIRA 账号下找不到这场抽奖。',
   LOTTERY_TASK_CLEARED: '这场抽奖已经结束并清理，请新建抽奖。',
 };
 const SOURCE_NAMES = { comment: '评论', like: '点赞', repost: '转发' };

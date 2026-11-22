@@ -41,7 +41,7 @@
           <div class="gift-control-heading">
             <h2 class="gift-section-title ui-section-title"><label for="giftStatsQueryEnabled">弹幕查询</label></h2>
             <lira-help label="弹幕查询说明" tooltip-id="giftStatsQueryDescription"
-              >观众可用“今日礼物”等弹幕查询已记录的付费礼物。登录 B 站并同步后可开启，退出软件后仍有效。</lira-help
+              >观众可发「今日礼物」等弹幕查询自己的付费礼物记录。登录 B 站并同步后可开启。查询由服务器处理，无需保持客户端运行。</lira-help
             >
           </div>
           <label class="switch-control">
@@ -193,13 +193,15 @@
         <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
       </div>
       <div class="panel-body stack">
+        <p class="hint">盲盒的官方产物列表会自动同步。找不到盲盒时，可先点「展开其余盲盒」查找。官方尚未将该礼物收录为盲盒时，可在这里手动补充。</p>
         <div class="blind-box-form-row">
           <input id="blindBoxGiftId" type="text" inputmode="numeric" placeholder="盲盒 ID（可选）" />
           <input id="blindBoxName" type="text" placeholder="盲盒名，如 星光盲盒" />
-          <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本(元)" />
-          <input id="blindBoxOutputs" type="text" placeholder="产物 ID:名称:价格，如 35207:幸运泡泡:1.5" />
+          <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本（元）" />
+          <input id="blindBoxOutputs" type="text" placeholder="产物 ID:名称:价格" aria-describedby="blindBoxOutputsHint" />
           <button id="blindBoxAddBtn" class="primary" type="button">+ 添加</button>
         </div>
+        <p id="blindBoxOutputsHint" class="hint">多个产物用逗号分隔。单个产物的写法如 35207:幸运泡泡:1.5。</p>
         <div id="blindBoxMappingStatus" class="hint" role="status"></div>
         <div id="blindBoxList" class="blind-box-list"></div>
         <button
@@ -213,7 +215,7 @@
           展开其余盲盒 ▾
         </button>
         <div id="blindBoxAdvanced" hidden>
-          <p class="hint">盲盒设置自动从服务器同步，无需填写。此处仅编辑自定义配置。</p>
+          <p class="hint">此处仅编辑自定义配置。</p>
           <textarea
             id="giftBlindBoxCustomConfigV2"
             aria-label="自定义盲盒配置 JSON"

@@ -38,6 +38,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     return {
       mode: mode === 'separate' ? mode : 'combined',
       background: background === 'white' ? background : 'transparent',
+      mergeAcrossDates: runtime.getSetting('giftExportMergeAcrossDates') === 'true',
       directory,
       custom: directory !== defaultRoot(),
     };
@@ -50,11 +51,12 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       !input ||
       typeof input !== 'object' ||
       Array.isArray(input) ||
-      Object.keys(input).some((key) => !['mode', 'background', 'directoryAction'].includes(key))
+      Object.keys(input).some((key) => !['mode', 'background', 'mergeAcrossDates', 'directoryAction'].includes(key))
     ) {
       throw new Error('导出设置参数无效。');
     }
-    const { mode, background, directoryAction } = input;
+    const { mode, background, mergeAcrossDates, directoryAction } = input;
+    if (mergeAcrossDates !== undefined && typeof mergeAcrossDates !== 'boolean') throw new Error('合并选项无效。');
     if (mode !== undefined && !['combined', 'separate'].includes(mode)) throw new Error('输出方式无效。');
     if (background !== undefined && !['transparent', 'white'].includes(background)) throw new Error('背景参数无效。');
     if (directoryAction !== undefined && !['default', 'choose'].includes(directoryAction))
@@ -78,6 +80,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     runtime.setGiftExportSettings({
       mode: next.mode,
       background: next.background,
+      mergeAcrossDates: mergeAcrossDates ?? next.mergeAcrossDates,
       directory: next.directory === defaultRoot() ? '' : next.directory,
     });
     return readSettings();
@@ -94,6 +97,9 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     task = {
       id: randomUUID(),
       snapshot,
+      originalSnapshot: snapshot,
+      mergeAcrossDates: false,
+      abort: new AbortController(),
       root: defaults.directory,
       saved: 0,
       running: false,
@@ -102,6 +108,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       background: defaults.background,
     };
     setDirectory(task);
+    if (defaults.mergeAcrossDates) return configure({ id: task.id, mode: task.mode, background: task.background, mergeAcrossDates: true });
     return describe(task);
   }
 
@@ -122,6 +129,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       directory: current.directory,
       mode: current.mode,
       background: current.background,
+      mergeAcrossDates: current.mergeAcrossDates,
       files: exportLayout(current.snapshot.items.length, current.mode),
       custom: current.root !== defaultRoot(),
     };
@@ -133,12 +141,28 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     return task;
   }
 
-  async function configure({ id, mode, background, directoryAction, remember }) {
-    const current = requireTask(id);
+  async function configure(options) {
+    const current = requireTask(options.id);
     if (current.running) throw new Error('正在导出，请先取消。');
+    if (current.configuring) throw new Error('正在更新导出设置。');
+    current.configuring = true;
+    try {
+      return await configureTask(current, options);
+    } finally {
+      current.configuring = false;
+    }
+  }
+
+  async function configureTask(current, { mode, background, mergeAcrossDates = current.mergeAcrossDates, directoryAction, remember }) {
+    if (typeof mergeAcrossDates !== 'boolean') throw new Error('合并选项无效。');
     exportLayout(current.snapshot.items.length, mode);
     if (!['transparent', 'white'].includes(background)) throw new Error('背景参数无效。');
     if (directoryAction && !['default', 'choose'].includes(directoryAction)) throw new Error('保存位置参数无效。');
+    if (mergeAcrossDates && !current.mergedSnapshot) {
+      const merged = await runtime.mergeGiftExport(current.originalSnapshot, current.abort.signal);
+      assertCurrent(current);
+      current.mergedSnapshot = merged;
+    }
     if (directoryAction === 'choose') {
       const result = await dialog.showOpenDialog(getMainWindow(), {
         title: '选择礼物图片保存文件夹',
@@ -154,6 +178,8 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       current.root = defaultRoot();
       setDirectory(current);
     }
+    current.snapshot = mergeAcrossDates ? current.mergedSnapshot : current.originalSnapshot;
+    current.mergeAcrossDates = mergeAcrossDates;
     current.mode = mode;
     current.background = background;
     if (current.attempted) {
@@ -168,6 +194,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
 
   async function save({ id }, onProgress = () => {}) {
     const current = requireTask(id);
+    if (current.configuring) throw new Error('正在更新导出设置。');
     if (current.running || current.completed) throw new Error('此任务已开始，请重新打开预览以再次导出。');
     current.running = true;
     current.attempted = true;
@@ -261,7 +288,10 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
   function cancel(id) {
     if (id && task?.id !== id) return;
     preparationGeneration += 1;
-    if (task) task.cancelled = true;
+    if (task) {
+      task.cancelled = true;
+      task.abort.abort();
+    }
     if (renderWindow && !renderWindow.isDestroyed()) renderWindow.destroy();
     renderWindow = null;
   }

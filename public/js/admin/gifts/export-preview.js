@@ -47,8 +47,7 @@ export function createGiftExportPreview({ showPane }) {
     get('giftExportPage').textContent = `${page + 1} / ${files.length}`;
     get('giftExportPrev').disabled = page === 0;
     get('giftExportNext').disabled = page === files.length - 1;
-    get('giftExportMode').value = task.mode;
-    get('giftExportBackground').value = task.background;
+    reflectSettings();
     get('giftExportSettingsDirectory').textContent = task.root;
     const preview = get('giftExportPreview');
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
@@ -59,6 +58,18 @@ export function createGiftExportPreview({ showPane }) {
     get('giftExportFiles').textContent =
       `${file.fileName} · ${width} × ${(items.length * BANNER_HEIGHT + (items.length - 1) * BANNER_GAP) * 2} 像素${task.mode === 'combined' && files.length > 1 ? '；超过单图高度，已按每张最多 39 条拆分。' : ''}`;
     await readyGiftImages(preview);
+  }
+
+  function reflectSettings() {
+    get('giftExportMode').value = task.mode;
+    get('giftExportBackground').value = task.background;
+    get('giftExportMergeAcrossDates').checked = task.mergeAcrossDates === true;
+  }
+
+  function previewStatus(readyText) {
+    if (task.snapshot.cardsPartial) status('部分礼物无法确认送礼人，已保留原卡片。', 'warning');
+    else if (task.snapshot.partial) status('当前预览仅包含已同步的礼物记录。', 'warning');
+    else status(readyText);
   }
 
   function controls() {
@@ -102,12 +113,13 @@ export function createGiftExportPreview({ showPane }) {
       get('giftExportOpenFolder').hidden = true;
       await render();
       if (request !== sequence) return;
-      unwrap(await window.giftExport.settings({ mode: next.mode, background: next.background }));
-      if (request === sequence) status('设置已保存，已应用于本次导出。');
+      unwrap(await window.giftExport.settings({
+        mode: next.mode, background: next.background, mergeAcrossDates: next.mergeAcrossDates,
+      }));
+      if (request === sequence) previewStatus('设置已保存，已应用于本次导出。');
     } catch (error) {
       if (request === sequence) {
-        get('giftExportMode').value = task.mode;
-        get('giftExportBackground').value = task.background;
+        reflectSettings();
         status(error.message, 'error');
       }
     } finally {
@@ -120,6 +132,7 @@ export function createGiftExportPreview({ showPane }) {
 
   get('giftExportMode')?.addEventListener('change', (event) => configure({ mode: event.target.value }));
   get('giftExportBackground')?.addEventListener('change', (event) => configure({ background: event.target.value }));
+  get('giftExportMergeAcrossDates')?.addEventListener('change', (event) => configure({ mergeAcrossDates: event.target.checked }));
   get('giftExportChoose')?.addEventListener('click', () => configure({ directoryAction: 'choose' }));
   get('giftExportDefault')?.addEventListener('click', () => configure({ directoryAction: 'default' }));
   get('giftExportBack')?.addEventListener('click', close);
@@ -198,14 +211,7 @@ export function createGiftExportPreview({ showPane }) {
       retry = false;
       page = 0;
       get('giftExportOpenFolder').hidden = true;
-      status(
-        task.snapshot.cardsPartial
-          ? '身份资料暂不可用，部分礼物尚未合并。'
-          : task.snapshot.partial
-            ? '当前预览仅包含已同步的礼物记录。'
-            : '请确认左侧预览效果后导出。',
-        task.snapshot.cardsPartial || task.snapshot.partial ? 'warning' : '',
-      );
+      previewStatus('请确认左侧预览效果后导出。');
       showPane('export');
       controls();
       await render();

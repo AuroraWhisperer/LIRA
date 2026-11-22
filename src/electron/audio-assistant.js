@@ -33,7 +33,7 @@ function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess
   }
 
   function launchWorker(executable) {
-    if (!exists(executable)) return Promise.reject(new Error('音频组件缺失，请重新打开 LIRA 检查；开发环境请先运行 npm run build:audio-assistant。'));
+    if (!exists(executable)) return Promise.reject(new Error('找不到音频组件，请重启 LIRA 以重新检查组件文件。'));
     const { promise, resolve, reject } = Promise.withResolvers();
     let settled = false;
     const timer = setTimeout(() => {
@@ -68,7 +68,7 @@ function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess
       launching = null;
       clearTimeout(timer);
       lines.close();
-      const message = error?.message || errorText.trim() || '音频组件已退出；如有原声路由，恢复助手会继续还原。';
+      const message = error?.message || errorText.trim() || '音频组件已退出。如果播放器没有声音，请点击「恢复原声」。';
       if (!settled) reject(new Error(message));
       for (const pending of requests.values()) { clearTimeout(pending.timer); pending.reject(new Error(message)); }
       requests.clear();

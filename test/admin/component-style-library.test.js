@@ -169,7 +169,7 @@ test('style libraries send each entry as the import target and keep rejected imp
       window.styleLibraryTest?.dispose();
       window.styleLibraryTest = mountComponentStyleLibrary(document.body, { ...options, request });
     };
-    window.showStyleLibrary({ suitesOnly: true });
+    window.showStyleLibrary({ suitesOnly: true, initialFile: { name: 'oversized.zip', size: 1024 ** 3 + 1 } });
   });
   const library = page.locator('.component-style-library');
   await library.getByRole('button', { name: '添加到画布：套装背景', exact: true }).waitFor();
@@ -186,7 +186,7 @@ test('style libraries send each entry as the import target and keep rejected imp
   await pickImportFile(page, library, archive);
   await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
   await confirmation.getByRole('button', { name: '取消', exact: true }).click();
-  assert.deepEqual(await page.evaluate(() => window.styleImportTargets), ['suite', 'guard-thanks']);
+  assert.deepEqual(await page.evaluate(() => window.styleImportTargets), ['suite', 'guard-thanks'], 'Only size-eligible ZIPs are sent for inspection.');
   assert.deepEqual(errors, []);
 });
 

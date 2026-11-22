@@ -60,7 +60,7 @@ export function initDanmakuDailyBots({
       fortuneMode.value = saved?.fortune.drawMode || 'daily';
       fortuneMode.disabled = toggles.fortune.disabled || !supported;
       fortuneModeHint.textContent = stale || !saved ? '尚未确认云端设置，请刷新状态。'
-        : !supported ? '修改抽签方式需要先更新 LIRA Server。'
+        : !supported ? '当前云端版本暂不支持修改抽签方式，请联系管理员更新服务。'
           : busy ? '正在与云端同步…' : '切换后自动保存';
     }
     refreshButton.disabled = !owner || !bridge || busy;

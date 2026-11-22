@@ -1,7 +1,7 @@
 'use strict';
 
 const { readRawBody, sendJson, validateOrigin } = require('../http-utils');
-const { MAX_TEXT_IMAGE_BYTES, storeTextImage } = require('../scene-text-images');
+const { MAX_TEXT_IMAGE_BYTES, TEXT_IMAGE_SIZE_LIMIT_MESSAGE, storeTextImage } = require('../scene-text-images');
 const { pruneUploadedMedia } = require('../uploaded-media-retention');
 const { GUARD_WISH_GIFTS } = require('../../bilibili/gift/wish-service');
 
@@ -28,6 +28,9 @@ async function handleTextMedia(context, req, res, url, authorize = () => {}) {
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
     if (error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
+    if (error.code === 'REQUEST_BODY_TOO_LARGE' && url.pathname.endsWith('/text-image')) {
+      return sendJson(res, 413, { ok: false, error: TEXT_IMAGE_SIZE_LIMIT_MESSAGE });
+    }
     const status = [400, 403, 409, 410, 413, 503].includes(error.statusCode) ? error.statusCode : 500;
     return sendJson(res, status, { ok: false, error: status === 500 ? '画布素材暂时不可用，请重试。' : error.message });
   }

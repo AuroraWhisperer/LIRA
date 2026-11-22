@@ -186,7 +186,7 @@ playbackControls → audio.load()/play()
 
 可等待的 HTTP 保存必须同时满足 HTTP 成功、`ok:true` 和 `data.saved:true`，关机 IPC 则须返回 `saved:true`。除 `stale-snapshot` 外，最新版本被业务拒绝时仍保留为待存快照。卸载时的即发请求仍无需等待确认。
 
-设置中的「清空歌曲和使用记录」成功后清理播放内容缓存及旧 localStorage v1/v2 状态，再重载页面、停止当前音频并领取新的启动 writer。部分失败仅在 `musicDb` 已提交时清理本地播放副本，未提交时保留回退数据。服务端全清空保留并推进 writer 撤销元数据，清空前迟到的 HTTP、IPC 和卸载保存均不能复活旧队列。
+设置中的「清空歌库及使用记录」成功后清理播放内容缓存及旧 localStorage v1/v2 状态，再重载页面、停止当前音频并领取新的启动 writer。部分失败仅在 `musicDb` 已提交时清理本地播放副本，未提交时保留回退数据。服务端全清空保留并推进 writer 撤销元数据，清空前迟到的 HTTP、IPC 和卸载保存均不能复活旧队列。
 
 QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最后一项必须跨重启送回 Provider,否则 HAR 中 `songtype: 1` 的付费歌曲会被错误降为类型 `0`。`qualityPreferences` 按 Provider 保存:QQ 为 `standard/high/lossless/premium/immersive`,网易云为 `standard/higher/exhigh/lossless/hires`;后两项通过本地 QMC2 Range 代理，不能承诺 QQ 客户端的 Dolby/空间 DSP 效果。
 

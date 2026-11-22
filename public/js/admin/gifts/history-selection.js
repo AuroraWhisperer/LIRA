@@ -3,7 +3,7 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
   const surface = document.getElementById('giftHistoryScroll');
   const body = document.getElementById('giftHistoryBody');
   const marquee = document.getElementById('giftHistoryMarquee');
-  if (!surface || !body || !marquee) return { cancel() {}, refresh() {} };
+  if (!surface || !body || !marquee) return { cancel() {}, refresh: () => null };
 
   const controls = 'input, button, a, select, textarea, label, [contenteditable="true"]';
   let drag = null;
@@ -28,15 +28,14 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     if (surface.hasPointerCapture(previous.pointerId)) surface.releasePointerCapture(previous.pointerId);
     if (previous.active) {
       suppressClick = true;
-      if (cancelled) {
-        state.selected = previous.original;
-        update();
-      }
+      if (cancelled) state.selected = previous.original;
+      update();
     }
   }
 
   function refresh() {
     if (drag && drag.rows.some(({ node }) => !node.isConnected)) finish(true);
+    return drag?.addedCount ?? null;
   }
 
   function paint() {
@@ -55,15 +54,20 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     });
     marquee.hidden = false;
     let changed = false;
+    let addedCount = 0;
     for (const row of drag.rows) {
       const selected =
         drag.base.has(row.id) || (row.right >= left && row.left <= right && row.bottom >= top && row.top <= bottom);
+      if (selected && !drag.original.has(row.id)) addedCount += 1;
       if (state.selected.has(row.id) === selected) continue;
       if (selected) state.selected.add(row.id);
       else state.selected.delete(row.id);
       changed = true;
     }
-    if (changed) update();
+    if (changed || addedCount !== drag.addedCount) {
+      drag.addedCount = addedCount;
+      update();
+    }
   }
 
   function autoScroll() {
@@ -114,7 +118,10 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
   surface.addEventListener('pointerdown', (event) => {
     suppressClick = false;
     if (event.button !== 0 || event.isPrimary === false || event.pointerType === 'touch') return;
-    if (event.target.closest(controls) || event.target.closest('thead')) return;
+    if (event.target.closest('thead')) return;
+    const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+    const control = event.target.closest(controls);
+    if (control && !(additive && control.matches('input[data-gift-select]'))) return;
     const rect = surface.getBoundingClientRect();
     // Scrollbar drags must keep their native behavior.
     if (event.clientX >= rect.left + surface.clientWidth || event.clientY >= rect.top + surface.clientHeight) return;
@@ -132,7 +139,7 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     if (!rows.length) return;
     const original = new Set(state.selected);
     const base = new Set(original);
-    if (!event.ctrlKey && !event.metaKey && !event.shiftKey) rows.forEach(({ id }) => base.delete(id));
+    if (!additive) rows.forEach(({ id }) => base.delete(id));
     drag = {
       pointerId: event.pointerId,
       start: point(event.clientX, event.clientY),
@@ -144,8 +151,10 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
       original,
       base,
       active: false,
+      addedCount: null,
     };
-    event.preventDefault();
+    // Let a checkbox click keep its native focus and toggle until a drag starts.
+    if (!control) event.preventDefault();
   });
 
   document.addEventListener('pointermove', (event) => {

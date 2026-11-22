@@ -1,52 +1,52 @@
-# ADR-0002: Server-Authoritative Countdown Timing
+# ADR-0002: 由服务端作为倒计时唯一权威来源
 
-- Status: Accepted
-- Date: 2026-08-10
-- Original ID: ADR-OT-001
+## 状态
 
-## Context
+已采纳（2026-08-10，原编号：ADR-OT-001）
 
-The overtime machine is rendered as a browser source in OBS or Bilibili Livehime: the page refreshes, disconnects, and can be hidden, and several instances may be open at once. Placing the source of truth in any browser process would cause countdown drift between pages and duplicate gift settlement when a browser reloads or reconnects. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/overtime/overtime-service.js`).
+## 背景
 
-## Decision
+加班机以浏览器源形式加载在 OBS 或哔哩哔哩直播姬中：页面可能随时刷新、断连或隐藏，也可能同时打开多个实例。若将计时事实放在任意浏览器进程中，多个页面之间会出现倒计时偏差，页面刷新或重连时还可能导致礼物重复结算。本 ADR 提炼自加班机设计规格（2026-08-10 采纳），并在 v3.3.14 代码库（`src/overtime/overtime-service.js`）中验证落地。
 
-The server is the single authority for countdown timing. It persists `remaining_ms`, `anchor_at_ms`, `status`, and a monotonically increasing `revision`, and it never writes the database or broadcasts every second. Any start, pause, manual time set, or gift adjustment first materializes time to the current instant and then writes a new anchor.
+## 决策
 
-While a session is running, elapsed time is computed in-process with the Node monotonic clock (`performance.now()`), so NTP or manual clock adjustments cannot make the countdown jump; the wall clock is used only for persistence across restarts. On process startup with a persisted `running` state, the wall-clock anchor is used to subtract the elapsed downtime (clamped at zero so a rolled-back system clock can never add time) before rescheduling.
+本地服务端作为倒计时的单一事实来源。服务端持久化 `remaining_ms`、`anchor_at_ms`、`status` 及单调递增的修订号（`revision`），不在运行期每秒写库或广播。任何启动计时、暂停计时、手动设时或礼物结算操作，都会先将剩余时间折算到当前时刻（`materialize`），再写入新的时间锚点。
 
-A single "reach zero" timer is scheduled when entering `running` or after a positive adjustment; for long counts it is rescheduled in 24-hour chunks. When it fires, the server materializes the clock to zero, changes the state to `finished`, increments the revision, and broadcasts `reason=finished`.
+处于运行态（`running`）时，进程内已流逝时间基于 Node 单调时钟（`performance.now()`）计算，避免 NTP 校时或手动改表导致倒计时跳变；系统挂钟时间仅用于跨重启持久化。进程重启恢复 `running` 状态时，通过挂钟锚点扣除停机耗时（下限截断为 0，确保系统时钟回调不会凭空增加时间），随后重新排程。
 
-Clients receive `effectiveRemainingMs` and `serverNowMs`, subtract transport delay, and interpolate locally with `performance.now()`; a full snapshot received on connection or reconnection unconditionally corrects the local estimate, and incremental updates are only accepted when their revision is newer.
+进入 `running` 状态或发生正向加时后，仅排程一个“归零”定时器；超长倒计时按 24 小时分段重新排程。定时器触发时，服务端将倒计时折算至 0、切换状态为 `finished`、递增修订号并广播 `reason=finished`。
 
-## Consequences
+前端收到 `effectiveRemainingMs` 与 `serverNowMs` 后，扣除传输延迟并在本地使用 `performance.now()` 插值显示；建连或重连收到的全量快照无条件校正本地估算，增量更新仅在修订号更新时生效。
 
-### Positive
+## 影响
 
-- Multiple overlay instances and the Admin panel share one consistent view from a single truth source.
-- Reconnection recovers cleanly from the server snapshot without re-settling gifts.
-- No per-second database writes or broadcasts; browser timers are display-only.
-- Monotonic-clock elapsed time prevents NTP or manual clock changes from jumping the countdown.
+### 正面影响
 
-### Negative
+- 多个叠加层实例与管理面板共享同一事实来源，视图一致。
+- 重连直接依据服务端快照平滑恢复，不会重复结算礼物。
+- 无每秒写库与广播开销，浏览器定时器仅用于画面刷新。
+- 单调时钟计算消除了系统校时引发的倒计时跳变。
 
-- A new state table and control API were required for time management.
-- Clients must implement local interpolation plus revision-based correction.
+### 代价
 
-### Neutral
+- 需要新增状态表与时间控制接口。
+- 前端需实现本地插值与基于修订号的校正逻辑。
 
-- Persisted timestamps remain wall-clock Unix milliseconds to support restart recovery; the runtime path uses the monotonic clock.
+### 中性影响
 
-## Alternatives Considered
+- 持久化时间戳沿用挂钟 Unix 毫秒值以支持重启恢复，运行期耗时计算则使用单调时钟。
 
-**Browser-held truth (each overlay keeps its own timer)**
+## 备选方案
 
-- Rejected: multiple instances would drift, and a refreshed or reconnected page could double-settle gifts.
+**由浏览器各自维护计时状态**
 
-**Per-second database writes or broadcasts**
+- 否决：多实例之间必然产生偏差，且页面刷新或重连容易造成重复结算。
 
-- Rejected: unnecessary write and network load; state is only synchronized on manual actions, gift settlement, configuration changes, natural zero, and connection establishment.
+**服务端每秒落库并广播**
 
-## References
+- 否决：带来不必要的磁盘写入与网络开销；实际只需在手动操作、礼物结算、配置变更、自然归零及建连时同步。
+
+## 参考
 
 - [overtime.md](../../reference/backend/overtime.md)
-- `src/overtime/overtime-service.js` (`getEffectiveRemainingMs`, `materialize`, `recoverPersistedClock`, `scheduleZeroTimer`)
+- `src/overtime/overtime-service.js`（`getEffectiveRemainingMs`、`materialize`、`recoverPersistedClock`、`scheduleZeroTimer`）

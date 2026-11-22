@@ -1,6 +1,17 @@
 import { shanghaiToday } from './gift-feed-state.js';
 
-export function buildGiftCards(items, { day = shanghaiToday(), profiles = [] } = {}) {
+function valueInCents(item) {
+  return item.cardTotalCents !== undefined ? BigInt(item.cardTotalCents)
+    : BigInt(Math.round(item.gift.unitPrice * 100)) * BigInt(item.gift.num);
+}
+
+export function addGiftCardTotals(card, item) {
+  card.cardTotalCents = (valueInCents(card) + valueInCents(item)).toString();
+  const quantity = BigInt(card.gift.num) + BigInt(item.gift.num);
+  card.gift.num = quantity <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(quantity) : quantity.toString();
+}
+
+export function buildGiftCards(items, { day = shanghaiToday(), profiles = [], keepSourceEventId = false } = {}) {
   const senders = new Map();
   const identities = new Map();
   for (const evidence of [...profiles].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
@@ -23,21 +34,19 @@ export function buildGiftCards(items, { day = shanghaiToday(), profiles = [] } =
       continue;
     }
     const key = gift.giftId && gift.giftName ? JSON.stringify([day, senderId, gift.giftId, gift.giftName]) : null;
-    const amount = BigInt(Math.round(gift.unitPrice * 100)) * BigInt(gift.num);
     let card = key && groups.get(key);
     if (!card) {
       card = {
         ...item,
         eventId: key ? `card:${key}` : item.eventId,
         gift: { ...gift, ...senders.get(senderId) },
-        cardTotalCents: amount.toString(),
+        cardTotalCents: valueInCents(item).toString(),
+        ...(keepSourceEventId && key ? { sourceEventId: item.eventId } : {}),
       };
       cards.push(card);
       if (key) groups.set(key, card);
     } else {
-      const quantity = BigInt(card.gift.num) + BigInt(gift.num);
-      card.gift.num = quantity <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(quantity) : quantity.toString();
-      card.cardTotalCents = (BigInt(card.cardTotalCents) + amount).toString();
+      addGiftCardTotals(card, item);
     }
   }
   return cards;

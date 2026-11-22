@@ -50,7 +50,7 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
     if (!gifts.length) {
       const empty = document.createElement('p');
       empty.className = 'hint';
-      empty.textContent = query ? '没有匹配的礼物，试试其他名称或 ID。' : '这里还没有缓存礼物，可切换礼物范围重试。';
+      empty.textContent = query ? '没有匹配的礼物，试试其他名称或 ID。' : '这个范围内还没有礼物，可切换范围查看。';
       root.append(empty);
     }
   }
@@ -62,7 +62,7 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
     controller?.abort();
     controller = new AbortController();
     snapshot = null;
-    get('giftWishPickerStatus').textContent = source === 'room' ? '正在刷新本直播间在售礼物…' : '正在读取全部缓存礼物…';
+    get('giftWishPickerStatus').textContent = source === 'room' ? '正在刷新本直播间在售礼物…' : '正在读取本机已收录的礼物…';
     dialog
       .querySelectorAll('[data-wish-source]')
       .forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.wishSource === source)));
@@ -77,17 +77,17 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
           if (controller.signal.aborted || current !== generation) return;
           data = await request('/api/overtime/gifts', undefined, controller.signal);
           if (current === generation)
-            get('giftWishPickerStatus').textContent = '在售列表暂未刷新，正在显示上次成功缓存。';
+            get('giftWishPickerStatus').textContent = '在售列表刷新失败，暂时显示上次保存的列表。';
         }
       }
       if (current !== generation) return;
       snapshot = data;
       if (data.guards) guards = data.guards;
       if (!data?.gifts?.length)
-        get('giftWishPickerStatus').textContent = '礼物目录尚未缓存，连接直播间后重新打开即可。';
-      else if (!get('giftWishPickerStatus').textContent.includes('上次成功缓存')) {
+        get('giftWishPickerStatus').textContent = '本机还没有这份礼物目录，请连接直播间后重新打开。';
+      else if (!get('giftWishPickerStatus').textContent.includes('上次保存的列表')) {
         get('giftWishPickerStatus').textContent =
-          `${source === 'room' ? '本直播间在售及盲盒产出' : '本地缓存的全部礼物'} · ${data.gifts.length} 款`;
+          `${source === 'room' ? '本直播间在售及盲盒产出' : '本机已收录'} · ${data.gifts.length} 款`;
       }
       render();
     } catch (error) {

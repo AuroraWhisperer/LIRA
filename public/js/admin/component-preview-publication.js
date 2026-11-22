@@ -6,7 +6,9 @@ export function getCanvasPublicationEntries(entries) {
   const types = new Set(document.items.filter(item => item.appearance.mode === 'shared'
     || SHARED_CONTROLLER_TYPES.includes(item.type) && !hasInstalledAppearance(item.appearance.config)).map(item => item.type));
   for (const type of types) {
-    if (!entries.some(({ id }) => id === type)) throw new Error(`缺少共享组件 ${type}，请重新打开预览。`);
+    if (!entries.some(({ id }) => id === type)) {
+      throw Object.assign(new Error('缺少共享组件，请重新打开预览。'), { componentType: type });
+    }
   }
   return [...entries.filter(({ id }) => types.has(id)), canvas];
 }

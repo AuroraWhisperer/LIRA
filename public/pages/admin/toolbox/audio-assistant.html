@@ -34,7 +34,7 @@
         <h3 id="audioAssistantRoutingTitle">声音与设备</h3>
         <div class="audio-assistant-field">
           <label for="audioAssistantSource">声音来源</label>
-          <select id="audioAssistantSource" data-audio-setting="source"><option value="auto">自动识别正在播放的音乐（推荐）</option><option value="file">本地文件</option><option value="input">麦克风、线路或声卡回送</option><option value="loopback">播放设备里的声音</option></select>
+          <select id="audioAssistantSource" data-audio-setting="source"><option value="auto">自动识别当前音乐（推荐）</option><option value="file">本地文件</option><option value="input">麦克风、线路或声卡回送</option><option value="loopback">播放设备里的声音</option></select>
           <div id="audioAssistantFileRow" class="audio-assistant-file" hidden>
             <button type="button" class="secondary" data-audio-action="file">选择歌曲</button>
             <span id="audioAssistantFileName" class="hint">尚未选择</span>
@@ -47,7 +47,7 @@
           <label for="audioAssistantInputChannels">输入声道</label>
           <select id="audioAssistantInputChannels" data-audio-setting="inputChannels"><option value="auto">自动</option></select>
           <span id="audioAssistantInputFormat" class="hint"></span>
-          <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="inputMusic" /><span>音乐处理</span><lira-help label="音乐处理说明">只有当输入源是歌曲伴奏时才需要勾选（勾选后可分离人声/伴奏）。平时接麦克风说话唱歌请勿勾选；切换前需先关闭右侧「当前歌曲」开关。</lira-help></label>
+          <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="inputMusic" /><span>音乐处理</span><lira-help label="音乐处理说明">输入的是带人声的歌曲，想调节人声与伴奏的比例时再勾选。接麦克风说话或清唱时不用勾选。更改前先关闭「处理声音」。</lira-help></label>
         </div>
         <div class="audio-assistant-now-playing">
           <span class="hint" data-audio-source-label>当前歌曲</span>
@@ -55,11 +55,11 @@
           <span id="audioAssistantSourceDevice" class="hint"></span>
         </div>
         <div id="audioAssistantIsolation" class="audio-assistant-field">
-          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明" tooltip-id="audioAssistantCableHint">选一个独立的虚拟音频通道（不能和下面的「最终输出」选同一个），并把你的音乐播放器输出也设到这个通道（若用 LIRA 内置播放器，可在「设置 → 外观与声音 → 内置播放器输出」里选同一个）。电音助手会从这里接走原声并自动静音原通道。</lira-help></div>
+          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明" tooltip-id="audioAssistantCableHint">建议让播放器使用系统默认输出，这里选一条能单独静音的空闲通道。如果播放器已在自己的专用通道放歌，能单独静音就选那条。开启「当前歌曲」时，助手会先静音整条通道，再尝试把播放器的声音切到这里。</lira-help></div>
           <select id="audioAssistantCable" data-audio-setting="cableId" aria-describedby="audioAssistantCableHint"><option value="" disabled selected>请选择独立通道</option></select>
         </div>
         <div class="audio-assistant-field">
-          <div class="audio-assistant-label"><label for="audioAssistantOutput">最终输出</label><lira-help label="最终输出说明" tooltip-id="audioAssistantOutputHint">升降调/消音处理后的声音从这里发出来。请选择你实际戴的耳机、音箱或推流采集通道（注意：绝对不能和上面的「原声通道」或被采集的播放设备选同一个，否则会串音或回声）。</lira-help></div>
+          <div class="audio-assistant-label"><label for="audioAssistantOutput">最终输出</label><lira-help label="最终输出说明" tooltip-id="audioAssistantOutputHint">通常保留「自动跟随播放器原输出」。如果播放器已经在原声通道放歌，或同时向多个设备播放，请手动选另一条用来监听或推流的通道。采集「播放设备里的声音」时，最终输出也要和被采集的设备分开。</lira-help></div>
           <select id="audioAssistantOutput" data-audio-setting="outputId" aria-describedby="audioAssistantOutputHint"><option value="">自动跟随播放器原输出</option></select>
         </div>
         <div class="audio-assistant-device-actions">
@@ -72,7 +72,7 @@
         <div class="audio-assistant-section-heading">
           <h3 id="audioAssistantSoundTitle">声音调节</h3>
           <div class="audio-assistant-sound-actions">
-            <button type="button" class="secondary" data-audio-action="reset" title="只重置声音参数，不改变音乐来源、设备和当前歌曲开关">重置声音参数</button>
+            <button type="button" class="secondary" data-audio-action="reset" title="只重置声音参数，保留所选声音来源、设备和处理开关状态">重置声音参数</button>
             <label class="switch-control"><span data-audio-active-label>当前歌曲</span><input type="checkbox" data-audio-active aria-label="处理当前歌曲" aria-describedby="audioAssistantStatus" /><span class="switch-track"></span></label>
           </div>
         </div>

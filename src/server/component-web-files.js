@@ -5,8 +5,11 @@ const path = require('node:path');
 const { pipeline } = require('node:stream/promises');
 const { Transform } = require('node:stream');
 const { sendJson } = require('./http-utils');
+const { formatByteLimit } = require('../../public/js/shared/display-format.js');
 
 const MAX_WEB_BYTES = 512 * 1024 * 1024;
+const MAX_CODE_BYTES = 4 * 1024 * 1024;
+const WEB_SIZE_LIMIT_MESSAGE = `整套网页素材不能超过 ${formatByteLimit(MAX_WEB_BYTES)}。`;
 const WEB_MIME = Object.freeze({ html: 'text/html; charset=utf-8', htm: 'text/html; charset=utf-8',
   css: 'text/css; charset=utf-8', js: 'text/javascript; charset=utf-8', mjs: 'text/javascript; charset=utf-8', json: 'application/json',
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', avif: 'image/avif',
@@ -39,7 +42,10 @@ async function saveWebFiles(directory, files) {
     let size = 0;
     await pipeline(file.stream, new Transform({ transform(chunk, _encoding, done) {
       bytes += chunk.length; size += chunk.length;
-      if (bytes > MAX_WEB_BYTES || (/\.(html?|css|js|mjs|json)$/i.test(name) && size > 4 * 1024 * 1024)) return done(invalid('网页素材过大；整套最多 512 MiB，代码文件最多 4 MiB。'));
+      if (bytes > MAX_WEB_BYTES) return done(invalid(WEB_SIZE_LIMIT_MESSAGE));
+      if (/\.(html?|css|js|mjs|json)$/i.test(name) && size > MAX_CODE_BYTES) {
+        return done(invalid(`单个代码文件不能超过 ${formatByteLimit(MAX_CODE_BYTES)}。`));
+      }
       done(null, chunk);
     } }), fs.createWriteStream(destination, { flags: 'wx', mode: 0o600 }));
   }
@@ -65,7 +71,9 @@ async function* readWebUpload(stream) {
   let total = 0;
   for (const file of files) {
     webFilePath(file.path);
-    if (!Number.isSafeInteger(file.size) || file.size < 0 || (total += file.size) > MAX_WEB_BYTES) throw invalid('网页素材大小无效或超过 512 MiB。');
+    if (!Number.isSafeInteger(file.size) || file.size < 0) throw invalid('网页素材大小无效。');
+    total += file.size;
+    if (total > MAX_WEB_BYTES) throw invalid(WEB_SIZE_LIMIT_MESSAGE);
   }
   for (const file of files) {
     let remaining = file.size;

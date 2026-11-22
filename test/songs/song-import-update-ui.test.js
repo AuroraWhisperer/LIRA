@@ -249,6 +249,19 @@ test('confirmation submits the reviewed input and token once, while stale errors
   assert.equal(ui.element('songImportApplyBtn').disabled, true);
 });
 
+test('an unconfirmed replacement sends the streamer back to check the library before previewing again', async () => {
+  const ui = await fixture();
+  await ui.preview([{ name: '歌' }], previewData());
+  const applying = ui.element('songImportApplyBtn').events.click();
+  const error = new Error('SONG_IMPORT_FAILED');
+  error.payload = { error: error.message, message: '导入未完成，已回滚，请重试。' };
+  ui.calls.at(-1).reject(error);
+  await applying;
+  assert.match(ui.element('importResult').textContent, /核对歌库.*重新预览/);
+  assert.doesNotMatch(ui.element('importResult').textContent, /回滚/);
+  assert.equal(ui.element('songImportApplyBtn').disabled, true);
+});
+
 test('a failed list refresh still reports the committed result without claiming a rollback', async () => {
   const ui = await fixture({ reloadError: new Error('refresh unavailable') });
   await ui.preview([{ name: '歌' }], previewData());

@@ -27,7 +27,7 @@ function initClockCard() {
     read: async () => {
       const response = await fetch('/api/clock/config', { cache: 'no-store' });
       const payload = await response.json();
-      if (!response.ok || !payload.ok || !payload.data) throw new Error('萌时钟配置读取失败，请重新读取。');
+      if (!response.ok || !payload.ok || !payload.data) throw new Error('时钟配置读取失败，请重新读取。');
       return clockConfigFromSettings(clockSettingsPayload(payload.data));
     },
     persist: async (config) => {
@@ -73,7 +73,7 @@ function initClockCard() {
     }
     catch (error) { toast(error.message || '复制失败，请手动复制网址。'); }
   });
-  document.getElementById('clockSave').addEventListener('click', () => saveComponentWithFeedback(controller, '萌时钟设置'));
+  document.getElementById('clockSave').addEventListener('click', () => saveComponentWithFeedback(controller, '时钟设置'));
   document.getElementById('clockDiscard').addEventListener('click', () => controller.discard());
   document.getElementById('clockReload').addEventListener('click', () => controller.reload());
   const getClockPreview = () => createClockPreview({ controller });

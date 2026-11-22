@@ -11,6 +11,10 @@ const CLIENT_THEMES = Object.freeze([
   { id: 'dusty-rose', name: '烟粉 · 灰玫瑰', background: '#d4b6bd' },
   { id: 'moss-linen', name: '雾苔 · 亚麻', background: '#f0f1e9' },
   { id: 'cocoa-champagne', name: '墨咖 · 香槟', background: '#1c1916' },
+  { id: 'rose-plum-light', name: '玫瑰灰 × 梅子红 · 浅色', background: '#faebdf' },
+  { id: 'rose-plum-dark', name: '玫瑰灰 × 梅子红 · 深色', background: '#291f23' },
+  { id: 'lotus-violet-light', name: '藕荷 × 烟紫 · 浅色', background: '#f3e5e4' },
+  { id: 'lotus-violet-dark', name: '藕荷 × 烟紫 · 深色', background: '#29252f' },
 ].map(Object.freeze));
 const CLIENT_THEME_BACKGROUNDS = Object.freeze(Object.fromEntries(
   CLIENT_THEMES.map(({ id, background }) => [id, background]),

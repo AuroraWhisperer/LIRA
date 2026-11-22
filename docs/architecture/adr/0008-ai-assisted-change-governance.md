@@ -1,96 +1,73 @@
-# ADR-0008: Govern AI-Assisted Changes With Layered Repository Rules
+# ADR-0008: 以分层仓库规范治理 AI 辅助变更
 
-## Status
+## 状态
 
-Accepted
+已采纳
 
-## Context
+## 背景
 
-LIRA has detailed architecture documents and selected module-boundary tests, but
-AI-assisted changes previously lacked a concise authority hierarchy, task routing,
-specification lifecycle, scoped safety rules, and deterministic checks for the
-governance documents themselves. Putting volatile contract inventories into a
-single instruction file would create a competing source of truth and drift
-quickly. Rewriting legacy Admin or storage code in one pass would also create an
-unacceptable regression surface.
+LIRA 此前虽有较详细的架构文档与部分模块边界测试，但面向 AI 辅助协作时仍缺少简洁的权威层级、任务路由、规格生命周期管理、分目录安全规则以及针对治理文档本身的确定性自动化校验。如果将易变的接口清单全部塞进单一指令文件，会制造互相冲突的信息源并迅速脱节；而一次性推倒重写遗留 Admin 或存储代码，又会带来难以承受的回归影响面。
 
-## Decision
+## 决策
 
-Adopt layered repository governance:
+采用分层的仓库治理体系：
 
-- The root `AGENTS.md` defines project-wide authority, priorities, compatibility,
-  scope, workflow, and verification.
-- Scoped `AGENTS.md` files specialize storage, Electron, and Admin rules without
-  weakening root safety guarantees.
-- `docs/architecture/README.md` remains the architecture fact map, while
-  `docs/architecture/engineering/ai-workflow.md` routes tasks to owners,
-  contracts, consumers, and tests.
-- `PLANS.md` defines risk-based planning and `specs/README.md` records
-  evidence-backed specification lifecycle status.
-- Deterministic `node:test` checks validate marked tables, paths, required files,
-  and legacy text-debt budgets.
-- Legacy migrations remain incremental. Numeric baselines live only in their
-  enforcing tests; prose documents describe direction and enforcement status.
+- 根目录 `AGENTS.md` 规定全仓权威顺序、工程优先级、兼容性、作用域、工作流与按风险验证原则。
+- 分目录 `AGENTS.md` 针对存储、Electron 与管理端前端细化默认约束，同时不削弱根目录的安全红线。
+- `docs/architecture/README.md` 作为架构总览与入口（现行完整事实地图已收归 `docs/reference/README.md`），`docs/architecture/engineering/ai-workflow.md` 负责将变更任务路由到归属模块、规范文档、调用方及关联测试。
+- `PLANS.md` 定义按风险分级的计划策略，`specs/README.md` 记录带源码/测试证据的规格生命周期状态。
+- 通过确定性的 `node:test` 校验标记表格、字面路径、必需治理文件及遗留文本债务上限。
+- 遗留边界坚持渐进迁移：具体数字基线仅由执行测试维护，文字文档只说明演进方向与执行状态。
 
-## Consequences
+## 影响
 
-### Positive
+### 正面影响
 
-- Contributors can locate the correct owner and verification path before editing.
-- Authority conflicts and contract changes are handled explicitly.
-- Governance documents and selected legacy boundaries fail deterministically when
-  they drift or expand.
-- Scoped instructions stay concise and close to high-risk code.
+- 协作者在动手改码前即可快速定位归属模块与对应验证路径。
+- 权威冲突与公共接口变更拥有显式处理口径。
+- 治理文档与受控遗留边界一旦脱节或膨胀，自动化检查会稳定报错。
+- 分目录指令简洁紧凑，贴近高风险代码。
 
-### Negative
+### 代价
 
-- Governance tables and specification statuses require maintenance when files or
-  accepted behavior change.
-- Raw-text debt budgets can include comments or embedded source and may produce
-  false positives that require explicit review.
-- The full test gate intentionally repeats focused governance checks after the
-  quick gate.
+- 文件移动或既定行为变更时，需要同步维护路由表与规格状态。
+- 基于原始文本的债务统计可能命中注释或内嵌代码，产生误报时需人工评审确认。
+- 全量测试门禁在快速测试之后仍会复跑治理校验以防漏检。
 
-### Neutral
+### 中性影响
 
-- Runtime behavior, processes, ports, dependencies, packaging, public contracts,
-  and persisted data do not change.
-- Release pipeline hardening remains a separate planning concern.
+- 运行时行为、进程、端口、依赖、打包、公共接口及持久化数据均不受影响。
+- 发布流水线加固仍作为独立规划事项推进。
 
-## Alternatives Considered
+## 备选方案
 
-**A giant root `AGENTS.md` containing volatile contract details**
+**把所有易变接口细节塞进一个庞大的根 `AGENTS.md`**
 
-- Rejected because it would duplicate the architecture fact map and drift with
-  endpoints, IPC channels, storage facts, and runtime inventories.
+- 否决：与事实地图重复，且随着端点、IPC 通道、存储与运行时变动极易过时。
 
-**Permanent role-agent persona documents**
+**长期维护各类角色人设文档**
 
-- Rejected because ownership belongs to repository paths and contracts, not
-  persistent personas or a new process framework.
+- 否决：工程归属应绑定在仓库路径与规范文档上，而不是维护持久角色人设或引入新的流程框架。
 
-**Documentation-only governance without deterministic gates**
+**仅靠文字文档治理而不设自动化检查**
 
-- Rejected because path, index, and legacy-boundary drift would remain invisible
-  until manual review.
+- 否决：路径失效、索引脱节与遗留边界反弹在人工评审前难以被及时发现。
 
-**A big-bang Admin or storage rewrite**
+**一次性推倒重写 Admin 或存储层**
 
-- Rejected because the regression surface is too large and existing behavior can
-  be protected while debt decreases incrementally.
+- 否决：回归影响面过大；实际完全可以在保护既有行为的前提下逐步削减债务。
 
-**A duplicate contract registry that competes with the architecture fact map**
+**另建一套与事实地图并列的重复接口登记表**
 
-- Rejected because each volatile fact family must have one owner. Routing should
-  link to owner documents, not copy their inventories.
+- 否决：每类易变事实只能有一个单一事实来源；路由表应指向归属文档，而非复制清单内容。
 
-## References
+## 参考
 
-- `../../../AGENTS.md`
-- `../../../PLANS.md`
-- `../README.md`
-- `../engineering/ai-workflow.md`
-- `../engineering/legacy-boundaries.md`
-- `../engineering/modularity-standard.md`
-- `../../../specs/README.md`
-- `0007-explicit-module-boundaries.md`
+- [AGENTS.md](../../../AGENTS.md)
+- [PLANS.md](../../../PLANS.md)
+- [架构总览](../README.md)
+- [AI 变更任务路由表](../engineering/ai-workflow.md)
+- [遗留边界登记表](../engineering/legacy-boundaries.md)
+- [模块化规范](../engineering/modularity-standard.md)
+- [规格索引](../../../specs/README.md)
+- [ADR-0007](0007-explicit-module-boundaries.md)

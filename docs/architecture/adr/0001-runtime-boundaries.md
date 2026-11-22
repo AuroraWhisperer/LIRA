@@ -1,49 +1,49 @@
-# ADR-0001: Make Local Runtime Resources Instance-Owned
+# ADR-0001: 将本地运行时资源收归实例管理
 
-- Status: Accepted
-- Date: 2026-08-13
-- Original ID: ADR-001
+## 状态
 
-## Context
+已采纳（2026-08-13，原编号：ADR-001）
 
-The desktop app embeds an HTTP/WebSocket server in the Electron main process. Previously, loading `src/server.js` created databases and mutable runtime state, while WebSocket timers and selected cache paths were module globals. Electron also opened a server-owned SQLite file directly. These boundaries made lifecycle cleanup and isolated tests depend on module-load order.
+## 背景
 
-## Decision
+桌面应用在 Electron 主进程中内嵌了一个本地 HTTP/WebSocket 服务。此前加载 `src/server.js` 就会隐式创建数据库和可变全局状态，WebSocket 定时器与部分缓存路径也放在模块全局变量中，Electron 主进程还直接打开服务端维护的 SQLite 文件。这些耦合边界导致生命周期清理和测试隔离强依赖模块加载顺序。
 
-Keep the application as a modular monolith with the existing four SQLite files. Construct a server runtime explicitly for each data directory; it owns databases, timers, sockets, Bilibili listeners, and cache configuration. Electron uses a narrow in-process facade rather than direct database access. No new process, framework, dependency-injection container, or database migration is introduced.
+## 决策
 
-## Consequences
+保持模块化单体架构及现有的四个 SQLite 文件不变。按数据目录显式构造服务端运行时实例，由实例统一管理数据库、定时器、连接、B 站监听器与缓存配置；Electron 改为通过轻量级进程内门面交互，不再直接访问数据库。不引入新进程、框架、依赖注入容器或数据库迁移。
 
-### Positive
+## 影响
 
-- Runtime shutdown can release its own timers, sockets, and databases deterministically.
-- Tests and future profiles can use isolated data directories in one Node process.
-- SQLite ownership and Electron-to-service interactions have one defined boundary.
+### 正面影响
 
-### Negative
+- 运行时停机时能够确定性地释放自身创建的定时器、连接与数据库句柄。
+- 单元测试及后续多配置场景可以在单个 Node 进程中使用相互隔离的数据目录。
+- SQLite 归属关系与 Electron 到本地服务的交互边界清晰唯一。
 
-- Startup wiring becomes an explicit factory and needs regression coverage for lifecycle order.
-- Compatibility wrappers must remain until existing CLI and Electron consumers use the runtime facade.
+### 代价
 
-### Neutral
+- 启动装配改为显式工厂构造，需要补充生命周期顺序的回归测试。
+- 在现有 CLI 与 Electron 调用方全部切换至运行时门面之前，仍需保留兼容包装层。
 
-- HTTP endpoints, WebSocket payloads, IPC channels, and SQLite file names remain unchanged.
+### 中性影响
 
-## Alternatives Considered
+- HTTP 接口、WebSocket 消息载荷、IPC 通道与 SQLite 文件名均保持不变。
 
-**Microservices or a separate server process**
+## 备选方案
 
-- Rejected: local single-user deployment does not justify distributed operations or a network boundary.
+**拆分为微服务或独立服务进程**
 
-**Merge all SQLite files into one database**
+- 否决：本地单用户桌面部署不需要分布式运维复杂度或额外网络边界。
 
-- Deferred: it could provide cross-domain transactional operations, but would impose user-data migration and does not solve runtime ownership by itself.
+**将四个 SQLite 文件合并为单库**
 
-**Keep module singletons and reset globals in tests**
+- 暂缓：虽然有助于跨领域事务，但会强制引入用户数据迁移，且本身并不能解决运行时资源归属问题。
 
-- Rejected: it preserves hidden initialization order and cannot reliably release owned resources.
+**保留模块单例并在测试中重置全局变量**
 
-## References
+- 否决：隐式初始化顺序依然存在，无法可靠释放各类运行时资源。
+
+## 参考
 
 - [server-core.md](../../reference/backend/server-core.md)
 - [ws.md](../../reference/backend/ws.md)

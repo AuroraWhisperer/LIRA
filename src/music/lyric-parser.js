@@ -5,7 +5,7 @@ const MAX_LYRIC_TEXT = 512 * 1024;
 
 function assertLyricBudget(lineCount, textLength) {
   if (lineCount > MAX_LYRIC_LINES || textLength > MAX_LYRIC_TEXT) {
-    throw Object.assign(new Error('歌词展开后超过 4096 行或 512 Ki 个字符，请减少重复时间戳或歌词内容。'), {
+    throw Object.assign(new Error('这份歌词太大，无法读取。'), {
       code: 'LYRIC_EXPANSION_LIMIT', statusCode: 400,
     });
   }

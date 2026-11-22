@@ -8,9 +8,12 @@ const { crc32 } = require('node:zlib');
 const yauzl = require('yauzl');
 const { receiveMedia } = require('./component-media-files');
 const { webFilePath } = require('./component-web-files');
+const { formatByteLimit } = require('../../public/js/shared/display-format.js');
 
 const MAX_BACKUP_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_BACKUP_FILES = 8192;
+const MAX_MANIFEST_BYTES = 16 * 1024 * 1024;
+const BACKUP_SIZE_LIMIT_MESSAGE = `备份不能超过 ${formatByteLimit(MAX_BACKUP_BYTES)}，请减少素材后重试。`;
 const MANIFEST = 'lira-library-backup.json';
 const UUID = '[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}';
 const PACKAGE_FILE = new RegExp(`^packages/(${UUID})/([a-f0-9]{64}\\.(png|jpg|gif|webp|mp4|webm|svg|woff2)|web/(.+))$`);
@@ -40,7 +43,8 @@ async function* encodeBackup(files, manifest, authorize) {
     const content = source.manifest ? [Buffer.from(JSON.stringify({ ...manifest, files: descriptions }))] : fs.createReadStream(source.file);
     for await (const chunk of content) {
       authorize(); checksum = crc32(chunk, checksum); hash.update(chunk); bytes += chunk.length; offset += chunk.length;
-      if (offset > MAX_BACKUP_BYTES || source.manifest && bytes > 16 * 1024 * 1024) throw invalidBackup('备份超过 2 GiB 或清单过大，请减少素材后重试。');
+      if (offset > MAX_BACKUP_BYTES) throw invalidBackup(BACKUP_SIZE_LIMIT_MESSAGE);
+      if (source.manifest && bytes > MAX_MANIFEST_BYTES) throw invalidBackup(`备份清单不能超过 ${formatByteLimit(MAX_MANIFEST_BYTES)}，请减少素材后重试。`);
       yield chunk;
     }
     if (!source.manifest) descriptions.push({ name: source.name, bytes, sha256: hash.digest('hex') });
@@ -56,7 +60,7 @@ async function* encodeBackup(files, manifest, authorize) {
   const end = Buffer.alloc(22);
   end.writeUInt32LE(0x06054b50); end.writeUInt16LE(count, 8); end.writeUInt16LE(count, 10);
   end.writeUInt32LE(directory.length, 12); end.writeUInt32LE(offset, 16);
-  if (offset + directory.length + end.length > MAX_BACKUP_BYTES) throw invalidBackup('备份超过 2 GiB，请减少素材后重试。');
+  if (offset + directory.length + end.length > MAX_BACKUP_BYTES) throw invalidBackup(BACKUP_SIZE_LIMIT_MESSAGE);
   yield directory; yield end;
 }
 
@@ -73,7 +77,7 @@ async function extractBackup(filename, directory, authorize) {
         || entry.uncompressedSize > 512 * 1024 * 1024) throw invalidBackup();
       names.add(name.toLowerCase());
       if (name !== MANIFEST) backupFileName(name);
-      if (name === MANIFEST && entry.uncompressedSize > 16 * 1024 * 1024) throw invalidBackup();
+      if (name === MANIFEST && entry.uncompressedSize > MAX_MANIFEST_BYTES) throw invalidBackup();
       let checksum = 0;
       async function* chunks() {
         for await (const chunk of await zip.openReadStreamPromise(entry)) {

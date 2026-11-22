@@ -3,6 +3,7 @@
 
 <p>打开「百宝箱 → 设置 → 外观与声音」，点选一套配色，看到「配色已保存」就换好了；保存失败会恢复原选择，可以重新点选。</p>
 <p>喜欢柔和的灰粉色，可以选「烟粉 · 灰玫瑰」；喜欢更明亮的粉色渐变，可以选「玫瑰映光」。</p>
+<p>喜欢柔和的双色渐变，可以选「玫瑰灰 × 梅子红」或「藕荷 × 烟紫」。前者偏暖，后者带灰蓝调，两组都可以单独选浅色或深色。</p>
 <p>喜欢清爽的浅色，可以选「雾苔 · 亚麻」，亚麻白搭配柔和苔绿；喜欢温暖的深色，可以选「墨咖 · 香槟」，暖咖灰搭配香槟色。</p>
 <p>这里改 LIRA 软件界面的颜色。想改直播画面或观众网页歌单，去下面各自的设置里改。</p>
 </article>
@@ -13,7 +14,7 @@
     页面上有六张卡：电脑整体和 LIRA 各自的处理器、显卡、内存占用。电脑整体包含其他程序，LIRA
     卡只算这个软件。直播卡顿时，对比一下就知道是谁占的。
   </p>
-<p>「本机信息」顶部会自动显示 Windows 名称、版本号和 OS 内部版本，无需先点检测；下面能看硬件型号、核心数、内存条等信息。显存展示专用或预留容量，核显还可按需使用共享系统内存；GPU 温度只在检测时读取。</p>
+<p>「本机信息」顶部会自动显示 Windows 名称、版本号和内部版本，无需先点检测；下面能看硬件型号、核心数、内存条等信息。显存展示专用或预留容量，核显还可按需使用共享系统内存；GPU 温度只在检测时读取。</p>
 <figure class="usage-guide-figure">
 <img alt="性能页，上方是开始检测按钮和六张占用卡，下方本机信息顶部显示 Windows 版本" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-performance.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>六张占用卡和「本机信息」中的 Windows 版本栏。</figcaption>
@@ -23,8 +24,8 @@
 <p>打开<strong class="usage-guide-keyword">「百宝箱 → 设置 → 外观与声音 → 内置播放器输出」</strong>，在「输出通道」里选择耳机、扬声器或声卡通道。默认选「系统默认输出」；看到「输出通道已切换并保存。」就设置好了，下次打开 LIRA 继续使用。</p>
 <p>这项设置控制 LIRA 内置播放器的声音。QQ 音乐和网易云音乐客户端仍在各自的设置里选择输出设备。</p>
 <p>列表按电脑实际设备和驱动显示。WASAPI、DirectSound、WaveOut 是不同的播放方式，同一声卡可能有多项；通常先用「系统默认输出」或 WASAPI。安装了 ASIO 驱动时也会出现对应选项，标为「连接待检查」的驱动要成功打开后才显示实际输出声道。接入声卡、安装驱动后点「刷新设备」，列表数量会随电脑变化。</p>
-<p>音频格式自动适配。麦克风、线路输入和声卡回送请到<a data-usage-guide-link href="#ug-audio-device-input">电音助手的设备输入</a>选择。系统声音采集不一定能采到 ASIO 播放的声音；如需采集，需要声卡提供硬件回送。想直接配合进程采集时，优先使用 WASAPI。</p>
-<p>配合电音助手时，这里的输出通道与助手的「原声通道」选同一个设备，「最终输出」另选一个独立通道。处理内置播放时，要先关闭「当前歌曲」，再切换输出通道。具体步骤见<a data-usage-guide-link href="#ug-audio-assistant">电音助手</a>。</p>
+<p>音频格式自动适配。内置播放器使用 ASIO 时，电音助手需要通过声卡提供的回送通道采集。回送通道、麦克风和线路输入都在<a data-usage-guide-link href="#ug-audio-device-input">电音助手的设备输入</a>中选择。</p>
+<p>配合电音助手时，建议在这里选「系统默认输出」。如果播放器已经在助手的独立原声通道放歌，保留这里的设置，只需在助手里把「最终输出」手动选到另一条监听或推流通道。要更换播放器的输出，先关闭「当前歌曲」。具体步骤见<a data-usage-guide-link href="#ug-audio-assistant">电音助手</a>。</p>
 <p>如果选中的设备被拔掉或暂时不可用，LIRA 会保留原选择并暂停播放。重新接好设备，或在这里换一个可用的输出通道后，再继续播放。</p>
 </article>
 <article class="usage-guide-feature" id="ug-desktop-notifications"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.4 系统通知</strong></h5></div>
@@ -111,7 +112,7 @@
 <img alt="安装文件夹中的卸载程序 Uninstall LIRA.exe" class="usage-guide-image" decoding="async" height="58" loading="lazy" src="/img/usage-guide/uninstall-lira.webp" style="--usage-guide-image-width: 279px" width="279"/>
 <figcaption>安装文件夹里的卸载程序。</figcaption>
 </figure>
-<p>本版卸载程序只清理明确的程序文件、日志和更新缓存，默认保留 <code>data</code> 以及帮助识别重装目录的 <code>lira-installation.ini</code>。手工放入的其他文件会留下；勾选“同时删除用户数据”并再次确认才会删除用户数据。旧版卸载器可能没有这项文件保护，混放过其他资料时请先备份，再用新版安装包覆盖更新。</p>
+<p>本版卸载程序只清理明确的程序文件、日志和更新缓存，默认保留 <code>data</code> 以及帮助识别重装目录的 <code>lira-installation.ini</code>。手工放入的其他文件会留下；勾选「同时删除用户数据」并再次确认才会删除用户数据。旧版卸载器可能没有这项文件保护，混放过其他资料时请先备份，再用新版安装包覆盖更新。</p>
 <p>
         只是想更新的话，不用卸载，按上面的步骤覆盖安装就行。卸载前想留着数据，先看<a data-usage-guide-link href="#ug-data">「数据保存与备份」</a>，备份好再卸。
       </p>

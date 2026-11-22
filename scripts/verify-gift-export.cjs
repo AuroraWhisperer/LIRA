@@ -89,10 +89,17 @@ const server = http.createServer((req, res) => {
       createdAt: '2026-09-18T01:00:00Z',
     },
   }));
+  const flowers = [17, 18, 19].map(day => ({
+    eventId: `flower-${day}`,
+    gift: { userName: '观众A', giftId: 'flower', giftName: '小花花', num: 100, unitPrice: 0.1, avatarUrl,
+      createdAt: `2026-09-${day}T12:00:00Z` },
+  }));
   const cardRuntime = createGiftExportRuntime({
     getServices: () => ({
       gifts: {
-        getSelection: ({ historical }) => ({ viewRevision: 'fixture', items: historical ? historicalItems : cardItems }),
+        getSelection: ({ historical, crossDate }) => ({
+          viewRevision: 'fixture', items: crossDate ? flowers : historical ? historicalItems : cardItems,
+        }),
         getViewRevision: () => 'fixture',
       },
       overtimeGiftCatalog: { getGlobalSnapshot: () => ({ gifts: [] }) },
@@ -113,10 +120,16 @@ const server = http.createServer((req, res) => {
       }),
     },
   });
-  cardRuntime.configureGiftSync({ cardAvatars: async ({ eventIds }) => {
-    assert.deepEqual(eventIds, ['historical-guard']);
-    return { ok: true, items: [{ eventId: 'historical-guard', avatarUrl }] };
-  } });
+  cardRuntime.configureGiftSync({
+    cardAvatars: async ({ eventIds }) => {
+      assert.deepEqual(eventIds, ['historical-guard']);
+      return { ok: true, items: [{ eventId: 'historical-guard', avatarUrl }] };
+    },
+    cardGroups: async ({ eventIds }) => {
+      assert.deepEqual(eventIds, flowers.map(item => item.eventId));
+      return { ok: true, groups: [eventIds], partial: false };
+    },
+  });
   const controller = createGiftExportController({
     app: { getPath: () => root },
     BrowserWindow,
@@ -127,8 +140,9 @@ const server = http.createServer((req, res) => {
     runtime: {
       getSetting: () => '',
       getGiftViewRevision: () => 'fixture',
+      mergeGiftExport: cardRuntime.mergeGiftExport,
       prepareGiftExport: (selection) =>
-        selection.merge || selection.historical
+        selection.merge || selection.historical || selection.crossDate
           ? cardRuntime.prepareGiftExport(selection)
           : {
               viewRevision: 'fixture',
@@ -223,6 +237,18 @@ const server = http.createServer((req, res) => {
       'pink tier uses the combined 140 yuan, not the first price times five',
     );
     console.log(JSON.stringify({ ok: true, mergedPreview: mergedPath }));
+    const threeDays = await controller.prepare({ crossDate: true });
+    assert.equal(threeDays.snapshot.items.length, 3);
+    const together = await controller.configure({ id: threeDays.id, mode: 'separate', background: 'white', mergeAcrossDates: true });
+    assert.equal(together.snapshot.selectedCount, 3);
+    assert.equal(together.snapshot.items[0].gift.num, 300);
+    assert.equal(together.snapshot.items[0].cardTotalCents, '3000');
+    const saved = await controller.save({ id: together.id });
+    assert.equal(saved.ok, true, saved.error);
+    assert.equal(saved.saved, 1);
+    const flowerPng = path.join(saved.directory, together.files[0].fileName);
+    assert.equal(fs.readFileSync(flowerPng).readUInt32BE(20), 144);
+    console.log(JSON.stringify({ ok: true, crossDateFlowers: flowerPng }));
   } finally {
     controller.dispose();
     server.close();

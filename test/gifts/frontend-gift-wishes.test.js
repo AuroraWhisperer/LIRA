@@ -216,7 +216,7 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
     } }, data => { window.canvasWishes = data.previewData['gift-wishes']; });
   });
   await page.locator('#giftWishPick').click();
-  await page.getByRole('button', { name: '全部缓存礼物', exact: true }).click();
+  await page.locator('button[data-wish-source="all"]').click();
   await page.locator('#giftWishSearch').fill('小花');
   await page.locator('.gift-wish-option').click();
   await page.locator('#giftWishTarget').fill('1.5');

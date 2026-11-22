@@ -1,60 +1,53 @@
-# ADR-0006: Shared Gift Detection Core with Consumer Registry
+# ADR-0006: 共享礼物检测核心与消费者注册表
 
-- Status: Accepted
-- Date: 2026-08-10
-- Original ID: ADR-OT-005
+## 状态
 
-## 2026-09-13 ownership update
+已采纳（2026-08-10，原编号：ADR-OT-005）
 
-The raw client detector described below has been removed. Parsing, grouping,
-amount/blind-box decisions, and finalization are now owned by the server under
-the [server-authoritative gift specification](../../../specs/server-authoritative-gift-detection_design.md).
-The client [projection service](../../reference/backend/bilibili/gift.md) retains consumer
-isolation, frozen eligibility, and idempotent delivery for server events only.
-The original decision below remains a historical record, not a local fallback.
+### 2026-09-13 归属变更说明
 
-## Context
+下文所述的客户端原始检测核心已移除。礼物解析、分组、金额与盲盒判定以及终态确认现已统一由服务端负责（详见 [服务端权威礼物检测规格](../../../specs/server-authoritative-gift-detection_design.md)）。客户端 [礼物投影服务](../../reference/backend/bilibili/gift.md) 仅保留对服务端事件的消费者故障隔离、资格冻结与幂等交付机制。以下原始决策仅作为历史记录保留，不再作为本地降级方案。
 
-Previously `src/bilibili/gift/event-service.js` combined low-level detection, gift event persistence, and the `enableGiftSprint` switch in one service, so gifts were unavailable to overtime whenever `enableGiftSprint` was false. Gift statistics and the overtime machine need the same normalization, platform deduplication, and combo merging, yet their start/stop switches and business outcomes must remain independent. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/bilibili/gift/detection-service.js`, `src/bilibili/gift/consumer-registry.js`, `src/bilibili/gift/statistics-consumer.js`, `src/overtime/overtime-consumer.js`).
+## 背景
 
-## Decision
+此前 `src/bilibili/gift/event-service.js` 将底层礼物检测、事件持久化与 `enableGiftSprint` 开关耦合在同一服务内，导致关闭礼物统计开关时加班机也收不到礼物。礼物统计与加班机需要共用同一套标准化、平台去重与连击合并逻辑，但各自的启停开关和业务结果必须互相独立。本 ADR 提炼自加班机设计规格（2026-08-10 采纳），并在 v3.3.14 代码库（`src/bilibili/gift/detection-service.js`、`consumer-registry.js`、`statistics-consumer.js`、`src/overtime/overtime-consumer.js`）中验证落地。
 
-A single-instance `GiftDetectionService` owns parsing, normalization, platform deduplication, and combo merging. Each raw Bilibili gift enters the system exactly once through `giftDetection.detect(gift)`; the core persists the `progress`/`final` lifecycle in `gift_events` and freezes consumer eligibility at the first platform packet of a group (`gift_stats_eligible`, `overtime_epoch`). Standard events are fanned out to `GiftStatisticsConsumer` and `OvertimeConsumer` through a consumer registry that isolates per-consumer failures (one consumer throwing never blocks the others).
+## 决策
 
-The detection core runs whenever at least one consumer is enabled; when both are disabled it stops accepting new raw gifts but first drains already-persisted `progress` groups to `final`, then goes idle. All combo timers, forced flushes, and the shutdown flush route through the single `finalizeDetected()` path, and query code never mutates the gift lifecycle. A single 10-second silence window (based on the dedicated `last_platform_at_ms` integer field) governs finalization, and both consumers settle on the `final` event immediately — no consumer waits a second 10-second window.
+由单实例 `GiftDetectionService` 统一负责礼物解析、字段标准化、平台去重与连击合并。每条原始 B 站礼物仅通过 `giftDetection.detect(gift)` 进入系统一次；检测核心在 `gift_events` 中维护 `progress`/`final` 生命周期，并在该分组收到首个平台数据包时冻结各消费者的业务资格（`gift_stats_eligible`、`overtime_epoch`）。标准化事件通过消费者注册表分发给 `GiftStatisticsConsumer` 与 `OvertimeConsumer`，单个消费者抛错不会阻断其他消费者。
 
-At-least-once delivery with exactly-once business results is enforced with idempotent checkpoints (`counted_in_sprint`/`gift_stats_delivered` for statistics, `overtime_settlements` status for overtime) and compensating scans with 1–30 second exponential backoff that resume eligible `final` events after first-delivery failure or process restart, without relying on platform resends.
+只要至少有一个消费者处于启用状态，检测核心即保持运行；当所有消费者均关闭时，核心停止接收新原始礼物，但会先将已落库的 `progress` 分组排空至 `final` 后再进入空闲。所有连击定时器、强制刷盘与停机排空均汇入同一条 `finalizeDetected()` 路径，查询接口绝不修改礼物生命周期。终态由基于 `last_platform_at_ms` 整数字段的单个 10 秒静默窗口统一裁定，两个消费者收到 `final` 后均立即结算，不再各自二次等待 10 秒。
 
-## Consequences
+通过幂等检查点（统计侧的 `counted_in_sprint`/`gift_stats_delivered`、加班机侧的 `overtime_settlements` 状态）以及按 1–30 秒指数退避的补偿扫描，实现“至少一次投递、恰好一次业务生效”，在首次投递失败或进程重启后无需依赖平台重发即可恢复符合条件的 `final` 事件。
 
-### Positive
+## 影响
 
-- Exactly one parsing, normalization, and deduplication rule exists; the two features cannot parse the same raw packet differently.
-- Gift statistics and overtime no longer depend on each other's switches; each can run with the other disabled.
-- No duplicate parsing or duplicate `gift_events` writes; the shared ledger supports audit and diagnosis.
-- Both consumers share the same `gift_events.id`, so statistics ownership and overtime settlement never pollute each other.
+### 正面影响
 
-### Negative
+- 全系统只有一套解析、标准化与去重规则，两项功能不会对同一数据包产生分歧。
+- 礼物统计与加班机彻底解耦，任意一方关闭时另一方仍可独立运行。
+- 消除重复解析与重复写入 `gift_events`，共享账本便于审计与排查。
+- 两个消费者共用同一 `gift_events.id`，统计归属与加班机结算互不干扰。
 
-- The existing gift service boundary had to be refactored, and failure isolation plus compensation required new tests.
+### 代价
 
-### Neutral
+- 需要重构原有礼物服务边界，并为故障隔离与补偿扫描补充测试。
 
-- `gift_events` became the shared detection event ledger; statistics queries read only `final` rows that are `gift_stats_eligible`, so `progress` and overtime-only events stay out of gift statistics.
+### 中性影响
 
-## Alternatives Considered
+- `gift_events` 成为共享检测事件账本；统计查询只读取 `gift_stats_eligible` 为真的 `final` 记录，`progress` 与仅用于加班机的事件不会混入礼物统计。
 
-**Let overtime call the existing service that still gates on `enableGiftSprint`**
+## 备选方案
 
-- Rejected: the two switches would remain coupled, and overtime could not receive gifts while gift statistics is off.
+**让加班机继续调用受 `enableGiftSprint` 控制的旧服务**
 
-**Duplicate the parser inside the overtime module**
+- 否决：两个功能开关仍会耦合，关闭礼物统计时加班机无法接收礼物。
 
-- Rejected: two separate deduplication and combo-merge states would diverge over time.
+**在加班机模块内复制一套礼物解析器**
 
-Both options were considered and rejected in the source specification; neither is used.
+- 否决：两套去重与连击合并状态会随演进逐渐分叉。
 
-## References
+## 参考
 
 - [overtime.md](../../reference/backend/overtime.md)
 - `src/bilibili/gift/detection-service.js`

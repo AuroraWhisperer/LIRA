@@ -171,7 +171,8 @@
           <li>所选名单全部获取完成后才能开奖；名单不完整时暂停，不降低条件。</li>
           <li>随机排序后依次核验，不符合条件自动递补；无法确认时停在当前候选人，继续时保留顺序。</li>
           <li>候选人用尽时显示缺额，不重复抽取同一人。</li>
-          <li>新建活动成功后，清理已结束场次的名单和结果。启动 LIRA 时，保留每个账号最新的一场及所有未结束活动，清理更早的已结束场次。需要留存时请复制中奖名单。</li>
+          <li>点「新建抽奖」只会打开表单。再点「获取参与名单」，等下一场建好后，这个 LIRA 账号里已结束抽奖的名单和结果就会清掉。</li>
+          <li>打开 LIRA 或切换 LIRA 账号后，会保留这个账号最近建的那场抽奖，以及所有还没结束的场次。即使没进抽奖页，其他记录也会自动清理。</li>
           <li>
             支持本人的原创文字/图文动态、BV 视频及 b23.tv
             短链。视频仅支持评论与关注，暂不支持可靠核验视频点赞和分享名单。
@@ -190,7 +191,7 @@
       <p class="hint" data-lottery-result-empty>尚未确认中奖用户</p>
       <ol class="dynamic-lottery-winners" data-lottery-winners aria-label="中奖用户与参与评论"></ol>
       <div class="dynamic-lottery-section-heading">
-        <span class="hint">结果暂存本机。启动时保留每个账号最新一场及未结束活动；新建活动成功后清理已结束场次，请及时复制中奖名单。</span>
+        <span class="hint">结果暂存在本机。要留存本场结果，请先点「复制中奖名单」，再为下一场抽奖获取参与名单。</span>
         <nav class="dynamic-lottery-actions" data-lottery-pager aria-label="中奖结果分页" hidden>
           <span class="hint" data-lottery-page-info aria-live="polite"></span>
           <button type="button" class="secondary" data-lottery-previous>上一页</button>

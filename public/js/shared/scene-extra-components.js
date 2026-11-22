@@ -78,7 +78,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       desktopLyricVisibleLines: number('自定义行数', '0', 0, 99),
       desktopLyricOpacity: number('文字不透明度', '0.95', 0, 1, 0.05),
       desktopLyricKaraokeMode: select('逐字高亮方式', 'continuous', { off: '关闭（整句显示）', continuous: '连续填充', discrete: '逐字点亮' }),
-      desktopLyricSungColor: { ...color('已唱颜色', ''), allowEmpty: true, inheritLabel: '跟随样式' },
+      desktopLyricSungColor: { ...color('已唱颜色', ''), allowEmpty: true, inheritLabel: '跟随当前歌词样式' },
       desktopLyricShowTranslation: check('显示翻译', 'true'), desktopLyricShowRoma: check('显示罗马音', 'true'),
       desktopLyricTranslationScale: number('译文/罗马音字号比例', '0.65', 0.4, 1, 0.05),
       desktopLyricHidePassedLines: check('隐藏已唱歌词', 'false'), desktopLyricHideOnPause: check('暂停时隐藏', 'false'),
@@ -133,7 +133,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     fields: {
       kind: select('互动类型', 'poll', { poll: '弹幕投票', rating: '观众评分' }),
       interactionOverlayTitle: text('标题', '', 60), interactionOverlayHint: text('参与提示', '', 80),
-      interactionRatingRules: { ...text('评分规则', '弹幕发送整数 1–10\n重复评分取最后一次', 300), type: 'textarea' },
+      interactionRatingRules: { ...text('画面上的评分说明', '弹幕发送整数 1–10\n重复评分取最后一次', 300), type: 'textarea' },
       interactionTextColor: color('文字颜色', '#172b3a'), interactionBackgroundColor: color('背景颜色', '#ffffff', 'interactionBackgroundOpacity'),
       interactionBackgroundOpacity: number('背景不透明度（%）', '100', 0, 100),
       interactionOverallOpacity: number('整体不透明度（%）', '100', 0, 100),
@@ -179,7 +179,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     title: '盲盒盈亏榜', size: [720, 640], path: '/blindbox',
     variants: [variant('default', '盲盒盈亏榜', '今日盲盒盈亏')],
     fields: {
-      blindboxOverlayTitle: text('标题', '今日盲盒盈亏'), top: number('榜单人数（-1 全部，0 仅汇总）', 3, -1, 10),
+      blindboxOverlayTitle: text('标题', '今日盲盒盈亏'), top: number('排行人数（-1 不限，0 仅汇总）', 3, -1, 10),
       compact: check('紧凑布局', false), winnersOnly: check('仅显示盈利', false), hideLoss: check('隐藏亏损观众', false),
       heartBoxOnly: check('只看心动盲盒', false),
       blindboxCastleMultiplier: { ...number('今天几倍堡（留空隐藏）', '', 0.01, 1000, 0.01), optional: true },

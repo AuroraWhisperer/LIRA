@@ -66,8 +66,8 @@
           <legend>标题设置</legend>
           <div class="grid-2">
             <label style="grid-column: 1 / -1">
-              <span>面板标题 <lira-help>留空则显示默认标题；若展示板开启了「同步点歌板主题」，标题也会一起变。</lira-help></span>
-              <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列" />
+              <span>面板标题 <lira-help>开启「同步点歌板主题」的展示板也会使用此标题。留空时，展示板默认显示「可点歌单」，按曲风筛选时可附上曲风名。</lira-help></span>
+              <input id="overlayTitle" placeholder="留空显示「点歌队列」" />
             </label>
             <label>
               队列标题字号
@@ -348,7 +348,7 @@
           </fieldset>
 
           <fieldset class="theme-section" data-illustrated-only>
-            <legend>插画文字</legend>
+            <legend>列表字体与颜色</legend>
             <div class="grid-2">
               <label>
                 字体
@@ -426,15 +426,15 @@
             <div class="grid-1">
               <label>
                 置顶内容 1
-                <input id="overlayPin1" placeholder="留空则不显示，显示在点歌板2最上方" />
+                <input id="overlayPin1" placeholder="显示在点歌板风格 2 顶部，留空则隐藏" />
               </label>
               <label>
                 置顶内容 2
-                <input id="overlayPin2" placeholder="留空则不显示，显示在点歌板2最上方" />
+                <input id="overlayPin2" placeholder="显示在点歌板风格 2 顶部，留空则隐藏" />
               </label>
               <label>
                 置顶内容 3
-                <input id="overlayPin3" placeholder="留空则不显示，显示在点歌板2最上方" />
+                <input id="overlayPin3" placeholder="显示在点歌板风格 2 顶部，留空则隐藏" />
               </label>
             </div>
           </fieldset>

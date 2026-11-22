@@ -61,9 +61,9 @@
             </label>
           </div>
           <div class="player-appearance-range">
-            <label for="playerArtworkSize">唱片／封面大小</label>
+            <label for="playerArtworkSize">唱片 / 封面大小</label>
             <input id="playerArtworkSize" class="parameter-range" type="range" min="60" max="110" value="100" data-appearance-key="artworkSize" />
-            <label class="player-appearance-number lira-number-field"><input type="number" min="60" max="110" value="100" required aria-label="唱片／封面大小百分比" data-appearance-key="artworkSize" /><span class="lira-number-field-unit" aria-hidden="true">%</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="60" max="110" value="100" required aria-label="唱片 / 封面大小百分比" data-appearance-key="artworkSize" /><span class="lira-number-field-unit" aria-hidden="true">%</span></label>
           </div>
           <label class="player-appearance-check"><input type="checkbox" checked data-appearance-key="rotation" />播放时旋转唱片</label>
         </section>
@@ -82,7 +82,7 @@
           <h3 id="playerBackgroundHeading">背景</h3>
           <label>背景模式
             <select data-appearance-key="backgroundMode">
-              <option value="auto">跟随当前配色</option>
+              <option value="auto">自动（主题未指定时按歌曲配色）</option>
               <option value="solid">纯色</option>
               <option value="gradient">双色渐变</option>
             </select>
@@ -101,7 +101,7 @@
           <h3 id="playerTextColorHeading">文字</h3>
           <label>文字配色
             <select data-appearance-key="textColors">
-              <option value="theme">跟随当前配色</option>
+              <option value="theme">跟随主题文字颜色</option>
               <option value="custom">自定义颜色</option>
             </select>
           </label>
@@ -208,7 +208,7 @@
         <div class="player-appearance-canvas"></div>
       </div>
       <div class="player-appearance-preview-toolbar">
-        <label class="player-appearance-check"><input type="checkbox" data-appearance-long-sample />长句与译文</label>
+        <label class="player-appearance-check"><input type="checkbox" data-appearance-long-sample />预览长句与译文</label>
         <button id="playerAppearanceOpenBtn" type="button">打开大播放器</button>
       </div>
     </div>

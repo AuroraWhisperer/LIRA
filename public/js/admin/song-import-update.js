@@ -28,7 +28,6 @@ const ERROR_MESSAGES = {
   SONG_IMPORT_PREVIEW_STALE: '歌库或导入内容已变化，请重新预览。',
   SONG_IMPORT_PREVIEW_INVALID: '请修正冲突或无效行后重新预览；没有变更时无需应用。',
   SONG_IMPORT_INPUT_INVALID: '无法读取更新内容，请使用完整模板或带表头的文件（最多 5000 行）。',
-  SONG_IMPORT_FAILED: '导入未完成，已回滚，请重试。',
 };
 
 export function initSongImportUpdate({ imports, reloadSongs, request = api, documentRef = document }) {
@@ -136,8 +135,13 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     };
   }
 
-  function showFailure(error) {
-    result.textContent = ERROR_MESSAGES[error?.code || error?.message] || error?.message || '导入失败，请重新预览。';
+  function showFailure(error, applying = false) {
+    const code = error?.code || error?.message;
+    if (code === 'SONG_IMPORT_FAILED' || code === 'INVALID_RESPONSE' || error?.name === 'TypeError' || (error?.status && !error.payload)) {
+      result.textContent = applying ? '无法确认导入结果。请先刷新并核对歌库，再重新预览。' : '暂时无法生成导入预览，请重试。';
+      return;
+    }
+    result.textContent = ERROR_MESSAGES[code] || error?.payload?.message || error?.message || '导入失败，请重新预览。';
   }
 
   previewButton.addEventListener('click', async () => {
@@ -150,7 +154,7 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     try {
       const payload = await readInput();
       if (current !== generation) return;
-      const response = await request('/api/songs/import-preview', payload);
+      const response = await request('/api/songs/import-preview', payload, { notifyError: false });
       if (current !== generation) return;
       preview = { payload, data: response.data };
       sourceLabel.textContent = fileInput.files[0] ? `本次来源：文件 ${fileInput.files[0].name}` : '本次来源：粘贴的表格';
@@ -194,7 +198,7 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       const response = await request('/api/songs/import-apply', {
         ...submitted.payload,
         previewToken: submitted.data.previewToken,
-      });
+      }, { notifyError: false });
       if (current === generation) {
         panel.hidden = true;
         table.replaceChildren();
@@ -210,7 +214,7 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       if (current === generation) {
         panel.hidden = true;
         table.replaceChildren();
-        showFailure(error);
+        showFailure(error, true);
       }
     } finally {
       busy = false;

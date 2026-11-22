@@ -334,7 +334,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       const data = await readWeeklyScheduleAsset(file, { allowSvg: key === 'icon' });
       if (disposed || uploadGenerations.get(slot) !== generation || !state.templates.includes(template)) return;
       const bytes = ASSET_KEYS.reduce((sum, assetKey) => sum + getWeeklyScheduleAssetBytes(assetKey === key ? data : template.assets[assetKey]), 0);
-      if (bytes > MAX_TEMPLATE_ASSET_BYTES) throw new Error('每个模板的图片合计不能超过 48 MiB，请缩小图片后重试。');
+      if (bytes > MAX_TEMPLATE_ASSET_BYTES) throw new Error('每份周表的素材总量不能超过 48 MB（50,331,648 字节），请移除或缩小部分图片。');
       template.assets[key] = data;
       if (key === 'icon') template.icon = 'custom';
       if (current() === template) {

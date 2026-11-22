@@ -82,7 +82,7 @@
                 <div class="license-field-label">
                   <label for="licenseAccountName">用户名</label>
                   <lira-help label="用户名说明" tooltip-id="licenseAccountNameRules">
-                    会作为你的网页歌单专属网址前缀。需 2–32 位，连字符（-）不能放在开头或结尾，大写字母会自动转为小写。
+                    用户名会出现在网页歌单的域名开头。注册时请选择还没人用的名字。长度为 2–32 个字符，注册后无法在客户端改名。大写字母会转为小写，中划线不能放在开头或结尾。
                   </lira-help>
                 </div>
                 <input
@@ -98,13 +98,13 @@
                   placeholder="请输入用户名"
                   required
                 />
-                <small id="licenseAccountNameHelp">英文字母、数字或中划线，不支持中文</small>
+                <small id="licenseAccountNameHelp">可用英文字母、数字和中划线（-）</small>
               </div>
               <div class="license-field">
                 <div class="license-field-label">
                   <label for="licensePassword">密码</label>
                   <lira-help label="密码规则" tooltip-id="licensePasswordRules">
-                    8–64 位，需包含大写字母、小写字母、数字、符号或中文里的至少 3 种（支持空格），别用太简单的常见密码。
+                    <strong>新密码</strong>用 8–64 个字符，大写字母、小写字母、数字、汉字和符号中至少用三种。含中文或表情时，没到 64 个字符也可能太长。
                   </lira-help>
                 </div>
                 <div class="license-password-control">
@@ -147,7 +147,7 @@
                   placeholder="XXXX-XXXX-XXXX-XXXX"
                   required
                 />
-                <small id="licenseCodeHelp">由管理员下发的一次性注册码，用户名不可重复</small>
+                <small id="licenseCodeHelp">向管理员领取，每个码只能用一次。</small>
               </label>
               <p id="licenseStatus" class="license-status" role="status" aria-live="polite">
                 登录与授权功能正在加载；若长时间无响应，请重启 LIRA。

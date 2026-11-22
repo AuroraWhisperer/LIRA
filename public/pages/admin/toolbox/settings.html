@@ -9,7 +9,7 @@
   <div class="client-settings">
     <div class="client-settings-tabs" role="tablist" aria-label="设置分类">
       <button id="settingsAppearanceTab" type="button" role="tab" aria-selected="true" aria-controls="settingsAppearancePanel" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.2" r="1" fill="currentColor"/><circle cx="15" cy="7.8" r="1" fill="currentColor"/></svg>外观与声音</button>
-      <button id="settingsAccountTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAccountPanel" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.4-3.3 4.2-5 7.5-5s6.1 1.7 7.5 5"/></svg>账户与服务</button>
+      <button id="settingsAccountTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAccountPanel" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.4-3.3 4.2-5 7.5-5s6.1 1.7 7.5 5"/></svg>账号与服务</button>
       <button id="settingsNotificationsTab" type="button" role="tab" aria-selected="false" aria-controls="settingsNotificationsPanel" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>通知提醒</button>
       <button id="settingsAboutTab" type="button" role="tab" aria-selected="false" aria-controls="otherDesktopUpdateFeature" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></svg>关于与更新</button>
     </div>
@@ -59,7 +59,7 @@
       <details class="client-settings-help" open>
         <summary>声卡与电音助手的输出说明</summary>
         <p id="playbackOutputHint" class="hint">通常选「系统默认输出」或 WASAPI。同一设备可能提供多种输出方式，列表随设备和驱动变化。ASIO 首次选择后检查连接并列出可用声道。</p>
-        <p class="hint">配合电音助手时，播放器与「原声通道」选同一设备，「最终输出」另选一个。ASIO 声音需通过声卡回送接入。</p>
+        <p class="hint">配合电音助手时，建议选「系统默认输出」。如果这里已经选了助手的独立原声通道，可以保留，在助手里把「最终输出」手动选到另一条监听或推流通道。ASIO 声音需通过声卡回送接入。</p>
       </details>
       <p id="playbackOutputFeedback" class="hint" role="status" aria-live="polite"></p>
     </section>
@@ -70,7 +70,7 @@
       <header class="client-settings-group-heading">
         <div>
           <h3 id="licenseAccountTitle" class="ui-section-title">LIRA 账号 <lira-help label="密码找回说明">忘记 LIRA 密码：请联系管理员重置。B 站账号密码请通过 B 站找回。</lira-help></h3>
-          <p>当前客户端的授权账户与设备。</p>
+          <p>当前客户端的授权账号与设备。</p>
         </div>
         <span class="pill good">已授权</span>
       </header>

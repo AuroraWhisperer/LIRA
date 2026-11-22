@@ -83,7 +83,9 @@ test('text media rejects invalid bytes, unsupported MIME, oversized requests and
     [Buffer.alloc(0), 'image/png'], [Buffer.from('<html/>'), 'image/png']]) {
     assert.equal((await upload(bytes, mime)).status, 400);
   }
-  assert.equal((await upload(Buffer.alloc(MAX_TEXT_IMAGE_BYTES + 1), 'image/png')).status, 413);
+  const oversized = await upload(Buffer.alloc(MAX_TEXT_IMAGE_BYTES + 1), 'image/png');
+  assert.equal(oversized.status, 413);
+  assert.ok(oversized.error.includes(MAX_TEXT_IMAGE_BYTES.toLocaleString('zh-CN')), 'The upload must report the byte limit even when the HTTP body reader rejects it first.');
   assert.equal(fs.existsSync(path.join(f.dataDir, 'scene-text-images')), false);
   const maximum = Buffer.alloc(MAX_TEXT_IMAGE_BYTES);
   png.copy(maximum);

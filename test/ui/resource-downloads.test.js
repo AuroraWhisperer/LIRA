@@ -54,10 +54,23 @@ test('audio has one independent progress subscription and an accessible retry af
   assert.equal(row.children[3].hidden, false);
   row.children[3].fire('click');
   assert.equal(f.audioRetries(), 1);
+  const toastAction = f.container.children[0].children.find(child => child.tagName === 'button');
+  assert.equal(toastAction.hidden, false);
+  toastAction.fire('click');
+  assert.equal(f.audioRetries(), 2);
   f.emit('audio', { status: 'ready' });
   assert.equal(row.hidden, true);
   f.controller.dispose();
   assert.equal(f.listeners.audio.size, 0);
+});
+
+test('returning to idle withdraws the previous audio retry from the task list and progress toast', async () => {
+  const f = await fixture({ audioSnapshot: { status: 'error', error: 'retry preparation' } });
+  await f.controller.init();
+  f.emit('audio', { status: 'idle', error: 'authorization required' });
+  assert.equal(f.region.hidden, true);
+  assert.equal(f.container.children.length, 0);
+  f.controller.dispose();
 });
 
 test('active downloads remain visible after dismissing toast; terminal rows and empty region disappear', async () => {

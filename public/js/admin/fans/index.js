@@ -109,7 +109,7 @@ function createFanUi() {
   });
 
   async function request(action, payload = {}) {
-    if (!window.fanProfiles) throw new Error('粉丝档案在 Electron 桌面客户端中使用。');
+    if (!window.fanProfiles) throw new Error('请在 LIRA 桌面客户端中使用粉丝档案。');
     const contextId = state.contextId;
     const result = await window.fanProfiles.invoke({
       action,

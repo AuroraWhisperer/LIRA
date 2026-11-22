@@ -5,8 +5,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { validateImageBytes } = require('../bilibili/gift/remote-gift-image-cache');
 const { sendJson } = require('./http-utils');
+const { formatByteLimit } = require('../../public/js/shared/display-format.js');
 
 const MAX_TEXT_IMAGE_BYTES = 5 * 1024 * 1024;
+const TEXT_IMAGE_SIZE_LIMIT_MESSAGE = `图片不能超过 ${formatByteLimit(MAX_TEXT_IMAGE_BYTES)}，请压缩后重新上传。`;
 const TEXT_IMAGE_PREFIX = '/scene-text-images/';
 const IMAGE_TYPES = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp' });
 const FILE_NAME = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.(png|jpg|gif|webp)$/;
@@ -18,7 +20,7 @@ function storeTextImage(dataDir, bytes, contentType) {
     throw Object.assign(new Error('请选择有效的 PNG、JPEG、GIF 或 WebP 图片。'), { statusCode: 400 });
   }
   if (bytes.length > MAX_TEXT_IMAGE_BYTES) {
-    throw Object.assign(new Error('图片不能超过 5 MiB。'), { statusCode: 413 });
+    throw Object.assign(new Error(TEXT_IMAGE_SIZE_LIMIT_MESSAGE), { statusCode: 413 });
   }
   const directory = imageDirectory(dataDir);
   fs.mkdirSync(directory, { recursive: true });
@@ -59,4 +61,4 @@ async function serveSceneTextImage(dataDir, req, res, url) {
   res.end(req.method === 'HEAD' ? undefined : bytes);
 }
 
-module.exports = { MAX_TEXT_IMAGE_BYTES, TEXT_IMAGE_PREFIX, storeTextImage, serveSceneTextImage };
+module.exports = { MAX_TEXT_IMAGE_BYTES, TEXT_IMAGE_SIZE_LIMIT_MESSAGE, TEXT_IMAGE_PREFIX, storeTextImage, serveSceneTextImage };

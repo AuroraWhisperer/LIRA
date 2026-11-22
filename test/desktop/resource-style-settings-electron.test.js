@@ -91,12 +91,15 @@ test('resource settings pause polling under hidden pages and resume without losi
     args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const page = await app.firstWindow();
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  const modules = await page.evaluateHandle(async () => {
+    const { mountResourceStyleSettings } = await import('/js/admin/component-resource-settings-panel.js');
+    const { createResourceStyleSettings } = await import('/js/admin/resource-style-settings.js');
+    return { mountResourceStyleSettings, createResourceStyleSettings };
+  });
   await page.clock.install();
   await page.clock.pauseAt(new Date(Date.now() + 1000));
   for (const embedded of [false, true]) {
-    await page.evaluate(async ({ style, embedded }) => {
-      const { mountResourceStyleSettings } = await import('/js/admin/component-resource-settings-panel.js');
-      const { createResourceStyleSettings } = await import('/js/admin/resource-style-settings.js');
+    await page.evaluate(({ style, embedded, modules: { mountResourceStyleSettings, createResourceStyleSettings } }) => {
       const ancestor = document.createElement('section'); ancestor.className = 'main-page active';
       const subpage = document.createElement('section');
       const host = document.createElement('div'); host.id = 'resource-polling-test';
@@ -113,7 +116,7 @@ test('resource settings pause polling under hidden pages and resume without losi
       };
       state.panel = embedded ? createResourceStyleSettings(style, { request }).mount(host)
         : mountResourceStyleSettings(host, { style, request });
-    }, { style: styles.find(style => style.type === 'lyrics'), embedded });
+    }, { style: styles.find(style => style.type === 'lyrics'), embedded, modules });
     const fontSize = page.locator('#resource-polling-test [data-component-parameter="desktopLyricFontSize"]');
     await fontSize.fill('54'); await fontSize.dispatchEvent('change');
     await page.clock.fastForward(1000);

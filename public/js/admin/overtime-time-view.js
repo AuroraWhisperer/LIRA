@@ -2,6 +2,8 @@
 
 import { formatClockDisplay, formatClockSeconds } from '../shared/overtime-time-format.js';
 
+const DURATION_INPUT_HINT = '请在「小时」和「分钟」两栏分别填写非负整数，分钟为 0–59。';
+
 export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerLimits, getSettlements }) {
   let durationDirty = false;
   let savedSeconds = 0;
@@ -70,7 +72,7 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
     const hours = byId('overtimeInitialHours').value.trim() || '0';
     const minutes = byId('overtimeInitialMinutes').value.trim() || '0';
     if (!/^\d+$/.test(hours) || !/^\d{1,2}$/.test(minutes)) {
-      throw new Error('小时和分钟请填写非负整数，分钟需小于 60。');
+      throw new Error(DURATION_INPUT_HINT);
     }
     return parseInitialDuration(`${hours}:${minutes.padStart(2, '0')}`);
   }
@@ -84,7 +86,7 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
     const serverLimits = getServerLimits();
     const text = String(value || '').trim();
     const match = text.match(/^(\d+):(\d{2})$/);
-    if (!match) throw new Error('初始时长格式应为 HHH:MM。');
+    if (!match) throw new Error(DURATION_INPUT_HINT);
     const hours = Number(match[1]);
     const minutes = Number(match[2]);
     if (minutes > 59) throw new Error('分钟必须小于 60。');
@@ -99,7 +101,7 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
     const totalMinutes = Math.floor(seconds / 60);
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
-    return `${hours}:${String(minutes).padStart(2, '0')}`;
+    return `${hours} 小时 ${minutes} 分钟`;
   }
 
   function formatSignedClock(seconds) {

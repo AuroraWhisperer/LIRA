@@ -1,5 +1,7 @@
 'use strict';
 
+const { applyCovers } = require('./lib/page-tools.cjs');
+
 const SHOTS = [
   { id: 'D1', file: 'gift-records-overview', title: '礼物统计与最近礼物', main: 'giftAssistantPage' },
   {
@@ -39,6 +41,8 @@ const SHOTS = [
   {
     id: 'D6',
     file: 'gift-export-workspace',
+    license: { state: 'authorized' },
+    mustShow: ['.gift-export-merge'],
     title: '礼物 PNG 导出预览与保存设置（界面演示）',
     main: 'giftAssistantPage',
     click: '#giftHistoryOpenBtn',
@@ -47,6 +51,10 @@ const SHOTS = [
       await page.locator('#giftHistoryBody input').nth(1).check();
       await page.locator('#giftHistoryExport').click();
       await page.locator('#giftExportPanel').waitFor({ timeout: 5000 });
+      await applyCovers(page, [
+        { selector: '#giftExportSettingsDirectory', text: '图片\\LIRA\\礼物导出' },
+        { selector: '#giftExportDirectory', text: '图片\\LIRA\\礼物导出\\2026-11-22\\12-30-00-示例批次' },
+      ]);
     },
   },
   {

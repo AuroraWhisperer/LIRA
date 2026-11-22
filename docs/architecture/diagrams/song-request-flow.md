@@ -2,7 +2,7 @@
 
 弹幕点歌在本地歌库匹配并入队。播放器选中曲目后，独立执行在线音源搜索、匹配及流地址解析；入队本身不调用 QQ 搜索，也不保证自动开始播放。
 
-拥有者：[命令处理](../../../src/bilibili/bilibili-message-handler.js)、[领域装配](../../../src/server/domain-services.js)、[队列服务](../../../src/music/queue-service.js)、[队列存储](../../../src/storage/queue-store.js)、[音乐路由](../../../src/server/routes/music-routes.js)、[播放路由](../../../src/server/routes/playback-routes.js)。
+核心模块：[命令处理](../../../src/bilibili/bilibili-message-handler.js)、[领域装配](../../../src/server/domain-services.js)、[队列服务](../../../src/music/queue-service.js)、[队列存储](../../../src/storage/queue-store.js)、[音乐路由](../../../src/server/routes/music-routes.js)、[播放路由](../../../src/server/routes/playback-routes.js)。
 
 ```mermaid
 sequenceDiagram
@@ -25,14 +25,14 @@ sequenceDiagram
     WS-->>UI: snapshot 队列状态
 ```
 
-队列的请求人身份只在相应领域使用，公开页面使用各自的投影。点歌确认弹幕取决于机器人设置，不是每次入队的固定步骤。
+点歌人的身份信息仅在对应业务模块内部使用，公开叠加层页面只读取各自的受限投影。是否发送点歌确认弹幕取决于机器人设置，并非每次入队的固定步骤。
 
 ```mermaid
 sequenceDiagram
     actor User as 主播或播放器队列
     participant FE as 播放引擎
     participant API as 本地音乐与播放API
-    participant P as 选定的音乐Provider
+    participant P as 选定的音乐源（Provider）
     participant CDN as 音频来源
     participant WS as 本地WebSocket
     participant Lyric as 歌词消费者

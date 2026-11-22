@@ -1,6 +1,7 @@
 import { previewElement } from './component-preview-elements.js';
 import { requestComponentStyles, loadComponentStyleCss } from './component-style-api.js';
 import { editComponentMediaFile } from './component-style-editor.js';
+import { formatByteLimit, formatBytes } from '../shared/display-format.js';
 import { MEDIA_STYLE_TITLES } from '../shared/component-media-style.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
 import { openComponentSourceImport } from './component-source-import.js';
@@ -9,6 +10,7 @@ import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 const styleTitle = type => MEDIA_STYLE_TITLES[type] || SCENE_EXTRA_COMPONENTS[type]?.title
   || ({ overtime: '加班机', browser: '浏览器源', 'text-box': '文本框' })[type] || '组件';
 const isComponentSuite = pack => pack.isSuite;
+const MAX_PACKAGE_BYTES = 1024 ** 3;
 
 export function canImportComponentStyle(type) {
   return !['gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox'].includes(type);
@@ -56,6 +58,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
     importButton.disabled = true; status.hidden = false; status.textContent = '正在读取素材包…';
     let pack;
     try {
+      if (file.size > MAX_PACKAGE_BYTES) throw new Error(`样式压缩包不能超过 ${formatByteLimit(MAX_PACKAGE_BYTES)}，请选择较小的文件。`);
       pack = await request('inspect', { file, target: type || 'suite', signal: requests.signal });
       if (closed) { await request('cancel', { id: pack.id }); return; }
       if (target && pack.packageId !== target.packageId) {
@@ -65,7 +68,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
       const suite = isComponentSuite(pack);
       status.textContent = '';
       const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', suite ? '确认导入套装' : '确认添加样式');
-      dialog.append(previewElement('h2', '', pack.name), previewElement('p', '', `版本 ${pack.version} · ${pack.styles.length} 个样式 · ${(pack.bytes / 1024 / 1024).toFixed(1)} MiB`));
+      dialog.append(previewElement('h2', '', pack.name), previewElement('p', '', `版本 ${pack.version} · ${pack.styles.length} 个样式 · 解压后 ${formatBytes(pack.bytes)}`));
       const members = previewElement('ul', 'component-style-pack-list');
       for (const style of pack.styles) members.append(previewElement('li', '', `${styleTitle(style.type)}：${style.name}`));
       const replacing = pack.replaces?.length > 0;

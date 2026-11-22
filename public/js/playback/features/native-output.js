@@ -119,7 +119,7 @@ export function createNativeOutput(audio, { bridge, onFault, AudioContextClass =
       const result = await bridge.invoke({ op: 'list' });
       if (!result.ok) throw new Error(result.error);
       if (result.preparing) {
-        const error = new Error('音频组件尚未就绪，请在下载任务中查看进度或重试。');
+        const error = new Error('原生声卡输出暂不可用。可打开「百宝箱 → 主播工具 → 电音助手」查看音频组件状态。');
         error.code = 'AUDIO_COMPONENT_NOT_READY';
         throw error;
       }

@@ -62,7 +62,7 @@
       </div>
       <div class="danmaku-cloud-toolbar">
         <p id="dailyBotStatus" class="hint" role="status">连接 LIRA 账号后可设置</p>
-        <lira-help label="自动互动使用说明">开关与词库修改后都会自动保存。签到、抽签、昵称管理和礼物答谢全天 24 小时可用，其余功能仅在开播时生效；除「关键词回复」和「点歌回复」需保持客户端在线外，其余均在云端运行，关掉软件也能用。</lira-help>
+        <lira-help label="自动互动使用说明">「关键词回复」和「点歌回复」需要客户端在线，并在开播时发送。「AI 助手」也需要客户端在线。下播后若仍收到符合条件的弹幕，点名问答和已开启的自动接话都可能回复。要暂停 AI 回复，请关闭「启用 AI」。其他自动互动在云端运行，关闭客户端后仍可用。其中，签到、抽签、昵称管理和礼物答谢在未开播时也可用。</lira-help>
         <button id="dailyBotRefresh" type="button" class="ghost" aria-label="刷新固定回复云端状态" disabled>刷新云端状态</button>
       </div>
     </div>
@@ -322,7 +322,7 @@
           <fieldset id="danmakuGiftThanksFields" class="danmaku-reply-fields" disabled>
             <legend class="sr-only">礼物答谢文案</legend>
             <div class="danmaku-thanks-toolbar">
-              <p class="hint">修改文字或插入参数，发送时自动填入真实内容。<lira-help label="答谢文案参数说明">{称呼} 优先用观众登记过的自定义昵称（并保留舰长/提督/总督头衔）；若开启了 @ 回复，系统会直接 @ 对方，正文中无需再放 {称呼}。{礼物} 自动带上礼物名与合并后的数量；{金额} 按电池数显示，盲盒会自动附上盈亏差额（免费礼物不显示金额）。每条模板最多 120 字，发送时超长会自动分段。</lira-help></p>
+              <p class="hint">修改文字或插入参数，发送时自动填入真实内容。<lira-help label="答谢文案参数说明">{称呼} 优先用观众登记过的自定义昵称（并保留舰长/提督/总督头衔）；若开启了 @ 回复，系统会直接 @ 对方，正文中无需再放 {称呼}。{礼物} 自动带上礼物名与合并后的数量；{金额} 按电池数显示，盲盒会显示盈亏或提示成本未知，免费礼物不显示金额。每条模板最多 120 字。填入实际内容后，一组答谢最多发四段。完整内容排不下时，整组跳过，一条也不发。</lira-help></p>
               <button id="danmakuGiftThanksReset" type="button" class="secondary">恢复默认文案</button>
             </div>
             <div id="danmakuGiftThanksLibrary" hidden></div>
@@ -410,7 +410,7 @@
             <div id="danmakuCustomReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
             <div class="danmaku-custom-reply-add-grid">
               <label
-                >关键词<input id="danmakuCustomKeywordInput" type="text" maxlength="30" placeholder="例如：你好"
+                >关键词<input id="danmakuCustomKeywordInput" type="text" maxlength="30" placeholder="例如：怎么点歌"
               /></label>
               <label
                 >回复内容<input

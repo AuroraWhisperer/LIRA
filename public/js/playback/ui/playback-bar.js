@@ -94,7 +94,7 @@ export class PlaybackBar {
     // 标题
     if (this.titleEl) {
       const hasTrack = Boolean(track);
-      this.setMarqueeText(this.titleEl, hasTrack ? track.title : '♫  选择一首歌曲开始播放');
+      this.setMarqueeText(this.titleEl, hasTrack ? track.title : '未选择歌曲');
       this.titleEl.classList.toggle('no-track', !hasTrack);
     }
 

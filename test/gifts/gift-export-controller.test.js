@@ -7,7 +7,7 @@ const path = require('node:path');
 const { createGiftExportController, exportLayout } = require('../../src/electron/gift-export-controller');
 const { registerGiftExportIpc } = require('../../src/electron/ipc/gift-export-ipc');
 
-function fixture(t, renderWidths = [856], storedSettings = {}) {
+function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-export-unit-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   let revision = 'a';
@@ -64,10 +64,12 @@ function fixture(t, renderWidths = [856], storedSettings = {}) {
       setGiftExportDirectory: (directory) => {
         storedSettings.giftExportDirectory = directory;
       },
-      setGiftExportSettings: ({ mode, background, directory }) =>
+      mergeGiftExport,
+      setGiftExportSettings: ({ mode, background, mergeAcrossDates, directory }) =>
         Object.assign(storedSettings, {
           giftExportMode: mode,
           giftExportBackground: background,
+          giftExportMergeAcrossDates: String(mergeAcrossDates),
           giftExportDirectory: directory,
         }),
       getGiftViewRevision: () => revision,
@@ -99,6 +101,7 @@ test('export settings work without a selection, persist and only affect new task
   assert.deepEqual(await controller.settings(), {
     mode: 'combined',
     background: 'transparent',
+    mergeAcrossDates: false,
     directory: path.join(root, 'LIRA', '礼物导出'),
     custom: false,
   });
@@ -129,6 +132,7 @@ test('export settings reject unsafe values and discard cancelled or stale direct
     { directory: 'C:/arbitrary' },
     { mode: 'huge' },
     { background: 'red' },
+    { mergeAcrossDates: 'false' },
     { directoryAction: 'write' },
   ]) {
     await assert.rejects(() => controller.settings(input));
@@ -163,6 +167,44 @@ test('export preview creates no files and accepts only dialog/system directories
   await assert.rejects(() => controller.configure({ id: task.id, mode: 'huge', background: 'white' }));
   assert.equal(exportLayout(40, 'combined').length, 2);
   assert.throws(() => exportLayout(10001, 'combined'));
+});
+
+test('the export reuses frozen groupings when toggled and saves the previewed cards', async (t) => {
+  let requests = 0;
+  const { controller, windows } = fixture(t, undefined, {}, async (snapshot) => {
+    requests++;
+    return { ...snapshot, items: [snapshot.items[0]] };
+  });
+  const task = await controller.prepare({});
+  const options = { id: task.id, mode: 'separate', background: 'white' };
+  assert.equal(requests, 0);
+  const grouped = await controller.configure({ ...options, mergeAcrossDates: true });
+  assert.equal(grouped.files.length, 1);
+  assert.equal((await controller.configure({ ...options, mergeAcrossDates: false })).files.length, 2);
+  await controller.configure({ ...options, mergeAcrossDates: true });
+  assert.equal(requests, 1);
+  assert.equal((await controller.save({ id: task.id })).saved, 1);
+  assert.deepEqual(windows[0].payloads.at(-1).items, grouped.snapshot.items);
+  await controller.settings({ mergeAcrossDates: true });
+  assert.equal((await controller.prepare({})).snapshot.items.length, 1);
+  assert.equal(requests, 2);
+});
+
+test('a pending group lookup cannot be saved or applied after the export closes', async (t) => {
+  const lookup = Promise.withResolvers();
+  let requestSignal;
+  const { controller } = fixture(t, undefined, {}, async (snapshot, signal) => {
+    requestSignal = signal;
+    await lookup.promise;
+    return snapshot;
+  });
+  const task = await controller.prepare({});
+  const pending = controller.configure({ id: task.id, mode: task.mode, background: task.background, mergeAcrossDates: true });
+  await assert.rejects(controller.save({ id: task.id }));
+  controller.cancel(task.id);
+  assert.equal(requestSignal.aborted, true);
+  lookup.resolve();
+  await assert.rejects(pending);
 });
 
 test('cancelling a batch keeps exactly saved files and destroys its sandboxed render window', async (t) => {

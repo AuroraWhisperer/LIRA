@@ -1,7 +1,7 @@
 'use strict';
 
 const { readGiftDisplaySettings } = require('../bilibili/gift/display-settings');
-const { buildGiftCards } = require('../../public/js/shared/gift-card-model.js');
+const { buildGiftCards, addGiftCardTotals } = require('../../public/js/shared/gift-card-model.js');
 const { shanghaiToday } = require('../../public/js/shared/gift-feed-state.js');
 const { createGiftCardRuntime } = require('./gift-card-runtime');
 const { normalizeGiftCardAvatarResult, GIFT_CARD_AVATAR_BATCH_SIZE } = require('../shared/gift-card-profiles');
@@ -35,6 +35,59 @@ async function completeExportAvatars(items, profiles, readAvatars, assertCurrent
   return items.map((item) => avatars.has(item.eventId)
     ? { ...item, gift: { ...item.gift, avatarUrl: avatars.get(item.eventId) } }
     : item);
+}
+
+// Only the first selected event of a confirmed daily card is needed as identity evidence.
+async function mergeGiftExport(snapshot, readGroups, signal) {
+  const byGift = new Map();
+  for (const item of snapshot.items) {
+    const { giftId, giftName } = item.gift;
+    if (!giftId || !giftName) continue;
+    const key = JSON.stringify([giftId, giftName]);
+    if (!byGift.has(key)) byGift.set(key, []);
+    byGift.get(key).push(item.sourceEventId ?? item.eventId);
+  }
+  const eventIds = [...byGift.values()].filter(ids => ids.length > 1).flat();
+  if (!eventIds.length) return snapshot;
+  const groups = new Map();
+  let partial;
+  try {
+    const result = await readGroups({ eventIds, signal });
+    if (result?.ok !== true || typeof result.partial !== 'boolean' || !Array.isArray(result.groups)) {
+      throw new Error('INVALID_GIFT_CARD_GROUPS');
+    }
+    const remaining = new Set(eventIds);
+    for (const group of result.groups) {
+      if (!Array.isArray(group) || group.length < 2) throw new Error('INVALID_GIFT_CARD_GROUPS');
+      for (const id of group) {
+        if (!remaining.delete(id)) throw new Error('INVALID_GIFT_CARD_GROUPS');
+        groups.set(id, group);
+      }
+    }
+    partial = result.partial;
+  } catch {
+    signal.throwIfAborted();
+    return { ...snapshot, cardsPartial: true };
+  }
+  const items = [];
+  const merged = new Map();
+  for (const item of snapshot.items) {
+    const group = groups.get(item.sourceEventId ?? item.eventId);
+    if (!group) {
+      items.push(item);
+    } else if (merged.has(group)) {
+      const card = merged.get(group);
+      if (card.gift.giftId !== item.gift.giftId || card.gift.giftName !== item.gift.giftName) {
+        return { ...snapshot, cardsPartial: true };
+      }
+      addGiftCardTotals(card, item);
+    } else {
+      const card = { ...item, gift: { ...item.gift } };
+      merged.set(group, card);
+      items.push(card);
+    }
+  }
+  return { ...snapshot, items, cardsPartial: partial };
 }
 
 // Local gift facade for source selection, sync callbacks, shared cards and export preparation/settings.
@@ -89,18 +142,20 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       assertCurrent();
       return {
         ...snapshot,
-        items: buildGiftCards(items, profiles ? { day: profiles.day, profiles: profiles.items } : {}),
+        items: buildGiftCards(items, { day: profiles?.day, profiles: profiles?.items, keepSourceEventId: true }),
         selectedCount: snapshot.items.length,
         cardsPartial: profiles?.partial === true,
         config: readGiftDisplaySettings(getSettingsStore().getSettings()),
         catalog: structuredClone(services.overtimeGiftCatalog.getGlobalSnapshot()?.gifts || []),
       };
     },
+    mergeGiftExport: (snapshot, signal) => mergeGiftExport(snapshot, sync.cardGroups, signal),
     setGiftExportDirectory: (directory) => getSettingsStore().setSetting('giftExportDirectory', directory),
-    setGiftExportSettings: ({ mode, background, directory }) =>
+    setGiftExportSettings: ({ mode, background, mergeAcrossDates, directory }) =>
       getSettingsStore().setSettings({
         giftExportMode: mode,
         giftExportBackground: background,
+        giftExportMergeAcrossDates: String(mergeAcrossDates),
         giftExportDirectory: directory,
       }),
   };

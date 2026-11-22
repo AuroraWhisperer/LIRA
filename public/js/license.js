@@ -38,39 +38,39 @@
     ACTIVATION_CODE_NOT_USABLE: () => `此${registration ? '注册激活码' : '短效登录码'}已使用或已撤销。`,
     ACTIVATION_CODE_EXPIRED: () => `此${registration ? '注册激活码' : '短效登录码'}已过期，请联系管理员重新生成。`,
     ACCOUNT_NAME_LENGTH: '用户名长度应为 2–32 个字符。',
-    ACCOUNT_NAME_INVALID: '用户名只能使用英文字母、数字和中划线（-），且不能以中划线开头或结尾，不支持中文。',
+    ACCOUNT_NAME_INVALID: '用户名只能用英文字母、数字和中划线（-）。开头和结尾请用字母或数字。',
     ACCOUNT_NAME_RESERVED: '此用户名为系统保留名称，请更换。',
     ACCOUNT_NAME_ALREADY_EXISTS: '此用户名已被使用；已有账号请选择“登录已有账号”。',
     PASSWORD_TOO_SHORT: '密码至少 8 个字符。',
     PASSWORD_TOO_LONG: '密码不能超过 64 个字符。',
     PASSWORD_CONTROL_CHARACTERS: '密码不能包含换行、控制字符或不可见格式字符。',
     PASSWORD_COMPLEXITY: '密码不符合要求，请查看密码旁的说明。',
-    PASSWORD_BCRYPT_TRUNCATED: '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。',
+    PASSWORD_BCRYPT_TRUNCATED: '密码太长了，请缩短一点再试。',
     PASSWORD_WEAK: '密码过于常见或接近用户名，请更换。',
     ACCOUNT_NAME_MISMATCH: () => `此${registration ? '注册激活码' : '短效登录码'}不属于该 LIRA 账号。`,
     ACCOUNT_NAME_MUST_MATCH_SUBDOMAIN: '用户名与已分配主播空间不一致。',
     INVALID_CREDENTIALS: '用户名或密码错误。',
-    ACTIVATION_PROOF_INVALID: '当前设备激活证明失败，请重试。',
+    ACTIVATION_PROOF_INVALID: '未能验证这台电脑的激活信息，请重试。',
     FINGERPRINT_UNAVAILABLE: '无法读取足够的设备标识，暂时无法完成绑定。',
     DEVICE_KEY_UNAVAILABLE: '本机安全存储暂时不可用，请重启 LIRA 后重试。',
     NETWORK_UNAVAILABLE: '无法连接授权服务器，请检查网络后重试。',
     REQUEST_TIMEOUT: '连接授权服务器超时，请重试。',
-    BUILD_ID_REQUIRED: '当前客户端版本缺少构建标识。',
+    BUILD_ID_REQUIRED: '无法识别这个版本的 LIRA。请向管理员获取最新安装包，安装后重试。',
     BUILD_NOT_ALLOWED: '当前客户端版本不可使用，请更新 LIRA。',
     INTEGRITY_NOT_VERIFIED: '当前客户端完整性检查未通过。',
     DEVICE_REVOKED: '当前设备授权已被管理员撤销。',
     LICENSE_REVOKED: '当前授权已被撤销。',
     STREAMER_DISABLED: '当前主播账号已停用。',
     DEVICE_FINGERPRINT_MISMATCH: '当前电脑与已绑定设备不一致，请联系管理员。',
-    SIGNATURE_INVALID: '本机设备密钥验证失败。',
-    DEVICE_NOT_FOUND: '本机设备登记不存在，请使用短效登录码重新登录。',
+    SIGNATURE_INVALID: '未能验证这台电脑的授权。请重试，仍然失败时可向管理员领取短效登录码重新登录。',
+    DEVICE_NOT_FOUND: '找不到这台电脑的授权记录。请向管理员领取短效登录码，再选「登录已有账号」。',
     DEVICE_IDENTITY_AMBIGUOUS: '检测到多条相同电脑的历史记录，请联系管理员核对后重试。',
     PAIRING_CODE_ADMIN_ONLY: '请联系管理员下发新的短效登录码。',
     DEVICE_TOKEN_INVALID: '当前授权会话无效，请重新验证。',
     DEVICE_AUTH_EPOCH_CHANGED: '当前设备授权状态已变更，请重新验证。',
     DEVICE_SESSION_NOT_FOUND: '当前设备会话已失效，请重新验证。',
     DEVICE_SESSION_INVALID: '当前设备会话已被替换，请重新验证。',
-    SESSION_SUPERSEDED: '当前设备已由另一个 LIRA 进程登录。如需使用本窗口，请先关闭另一进程后重试。',
+    SESSION_SUPERSEDED: '另一份正在运行的 LIRA 已在这台电脑上登录。要用当前这份，请先退出另一份，再点「重新验证」。',
     SESSION_REVOKED: '当前设备会话已被管理员终止。',
     LICENSE_TOKEN_MISMATCH: '当前授权与设备不匹配，请联系管理员。',
     CHALLENGE_EXPIRED: '验证请求已过期，请重试。',
@@ -127,7 +127,7 @@
       [
         'licenseCodeHelp',
         registration
-          ? '由管理员下发的一次性注册码，用户名不可重复'
+          ? '向管理员领取，每个码只能用一次。'
           : '由管理员下发，仅限本账号使用一次；同机重装保留原授权记录',
       ],
       ['licenseSubmitLabel', registration ? '注册并进入' : '登录并进入'],
@@ -223,7 +223,7 @@
   function catalogErrorMessage(code) {
     const value = String(code || '');
     if (value === 'CATALOG_INVALID' || value === 'REMOTE_CATALOG_SCHEMA_UNSUPPORTED')
-      return '准备数据与当前客户端不兼容，请联系管理员处理后重试。';
+      return '当前版本的 LIRA 无法读取礼物目录，请联系管理员。';
     if (
       value === 'REMOTE_CATALOG_NOT_READY' ||
       value === 'REMOTE_CATALOG_EMPTY' ||

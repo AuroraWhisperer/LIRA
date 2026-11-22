@@ -195,7 +195,7 @@ export function initInteractions() {
       ? `请先到「${session.kind === 'poll' ? '弹幕投票' : '观众评分'}」${session.phase === 'finished' ? '关闭结果' : '结束或取消本场'}，再开始${selectedKind === 'poll' ? '投票' : '评分'}。`
       : session
       ? `${interactionStatus(session)} · 已收到 ${host?.session?.sessionId === session.sessionId ? host.participants : session.participants || 0} 人${session.receptionInterrupted ? ' · 接收曾中断，可能漏收' : ''}`
-      : host?.blockedReason || '准备开始';
+      : host ? host.blockedReason || '准备开始' : '正在读取实时连接状态…';
     get('interactionResults').hidden = !ownSession;
     get('interactionSessionTitle').textContent = session?.title || '';
     get('interactionSessionTitle').hidden = !session?.title;

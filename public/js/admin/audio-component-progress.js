@@ -15,6 +15,11 @@ export function createAudioComponentProgress({ window: windowRef = globalThis.wi
   function handleState(state = {}) {
     if (disposed) return;
     onState(state);
+    if (state.status === 'idle') {
+      handle?.close(true);
+      handle = null;
+      return;
+    }
     if (!['downloading', 'installing', 'error', 'ready'].includes(state.status)) return;
     if (state.status === 'ready' && !handle) return;
     const container = documentRef.getElementById('toast');
