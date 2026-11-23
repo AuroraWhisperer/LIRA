@@ -56,6 +56,11 @@ function fixture(t) {
       },
       runtime: {
         prepareCloudRoomAccount: (account) => settings.prepareCloudRoomAccount(account),
+        assertCloudSongAccount: account => pending.assertAccount(account),
+        getCloudSongCount: account => {
+          pending.assertAccount(account);
+          return songService.countSongs(songs);
+        },
         getCloudSongsSnapshot: (account) => {
           if (account) pending.assertAccount(account);
           return songService.listSongs(songs);

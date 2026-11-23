@@ -29,6 +29,7 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
   let authWork = Promise.resolve();
   let saveTimer = null;
   let identity = '';
+  let snapshotRemovalRevision = null;
   let revision = 0;
   let loggedIn = false;
   let needsVerification = false;
@@ -62,12 +63,25 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
       loggedIn = Boolean(identity);
       needsVerification = false;
       invalidate();
-      if (!loggedIn) fs.rmSync(snapshotPath, { force: true });
+      snapshotRemovalRevision = loggedIn ? null : revision;
+    }
+    removeSignedOutSnapshot();
+  }
+
+  function removeSignedOutSnapshot() {
+    if (snapshotRemovalRevision !== revision) return;
+    try {
+      fs.rmSync(snapshotPath, { force: true });
+      snapshotRemovalRevision = null;
+    } catch {
+      console.warn('[Doubao] Unable to remove the signed-out account snapshot.');
     }
   }
 
   async function persist() {
-    if (disposed || loggingOut || !loggedIn || !safeStorage.isEncryptionAvailable()) return;
+    if (disposed || loggingOut) return;
+    if (!loggedIn) return removeSignedOutSnapshot();
+    if (!safeStorage.isEncryptionAvailable()) return;
     const currentRevision = revision;
     const cookies = (await accountSession.cookies.get({})).filter(isDoubaoCookie).map(toSerializableCookie);
     if (disposed || loggingOut || currentRevision !== revision) return;
@@ -266,16 +280,19 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
     try {
       await Promise.allSettled([initialized, queue, authWork]);
       await accountSession.clearStorageData();
-      fs.rmSync(snapshotPath, { force: true });
       identity = '';
       loggedIn = false;
       needsVerification = false;
+      snapshotRemovalRevision = revision;
+      fs.rmSync(snapshotPath, { force: true });
+      snapshotRemovalRevision = null;
     } finally { loggingOut = false; }
     return getStatus();
   }
 
   function dispose() {
     if (disposed) return;
+    removeSignedOutSnapshot();
     disposed = true;
     conversations.clear();
     contextUnconfirmed = false;

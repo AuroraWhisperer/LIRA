@@ -34,18 +34,6 @@ export class QueueManager {
   }
 
   /**
-   * 计算队列总数
-   * @returns {number}
-   */
-  getTotalCount() {
-    if (!this.state) return 0;
-    if (this.state.queueType === 'playlist') {
-      return this.state.normalQueueTracks.length;
-    }
-    return this.getActiveQueue().length;
-  }
-
-  /**
    * 插入曲目到队列开头（下一首）
    * @param {Array} tracks - 曲目列表
    */

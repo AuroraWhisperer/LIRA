@@ -160,8 +160,14 @@ function createFanUi() {
       unsupported: '到期提示暂不可用，请联系管理员',
     }[state.expiry.state];
     const label = [syncLabel, expiryLabel].filter(Boolean).join(' · ');
+    const isSyncing = state.syncStatus === 'syncing' || state.syncStatus === 'pending';
+    const tone = expiryLabel || isSyncing ? 'warn' : state.syncStatus === 'ready' ? 'ready' : 'muted';
     const syncNode = get('fanSyncState');
     if (syncNode.textContent !== label) syncNode.textContent = label;
+    syncNode.setAttribute('data-tone', tone);
+    syncNode.setAttribute('data-syncing', String(isSyncing));
+    if (label) syncNode.setAttribute('title', label);
+    else syncNode.removeAttribute('title');
   }
 
   async function refreshExpiry(sequence, payload) {
@@ -374,13 +380,15 @@ function createFanUi() {
     const description = settingsForm(state.settings);
     description.autosave = true;
     description.saveLabel = '重试保存';
-    description.hint = `修改后自动保存。${description.hint}`;
+    description.hint = '';
+    const formBind = description.bind;
     let retry;
     const persist = async payload => {
       state.settings = await request('configure', payload);
       await load();
     };
     description.bind = form => {
+      formBind?.(form);
       const context = state.contextId;
       let draft = description.read(form), valid = true, closed = false;
       const autosave = createAutosave({ root: form,
@@ -433,7 +441,7 @@ function createFanUi() {
       }
       return;
     }
-    if (name === 'cancel-edit') {
+    if (name === 'cancel-edit' || name === 'close-editor') {
       if (get('fanSaveButton').disabled) return;
       editor.close();
       return;

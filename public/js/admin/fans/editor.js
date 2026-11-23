@@ -17,6 +17,7 @@ export function createFanEditor({ editor, form, onError }) {
     description = { ...formDescription, save };
     editor.closedBy = description.closeOnBackdrop ? 'any' : 'closerequest';
     editor.classList.toggle('fan-profile-editor', !!description.profileEditor);
+    editor.classList.toggle('fan-settings-editor', !!description.settingsEditor);
     get('fanEditorTitle').textContent = description.title;
     get('fanEditorFields').innerHTML = description.fields;
     get('fanEditorFields').inert = false;
@@ -30,7 +31,10 @@ export function createFanEditor({ editor, form, onError }) {
     form.removeAttribute('aria-busy');
     description.bind?.(form);
     if (!editor.open) editor.showModal();
-    form.querySelector('[autofocus], textarea, input:not([type="checkbox"]), select')?.focus();
+    const initialFocus = description.settingsEditor
+      ? form.querySelector('[autofocus]')
+      : form.querySelector('[autofocus], textarea, input:not([type="checkbox"], [type="hidden"]), select');
+    initialFocus?.focus();
   }
 
   async function submit(event) {

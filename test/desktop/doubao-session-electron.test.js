@@ -75,8 +75,8 @@ test('Doubao never writes a plaintext snapshot when system encryption is unavail
   assert.equal(await fs.access(path.join(directory, 'doubao-auth/cookies.enc')).then(() => true, () => false), false);
 });
 
-test('Doubao restores encrypted login and removes the saved snapshot when the website logs out', { timeout: 25000 }, async t => {
-  const { app, page, directory } = await setup(t);
+test('Doubao restores encrypted login and retries a locked snapshot after website logout', { timeout: 25000 }, async t => {
+  const { app, page, directory } = await setup(t, 'busy-snapshot');
   await page.locator('#scan').click();
   const snapshot = path.join(directory, 'doubao-auth/cookies.enc');
   await waitFor(async () => fs.access(snapshot).then(() => true, () => false));
@@ -85,7 +85,7 @@ test('Doubao restores encrypted login and removes the saved snapshot when the we
   assert.notEqual(await app.evaluate(() => global.doubaoTest.owner.getSessionRevision()), previousRevision, 'recreated owners cannot reuse old account reply caches');
   await app.evaluate(({ session }) => session.fromPartition('persist:lira-doubao').cookies.remove('https://www.doubao.com/', 'sessionid'));
   await waitFor(async () => app.evaluate(() => !global.doubaoTest.owner.getStatus().loggedIn));
-  assert.equal(await fs.access(snapshot).then(() => true, () => false), false);
+  await waitFor(() => fs.access(snapshot).then(() => false, error => error.code === 'ENOENT'));
 });
 
 test('Doubao serializes viewer conversations separately from connection tests and the visible personal chat', { timeout: 25000 }, async t => {

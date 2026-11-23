@@ -77,11 +77,16 @@ test('whole rows toggle once, slight movement stays a click, and checkboxes reta
   const checkbox = page.locator('[data-gift-select="gift-1"]');
   await checkbox.click({ modifiers: ['Control'] });
   assert.deepEqual(await selected(page), ['gift-0', 'gift-1']);
+  await cell.click({ modifiers: ['Control'] });
+  assert.deepEqual(await selected(page), ['gift-1']);
+  await cell.click({ modifiers: ['Control'] });
+  assert.deepEqual(await selected(page), ['gift-0', 'gift-1']);
+  await checkbox.focus();
   await page.keyboard.press('Space');
   assert.deepEqual(await selected(page), ['gift-0']);
 });
 
-test('marquee replaces the page selection, preserves other pages, supports reverse and additive dragging', async (t) => {
+test('marquee replaces the page selection and Ctrl toggles its range against the initial selection', async (t) => {
   const page = await openHistory(t);
   await page.evaluate(() => {
     historyState.selected.add('other-page');
@@ -93,20 +98,29 @@ test('marquee replaces the page selection, preserves other pages, supports rever
   assert.deepEqual(await selected(page), ['gift-2', 'gift-3', 'other-page']);
   await page.keyboard.down('Control');
   await dragRows(page, 4, 3);
-  await page.mouse.up();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  assert.deepEqual(await selected(page), ['gift-2', 'gift-4', 'other-page']);
+  await page.locator('#giftHistoryBody tr').nth(4).locator('td:last-child').hover();
+  await page.evaluate(() => new Promise(requestAnimationFrame));
   assert.deepEqual(await selected(page), ['gift-2', 'gift-3', 'gift-4', 'other-page']);
+  await page.locator('#giftHistoryBody tr').nth(3).locator('td:last-child').hover();
+  await page.mouse.up();
+  assert.deepEqual(await selected(page), ['gift-2', 'gift-4', 'other-page']);
 
   const count = page.locator('#giftHistorySelectedCount');
   await dragRows(page, 2, 0, 'input');
   await page.evaluate(() => new Promise(requestAnimationFrame));
-  assert.deepEqual((await count.textContent()).match(/\d+/g), ['6', '2']);
+  assert.deepEqual((await count.textContent()).match(/\d+/g), ['4', '2', '1']);
   await page.locator('[data-gift-select="gift-1"]').hover();
   await page.evaluate(() => new Promise(requestAnimationFrame));
-  assert.deepEqual((await count.textContent()).match(/\d+/g), ['5', '1']);
+  assert.deepEqual((await count.textContent()).match(/\d+/g), ['3', '1', '1']);
+  await page.mouse.up();
+  assert.deepEqual(await selected(page), ['gift-1', 'gift-4', 'other-page']);
+  assert.deepEqual((await count.textContent()).match(/\d+/g), ['3']);
+  await dragRows(page, 2, 1, 'input');
   await page.mouse.up();
   await page.keyboard.up('Control');
-  assert.deepEqual(await selected(page), ['gift-1', 'gift-2', 'gift-3', 'gift-4', 'other-page']);
-  assert.deepEqual((await count.textContent()).match(/\d+/g), ['5']);
+  assert.deepEqual(await selected(page), ['gift-2', 'gift-4', 'other-page']);
   await page.locator('#giftHistoryDeselect').click();
   assert.deepEqual(await selected(page), []);
 });
@@ -115,19 +129,22 @@ test('drag cancellation or row replacement restores the initial selection', asyn
   const page = await openHistory(t);
   await page.evaluate(() => {
     historyState.selected.add('gift-0');
+    historyState.selected.add('gift-2');
     historyTools.update();
   });
+  await page.keyboard.down('Control');
   await dragRows(page, 1, 3);
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
   await page.mouse.up();
-  assert.deepEqual(await selected(page), ['gift-0']);
+  assert.deepEqual(await selected(page), ['gift-0', 'gift-2']);
   await dragRows(page, 1, 3);
   await page.evaluate(() => {
     renderRows();
     historyTools.update();
   });
   await page.mouse.up();
-  assert.deepEqual(await selected(page), ['gift-0']);
+  await page.keyboard.up('Control');
+  assert.deepEqual(await selected(page), ['gift-0', 'gift-2']);
 });
 
 test('100-row marquee flushes batched movement and the release position', async (t) => {
@@ -195,7 +212,7 @@ test('manual selection supersedes pending select-all and exports the same select
       },
     };
   });
-  const expectedIds = ['gift-0', 'gift-1', 'gift-2'];
+  const expectedIds = ['gift-1', 'gift-2'];
   assert.deepEqual(await selected(page), expectedIds);
   await page.locator('#giftHistoryExport').click();
   await page.waitForFunction(() => window.exportedSelection);

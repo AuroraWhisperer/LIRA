@@ -36,7 +36,8 @@ let WINNERS_ONLY = param('winners', 'w') === '1' || urlParams.get('show') === 'w
 let HEART_BOX_ONLY = param('heartBox', 'hb') === '1';
 const CUSTOM_TITLE = (param('title', 'tt') || '').trim();
 let HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
-const REFRESH_SEC = Math.max(10, parseInt(param('refresh', 'r') || '0', 10) || 0);
+const requestedRefresh = Number.parseInt(param('refresh', 'r'), 10);
+const REFRESH_SEC = requestedRefresh > 0 ? Math.max(10, requestedRefresh) : 0;
 let NO_SCROLL = param('noScroll', 'ns') !== '0';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -85,10 +86,18 @@ document.addEventListener('DOMContentLoaded', () => {
   connectSocket();
   window.addEventListener('beforeunload', disposeSocket, { once: true });
 
-  if (REFRESH_SEC > 0) {
-    refreshTimer = setInterval(loadStats, REFRESH_SEC * 1000);
-  }
+  scheduleRefresh();
 });
+
+function scheduleRefresh() {
+  const midnight = new Date();
+  midnight.setHours(24, 0, 0, 0);
+  const delay = Math.min(midnight.getTime() - Date.now(), REFRESH_SEC ? REFRESH_SEC * 1000 : Infinity);
+  refreshTimer = setTimeout(() => {
+    loadStats();
+    scheduleRefresh();
+  }, delay);
+}
 
 function handleBlindboxViewportResize() {
   const widthChanged = window.innerWidth !== initialBlindboxViewportWidth;
@@ -101,14 +110,15 @@ function handleBlindboxViewportResize() {
 
 async function loadStateThenStats() {
   const revision = ++stateRevision;
+  let filtersChanged = false;
   try {
     const response = await fetch('/api/state');
     const payload = await response.json();
-    if (payload.ok && revision === stateRevision) { state = payload.data; receiveAppearance(); }
+    if (payload.ok && revision === stateRevision) { state = payload.data; filtersChanged = receiveAppearance(); }
   } catch (error) {
     console.warn('[overlay-blindbox] loadState failed:', error.message || error);
   }
-  await loadStats();
+  if (!statsRevision || filtersChanged) await loadStats();
 }
 
 function loadStats() {
@@ -137,9 +147,6 @@ function loadStats() {
 function connectSocket() {
   if (socketController) return;
   socketController = createOverlaySocket({
-    onReconnect: () => {
-      loadStats();
-    },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
       let filtersChanged = false;
@@ -164,7 +171,7 @@ function disposeSocket() {
   statsDirty = false;
   stateRevision += 1;
   statsRevision += 1;
-  clearInterval(refreshTimer);
+  clearTimeout(refreshTimer);
   stopPages?.();
   stopPages = null;
   window.removeEventListener('resize', handleBlindboxViewportResize);

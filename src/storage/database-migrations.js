@@ -4,7 +4,6 @@ const { now, cleanText, normalizePositiveInteger, getInitial } = require('../sha
 const {
   migrateLegacySuperChatsToDedicatedDatabase,
   dropLegacySuperChatTable,
-  legacySuperChatFingerprint,
 } = require('./legacy-superchat-migration');
 const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
@@ -649,5 +648,4 @@ module.exports = {
   collapseDuplicateGiftIdentities,
   migrateLegacySuperChatsToDedicatedDatabase,
   dropLegacySuperChatTable,
-  legacySuperChatFingerprint,
 };

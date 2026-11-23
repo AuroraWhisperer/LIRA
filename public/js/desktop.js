@@ -69,10 +69,6 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
           if (autoUpdateLabel) {
             autoUpdateLabel.textContent = enabled ? '已开启' : '已关闭';
           }
-          // 通知主进程
-          if (desktop.setAutoUpdate) {
-            desktop.setAutoUpdate(enabled);
-          }
         } catch (error) {
           toast('保存失败：' + (error.message || String(error)), { type: 'error' });
           autoUpdateToggle.checked = !enabled;
@@ -89,7 +85,7 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
       .getInfo()
       .then((info) => {
         const versionNode = document.getElementById('desktopVersionPill');
-        if (versionNode) versionNode.textContent = info.version || '--';
+        if (versionNode) versionNode.textContent = info.version ? `v${info.version}` : '--';
         handleDesktopUpdateState(info.updateState);
       })
       .catch(showError);
@@ -279,7 +275,7 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
   function desktopUpdateHintText(state) {
     if (state.status === 'downloaded') return '退出程序时会安装更新，建议在直播结束后重启。';
     if (state.status === 'dev-disabled') return '开发模式不支持更新，请使用安装版。';
-    if (state.status === 'error') return '可重新检查更新；在「本地数据与支持」打开日志目录查看 errors/desktop.log。';
+    if (state.status === 'error') return '可重新检查更新；在「本地数据与诊断」打开日志目录查看 errors/desktop.log。';
     return '';
   }
 

@@ -192,43 +192,4 @@ export class CacheManager {
       /* ignore */
     }
   }
-
-  /**
-   * 清空所有播放缓存
-   */
-  clearAll() {
-    this._mem.clear();
-    try {
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(CACHE_PREFIX)) keysToRemove.push(k);
-      }
-      for (const k of keysToRemove) localStorage.removeItem(k);
-    } catch (_) {
-      /* ignore */
-    }
-  }
-
-  /**
-   * 检查缓存是否存在且未过期
-   * @param {string} key
-   * @param {number} [ttlMs]
-   * @returns {boolean}
-   */
-  has(key, ttlMs) {
-    return this.get(key, ttlMs) !== null;
-  }
-
-  /**
-   * 构建标准缓存键
-   * @param {string} platform - 平台 (netease|qq)
-   * @param {string} category - 类别 (liked|created-playlists|collected-playlists|playlist-tracks)
-   * @param {string} [id] - 可选标识（如歌单 ID）
-   * @returns {string}
-   */
-  static key(platform, category, id = '') {
-    const base = `${platform}:${category}`;
-    return id ? `${base}:${id}` : base;
-  }
 }

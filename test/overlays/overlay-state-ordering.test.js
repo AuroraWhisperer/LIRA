@@ -217,11 +217,11 @@ test('queue keeps newer WS and HTTP state, deduplicates unchanged loads and inva
   f.message(snapshot({ overlayTitle: '下一次' }, 'queue:add'));
   f.requests[3].resolve({ settings: { overlayTitle: '无效旧响应' } });
   await stale;
-  assert.equal(f.read('state').settings.overlayTitle, '新队列');
-  await f.timer(80);
-  f.requests[4].resolve({ settings: { overlayTitle: '下一次' } });
-  await flush();
   assert.equal(f.read('state').settings.overlayTitle, '下一次');
+  await f.timer(80);
+  f.requests[4].resolve({ settings: { overlayTitle: '下一次' }, queue: { waiting: [{ userName: '点歌人' }] } });
+  await flush();
+  assert.equal(f.read('state').queue.waiting[0].userName, '点歌人');
 });
 
 test('queue style refresh survives a live-status patch while retaining the latest live status', async () => {
@@ -271,18 +271,16 @@ test('blindbox applies WS settings without rebuilding unchanged data or acceptin
   assert.equal(f.element('blindboxSummary').writes, writes);
   f.requests[0].resolve({ settings: { blindboxOverlayTitle: '旧标题' } });
   await flush();
-  assert.equal(f.requests.length, 2, 'settings refresh waits for the in-flight statistics request');
-  f.requests[1].resolve(stats(-1));
-  await flush();
-  assert.equal(f.element('blindboxSummary').writes, writes, 'invalidated statistics never render');
-  assert.equal(f.requests.length, 3, 'the pending refresh reads the latest statistics');
-  f.requests[2].resolve(stats(5));
+  assert.equal(f.requests.length, 2);
+  f.requests[1].resolve(stats(5));
   await pending;
+  await flush();
+  assert.equal(f.requests.length, 2, 'late settings do not invalidate statistics requested by the newer snapshot');
   assert.equal(f.element('blindboxTitle').textContent, '最新盲盒标题');
   assert.equal(f.element('blindboxSummary').writes, writes);
   f.message(snapshot({}));
   assert.notEqual(f.element('blindboxTitle').textContent, '最新盲盒标题');
-  f.requests[3].resolve(stats(5));
+  f.requests[2].resolve(stats(5));
   await flush();
 });
 

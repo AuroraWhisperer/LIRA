@@ -39,8 +39,9 @@ function clearLocalPlaybackData(localStorageRef) {
       const key = localStorageRef.key(index);
       if (key?.startsWith('playbackCache:')) localStorageRef.removeItem(key);
     }
-  } catch (error) {
-    void error;
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -53,11 +54,8 @@ function clearDataName(key) {
   return CLEAR_DATA_NAMES[key] || '其他本地数据';
 }
 
-function reloadAfterPartialClearAll(response, { alertRef, locationRef, localStorageRef }) {
-  if (response?.partial !== true) return false;
+function reportPartialClearAll(response, localFailures, alertRef) {
   const committed = response.data?.committed || [];
-  if (committed.includes('superChatDb')) clearSuperChatUndo();
-  if (committed.includes('musicDb')) clearLocalPlaybackData(localStorageRef);
   const failed = response.data?.failed || [];
   const phase = response.data?.phase || response.phase;
   const phaseText = phase === 'runtime-reset' ? '数据已清空，但运行状态未能刷新。'
@@ -68,13 +66,12 @@ function reloadAfterPartialClearAll(response, { alertRef, locationRef, localStor
     `${phaseText}\n\n` +
       (committed.length ? `✓ 已清空：${committed.map(clearDataName).join('、')}\n` : '') +
       (failed.length ? `✗ 清空失败：${failed.map(clearDataName).join('、')}\n` : '') +
+      (localFailures.length ? `本机清理失败：${localFailures.join('、')}\n` : '') +
       (response.data?.rollbackFailed?.length ? `状态待核对：${response.data.rollbackFailed.map(clearDataName).join('、')}\n` : '') +
       '\n' +
-      `礼物导入与加班机写入仍暂停，刷新页面不会恢复。请从「百宝箱 → 设置 → 关于与更新 → 本地数据与支持」打开日志目录并检查数据；确认后可再次完整清空，成功后恢复写入。\n` +
-      `页面将重新加载。`,
+      `礼物导入与加班机写入仍暂停，刷新页面不会恢复。请从「百宝箱 → 设置 → 系统与关于 → 本地数据与诊断」打开日志目录并检查数据；确认后可再次完整清空，成功后恢复写入。\n` +
+      (localFailures.length ? '请先核对本机播放状态。' : '页面将重新加载。'),
   );
-  locationRef.reload();
-  return true;
 }
 
 export function createSettingsOperations({
@@ -138,37 +135,53 @@ export function createSettingsOperations({
     });
     if (!confirmed) return;
 
+    let response;
     try {
-      const response = await api('/api/database/clear-all', { confirm: true }, { notifyError: false });
+      response = await api('/api/database/clear-all', { confirm: true }, { notifyError: false });
+    } catch (error) {
+      if (error.payload?.partial !== true) {
+        toast('清空失败：' + (error.message || String(error)), { type: 'error' });
+        return;
+      }
+      response = error.payload;
+    }
+
+    const partial = response.partial === true;
+    const committed = response.data?.committed || [];
+    const localFailures = [];
+    if (!partial || committed.includes('musicDb')) {
       if (typeof windowRef.musicAPI?.clearCache === 'function') {
         try {
           await windowRef.musicAPI.clearCache();
-        } catch (error) {
-          void error;
+        } catch {
+          localFailures.push('音乐缓存');
         }
       }
-      if (reloadAfterPartialClearAll(response, { alertRef, locationRef, localStorageRef })) return;
-      clearLocalPlaybackData(localStorageRef);
-      clearSuperChatUndo();
-
-      const deleted = response.data.deletedCounts;
-      const total = response.data.totalDeleted || 0;
-      const resultNode = documentRef.getElementById('clearAllResult');
-      if (resultNode) {
-        resultNode.hidden = false;
-        resultNode.textContent =
-          `歌曲 ${deleted.songs} · 队列 ${deleted.queue} · 记录 ${deleted.requests} · ` +
-          `SC ${deleted.sc} · 礼物 ${deleted.gifts} · 播放 ${deleted.playHistory} · ` +
-          `签到 ${deleted.checkins}（共 ${total} 条），配置已保留`;
-      }
-      toast(`已清空共 ${total} 条数据，配置已保留`, { type: 'success' });
-      locationRef.reload();
-    } catch (error) {
-      if (reloadAfterPartialClearAll(error.payload, { alertRef, locationRef, localStorageRef })) {
-        return;
-      }
-      toast('清空失败：' + (error.message || String(error)), { type: 'error' });
+      if (!clearLocalPlaybackData(localStorageRef)) localFailures.push('本机播放状态');
     }
+    if (!partial || committed.includes('superChatDb')) clearSuperChatUndo();
+    if (partial) {
+      reportPartialClearAll(response, localFailures, alertRef);
+      if (!localFailures.length) locationRef.reload();
+      return;
+    }
+    if (localFailures.length) {
+      alertRef(`数据库已清空，${localFailures.join('、')}未能清理。请核对本机播放状态。`);
+      return;
+    }
+
+    const deleted = response.data.deletedCounts;
+    const total = response.data.totalDeleted || 0;
+    const resultNode = documentRef.getElementById('clearAllResult');
+    if (resultNode) {
+      resultNode.hidden = false;
+      resultNode.textContent =
+        `歌曲 ${deleted.songs} · 队列 ${deleted.queue} · 记录 ${deleted.requests} · ` +
+        `SC ${deleted.sc} · 礼物 ${deleted.gifts} · 播放 ${deleted.playHistory} · ` +
+        `签到 ${deleted.checkins}（共 ${total} 条），配置已保留`;
+    }
+    toast(`已清空共 ${total} 条数据，配置已保留`, { type: 'success' });
+    locationRef.reload();
   }
 
   function renderShutdownScreen(isDesktop) {

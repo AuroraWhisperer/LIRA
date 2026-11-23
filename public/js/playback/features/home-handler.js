@@ -74,15 +74,6 @@ export function createHomeHandler(deps) {
   }
 
   // === 队列弹窗管理 ===
-  function openQueuePopup() {
-    const queuePopup = uiRenderer.getQueuePopup();
-    queuePopup.open();
-    queuePopup.render(playbackState);
-    if (playbackState.queueType === 'playlist') {
-      queuePopup.scrollToCurrent();
-    }
-  }
-
   function closeQueuePopup() {
     uiRenderer.getQueuePopup().close();
   }
@@ -345,7 +336,6 @@ export function createHomeHandler(deps) {
     setPlaybackDrawerLoading,
     setPlaybackDrawerError,
     // Queue popup
-    openQueuePopup,
     closeQueuePopup,
     toggleQueuePopup,
     // Content loading

@@ -93,6 +93,18 @@ for (const [name, mutate] of Object.entries(mutations)) {
   });
 }
 
+test('clearing the library rolls back songs and the pending upload when the default category cannot be restored', (t) => {
+  const f = fixture(t);
+  mutations.save(f);
+  const songs = f.songs.listRows();
+  const pending = f.pending.readPending(ACCOUNT_A);
+  f.db.exec(`CREATE TRIGGER reject_default BEFORE INSERT ON song_categories
+    WHEN NEW.name = '默认' BEGIN SELECT RAISE(ABORT, 'default rejected'); END`);
+  assert.throws(() => clearSongLibraryData(f.db), /default rejected/);
+  assert.deepEqual(f.songs.listRows(), songs);
+  assert.equal(f.pending.readPending(ACCOUNT_A).mutationId, pending.mutationId);
+});
+
 test('pending metadata is private and cloud replacements do not create upload echoes', (t) => {
   const f = fixture(t);
   f.songs.ensureCategory('Empty category');

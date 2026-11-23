@@ -62,8 +62,7 @@ export function initGiftFrame() {
     autosaves.set(effect.enabledKey, createAutosave({ root,
       canSave: () => !savingFields.has(effect.enabledKey)
         && [effect.enabledKey, effect.thresholdKey].some(key => draftFields.has(key))
-        && Boolean(document.getElementById(effect.ids.threshold).value)
-        && document.getElementById(effect.ids.threshold).checkValidity(),
+        && validThreshold(document.getElementById(effect.ids.threshold)),
       save: () => saveSettings(effect) }));
     document.getElementById(effect.ids.save).hidden = true;
     document.getElementById(effect.ids.save).textContent = '重试保存';
@@ -131,19 +130,23 @@ function syncDraftField(node, effect) {
   node.dataset.dirty = String(dirty);
 }
 
+function validThreshold(input) {
+  return input.value.trim() !== '' && input.checkValidity();
+}
+
 async function saveSettings(effect) {
   if (savingFields.has(effect.enabledKey)) return;
   const { enabled, threshold, status } = effect.ids;
-  const amount = Number(document.getElementById(threshold).value);
-  if (!Number.isFinite(amount) || amount < 0) {
+  const input = document.getElementById(threshold);
+  if (!validThreshold(input)) {
     setStatus(status, '金额必须是大于等于 0 的数字。', 'error');
     return;
   }
   const submitted = {
     [effect.enabledKey]: String(document.getElementById(enabled).checked),
-    [effect.thresholdKey]: document.getElementById(threshold).value,
+    [effect.thresholdKey]: input.value,
   };
-  const values = { ...submitted, [effect.thresholdKey]: amount.toFixed(2) };
+  const values = { ...submitted, [effect.thresholdKey]: Number(input.value).toFixed(2) };
   for (const key of Object.keys(submitted)) savingFields.add(key);
   document.getElementById(effect.ids.save).disabled = true;
   try {
@@ -160,7 +163,7 @@ async function saveSettings(effect) {
     setStatus(status, message, 'success');
   } catch (_) {
     const message = `${effect.label}设置没保存成功，修改还在，请再试一次。`;
-    setStatus(status, message, 'error');
+    setStatus(status, message, 'error', true);
     toast(message, { type: 'error' });
   } finally {
     document.getElementById(effect.ids.save).disabled = false;
@@ -199,7 +202,7 @@ async function playPreview(effect) {
   openComponentPreview({ id: 'gift-frame', previewData });
 }
 
-function setStatus(id, message, state) {
+function setStatus(id, message, state, retrySave = false) {
   const node = document.getElementById(id);
   if (!node) return;
   const dirty = draftFields.size > 0;
@@ -207,5 +210,5 @@ function setStatus(id, message, state) {
   node.hidden = !node.textContent;
   node.dataset.state = state || (dirty ? 'pending' : '');
   const effect = EFFECTS.find(effect => effect.ids.status === id);
-  if (effect) document.getElementById(effect.ids.save).hidden = state !== 'error';
+  if (effect) document.getElementById(effect.ids.save).hidden = !retrySave;
 }

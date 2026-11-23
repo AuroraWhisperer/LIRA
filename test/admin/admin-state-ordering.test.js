@@ -135,7 +135,7 @@ test('an older HTTP snapshot cannot replace a newer WebSocket snapshot', async (
   });
   await reload;
   assert.equal(service.getAppState().settings.roomId, 'new');
-  assert.equal(service.getCategories()[0].name, 'new');
+  assert.equal(service.getAppState().categories[0].name, 'new');
   assert.equal(service.getAppState().overtime.revision, 8);
 });
 

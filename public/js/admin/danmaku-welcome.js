@@ -104,15 +104,16 @@ export function initDanmakuWelcome({
     for (const [key, suffix] of Object.entries(SWITCHES)) {
       const field = element(suffix);
       field.checked = Boolean(settings?.[key]);
-      field.disabled =
+      const unavailable =
         !loaded ||
-        busy ||
         (key !== 'enabled' && !isV2()) ||
         (key === 'returningEnabled' && !supportsReturning()) ||
         (key === 'timeWelcomeEnabled' && !supportsTimeWelcome()) ||
         (key === 'welcomeOwnMedalOnly' && !supportsOwnMedal()) ||
         (key === 'liveGreetingEnabled' && !supportsLiveGreeting()) ||
         (['greetingEnabled', 'attentionEnabled', 'returningEnabled'].includes(key) && !settings?.enabled);
+      field.disabled = unavailable || busy;
+      field.setAttribute('data-switch-pending', String(!unavailable && busy));
       field.title = !['rareNamePinyinEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly', 'liveGreetingEnabled'].includes(key) && parameters.dirty && !settings?.[key] ? '开启并保存参数' : '';
     }
     const libraryAvailable = loaded && (editor.current() !== 'returningMessages' || supportsReturning());

@@ -162,7 +162,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 它与账号、直播间、业务 settings、云同步和浏览器缓存分离，普通缓存清理不删除外观记录。
 runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 [server-core.md](../backend/server-core.md)。桥与错误码见 [preload.md](preload.md)。
-主窗口原生底色使用统一配色目录中的对应页面底，与 `desktop/palettes.css` 一致。玫瑰灰 × 梅子红和藕荷 × 烟紫按浅色、深色分别保存主题 ID，原生底色取对应页面渐变的起色。
+主窗口原生底色使用统一配色目录中的对应页面底，与 `desktop/palettes.css` 一致。梅雾和紫岚按浅色、深色分别保存主题 ID，原生底色取对应页面渐变的起色。
 主 frame 导航时重新选择，登录仍为 `#f7f3ef`，不更改 `nativeTheme`。
 
 ## 本机系统通知
@@ -546,7 +546,7 @@ sequenceDiagram
 ```
 Main: requestPlaybackFlush(mainWindow, 2000)
   ├─ mainWindow.webContents.send('app:prepare-shutdown')   [playback-flush.js:22]
-  ├─ Renderer: 立即保存播放状态 → invoke('playback:flush-ack')  [ipc/music-ipc.js: playback:flush-ack]
+  ├─ Renderer: 保存成功或无待存内容 → invoke('playback:flush-ack')  [ipc/music-ipc.js: playback:flush-ack]
   ├─ ack → finish('ack')
   └─ 2s 超时 → finish('timeout') 安全网                      [playback-flush.js:20]
 ```

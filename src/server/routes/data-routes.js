@@ -16,9 +16,6 @@ function clearRoute(clear, reason) {
       return;
     }
     const result = clear(context);
-    if (reason === 'database:clear-gifts' && result?.projectionReset) {
-      triggerGiftRebuild(context);
-    }
     context.broadcastSnapshot(reason);
     if (reason === 'database:clear') context.cloudSync?.request?.('songs');
     sendJson(res, 200, { ok: true, data: result });

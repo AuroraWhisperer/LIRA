@@ -26,7 +26,7 @@ import {
 import { applyTheme, setIdentityRuleThemeVars } from './queue-theme.js';
 import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
 
-export { applyTheme, setIdentityRuleThemeVars } from './queue-theme.js';
+export { applyTheme, setIdentityRuleThemeVars };
 
 function displaySongName(value) {
   return String(value ?? '').trimStart();

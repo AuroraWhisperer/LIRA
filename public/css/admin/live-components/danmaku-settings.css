@@ -169,8 +169,9 @@
   background: transparent;
 }
 
-.live-components-page .danmaku-parameters > .danmaku-filter-heading {
-  min-height: 36px;
+.live-components-page .danmaku-parameters > .danmaku-filter-heading > button.secondary {
+  min-height: 28px;
+  padding-block: 3px;
 }
 
 .live-components-page .danmaku-parameters > .danmaku-filter-heading h5 {

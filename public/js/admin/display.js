@@ -11,7 +11,7 @@ import { bindCopyUrl } from '../shared/copy-url.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
-import { bindSongBoardSettings, collectSongBoardSettings, songBoardConfigFromSettings, songBoardSettingsPayload } from './song-board-settings.js';
+import { bindSongBoardSettings, songBoardConfigFromSettings, songBoardSettingsPayload } from './song-board-settings.js';
 import { updateBlindboxOverlayUrl } from './settings.js';
 import { initCanvasOverlaySource } from './canvas-overlay-source.js';
 import { readComponentOutputSize } from './scene-api.js';
@@ -119,13 +119,8 @@ export const display = (() => {
     );
   }
 
-  function collectDisplay() {
-    return collectSongBoardSettings(document.getElementById('displayForm'));
-  }
-
   return {
     initDisplayForm,
     initOverlayUrls,
-    collectDisplay,
   };
 })();

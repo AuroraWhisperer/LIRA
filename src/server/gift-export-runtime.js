@@ -38,7 +38,7 @@ async function completeExportAvatars(items, profiles, readAvatars, assertCurrent
 }
 
 // Only the first selected event of a confirmed daily card is needed as identity evidence.
-async function mergeGiftExport(snapshot, readGroups, signal) {
+async function mergeAcrossDates(snapshot, readGroups, signal) {
   const byGift = new Map();
   for (const item of snapshot.items) {
     const { giftId, giftName } = item.gift;
@@ -93,6 +93,8 @@ async function mergeGiftExport(snapshot, readGroups, signal) {
 // Local gift facade for source selection, sync callbacks, shared cards and export preparation/settings.
 function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnapshot, giftCards, getUserAvatar }) {
   let sync = {};
+  // Keep the opening day's identity evidence with its selection, outside the renderer snapshot.
+  const profilesBySnapshot = new WeakMap();
   const cards =
     giftCards ||
     createGiftCardRuntime({
@@ -140,16 +142,24 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       assertCurrent();
       const items = await completeExportAvatars(snapshot.items, profiles, sync.cardAvatars, assertCurrent);
       assertCurrent();
-      return {
+      const original = {
         ...snapshot,
-        items: buildGiftCards(items, { day: profiles?.day, profiles: profiles?.items, keepSourceEventId: true }),
+        items: buildGiftCards(items, { day: profiles?.day, profiles: profiles?.items, mergeToday: false }),
         selectedCount: snapshot.items.length,
-        cardsPartial: profiles?.partial === true,
+        cardsPartial: false,
         config: readGiftDisplaySettings(getSettingsStore().getSettings()),
         catalog: structuredClone(services.overtimeGiftCatalog.getGlobalSnapshot()?.gifts || []),
       };
+      profilesBySnapshot.set(original, profiles);
+      return original;
     },
-    mergeGiftExport: (snapshot, signal) => mergeGiftExport(snapshot, sync.cardGroups, signal),
+    mergeGiftExport(snapshot, signal) {
+      const profiles = profilesBySnapshot.get(snapshot);
+      const items = profiles?.items?.length
+        ? buildGiftCards(snapshot.items, { day: profiles.day, profiles: profiles.items, keepSourceEventId: true })
+        : snapshot.items;
+      return mergeAcrossDates({ ...snapshot, items }, sync.cardGroups, signal);
+    },
     setGiftExportDirectory: (directory) => getSettingsStore().setSetting('giftExportDirectory', directory),
     setGiftExportSettings: ({ mode, background, mergeAcrossDates, directory }) =>
       getSettingsStore().setSettings({

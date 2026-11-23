@@ -21,7 +21,6 @@ export class PlaybackBar {
     this.modeBtn = null;
     this.modeLabelEl = null;
     this.volumeSlider = null;
-    this.volumeIcon = null;
     this.qualityButton = null;
     this.qualityLabel = null;
     this.qualityPanel = null;
@@ -41,7 +40,6 @@ export class PlaybackBar {
     this.modeBtn = document.getElementById('playbackModeBtn');
     this.modeLabelEl = document.getElementById('playbackModeLabel');
     this.volumeSlider = document.getElementById('playbackVolume');
-    this.volumeIcon = document.getElementById('playbackVolumeIcon');
     this.qualityButton = document.getElementById('playbackQualityBtn');
     this.qualityLabel = document.getElementById('playbackQualityLabel');
     this.qualityPanel = document.getElementById('playbackQualityPanel');
@@ -318,7 +316,7 @@ export class PlaybackBar {
         ? '本机缓存捕捉，不需要登录'
         : loggedIn
           ? `${sourceName} Cookie 已就绪`
-          : '未连接音乐账户';
+          : authState ? '未连接音乐账户' : '登录状态待确认';
     }
 
     // 更新 VIP 状态

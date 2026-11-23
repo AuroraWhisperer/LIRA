@@ -422,7 +422,6 @@ function createDynamicLotteryStore(lotteryDb) {
     pauseScan: ({ taskId, reason, nowMs }) => setScanStatus(taskId, 'paused', String(reason || ''), nowMs),
     resumeScan: ({ taskId, sessionEpoch, nowMs }) =>
       setScanStatus(taskId, 'running', '', nowMs, normalizeMs(sessionEpoch, 'session epoch')),
-    failScan: ({ taskId, reason, nowMs }) => setScanStatus(taskId, 'failed', String(reason || ''), nowMs),
     getEvidence(scanId, { includeContent = true } = {}) {
       return lotteryDb
         .prepare(

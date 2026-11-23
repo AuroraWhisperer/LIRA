@@ -7,7 +7,6 @@ import { normalizeState, validateState } from './manager.js';
 const STORAGE_KEY_V1 = 'songAssistantPlaybackState:v1';
 const STORAGE_KEY_V2 = 'playbackState:v2';
 const CLIENT_ID = 'default';
-const SAVE_DEBOUNCE_MS = 1500;
 
 export function clearStoredPlaybackState(storage = localStorage) {
   storage?.removeItem(STORAGE_KEY_V2);
@@ -20,42 +19,6 @@ export function clearStoredPlaybackState(storage = localStorage) {
 export class StorageManager {
   constructor() {
     this.serverSnapshotStatus = 'unavailable';
-    this.saveTimer = null;
-    this.savePending = null;
-  }
-
-  /**
-   * 保存状态到 localStorage（带防抖）
-   * @param {Object} state - 要保存的状态
-   * @param {boolean} immediate - 是否立即保存
-   * @returns {Promise<void>}
-   */
-  async saveState(state, immediate = false) {
-    if (immediate) {
-      clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-      return this._doSave(state);
-    }
-
-    // 防抖保存
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-    }
-
-    return new Promise((resolve, reject) => {
-      this.savePending = { resolve, reject };
-      this.saveTimer = setTimeout(async () => {
-        this.saveTimer = null;
-        const pending = this.savePending;
-        this.savePending = null;
-        try {
-          await this._doSave(state);
-          if (pending) pending.resolve();
-        } catch (error) {
-          if (pending) pending.reject(error);
-        }
-      }, SAVE_DEBOUNCE_MS);
-    });
   }
 
   /**
@@ -191,52 +154,6 @@ export class StorageManager {
     } catch (error) {
       console.error('[StorageManager] Migration failed:', error);
       return null;
-    }
-  }
-
-  /**
-   * 清空存储的状态
-   */
-  clearState() {
-    clearStoredPlaybackState();
-  }
-
-  /**
-   * 检查是否有保存的状态
-   * @returns {boolean}
-   */
-  hasStoredState() {
-    return Boolean(localStorage.getItem(STORAGE_KEY_V2) || localStorage.getItem(STORAGE_KEY_V1));
-  }
-
-  /**
-   * 获取存储的时间戳
-   * @returns {number|null}
-   */
-  getStoredTimestamp() {
-    try {
-      const v2Data = localStorage.getItem(STORAGE_KEY_V2);
-      if (v2Data) {
-        const parsed = JSON.parse(v2Data);
-        return parsed.timestamp || null;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * 取消待处理的保存操作
-   */
-  cancelPendingSave() {
-    if (this.saveTimer) {
-      clearTimeout(this.saveTimer);
-      this.saveTimer = null;
-    }
-    if (this.savePending) {
-      this.savePending.reject(new Error('Save cancelled'));
-      this.savePending = null;
     }
   }
 }

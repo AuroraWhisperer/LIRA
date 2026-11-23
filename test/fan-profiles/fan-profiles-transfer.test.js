@@ -153,6 +153,9 @@ test('A29: complete restore preserves song summaries, other record evidence and 
   f.run('reminder-state', { profileId: p.id, key: 'birthday:2026', status: 'handled' });
   const backup = f.run('backup');
   assert.equal(backup.version, 2);
+  const membership = backup.profiles[0].records.find(record => record.kind === 'membership');
+  delete membership.data.startAt;
+  delete membership.data.endAt;
   const song = backup.profiles[0].records.find((record) => record.kind === 'song');
   f.run('delete', { id: p.id, confirm: true, suppress: false });
   f.consume([{ cursor: 5, name: '未建档的身份快照' }], { nextCursor: 5 });

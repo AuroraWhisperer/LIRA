@@ -69,7 +69,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     if (controller.signal.aborted) return '音频组件已关闭，请重新打开 LIRA。';
     if (error.message === 'AUDIO_AUTHORIZATION_REQUIRED') return '下载音频组件需要 LIRA 账号授权，请确认授权后重试。';
     if (error.message === 'AUDIO_PLATFORM_UNSUPPORTED') return '这台设备不支持音频组件。';
-    return '音频组件准备失败。请打开「百宝箱 → 设置 → 关于与更新」，在音频组件下载任务旁点击「重试」。';
+    return '音频组件准备失败。请打开「百宝箱 → 设置 → 系统与关于」，在音频组件下载任务旁点击「重试」。';
   }
 
   function initialize({ retry = false } = {}) {

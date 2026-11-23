@@ -300,6 +300,8 @@ AI 自动接话通过同一 sender 的等待限流、授权与会话断言发送
 
 `UserInfoService`([user-info-service.js](../../../../src/bilibili/users/user-info-service.js)) 是 Bilibili 用户资料和当前房间身份的唯一 merge policy owner。解析器只产生 `IdentityHint`；`MessageHandlers`、History/OnlineRank/FansMedal poller 通过注入的 `ingestHint`/`replaceOnlineSnapshot` sink 提交，poller 不访问 `IdentityCache`、profile provider 或 Avatar Proxy。
 
+门面接管缓存后，兼容方法 `resolve` 只读取最终身份，`remember` 拒绝直接写入。切换房间会同步更新兼容投影。独立构造的旧缓存保留两个方法的签名，旧输入复用门面的昵称、头像和房间来源优先级。见[字段证据规则](../../../../src/bilibili/users/user-info-evidence.js)。
+
 门面公开 `peek`、`ingestHint`、`ensure`、`listRecent`、`listOnline`、`replaceOnlineSnapshot`、`subscribe`、`setRoom`、`beginRoomRun`、`endRoomRun`、`dispose`。`name`/`avatarUrl` 是 UID 全局 profile，`guard`/`fansMedal` 是 `{roomId, ownerUid}` 房间身份；字段投影只返回请求字段和 `uid`，不泄露 evidence、source、generation 或 runToken。粉丝牌非空值必须携带匹配主播 UID，verified absence 与 unknown 分离。
 
 组合根在一次房间 runtime 启动或协调重连时只调用一次 `beginRoomRun()`，把同一个不可变 context 传给三个 poller；单 poller 重启仅使用自己的 local generation。`setRoom()` 递增 room generation 并清除旧 room identity/audience index，A→B→A 的旧 context 仍失效；同房协调重连轮换 runToken 并在下一次在线榜成功前保持空 online snapshot。结束整组 producer 时调用 `endRoomRun()`，共享 service 只在 runtime dispose 时销毁。

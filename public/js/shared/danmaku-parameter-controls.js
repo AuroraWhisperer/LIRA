@@ -76,6 +76,7 @@ export function mountDanmakuParameters(host, controller, {
   const typography = parameterSection('TextOptions', '文字样式', true);
   const appearance = parameterSection('AppearanceOptions', '配色与外观');
   const motion = parameterSection('MotionOptions', '消息与动效');
+  const advanced = parameterSection('AdvancedOptions', '高级参数');
   const basic = element('div', gridClass);
   appearance.body.append(basic);
   const motionBasic = element('div', gridClass);
@@ -125,7 +126,9 @@ export function mountDanmakuParameters(host, controller, {
     if (key === 'message') grid.classList.add('danmaku-message-options');
     section.append(title, grid);
     if (['message', 'randomMotion', 'floatingMotion', 'sinking'].includes(key)) motion.body.append(section);
-    else (key.startsWith('ripploid') ? ripploid : appearance.body).append(section);
+    else if (key.startsWith('ripploid')) ripploid.append(section);
+    else if (key === 'twitterColors' || key === 'spookyColors') appearance.body.append(section);
+    else advanced.body.append(section);
     groups.set(key, { section, grid });
   }
   motion.body.append(fixed);
@@ -247,7 +250,7 @@ export function mountDanmakuParameters(host, controller, {
     const { draft, loaded } = controller.getState();
     if (loaded) controller.edit({ styleOptions: resetSpookyColors(draft).styleOptions });
   });
-  const effectsHost = element('div', '', '', 'AppearanceEffects'); appearance.body.append(effectsHost);
+  const effectsHost = element('div', '', '', 'AppearanceEffects'); advanced.body.append(effectsHost);
   const effects = mountStyleParameters(effectsHost, controller, 'danmaku', {
     messageHost: groups.get('message').grid, helpPopover: desktop, fieldsRoot: host,
     getTransformHost: draft => isFixedStyle(draft.style) ? fixed : null,
@@ -374,6 +377,7 @@ export function mountDanmakuParameters(host, controller, {
     for (const [key, { section }] of groups) section.hidden = !visibleGroups.has(key);
     ripploid.hidden = !DANMAKU_STYLE_OPTIONS[draft.style]?.ripploidColors;
     basic.hidden = !Array.from(basic.children).some(field => !field.hidden);
+    appearance.section.hidden = !Array.from(appearance.body.children).some(group => !group.hidden);
     motionBasic.hidden = !Array.from(motionBasic.children).some(field => !field.hidden);
     spookyReset.disabled = !loaded || !supported || ![...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS].some(key => Object.hasOwn(saved, key));
     const canReset = Object.keys(saved).some(key => key !== 'durationSeconds' || saved[key] !== 6)

@@ -57,6 +57,30 @@ test('successful clear-all reloads the player after clearing music browser cache
   assert.equal(localStorageRef.getItem('unrelated-preference'), 'kept');
 });
 
+for (const partial of [false, true]) {
+  test(`a ${partial ? 'partially' : 'fully'} committed clear reports stale local playback without reloading`, async () => {
+    const { createSettingsOperations } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-operations.js'), {
+      document: { getElementById: () => null },
+      clearTimeout,
+    });
+    const alerts = [];
+    const fail = () => { throw new Error('cleanup unavailable'); };
+    const operations = createSettingsOperations({
+      documentRef: {}, windowRef: { musicAPI: { clearCache: fail } },
+      localStorageRef: { removeItem: fail }, locationRef: { reload: assert.fail },
+      alertRef: message => alerts.push(message), toast: assert.fail, dangerConfirm: async () => true,
+      async api() {
+        if (partial) throw Object.assign(new Error(), { payload: { partial: true, data: { committed: ['musicDb'] } } });
+        return { ok: true, data: { deletedCounts: {} } };
+      },
+    });
+    await operations.clearAll();
+    assert.equal(alerts.length, 1);
+    assert.match(alerts[0], /音乐缓存/);
+    assert.match(alerts[0], /本机播放状态/);
+  });
+}
+
 test('shared api preserves the parsed error payload and HTTP status', async () => {
   const payload = {
     ok: false,

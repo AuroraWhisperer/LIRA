@@ -108,7 +108,7 @@ test('history export settings update the current preview and remember the next e
   assert.deepEqual(await visibleCards(), ['2']);
   await page.locator('#giftExportPrev').click();
   assert.deepEqual(await visibleCards(), ['1']);
-  await page.getByText('跨日期合并同种礼物', { exact: true }).click();
+  await page.getByRole('switch', { name: '合并同种礼物' }).setChecked(true);
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.equal(await page.locator('#giftExportNext').isDisabled(), true);
   await page.locator('#giftExportBackground').selectOption('white');
@@ -121,7 +121,7 @@ test('history export settings update the current preview and remember the next e
   assert.equal(await page.evaluate(() => window.savedExportId), '1');
   await page.locator('#giftExportBack').click();
   await page.evaluate(() => window.preview.open({ eventIds: ['1', '2'] }));
-  assert.equal(await page.getByRole('switch', { name: '跨日期合并同种礼物' }).isChecked(), true);
+  assert.equal(await page.getByRole('switch', { name: '合并同种礼物' }).isChecked(), true);
   assert.equal(await page.locator('#giftExportMode').inputValue(), 'separate');
   assert.equal(await page.locator('#giftExportBackground').inputValue(), 'white');
   assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Chosen/Gifts');

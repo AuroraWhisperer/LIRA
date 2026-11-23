@@ -511,7 +511,7 @@ test('shutdown HTTP fallback preserves the failed IPC snapshot version', async (
   });
   app.audio.currentTime = 72;
   app.persistence.savePlaybackState();
-  await app.persistence.flushPlaybackStateForShutdown();
+  assert.equal(await app.persistence.flushPlaybackStateForShutdown(), true);
   assert.equal(store.getQueueState().payload.currentTime, 72);
   assert.deepEqual(
     app.calls.http[0].payload.snapshotVersion,
@@ -528,8 +528,8 @@ test('shutdown retains an empty-current snapshot when both channels decline its 
   app.state.current = null;
   app.state.normalQueue = [{ id: 'unsaved', source: 'qq', title: 'Unsaved queue' }];
   app.persistence.savePlaybackState();
-  await app.persistence.flushPlaybackStateForShutdown();
-  await app.persistence.flushPlaybackStateForShutdown();
+  assert.equal(await app.persistence.flushPlaybackStateForShutdown(), false);
+  assert.equal(await app.persistence.flushPlaybackStateForShutdown(), false);
   assert.equal(app.calls.http.length, 2, 'a declined IPC save must not suppress fallback or discard pending state');
   assert.equal(app.calls.http[1].payload.normalQueue[0].id, 'unsaved');
   assert.equal(store.getQueueState().payload.currentTime, 72);

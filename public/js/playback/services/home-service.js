@@ -14,7 +14,6 @@ export class HomeService {
     this.contentLoader = options.contentLoader || null;
     this.onError = options.onError || (() => {});
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
-    this.toast = options.toast || (() => {});
 
     // 首页状态
     this.homeItems = [];

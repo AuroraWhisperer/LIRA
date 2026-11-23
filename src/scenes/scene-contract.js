@@ -99,7 +99,8 @@ function normalizeSceneDocument(input, { normalizeConfig } = {}) {
       throw invalidDocument();
     }
   }
-  return cloneSceneJson(document);
+  if (Buffer.byteLength(JSON.stringify(document), 'utf8') > MAX_SCENE_BYTES) throw invalidDocument();
+  return document;
 }
 
 module.exports = {

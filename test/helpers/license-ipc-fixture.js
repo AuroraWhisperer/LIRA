@@ -21,9 +21,9 @@ function createLicenseIpcFixture({ licenseManager = {}, giftCatalog, fontLibrary
     },
     licenseManager,
   );
-  registerLicenseIpc({
+  const dispose = registerLicenseIpc({
     ipcMain: {
-      removeHandler() {},
+      removeHandler: channel => handlers.delete(channel),
       handle: (channel, handler) => handlers.set(channel, handler),
     },
     licenseManager: manager,
@@ -37,6 +37,7 @@ function createLicenseIpcFixture({ licenseManager = {}, giftCatalog, fontLibrary
   const trustedEvent = eventFrom(`${DESKTOP_BASE_URL}${framePath}`);
   webContents.mainFrame = trustedEvent.senderFrame;
   return {
+    dispose,
     handlers,
     sent,
     licenseManager: manager,

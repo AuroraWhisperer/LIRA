@@ -25,12 +25,8 @@ function registerLicenseIpc(options = {}) {
     ipcMain, getMainWindow, getDesktopBaseUrl, allowLicense: true,
     onInvalidSource: () => ({ ok: false, state: safeState(licenseManager.getState()), error: 'IPC_SOURCE_INVALID' }),
   });
+  const channels = new Set();
   const safeHandle = (channel, handler) => {
-    try {
-      ipcMain.removeHandler?.(channel);
-    } catch (error) {
-      void error;
-    }
     register(channel, async (_event, payload) => {
       try {
         return await handler(payload);
@@ -47,6 +43,7 @@ function registerLicenseIpc(options = {}) {
         return response;
       }
     });
+    channels.add(channel);
   };
 
   safeHandle('license:get-state', () => sanitizeStateResponse(licenseManager.getSnapshot()));
@@ -105,6 +102,8 @@ function registerLicenseIpc(options = {}) {
       window.webContents.send('license:gift-catalog-state-changed', sanitizeGiftCatalogState(snapshot));
   });
   return () => {
+    for (const channel of channels) ipcMain.removeHandler(channel);
+    channels.clear();
     disposeFontLibrary();
     disposeGiftCatalogState?.();
     disposeLicenseState?.();

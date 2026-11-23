@@ -565,7 +565,7 @@ function createCloudSyncController(options = {}) {
   function getLocalSongCount() {
     if (!isAuthorized()) throw Object.assign(new Error(), { code: 'LICENSE_NOT_AUTHORIZED' });
     if (!prepareAccount()) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
-    return { count: runtime.getCloudSongsSnapshot(accountKey).length, generation: lifecycleGeneration };
+    return { count: runtime.getCloudSongCount(accountKey), generation: lifecycleGeneration };
   }
 
   async function syncSongs(songs, expectedGeneration) {
@@ -576,7 +576,7 @@ function createCloudSyncController(options = {}) {
     const currentLibrary = songs === undefined;
     // Protect the local library from an already-running cloud pull immediately.
     if (currentLibrary) {
-      runtime.getCloudSongsSnapshot(work.accountKey);
+      runtime.assertCloudSongAccount(work.accountKey);
       markScopeDirty('songs');
     }
     return enqueue(async () => {

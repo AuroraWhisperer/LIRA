@@ -21,8 +21,6 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   let resizeFrame = 0;
   let scale = 1;
   let fittedCanvas = '';
-  let zoom = 'fit';
-  let snap = true;
   let gesture = null;
   let moveFrame = 0;
   let pendingMove = null;
@@ -53,9 +51,9 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   }
   function fit(repositionLabels = true) {
     const document = model.getSnapshot();
-    scale = zoom === 'fit' ? Math.max(0.03, Math.min(
+    scale = Math.max(0.03, Math.min(
       (viewport.clientWidth - 24) / document.canvas.width,
-      (viewport.clientHeight - 24) / document.canvas.height, 1)) : Number(zoom) / 100;
+      (viewport.clientHeight - 24) / document.canvas.height, 1));
     const fitKey = `${document.canvas.width}:${document.canvas.height}:${scale}`;
     if (fitKey !== fittedCanvas) {
       extent.style.width = `${document.canvas.width * scale}px`;
@@ -132,7 +130,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     if (!gesture || !pendingMove) return;
     const { deltaX, deltaY } = pendingMove;
     pendingMove = null;
-    try { model.updateGestureGeometry(gesture.ids, deltaX, deltaY, { handle: gesture.handle, snap }); }
+    try { model.updateGestureGeometry(gesture.ids, deltaX, deltaY, { handle: gesture.handle, snap: true }); }
     catch (error) { cancelGesture(); report(error.message); }
   }
   function pointerUp(event) {
@@ -246,9 +244,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   const unsubscribe = model.subscribeSnapshot(render);
   const observer = new ResizeObserver(fit);
   observer.observe(viewport);
-  return { fit, syncSelection, cancelGesture, setZoom(value) { zoom = value; fit(); },
+  return { fit, syncSelection, cancelGesture,
     setEmptyMessage(message) { empty.textContent = message; },
-    setSnap(value) { snap = value; }, isDragging: () => !!gesture,
     dispose() {
       closed = true;
       cancelGesture();

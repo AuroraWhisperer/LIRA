@@ -17,7 +17,7 @@ test('current and legacy IPC uploads share the automatic song byte budget', asyn
   assert.ok(JSON.stringify(songs).length < 4 * 1024 * 1024);
   const f = createFixture({
     licenseManager: { syncSongs: manager.syncSongs },
-    runtime: { getCloudSongsSnapshot: () => songs },
+    runtime: { getCloudSongCount: () => songs.length, getCloudSongsSnapshot: () => songs },
   });
   t.after(() => f.controller.dispose());
   const ipc = createLicenseIpcFixture({ licenseManager: manager, cloudSyncController: f.controller });
@@ -79,12 +79,16 @@ test('songs that exceed cloud field limits remain pending until an intact snapsh
 
 test('manual sync fences an in-flight pull and uploads the complete current library', async (t) => {
   let finishPull;
+  let fullReads = 0;
   let songs = [{ name: 'First' }, { name: 'Second' }, { name: 'Third' }];
   const f = createFixture({
     licenseManager: {
       getCloudSongs: () => new Promise((resolve) => { finishPull = resolve; }),
     },
-    runtime: { getCloudSongsSnapshot: () => songs },
+    runtime: {
+      getCloudSongCount: () => songs.length,
+      getCloudSongsSnapshot() { fullReads++; return songs; },
+    },
   });
   t.after(() => f.controller.dispose());
   const automatic = f.controller.start();
@@ -95,6 +99,7 @@ test('manual sync fences an in-flight pull and uploads the complete current libr
   finishPull({ songs: [{ name: 'Old cloud' }], revision: 3 });
   await automatic;
   assert.equal((await manual).count, 4);
+  assert.equal(fullReads, 1);
   assert.deepEqual(f.calls.filter(([op]) => op === 'push-songs'), [['push-songs', songs]]);
   assert.equal(f.calls.some(([op]) => op === 'apply-songs'), false);
 });

@@ -102,7 +102,7 @@
     <div id="giftHistoryMarquee" class="gift-history-marquee" aria-hidden="true" hidden></div>
   </div>
   <div class="gift-drawer-footer" data-gift-pane="list">
-    <span id="giftHistorySelectionHelp" class="hint">点击行可勾选或取消 · 拖动框选本页 · 按住 Ctrl 可从行或勾选框拖动追加</span>
+    <span id="giftHistorySelectionHelp" class="hint">点击行可勾选或取消 · 拖动框选本页 · Ctrl + 框选：已选取消，未选加入</span>
     <button id="giftHistoryPrev" type="button" class="secondary" disabled>← 上一页</button>
     <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
     <button id="giftHistoryNext" type="button" class="secondary" disabled>下一页 →</button>
@@ -146,8 +146,8 @@
             <p id="giftExportModeHint" class="hint">拼图超长时会自动分成多张。</p>
             <label class="switch-control gift-export-merge">
               <span>
-                <span id="giftExportMergeLabel">跨日期合并同种礼物</span>
-                <span id="giftExportMergeHint" class="hint">把所选记录中同一位观众送的同种礼物合为一张卡片。</span>
+                <span id="giftExportMergeLabel">合并同种礼物</span>
+                <span id="giftExportMergeHint" class="hint">关闭时每笔结算一张。开启后，同一位观众的同种礼物合为一张，可跨日期。</span>
               </span>
               <input id="giftExportMergeAcrossDates" type="checkbox" role="switch" aria-labelledby="giftExportMergeLabel" aria-describedby="giftExportMergeHint" />
               <span class="switch-track" aria-hidden="true"></span>

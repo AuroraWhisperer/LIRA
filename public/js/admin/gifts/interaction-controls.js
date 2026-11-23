@@ -136,7 +136,7 @@ export function initGiftInteractionControls({
   });
   retry.addEventListener('click', refresh);
   windowRef.addEventListener('online', refresh);
-  windowRef.addEventListener('beforeunload', dispose, { once: true });
+  windowRef.addEventListener('pagehide', dispose, { once: true });
   render(state);
   void refresh();
 
@@ -147,7 +147,7 @@ export function initGiftInteractionControls({
     inputs.forEach((input, index) => input.removeEventListener('change', handlers[index]));
     retry.removeEventListener('click', refresh);
     windowRef.removeEventListener('online', refresh);
-    windowRef.removeEventListener('beforeunload', dispose);
+    windowRef.removeEventListener('pagehide', dispose);
   }
   return dispose;
 }

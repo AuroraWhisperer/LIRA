@@ -12,17 +12,18 @@ export function createToolboxLifecycle({ loaders, onError, onInitError = onError
 
   async function activate() {
     const selected = featureId;
-    if (disposed || pageId !== ownerPageId || !loaders[selected] || initialized.has(selected)) return;
+    const load = loaders[selected];
+    if (disposed || pageId !== ownerPageId || !load) return;
     let init;
     try {
-      if (!loaded.has(selected)) loaded.set(selected, loaders[selected]());
-      init = await loaded.get(selected);
+      if (!loaded.has(load)) loaded.set(load, load());
+      init = await loaded.get(load);
     } catch (error) {
-      loaded.delete(selected);
+      loaded.delete(load);
       if (!disposed) onError(error);
       return;
     }
-    if (disposed || pageId !== ownerPageId || featureId !== selected || initialized.has(selected)) return;
+    if (disposed || pageId !== ownerPageId || featureId !== selected || initialized.has(init)) return;
     // Aliases can share one initializer. Its partial bindings require a fresh page.
     if (failedInitializers.has(init)) {
       onInitError(failedInitializers.get(init));
@@ -30,7 +31,7 @@ export function createToolboxLifecycle({ loaders, onError, onInitError = onError
     }
     try {
       init();
-      initialized.add(selected);
+      initialized.add(init);
     } catch (error) {
       failedInitializers.set(init, error);
       onInitError(error);

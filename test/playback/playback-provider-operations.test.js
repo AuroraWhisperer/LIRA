@@ -38,7 +38,6 @@ test('WeSing health reads capture state without changing source preference or qu
   assert.deepEqual(selected, []);
   assert.deepEqual({ ...operations.getAuthState() }, { loggedIn: true });
   assert.equal(operations.getProviderHealth().source, 'wesing');
-  assert.equal((await operations.refreshSelectedMusicAuthState()).loggedIn, true);
 });
 
 test('music login action and result remain bound to the prompted platform after source changes', async () => {

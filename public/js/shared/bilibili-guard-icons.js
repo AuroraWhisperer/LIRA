@@ -6,6 +6,7 @@ const GUARD_NAMES = { 1: 'governor', 2: 'prefect', 3: 'captain' };
 const FRAME_NAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
 const ASSET_ROOT = '/img/admin/gifts/';
 const FRAME_ROOT = '/img/overlays/';
+const appliedByDocument = new WeakMap();
 const LEGACY_BADGES = {
   bf4f5ea4b54ca7bb358dec4e6c4afcc300c12eb9: 1,
   '62ac06fd72b05fe22be26426b9e1a8e1fc2c6b89': 2,
@@ -57,6 +58,12 @@ export function setGuardIcon(image, level) {
 export function applyRoomGuardState(state, documentRef = globalThis.document) {
   setRoomGuardState(state);
   const root = documentRef?.documentElement;
+  if (!documentRef) return;
+  const { roomId, count } = getRoomGuardState();
+  const thousand = isThousandGuardRoom(count);
+  const previous = appliedByDocument.get(documentRef);
+  if (previous?.roomId === roomId && previous.thousand === thousand) return;
+  appliedByDocument.set(documentRef, { roomId, thousand });
   for (const [level, name] of Object.entries(GUARD_NAMES)) {
     root?.style.setProperty(`--bilibili-guard-${name}`, `url("${getGuardIcon(level)}")`);
     root?.style.setProperty(`--bilibili-guard-${name}-frame`, `url("${getGuardAvatarFrame(level)}")`);

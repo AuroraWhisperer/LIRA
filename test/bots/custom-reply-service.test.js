@@ -8,7 +8,6 @@ const test = require('node:test');
 const { isBilibiliCommandText } = require('../../src/bilibili/danmaku/command-text');
 const {
   createCustomReplyService,
-  findCustomReplyRule,
   parseCustomReplyRules,
   normalizeCustomReplyRule,
 } = require('../../src/bilibili/custom-reply-service');
@@ -32,19 +31,15 @@ test('custom reply rules normalize and match enabled keyword replies', () => {
     { keyword: '菜单', reply: '点歌格式：点歌 歌名', enabled: true },
     { keyword: '晚安', reply: '好梦。', enabled: false },
   ]);
-  assert.deepEqual(findCustomReplyRule('主播菜单在哪', settings), {
+  const service = createCustomReplyService({ settings: () => settings });
+  assert.deepEqual(service.handleDanmaku({ message: '主播菜单在哪' }).rule, {
     keyword: '菜单',
     reply: '点歌格式：点歌 歌名',
     enabled: true,
   });
-  assert.equal(findCustomReplyRule('晚安主播', settings), null);
-  assert.equal(
-    findCustomReplyRule('主播菜单在哪', {
-      ...settings,
-      enableCustomReplyBot: 'false',
-    }),
-    null,
-  );
+  assert.equal(service.handleDanmaku({ message: '晚安主播' }).accepted, false);
+  settings.enableCustomReplyBot = 'false';
+  assert.equal(service.handleDanmaku({ message: '主播菜单在哪' }).accepted, false);
 });
 
 test('custom replies preserve special symbols when applying the length limit', () => {

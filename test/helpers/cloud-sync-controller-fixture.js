@@ -112,6 +112,8 @@ function createFixture(overrides = {}) {
       giftBlindBoxConfig: LOCAL_BLIND_BOX_CONFIG,
     }),
     applyCloudSettingsSnapshot: async (settings) => calls.push(['apply-settings', settings]),
+    assertCloudSongAccount() {},
+    getCloudSongCount: () => 1,
     getCloudSongsSnapshot: () => [{ name: 'Local song' }],
     replaceCloudSongsSnapshot: async (songs) => calls.push(['apply-songs', songs]),
     onCloudSyncRequested(listener) {

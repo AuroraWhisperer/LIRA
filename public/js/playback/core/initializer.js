@@ -121,13 +121,13 @@ export function createInitializer(deps) {
     if (window.musicAPI && typeof window.musicAPI.onPrepareShutdown === 'function') {
       window.musicAPI.onPrepareShutdown(async () => {
         try {
-          await flushPlaybackStateForShutdown();
+          if (await flushPlaybackStateForShutdown()) {
+            await window.musicAPI.confirmShutdownFlush();
+          } else {
+            console.warn('[Playback] Shutdown state was not saved.');
+          }
         } catch (error) {
           console.warn('[Playback] Shutdown state flush failed:', error.message || error);
-        } finally {
-          try {
-            await window.musicAPI.confirmShutdownFlush();
-          } catch (_) {}
         }
       });
     }

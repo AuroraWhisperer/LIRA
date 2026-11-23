@@ -75,7 +75,8 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
           if (roster.lastAbsentAt > observedAt) throw new Error('上次确认缺席时间晚于名单同步时间。');
         }
       }
-      profiles.push({ ...profile, identity: patch.identity,
+      const records = [];
+      profiles.push({ ...profile, records, identity: patch.identity,
         ...(roster ? { guardRoster: roster } : {}),
         ...(profile.lastEntry !== undefined ? { lastEntry } : {}),
         ...(profile.preferredFormerName !== undefined ? { preferredFormerName: patch.preferredFormerName } : {}),
@@ -87,7 +88,11 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       if (!Array.isArray(profile.records) || !Array.isArray(profile.reminders)) throw new Error('备份缺少完整记录。');
       for (const record of profile.records) {
         const summary = record.kind === 'song' && input.version === 2;
-        recordData(record.kind, summary ? { ...record.data, note: '' } : record.data);
+        const validated = recordData(record.kind, summary ? { ...record.data, note: '' } : record.data);
+        // Restore the effective interval while preserving the source evidence, decisions and revisions.
+        records.push(record.kind === 'membership' && validated.type === 'interval'
+          ? { ...record, data: { ...record.data, startAt: validated.startAt, endAt: validated.endAt } }
+          : record);
         if (summary && typeof record.data.note !== 'string') throw new Error('备份中的点歌说明无效。');
         if (record.kind === 'song' && input.version === 2) validateSongSummary(record.data);
         if (record.kind === 'song' && input.version === 1 && Object.hasOwn(record.data, 'count'))
@@ -122,8 +127,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     return { ...input, profiles, suppressions };
   }
 
-  function preview(scope, input) {
-    const value = validateBackup(scope, input.backup);
+  function preview(scope, value) {
     const conflicts = [];
     let added = 0;
     for (const profile of value.profiles) {
@@ -149,7 +153,8 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
   }
 
   function restore(scope, input) {
-    const plan = preview(scope, input);
+    const value = validateBackup(scope, input.backup);
+    const plan = preview(scope, value);
     if (
       input.digest !== plan.digest ||
       input.currentDigest !== plan.currentDigest ||
@@ -157,7 +162,6 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     ) {
       throw new Error('恢复预览已变化，请重新核对并选择冲突处理方式。');
     }
-    const value = validateBackup(scope, input.backup);
     const conflicts = new Set(plan.conflicts.map((item) => item.incomingId));
     const profiles = value.profiles.filter((profile) => input.conflicts === 'replace' || !conflicts.has(profile.id));
     const replacedIds = new Set(input.conflicts === 'replace' ? plan.conflicts.map((item) => item.existingId) : []);
@@ -279,7 +283,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
 
   function restoreSnapshot(scope, input) {
     const value = validateBackup(scope, store.getSnapshot(scope, input.snapshotId));
-    const plan = preview(scope, { backup: value });
+    const plan = preview(scope, value);
     if (input.confirm !== true || input.digest !== plan.digest || input.currentDigest !== plan.currentDigest) {
       throw new Error('恢复点预览已变化，请重新确认。');
     }
@@ -315,15 +319,13 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         return value;
       }
       case 'preview-restore':
-        return preview(scope, input);
+        return preview(scope, validateBackup(scope, input.backup));
       case 'restore':
         return restore(scope, input);
       case 'snapshots':
         return store.snapshots(scope);
       case 'preview-snapshot':
-        return preview(scope, {
-          backup: store.getSnapshot(scope, input.snapshotId),
-        });
+        return preview(scope, validateBackup(scope, store.getSnapshot(scope, input.snapshotId)));
       case 'restore-snapshot':
         return restoreSnapshot(scope, input);
       case 'export-list':

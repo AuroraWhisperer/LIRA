@@ -248,7 +248,7 @@ export function createEventHandlers(deps) {
         account.hidden = !music;
         if (focusSource) tabs.find((tab) => tab.dataset.source === playbackState.selectedSource)?.focus();
       };
-      musicToggle.addEventListener('click', () => selectWorkspace(true, true));
+      musicToggle.addEventListener('click', (event) => selectWorkspace(true, !event?.detail));
       appearanceToggle.addEventListener('click', () => selectWorkspace(false));
       selectWorkspace(true);
     }

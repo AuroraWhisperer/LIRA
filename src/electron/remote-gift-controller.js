@@ -70,7 +70,6 @@ function createRemoteGiftController(options = {}) {
   let reconcileGeneration = null;
   let generationController = null;
   let streamController = null;
-  let streamTask = null;
   const reconnect = createCancellableDelay(timers);
   let reconnectDelayMs = RECONNECT_MIN_MS;
   let retryNotBefore = 0;
@@ -441,7 +440,7 @@ function createRemoteGiftController(options = {}) {
       task = Promise.reject(error);
     }
     let retryAfterMs = 0;
-    streamTask = Promise.resolve(task)
+    void Promise.resolve(task)
       .catch((error) => {
         retryAfterMs = error?.retryAfterMs || 0;
       })
@@ -449,7 +448,6 @@ function createRemoteGiftController(options = {}) {
         generationSignal.removeEventListener('abort', abortFromGeneration);
         if (streamController !== controller) return;
         streamController = null;
-        streamTask = null;
         if (controller.signal.aborted) return;
         if (!ensureFenceCurrent(streamFence)) return;
         epochValidated = false;
@@ -628,7 +626,6 @@ function createRemoteGiftController(options = {}) {
   function abortEventStream() {
     streamController?.abort();
     streamController = null;
-    streamTask = null;
   }
 
   function stop() {

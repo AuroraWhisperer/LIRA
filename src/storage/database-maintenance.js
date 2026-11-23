@@ -4,7 +4,7 @@ const { now } = require('../shared/utils');
 const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
 const { clearAllQueueStatesInTransaction } = require('./playback-store');
 
-const { CLEAR_ALL_MATRIX, clearGiftScopeInTransaction, countRows } = require('./database-clear-operations');
+const { CLEAR_ALL_MATRIX, clearGiftScopeInTransaction, countRows, restoreSongDefaults } = require('./database-clear-operations');
 const { coordinateClearAll } = require('./database-clear-coordinator');
 
 // ── 清空操作 ──
@@ -23,6 +23,7 @@ function clearSongLibraryData(db) {
       WHERE name IN ('songs', 'song_categories', 'import_batches')
     `,
     ).run();
+    restoreSongDefaults(db, now());
     createCloudSongSyncStore(db).capturePending();
     db.exec('COMMIT');
   } catch (error) {

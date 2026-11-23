@@ -99,14 +99,6 @@ export function createSceneDocumentModel(document) {
       gesture = current;
       notify();
     },
-    updateGesture(mutator) {
-      if (!gesture) throw new Error('请先开始手势。');
-      const next = change(gesture, mutator);
-      if (equal(current, next)) return false;
-      current = next;
-      notify();
-      return true;
-    },
     updateGestureGeometry(ids, deltaX, deltaY, { handle, snap = false } = {}) {
       if (!gesture) throw new Error('请先开始手势。');
       if (![deltaX, deltaY].every(Number.isFinite)) throw new Error('移动距离必须为有限数值。');
@@ -202,11 +194,6 @@ function bounds(items) {
   return { left, top, right, bottom };
 }
 
-export function moveSceneItems(document, ids, deltaX, deltaY, { snap = false } = {}) {
-  if (![deltaX, deltaY].every(Number.isFinite)) throw new Error('移动距离必须为有限数值。');
-  return moveItems(validateSceneDocument(document), ids, deltaX, deltaY, { snap });
-}
-
 function moveItems(next, ids, deltaX, deltaY, { snap = false } = {}) {
   const items = selection(next, ids);
   if (!items.length) return next;
@@ -227,10 +214,6 @@ function moveItems(next, ids, deltaX, deltaY, { snap = false } = {}) {
     item.y += offsetY;
   }
   return next;
-}
-
-export function resizeSceneItem(document, id, handle, deltaX, deltaY, { snap = false } = {}) {
-  return resizeItem(validateSceneDocument(document), id, handle, deltaX, deltaY, { snap });
 }
 
 function resizeItem(next, id, handle, deltaX, deltaY, { snap = false } = {}) {

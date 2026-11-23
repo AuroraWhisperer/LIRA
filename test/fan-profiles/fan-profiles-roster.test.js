@@ -101,13 +101,13 @@ test('profile lookups remain mutually exclusive, drain on shutdown and discard c
   }
 });
 
-test('daily roster waits until 12:10 Shanghai time and delivers one scheduled notification', async (t) => {
-  let now = Date.parse('2026-09-20T12:09:55+08:00');
+test('daily roster waits until 00:10 Shanghai time and delivers one scheduled notification', async (t) => {
+  let now = Date.parse('2026-09-20T00:09:55+08:00');
   const f = fixture(t, { now: () => now, state: { windowOpen: true }, autoSyncGuardRoster: true });
   await f.controller.start();
   assert.equal(f.calls.roster.length, 0);
   const timer = [...f.timers.pending.values()].find((entry) => entry.delay === 5000);
-  assert.ok(timer, 'main-process timer targets 12:10 even while the fan page is hidden');
+  assert.ok(timer, 'main-process timer targets 00:10 even while the fan page is hidden');
   now += 5000;
   f.timers.pending.delete(timer);
   timer.callback();
@@ -118,16 +118,16 @@ test('daily roster waits until 12:10 Shanghai time and delivers one scheduled no
   assert.equal(notice.data.status, 'success');
   assert.equal((await f.invoke({ action: 'auto-update-status' })).data, null);
   assert.equal(f.calls.roster.length, 1);
-  now = Date.parse('2026-09-21T12:10:00+08:00');
+  now = Date.parse('2026-09-21T00:10:00+08:00');
   assert.equal((await f.invoke({ action: 'auto-update-status' })).data.reason, 'scheduled');
   assert.equal(f.calls.roster.length, 2);
   f.controller.dispose();
   assert.equal(f.timers.pending.size, 0);
 });
 
-test('first launch after 12:10 catches up once and a restart preserves the daily success marker', async (t) => {
+test('first launch after 00:10 catches up once and a restart preserves the daily success marker', async (t) => {
   const options = {
-    now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+    now: () => Date.parse('2026-09-20T00:15:00+08:00'),
     state: { windowOpen: true },
     autoSyncGuardRoster: true,
     settings: new Map(),

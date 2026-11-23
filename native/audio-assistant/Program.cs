@@ -70,7 +70,8 @@ internal sealed class AssistantContext : ApplicationContext
   }
 
   void Write(object value) { Console.WriteLine(JsonSerializer.Serialize(value, AssistantSettings.Json)); Console.Out.Flush(); }
-  void Publish() => Write(new { type = "state", state = session.Snapshot() });
+  void Publish() => Publish(session.Snapshot());
+  void Publish(object state) => Write(new { type = "state", state });
 
   async void Handle(string line)
   {
@@ -96,13 +97,15 @@ internal sealed class AssistantContext : ApplicationContext
         case "close": Close(); return;
         default: throw new ArgumentException("未知电音助手操作。");
       }
-      Publish();
-      Write(new { id, ok = true, state = session.Snapshot() });
+      var state = session.Snapshot();
+      Publish(state);
+      Write(new { id, ok = true, state });
     }
     catch (Exception error)
     {
-      Publish();
-      Write(new { id, ok = false, error = error.Message, state = session.Snapshot() });
+      var state = session.Snapshot();
+      Publish(state);
+      Write(new { id, ok = false, error = error.Message, state });
     }
   }
 

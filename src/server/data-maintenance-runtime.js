@@ -3,7 +3,7 @@
 const database = require('../storage/database');
 const retention = require('../storage/retention');
 
-function createDataMaintenanceRuntime({ db, getSettings, ensureSongCategory, ensureUnifiedQueue,
+function createDataMaintenanceRuntime({ db, getSettings, ensureUnifiedQueue,
   clearSuperChatUndo, getActiveGiftSource, reloadOvertimeState, resetUserCooldowns,
   runGiftMaintenance = operation => operation() }) {
   // Schema versions only change during startup migration.
@@ -19,7 +19,6 @@ function createDataMaintenanceRuntime({ db, getSettings, ensureSongCategory, ens
   return {
     clearSongLibrary() {
       const result = database.clearSongLibraryData(db.songDb);
-      ensureSongCategory('默认');
       ensureUnifiedQueue();
       return result;
     },
@@ -42,7 +41,6 @@ function createDataMaintenanceRuntime({ db, getSettings, ensureSongCategory, ens
         try {
           reloadOvertimeState();
           resetUserCooldowns();
-          ensureSongCategory('默认');
           ensureUnifiedQueue();
         } catch (error) {
           return {

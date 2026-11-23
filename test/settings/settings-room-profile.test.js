@@ -38,7 +38,6 @@ async function fixture(loadProfile) {
       ok: true,
       json: async () => ({ ok: true, ...(await loadProfile(...args)) }),
     }),
-    apiToken: 'synthetic-token',
     onProfileChange: (profile) => profiles.push(profile),
   });
   return { module, view, elements, profiles };
@@ -49,8 +48,7 @@ test('room card renders owner identity with the existing authenticated avatar pr
   const { module, view, elements, profiles } = await fixture(async (url, options) => {
     requests += 1;
     assert.equal(url, '/api/bilibili/room/profile');
-    assert.equal(options.method, undefined, 'Room profile requests use GET');
-    assert.equal(options.headers.Authorization, 'Bearer synthetic-token');
+    assert.equal(options?.method, undefined, 'Room profile requests use GET');
     return {
       data: {
         roomId: '123000',
@@ -79,7 +77,7 @@ test('room card renders owner identity with the existing authenticated avatar pr
   assert.equal(avatar.hidden, false);
   const source = new URL(avatar.src, 'http://127.0.0.1');
   assert.equal(source.pathname, '/api/bilibili/avatar');
-  assert.equal(source.searchParams.get('token'), 'synthetic-token');
+  assert.equal(source.searchParams.has('token'), false);
   assert.equal(source.searchParams.get('url'), 'https://i0.hdslb.com/bfs/face/owner.jpg');
   const snapshot = module.getBilibiliRoomProfileSnapshot('123');
   assert.equal(snapshot.uid, '456');

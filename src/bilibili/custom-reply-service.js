@@ -81,12 +81,6 @@ function createCustomReplyService(dependencies = {}) {
   };
 }
 
-function findCustomReplyRule(message, settings = {}) {
-  const text = cleanText(message);
-  if (!text || settings.enableCustomReplyBot !== 'true') return null;
-  return matchCustomReplyRule(text, compileCustomReplyRules(settings.customReplyRules));
-}
-
 function compileCustomReplyRules(value) {
   return parseCustomReplyRules(value)
     .filter((rule) => rule.enabled)
@@ -125,7 +119,6 @@ function normalizeCustomReplyRule(item = {}) {
 
 module.exports = {
   createCustomReplyService,
-  findCustomReplyRule,
   parseCustomReplyRules,
   normalizeCustomReplyRule,
   MAX_CUSTOM_REPLY_RULES,

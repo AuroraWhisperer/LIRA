@@ -422,3 +422,11 @@ test('gift catalog initialization IPC is authorized, sanitized, and retryable', 
   assert.equal(rejected.error, 'LICENSE_REQUIRED');
   assert.equal(initializationCalls, 1);
 });
+
+test('disposing license IPC removes only its own handlers', () => {
+  const f = createLicenseIpcFixture();
+  f.handlers.set('other', () => {});
+  assert.ok(f.handlers.has('license:get-profile'));
+  f.dispose();
+  assert.deepEqual([...f.handlers.keys()], ['other']);
+});

@@ -40,25 +40,11 @@ function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
         continue;
       }
       if (platformId && superChatDb.prepare('SELECT 1 FROM super_chat_receipts WHERE platform_id = ?').get(platformId)) continue;
-      const fingerprint = legacySuperChatFingerprint(row);
-      const existing = superChatDb
-        .prepare(
-          `
-        SELECT id
-        FROM super_chats
-        WHERE (platform_id != '' AND platform_id = ?)
-           OR (platform_id = '' AND ? != '' AND uid = ? AND message = ? AND created_at = ? AND price = ?)
-        LIMIT 1
-      `,
-        )
-        .get(
-          cleanText(row.platform_id),
-          fingerprint,
-          cleanText(row.uid),
-          cleanText(row.message),
-          cleanText(row.created_at),
-          normalizeSuperChatPrice(row.price),
-        );
+      const existing = platformId
+        ? superChatDb.prepare('SELECT 1 FROM super_chats WHERE platform_id = ?').get(platformId)
+        : superChatDb.prepare(`SELECT 1 FROM super_chats
+            WHERE platform_id = '' AND uid = ? AND message = ? AND created_at = ? AND price = ? LIMIT 1`)
+          .get(cleanText(row.uid), cleanText(row.message), cleanText(row.created_at), normalizeSuperChatPrice(row.price));
       if (existing) continue;
 
       superChatDb
@@ -72,7 +58,7 @@ function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
       `,
         )
         .run(
-          cleanText(row.platform_id),
+          platformId,
           cleanText(row.uid),
           cleanText(row.user_name) || '观众',
           normalizeSuperChatPrice(row.price),
@@ -110,13 +96,7 @@ function dropLegacySuperChatTable(songDb, migrated) {
   }
 }
 
-function legacySuperChatFingerprint(row) {
-  if (!row) return '';
-  return [cleanText(row.uid), cleanText(row.message), cleanText(row.created_at)].join('|');
-}
-
 module.exports = {
   migrateLegacySuperChatsToDedicatedDatabase,
   dropLegacySuperChatTable,
-  legacySuperChatFingerprint,
 };

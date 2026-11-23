@@ -57,12 +57,12 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   }
 
   function update() {
-    const addedCount = rowSelection.refresh();
+    const changes = rowSelection.refresh();
     const count = state.selected.size;
     if (get('giftHistoryDeselect')) get('giftHistoryDeselect').disabled = count === 0;
     const counter = get('giftHistorySelectedCount');
     if (counter) {
-      const suffix = addedCount === null ? '' : `（本次 +${addedCount}）`;
+      const suffix = changes === null ? '' : `（本次 +${changes.added} / -${changes.removed}）`;
       counter.textContent = `已选 ${count} 条${suffix}`;
     }
     if (get('giftHistoryExport')) {

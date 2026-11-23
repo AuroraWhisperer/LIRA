@@ -38,13 +38,16 @@ export function initDanmakuCloudReplies({
   });
 
   function controls() {
-    const disabled = !owner || !available || !saved || pending;
+    const unavailable = !owner || !available || !saved;
     exactToggle.checked = saved?.customExactReplyEnabled === true;
     scheduledToggle.checked = saved?.scheduledDanmakuEnabled === true;
-    exactToggle.disabled = scheduledToggle.disabled = disabled;
-    get('danmakuExactFields').disabled = get('danmakuScheduledFields').disabled = !owner || !available || !saved;
+    for (const toggle of [exactToggle, scheduledToggle]) {
+      toggle.disabled = unavailable || pending;
+      toggle.setAttribute('data-switch-pending', String(!unavailable && pending));
+    }
+    get('danmakuExactFields').disabled = get('danmakuScheduledFields').disabled = unavailable;
     for (const kind of ['exact', 'scheduled']) {
-      documentRef.querySelector(`[data-fixed-open="${kind}"]`).disabled = !owner || !available || !saved;
+      documentRef.querySelector(`[data-fixed-open="${kind}"]`).disabled = unavailable;
     }
     interactionThanks.updateState({ saved, owner, available, pending, message: exactState.textContent });
   }

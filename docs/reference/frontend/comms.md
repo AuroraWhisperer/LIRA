@@ -92,7 +92,7 @@ Admin 首次成功连接不重复初始歌库加载；后续每次成功重连�
 | 客户端 | 策略 | 出处 |
 | --- | --- | --- |
 | 管理页 `StateService` | `close` 后固定 **1600ms** 重连；`setShuttingDown(true)` 时改显示「程序已退出」并停止重连 | [state.js:81-92](../../../public/js/admin/state.js#L81-L92) |
-| 叠加层（队列/歌单/盲盒/加班机） | 指数退避 `min(30000, 800 × 2^min(attempts,6))`，重连前先 `loadState()` 拿快照兜底 | [overlays/queue.js:86-93](../../../public/js/overlays/queue.js#L86-L93) |
+| 叠加层（队列/歌单/盲盒/加班机） | 指数退避 `min(30000, 800 × 2^min(attempts,6))`。队列、歌单和加班机重连时补读状态，盲盒在 `connect` 快照到达时补读一次统计 | [queue.js](../../../public/js/overlays/queue.js)、[blindbox.js](../../../public/js/overlays/blindbox.js) |
 | 弹幕叠加层 | 同上退避；URL 固定带 `topic=danmaku`，断线只更新连接状态文案，`pagehide` 释放连接 | [overlays/danmaku.js](../../../public/js/overlays/danmaku.js) |
 | 礼物特效叠加层 | `min(30000, 1000 × 2^min(attempts,5))`；断线停用全屏特效，`pagehide` 释放连接与播放器 | [overlays/gift-effects.js](../../../public/js/overlays/gift-effects.js) |
 | 直播歌词浏览器源 | `min(15000, 1000 × 2^min(attempts,4))`；连接器不显式加 token，本页 HTML 的 overlay bootstrap 会为本机 `/ws` 补入 `lyrics` scope 凭据；出错关闭连接走 `close` 路径，断线加 `is-disconnected` 类 | [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js) |
@@ -115,7 +115,7 @@ Admin 首次成功连接不重复初始歌库加载；后续每次成功重连�
 | `window.bilibiliAuth` | Bilibili 扫码登录 `login/logout/getAuthState`；Web 模式禁用并显示「Web 模式（不可用）」 | `!!window.bilibiliAuth`（[settings-auth.js](../../../public/js/admin/settings-auth.js) 的 `initBilibiliAuth`） |
 | `window.liraLicense` | 设备授权状态、重试、云端歌单与背景、目录初始化进度 | `typeof window.liraLicense?.xxx === 'function'` |
 
-**降级路径**：同一功能优先走 IPC，后端不可用时再回退 HTTP（如 `ProviderManager.refreshProviderState` 先调用 `musicAPI.providerHealth(source)`，浏览器回退 `GET /api/music/health`，见 [provider/manager.js:42-64](../../../public/js/playback/provider/manager.js#L42-L64)）；`ProviderManager` 遇到 `auth-state` 等可选接口返回 404/501 时会标记为不可用并静默返回空态，避免重复请求（[provider/manager.js:86-100](../../../public/js/playback/provider/manager.js#L86-L100)）。
+**音乐状态读取**：`checkProviderHealth` 在桌面调用 `musicAPI.providerHealth`，浏览器回退到 `GET /api/music/health`。认证状态接口返回 404/501 时跳过后续请求，强制刷新可重新探测。桌面临时读取失败后保留该平台最近一次已知状态，本次登录确认仍按未知处理。见 [ProviderManager](../../../public/js/playback/provider/manager.js)。
 
 **桌面外壳启动**：`desktop.js` 的 `initDesktopShell()` 检测到 `window.songAssistantDesktop` 后给 `body` 加 `desktop-shell` 类并显示 `.desktop-only` 元素、绑定窗口控制与更新按钮、订阅 `onUpdateState`/`onShowUpdatePage` 回调、`getInfo()` 填充版本徽章（[desktop.js:10-94](../../../public/js/desktop.js#L10-L94)）；`settings-form.js` 的 `initDesktopControls` 为 `#winMinBtn/#winMaxBtn/#winCloseBtn` 绑定窗口操作并随 `onWindowMaximized` 切换最大化/还原图标（[settings-form.js](../../../public/js/admin/settings-form.js) 的 `initDesktopControls`）。
 

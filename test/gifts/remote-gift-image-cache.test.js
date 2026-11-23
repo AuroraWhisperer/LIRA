@@ -218,7 +218,7 @@ test('downloads configured server images into a reusable local cache', async () 
     assert.equal(calls, 1);
 
     fs.writeFileSync(path.join(dataDir, 'cache', 'overtime-gift-images', 'a.webp'), 'not an image');
-    assert.equal(cache.getCachedImagePath('https://api.example.test/gift-media/images/a.webp'), '');
+    assert.equal(cache.getCachedGiftImagePath({ id: '1', imagePath: 'https://api.example.test/gift-media/images/a.webp' }), '');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

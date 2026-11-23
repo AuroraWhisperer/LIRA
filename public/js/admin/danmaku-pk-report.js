@@ -35,8 +35,10 @@ export function initDanmakuPkReport({
     element('Panel').setAttribute('aria-busy', String(pending));
     for (const [key, suffix] of Object.entries(SWITCHES)) {
       const field = element(suffix);
+      const unavailable = !settings || !available || (key !== 'enabled' && (!supported() || !settings.enabled));
       field.checked = Boolean(settings?.[key]);
-      field.disabled = !settings || pending || !available || (key !== 'enabled' && (!supported() || !settings.enabled));
+      field.disabled = unavailable || pending;
+      field.setAttribute('data-switch-pending', String(!unavailable && pending));
     }
     element('Capability').hidden = !settings || supported();
     element('Delay').disabled = !supported();

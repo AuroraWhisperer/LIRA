@@ -256,18 +256,6 @@ test('component save feedback distinguishes pending edits and ignores reset sess
   assert.equal(f.container.children.length, 0, 'a previous session cannot announce success');
 });
 
-test('media resume reports a readable error but skips interruptions and handled media errors', async () => {
-  const f = feedbackFixture();
-  const { notifyMediaPlayFailure } = await f.load('shared/media-playback-feedback.js');
-  notifyMediaPlayFailure({ name: 'AbortError' }, {});
-  notifyMediaPlayFailure(new Error('The play() request was interrupted'), {});
-  notifyMediaPlayFailure(new Error('decode error'), { error: { code: 3 } });
-  assert.equal(f.container.children.length, 0);
-  notifyMediaPlayFailure({ name: 'NotAllowedError' }, {});
-  notifyMediaPlayFailure({ name: 'NotAllowedError' }, {});
-  assert.equal(f.container.children.length, 1);
-});
-
 test('reminder failures notify outside the editor once and announce recovery', async () => {
   const f = feedbackFixture({ crypto: { randomUUID: () => 'event-1' } });
   const pending = [];

@@ -154,6 +154,26 @@ test('changed leaderboard filters refresh even when a coalesced snapshot has ano
   assert.equal(requests.length, 1);
 });
 
+test('a reconnect and its first snapshot fetch the blind box stats once', async () => {
+  const { sandbox, api } = await createOverlay('?r=0');
+  const listeners = new Map();
+  let reconnect;
+  let reads = 0;
+  sandbox.WebSocket = class {
+    addEventListener(event, listener) { listeners.set(event, listener); }
+  };
+  sandbox.setTimeout = callback => { reconnect = callback; return 1; };
+  sandbox.clearTimeout = () => {};
+  sandbox.fetch = async () => { reads++; return { json: async () => ({ ok: true, data: { summary: {} } }) }; };
+  api.connectSocket();
+  listeners.get('close')();
+  reconnect();
+  listeners.get('open')();
+  listeners.get('message')({ data: JSON.stringify({ type: 'snapshot', reason: 'connect', state: { settings: {} } }) });
+  await new Promise(setImmediate);
+  assert.equal(reads, 1);
+});
+
 test('blindbox refreshes share one pending request and read the last dirty update', async () => {
   const { sandbox, api, elements } = await createOverlay();
   const pending = [];

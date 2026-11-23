@@ -11,7 +11,7 @@ export function addGiftCardTotals(card, item) {
   card.gift.num = quantity <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(quantity) : quantity.toString();
 }
 
-export function buildGiftCards(items, { day = shanghaiToday(), profiles = [], keepSourceEventId = false } = {}) {
+export function buildGiftCards(items, { day = shanghaiToday(), profiles = [], mergeToday = true, keepSourceEventId = false } = {}) {
   const senders = new Map();
   const identities = new Map();
   for (const evidence of [...profiles].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
@@ -33,7 +33,7 @@ export function buildGiftCards(items, { day = shanghaiToday(), profiles = [], ke
       cards.push(item);
       continue;
     }
-    const key = gift.giftId && gift.giftName ? JSON.stringify([day, senderId, gift.giftId, gift.giftName]) : null;
+    const key = mergeToday && gift.giftId && gift.giftName ? JSON.stringify([day, senderId, gift.giftId, gift.giftName]) : null;
     let card = key && groups.get(key);
     if (!card) {
       card = {

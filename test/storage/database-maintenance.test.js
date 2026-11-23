@@ -466,6 +466,24 @@ function readSuperChats(databases) {
 
 const LEGACY_SC_TIME = '2026-01-02T03:04:05.000Z';
 
+test('a legacy SC with a platform ID remains retractable beside its no-ID twin in either order', (t) => {
+  const { createSuperChatStore } = require('../../src/storage/superchat-store');
+  for (const ids of [['', 'sc-7'], ['sc-7', '']]) {
+    const dir = createScratchDirectory('legacy-sc-identity-', t);
+    createLegacySuperChatTable(dir, ids.map(platformId => ({
+      platformId, uid: '7', price: 30, message: 'same', createdAt: LEGACY_SC_TIME,
+    })));
+    const db = createDatabases({ dataDir: dir });
+    try {
+      assert.deepEqual(readSuperChats(db).map(row => row.platform_id).sort(), ['', 'sc-7']);
+      createSuperChatStore(db.superChatDb).markDeletedByPlatformIds(['sc-7']);
+      assert.deepEqual(readSuperChats(db).map(row => row.platform_id), ['']);
+    } finally {
+      closeDatabases(db);
+    }
+  }
+});
+
 test('legacy SuperChats retain different amounts without platform IDs in either order and on retry', () => {
   for (const prices of [[30, 50], [50, 30]]) {
     const dataDir = createScratchDirectory('legacy-sc-amounts-');

@@ -71,12 +71,20 @@ function composeAdminHtml(publicDir) {
   const cached = composedHtmlCache.get(cacheKey);
   if (cached !== undefined) return cached;
   const fragments = ADMIN_FRAGMENT_PATHS.map((relativePath) => readAdminFragment(publicDir, relativePath)).join('');
-  const html = fragments.replace(/<template data-client-theme-option>([\s\S]*?)<\/template>/, (_marker, template) =>
-    CLIENT_THEMES.map(({ id, name }) => template
+  const lightThemes = CLIENT_THEMES.filter(({ mode }) => mode !== 'dark');
+  const darkThemes = CLIENT_THEMES.filter(({ mode }) => mode === 'dark');
+  const renderThemeOptions = (template, themes) =>
+    themes.map(({ id, name, mode }) => template
       .replaceAll('{{client-theme-id}}', id)
       .replaceAll('{{client-theme-name}}', name)
-      .replaceAll('{{client-theme-checked}}', id === DEFAULT_CLIENT_THEME_ID ? 'checked' : '')).join(''),
-  );
+      .replaceAll('{{client-theme-mode}}', mode || 'light')
+      .replaceAll('{{client-theme-checked}}', id === DEFAULT_CLIENT_THEME_ID ? 'checked' : '')).join('');
+  const html = fragments
+    .replaceAll('{{client-theme-count-all}}', String(CLIENT_THEMES.length))
+    .replaceAll('{{client-theme-count-light}}', String(lightThemes.length))
+    .replaceAll('{{client-theme-count-dark}}', String(darkThemes.length))
+    .replace(/<template data-client-theme-option(?:="(light|dark)")?>([\s\S]*?)<\/template>/g, (_marker, mode, template) =>
+      renderThemeOptions(template, mode === 'light' ? lightThemes : mode === 'dark' ? darkThemes : CLIENT_THEMES));
   composedHtmlCache.set(cacheKey, html);
   return html;
 }

@@ -115,7 +115,7 @@ test('download corruption leaves no partial executable and retries only when exp
     return new Response(bytes);
   } });
   await assert.rejects(manager.initialize(), /HASH_INVALID/);
-  await assert.rejects(manager.getExecutable(), /关于与更新.*重试/);
+  await assert.rejects(manager.getExecutable(), /系统与关于.*重试/);
   assert.equal(requests, 1);
   assert.deepEqual(await fs.readdir(f.root), []);
   await manager.retry();

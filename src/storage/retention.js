@@ -186,43 +186,35 @@ function getRetentionStats(databases) {
 
 function tableStats(db, tableName, timeColumn = 'created_at') {
   if (!db) return { rows: 0, oldest: '', newest: '' };
-  try {
-    const row = db
-      .prepare(
-        `
-      SELECT COUNT(*) AS rows, MIN(${timeColumn}) AS oldest, MAX(${timeColumn}) AS newest
-      FROM ${tableName}
-    `,
-      )
-      .get();
-    return {
-      rows: Number(row && row.rows) || 0,
-      oldest: (row && row.oldest) || '',
-      newest: (row && row.newest) || '',
-    };
-  } catch (_) {
-    return { rows: 0, oldest: '', newest: '' };
-  }
+  const row = db
+    .prepare(
+      `
+    SELECT COUNT(*) AS rows, MIN(${timeColumn}) AS oldest, MAX(${timeColumn}) AS newest
+    FROM ${tableName}
+  `,
+    )
+    .get();
+  return {
+    rows: Number(row && row.rows) || 0,
+    oldest: (row && row.oldest) || '',
+    newest: (row && row.newest) || '',
+  };
 }
 
 function rawJsonStats(db) {
   if (!db) return { rows: 0, bytes: 0 };
-  try {
-    const row = db
-      .prepare(
-        `
-      SELECT COUNT(*) AS rows, SUM(LENGTH(CAST(raw_json AS BLOB))) AS bytes
-      FROM gift_events WHERE raw_json != ''
-    `,
-      )
-      .get();
-    return {
-      rows: Number(row && row.rows) || 0,
-      bytes: Number(row && row.bytes) || 0,
-    };
-  } catch (_) {
-    return { rows: 0, bytes: 0 };
-  }
+  const row = db
+    .prepare(
+      `
+    SELECT COUNT(*) AS rows, SUM(LENGTH(CAST(raw_json AS BLOB))) AS bytes
+    FROM gift_events WHERE raw_json != ''
+  `,
+    )
+    .get();
+  return {
+    rows: Number(row && row.rows) || 0,
+    bytes: Number(row && row.bytes) || 0,
+  };
 }
 
 module.exports = {

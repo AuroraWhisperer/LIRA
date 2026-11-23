@@ -6,7 +6,7 @@ export function initWeeklySchedule() {
   if (!root) return;
   let editor;
   let disposed = false;
-  window.addEventListener('beforeunload', () => {
+  window.addEventListener('pagehide', () => {
     disposed = true;
     editor?.dispose();
   }, { once: true });

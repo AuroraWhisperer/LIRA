@@ -56,9 +56,8 @@ test('missing gift avatars resolve by unique sender UID and reach the export sna
   assert.deepEqual(calls.sort(), ['123', '456']);
   assert.deepEqual(
     result.items.map((item) => item.gift.avatarUrl || null),
-    [avatar, null, null],
+    [avatar, avatar, null, null],
   );
-  assert.equal(result.items[0].gift.num, 2);
   assert.deepEqual(profiles, original);
 });
 
@@ -324,7 +323,7 @@ test('midnight and runtime reset reject late replies and reset clears cached sen
   assert.deepEqual((await runtime.getProfiles()).items, []);
 });
 
-test('cross-date export adds the frozen daily total only once and retains selection order', async () => {
+test('export keeps each settlement until merging and counts same-day and historical gifts in selection order', async () => {
   const items = ['one', 'two'].map((eventId) => ({
     eventId,
     gift: {
@@ -339,6 +338,7 @@ test('cross-date export adds the frozen daily total only once and retains select
   }));
   items[0].gift.unitPrice = 10;
   const older = { eventId: 'older', gift: { ...items[0].gift, createdAt: '2026-09-17T05:00:00Z', num: 100 } };
+  items.splice(1, 0, { eventId: 'pillow', gift: { ...items[0].gift, giftId: '2', giftName: '抱枕' } });
   items.unshift(older);
   const before = structuredClone(items);
   const runtime = createGiftExportRuntime({
@@ -354,17 +354,15 @@ test('cross-date export adds the frozen daily total only once and retains select
     return { ok: true, groups: [['one', 'older']], partial: false };
   } });
   const snapshot = await runtime.prepareGiftExport({});
-  assert.equal(snapshot.items.length, 2);
-  assert.equal(snapshot.items[1].gift.num, 4);
-  assert.equal(snapshot.items[1].cardTotalCents, '6000');
+  const settlements = (rows) => rows.map(({ eventId, gift }) => [eventId, gift.num]);
+  assert.deepEqual(settlements(snapshot.items), settlements(before));
   assert.equal(snapshot.items[1].gift.userName, '新名字');
   assert.equal(snapshot.items[1].gift.guardLevel, 2);
   const grouped = await runtime.mergeGiftExport(snapshot, new AbortController().signal);
-  assert.equal(grouped.selectedCount, 3);
-  assert.equal(grouped.items.length, 1);
-  assert.equal(grouped.items[0].eventId, 'older');
-  assert.equal(grouped.items[0].gift.num, 104);
+  assert.equal(grouped.selectedCount, 4);
+  assert.deepEqual(settlements(grouped.items), [['older', 104], ['pillow', 2]]);
   assert.equal(grouped.items[0].cardTotalCents, '106000');
+  assert.deepEqual(settlements(snapshot.items), settlements(before));
   assert.deepEqual(items, before);
 });
 

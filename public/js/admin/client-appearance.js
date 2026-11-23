@@ -10,17 +10,50 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
   const choices = [...panel.querySelectorAll('input[name="clientTheme"]')];
   const themeIds = new Set(choices.map((choice) => choice.value));
   const feedback = panel.querySelector('[data-client-theme-feedback]');
+  const currentNameEl = documentRef.getElementById('clientThemeCurrentName');
+  const filterBar = documentRef.getElementById('clientThemeFilters');
   const canApply = typeof desktopBridge?.setClientTheme === 'function';
   const initialTheme = documentRef.documentElement.dataset.clientTheme;
   let currentTheme = themeIds.has(initialTheme) ? initialTheme : choices.find((choice) => choice.defaultChecked).value;
   let pendingTheme = '';
 
+  function setFeedback(text, state = '') {
+    if (!feedback) return;
+    feedback.textContent = text;
+    if (feedback.dataset) feedback.dataset.state = state;
+  }
+
   function render() {
+    const activeTheme = pendingTheme || currentTheme;
     for (const choice of choices) {
-      choice.checked = choice.value === (pendingTheme || currentTheme);
+      choice.checked = choice.value === activeTheme;
       choice.disabled = Boolean(pendingTheme) || !canApply;
     }
+    if (currentNameEl) {
+      const selectedChoice = choices.find((choice) => choice.value === activeTheme);
+      const label = selectedChoice?.dataset?.clientThemeName;
+      if (label) currentNameEl.textContent = label;
+    }
     panel.setAttribute('aria-busy', String(Boolean(pendingTheme)));
+  }
+
+  if (filterBar && typeof filterBar.querySelectorAll === 'function') {
+    const filterButtons = [...filterBar.querySelectorAll('[data-client-theme-filter]')];
+    const groupsContainer = panel.querySelector('.client-appearance-groups');
+    const groups = groupsContainer ? [...groupsContainer.querySelectorAll('[data-client-theme-group]')] : [];
+
+    for (const button of filterButtons) {
+      button.addEventListener('click', () => {
+        const mode = button.dataset.clientThemeFilter || 'all';
+        for (const item of filterButtons) {
+          item.setAttribute('aria-pressed', String(item === button));
+        }
+        if (groupsContainer) groupsContainer.classList.toggle('is-filtered', mode !== 'all');
+        for (const group of groups) {
+          group.hidden = mode !== 'all' && group.dataset.clientThemeGroup !== mode;
+        }
+      });
+    }
   }
 
   for (const choice of choices) {
@@ -30,7 +63,7 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
         return;
       }
       pendingTheme = choice.value;
-      feedback.textContent = '正在保存…';
+      setFeedback('正在保存…', 'busy');
       render();
       try {
         const result = await desktopBridge.setClientTheme(choice.value);
@@ -39,9 +72,9 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
         }
         currentTheme = result.themeId;
         documentRef.documentElement.dataset.clientTheme = currentTheme;
-        feedback.textContent = '配色已保存';
+        setFeedback('配色已保存', 'saved');
       } catch {
-        feedback.textContent = '配色未保存，请重新选择';
+        setFeedback('配色未保存，请重新选择', 'error');
       } finally {
         pendingTheme = '';
         render();
@@ -49,6 +82,6 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
     });
   }
 
-  if (!canApply) feedback.textContent = '请在桌面客户端设置配色。';
+  if (!canApply) setFeedback('请在桌面客户端设置配色。');
   render();
 }

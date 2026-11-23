@@ -120,7 +120,7 @@ function initStartAnimation() {
   let hydrated = false;
   let loading = false;
   let characterNames = {};
-  let saveInFlight = false;
+  let saveInFlight = null;
   let saveQueued = false;
   let lastSavedPayload = '';
   let activeStyle = 'classic';
@@ -172,20 +172,22 @@ function initStartAnimation() {
     return config;
   };
 
-  const persist = async () => {
-    if (!hydrated) return;
+  function persist() {
+    if (!hydrated) return Promise.resolve(false);
     saveQueued = true;
-    if (saveInFlight) return;
-    saveInFlight = true;
-    let failed = false;
+    saveInFlight ||= Promise.resolve().then(savePending);
+    return saveInFlight;
+  }
+
+  async function savePending() {
     setSaveState('saving');
     try {
       while (saveQueued) {
         saveQueued = false;
         const submitted = pendingSettings;
         pendingSettings = {};
-        const body = JSON.stringify(submitted);
         if (!Object.keys(submitted).length) continue;
+        const body = JSON.stringify(submitted);
         if (body === lastSavedPayload) continue;
         try {
           const response = await fetch(SETTINGS_ENDPOINT, {
@@ -200,19 +202,17 @@ function initStartAnimation() {
         }
         lastSavedPayload = body;
       }
+      setSaveState(Object.keys(pendingSettings).length ? 'pending' : 'saved');
+      return true;
     } catch (error) {
-      failed = true;
       setSaveState('error');
       toast(error.message || '配置保存失败，请重试。');
+      return false;
     } finally {
-      saveInFlight = false;
-      if (saveQueued) void persist();
-      else {
-        if (!failed) setSaveState(Object.keys(pendingSettings).length ? 'pending' : 'saved');
-        if (settingsRefreshPending) void refreshSharedSettings();
-      }
+      saveInFlight = null;
+      if (settingsRefreshPending) void refreshSharedSettings();
     }
-  };
+  }
 
   const schedulePersist = () => {
     if (!hydrated) return;
@@ -334,7 +334,7 @@ function initStartAnimation() {
     if (!hydrated) return;
     try {
       if (picker.isImported()) await picker.useImported();
-      else { await persist(); openComponentPreview({ id: 'opening' }); }
+      else if (await persist()) openComponentPreview({ id: 'opening' });
     } catch (error) { toast(error.message); }
   });
 

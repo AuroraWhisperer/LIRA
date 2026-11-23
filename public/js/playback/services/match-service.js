@@ -13,9 +13,7 @@ export class MatchService {
   constructor(options = {}) {
     this.state = options.state || null;
     this.stateActions = options.stateActions || createPlaybackStateActions(this.state);
-    this.onError = options.onError || (() => {});
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
-    this.toast = options.toast || (() => {});
   }
 
   /**
@@ -169,55 +167,11 @@ export class MatchService {
   }
 
   /**
-   * 确认待确认请求
-   * @param {number} index - 索引
-   * @returns {Object|null} 确认的曲目
-   */
-  confirmPendingRequest(index) {
-    if (!this.state) return null;
-    if (!Number.isInteger(index) || index < 0 || index >= this.state.pendingRequests.length) {
-      return null;
-    }
-
-    const item = this.stateActions.removePending(index);
-    if (!item || !item.track) return null;
-
-    return {
-      ...item.track,
-      songRequestKey: item.songRequestKey || '',
-      requestedBy: item.requesterName || '观众',
-    };
-  }
-
-  /**
-   * 忽略待确认请求
-   * @param {number} index - 索引
-   * @returns {boolean} 是否成功
-   */
-  ignorePendingRequest(index) {
-    if (!this.state) return false;
-    if (!Number.isInteger(index) || index < 0 || index >= this.state.pendingRequests.length) {
-      return false;
-    }
-
-    this.stateActions.removePending(index);
-    return true;
-  }
-
-  /**
    * 获取待确认请求列表
    * @returns {Array}
    */
   getPendingRequests() {
     if (!this.state) return [];
     return this.state.pendingRequests || [];
-  }
-
-  /**
-   * 清空待确认请求
-   */
-  clearPendingRequests() {
-    if (!this.state) return;
-    this.stateActions.clearPending();
   }
 }

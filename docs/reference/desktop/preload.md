@@ -247,7 +247,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 
 授权/目录事件发送到当前存活主窗口，并非“所有窗口”；license-ipc 发送时不另外检查页面路径或 origin。礼物互动发送另外检查精确 origin；资源检查发送还检查管理页。sender 检查与远端代次检查不能替代 renderer 自身任务 ID/草稿版本判断。
 
-播放保存链路：StorageManager → savePlaybackState → music-ipc → desktopRuntime.persistPlaybackSnapshot → playback-store 的 play_queue_state。退出时 main 发 prepare-shutdown，renderer 保存后 confirmShutdownFlush；main 等 ack 或 2 秒超时后继续清理，见 [关闭时序](main.md#7-关闭序列与播放状态冲刷)。礼物日汇总与近期明细同步同样只在 main 内执行，不新增 renderer IPC，不暴露 Device 令牌、UID 或服务端内部房间。查询仍走既有本地 HTTP；明细期限字段见 [API](../backend/api.md)。礼物 SSE/pull 没有 renderer IPC：main 将事件导入本地投影，再经 HTTP/WS snapshot、历史和 gift:frame 消费。
+退出冲刷由 `createStatePersistence` 发起。桌面 IPC 依次经过 `musicAPI.savePlaybackState`、`music-ipc` 和 `desktopRuntime.persistPlaybackSnapshot`，由 `playback-store` 写入 `play_queue_state`。退出时 main 发 prepare-shutdown，renderer 仅在保存成功或无待存内容时 confirmShutdownFlush。IPC 和 HTTP 都失败时保留待存快照并记录告警；main 等 ack 或 2 秒超时后继续清理，见 [关闭时序](main.md#7-关闭序列与播放状态冲刷)。礼物日汇总与近期明细同步同样只在 main 内执行，不新增 renderer IPC，不暴露 Device 令牌、UID 或服务端内部房间。查询仍走既有本地 HTTP；明细期限字段见 [API](../backend/api.md)。礼物 SSE/pull 没有 renderer IPC：main 将事件导入本地投影，再经 HTTP/WS snapshot、历史和 gift:frame 消费。
 
 ## 4. 每日机器人 action
 
@@ -344,7 +344,7 @@ Owner：[gift-export-controller.js](../../../src/electron/gift-export-controller
 - settings 不传参数读取默认值；写入只含可选 mode=combined/separate、background=transparent/white、布尔值 mergeAcrossDates、directoryAction=choose/default，拒绝未知字段与非法值。renderer 不传保存路径，目录由原生对话框或系统图片目录产生。取消目录选择不写入；导航/任务代次变化/销毁后忽略迟到选择。
 - prepare 的 selection 必须带当前 viewRevision；可带 eventIds（1–10000个非空字符串，各≤64）或历史筛选/排序条件，规则见 [礼物 HTTP 契约](../backend/api.md)。查回数量必须匹配去重 ID 数；筛选结果最多10000条且不能为空。冻结当前来源、流水、展示设置、目录和礼物卡片；后续默认设置只影响新任务。
 - ExportTask 为 `{id,snapshot,root,directory,mode,background,mergeAcrossDates,files:[{start,count,fileName}],custom}`。snapshot 含 viewRevision/asOf/items、同步元数据、selectedCount/cardsPartial、config/catalog；卡片转换可改变 items 的组织，selectedCount 保留原选中记录数。预览按 files 切出当前页，保存时同一份局部布局用于窗口初始尺寸、逐张输出和进度总数。
-- `mergeAcrossDates` 默认关闭。开启后按服务端确认的同人同礼物分组累计冻结卡片。已按今日身份合并的卡片用首条 `sourceEventId` 参与查询。每个任务复用一次分组结果，关闭开关即可恢复原预览。
+- `mergeAcrossDates` 默认关闭，预览按所选结算记录逐笔出卡，保留原数量。开启后按已确认的同人同礼物合并当天及历史记录。用今日资料合并的卡片以首条 `sourceEventId` 参与后续分组查询。每个任务复用一次合并结果，再次关闭即可恢复全部所选记录。
 - configure 要求当前 id、合法 mode/background；directoryAction 可省略，remember===true 只记忆目录。条目数1–10000；combined 每图最多39行，separate 每图1行。运行中不可改配置或再次 prepare；完成的任务不可重复 save。失败后 configure 生成新目录并重置保存计数。
 - save 使用独占任务目录/文件，逐张 render/capture/write，渲染步骤有20秒期限；viewRevision 变化立即使任务失效。进度 `{id,saved,total}` 表示已完成文件，不表示所有文件必然成功。取消或部分失败保留已写文件，返回 saved/directory；不承诺取消能撤回正在完成的文件写入。
 - 主窗口非原地导航或 destroyed 调用 cancel；dispose 也取消并销毁隐藏渲染窗口。取消不匹配的旧 id 不影响新任务；preparationGeneration 防止旧 prepare 覆盖新任务。renderer 按 id 过滤迟到 progress，关闭预览解除订阅。openFolder 只允许已保存至少一张的任务，不能传任意路径。

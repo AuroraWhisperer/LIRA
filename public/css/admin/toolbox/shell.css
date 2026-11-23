@@ -157,6 +157,10 @@ body.player-dock-expanded .other-workspace {
   padding: 8px;
 }
 
+.other-feature-indicator {
+  display: none;
+}
+
 .other-feature-group-heading {
   position: relative;
   display: flex;
@@ -579,14 +583,34 @@ body.player-dock-expanded .other-workspace {
     background: color-mix(in srgb, var(--text) 5%, transparent);
   }
 
+  .other-page:not(.live-components-page) .other-feature-menu {
+    position: relative;
+    isolation: isolate;
+  }
+
   .other-page:not(.live-components-page) .other-feature-button.active {
+    anchor-name: --toolbox-selected-row;
+    background: transparent;
+    color: var(--text);
+  }
+
+  .other-feature-menu:has(> .other-feature-button.active:not([hidden])) > .other-feature-indicator {
+    display: block;
+    position: absolute;
+    position-anchor: --toolbox-selected-row;
+    top: anchor(top);
+    left: anchor(left);
+    width: anchor-size(width);
+    height: anchor-size(height);
+    z-index: -1;
+    pointer-events: none;
+    border-radius: var(--radius-lg);
     background: var(--client-main-nav-active-bg, var(--surface));
     box-shadow: var(
       --client-main-nav-active-shadow,
       0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
       0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent)
     );
-    color: var(--text);
   }
 
   .other-page:not(.live-components-page) .other-feature-icon {

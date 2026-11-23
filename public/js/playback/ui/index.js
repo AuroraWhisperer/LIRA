@@ -100,12 +100,4 @@ export class UIRenderer {
   getFullscreenPlayer() {
     return this.fullscreenPlayer;
   }
-
-  /**
-   * 获取播放条实例
-   * @returns {PlaybackBar}
-   */
-  getPlaybackBar() {
-    return this.playbackBar;
-  }
 }

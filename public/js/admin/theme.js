@@ -14,7 +14,7 @@ import { registerComponentPreview } from './component-preview-registry.js';
 import { createQueuePreview } from './queue-preview.js';
 import { bindQueueTheme } from './queue-theme-view.js';
 import { bindComponentAutosave } from './settings-autosave.js';
-import { collectQueueTheme, queueConfigFromSettings, queueSettingsPayload, pickQueueSettings } from './queue-theme-config.js';
+import { queueConfigFromSettings, queueSettingsPayload, pickQueueSettings } from './queue-theme-config.js';
 
 export const theme = (() => {
   let controller = null;
@@ -43,13 +43,8 @@ export const theme = (() => {
     return controller;
   }
 
-  function collectTheme() {
-    return collectQueueTheme(document);
-  }
-
   return {
     initThemeForm,
-    collectTheme,
     setOverlayStyle,
     renderPresetCards,
   };

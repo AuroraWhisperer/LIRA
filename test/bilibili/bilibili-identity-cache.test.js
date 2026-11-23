@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { IdentityCache } = require('../../src/bilibili/danmaku/identity-cache');
+const { UserInfoService } = require('../../src/bilibili/users/user-info-service');
 
 test('current room identity overrides a higher guard level worn in another room', () => {
   const cache = new IdentityCache();
@@ -144,4 +145,21 @@ test('recent users do not let a masked name overwrite a cached full name', () =>
   cache.resolve({ uid: '1', userName: '完整昵称' });
   cache.resolve({ uid: '1', userName: '**昵称' });
   assert.equal(cache.listRecent()[0].userName, '完整昵称');
+});
+
+test('legacy calls reuse the service projection across a room change', () => {
+  const cache = new IdentityCache();
+  const service = new UserInfoService({ identityCache: cache });
+  service.setRoom({ roomId: '100', ownerUid: '1' });
+  service.ingestHint({ uid: '7', name: '完整昵称', roomIdentity: { guardKnown: true, guardLevel: 3 } }, {
+    ...service.beginRoomRun(), source: 'gift', roomIdentityVerified: true,
+  });
+  cache.remember({ uid: '7', guardLevel: 1 }, { currentRoom: true, source: 'fans_rank' });
+  assert.equal(cache.resolve({ uid: '7' }).guardLevel, 3);
+
+  service.setRoom({ roomId: '200', ownerUid: '2' });
+  const stale = cache.resolve({ uid: '7', requesterGuardLevel: 3, currentRoomVerified: true });
+  assert.equal(stale.guardLevel, 0);
+  assert.equal(stale.userName, '完整昵称');
+  assert.deepEqual(service.listRecent(), []);
 });

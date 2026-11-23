@@ -213,6 +213,7 @@ test('danmaku fields retain pending input and synchronize committed values while
         'The first stop is the numeric minimum, not an original-style sentinel.');
     }
   }
+  await page.locator('#danmakuAdvancedOptions > summary').click();
   await page.locator('[data-effect-group="shadow"] > summary').click();
   await page.locator('[data-effect-enabled="shadow"]').check();
   await page.evaluate(() => { window.parameterEdits = []; });

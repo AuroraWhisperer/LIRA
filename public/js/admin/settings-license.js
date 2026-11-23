@@ -14,15 +14,30 @@ export async function initLicenseAccountDevice({ documentRef, licenseBridge }) {
 
   const accountEl = documentRef.getElementById('licenseAccountName');
   const deviceEl = documentRef.getElementById('licenseDeviceName');
+  const avatarEl = documentRef.getElementById('licenseAccountAvatar');
+  const helpToggle = documentRef.getElementById('licensePasswordHelpToggle');
+  const helpPanel = documentRef.getElementById('licensePasswordHelp');
+  if (helpToggle && helpPanel) {
+    helpToggle.addEventListener('click', () => {
+      const open = helpPanel.classList.toggle('is-open');
+      helpToggle.setAttribute('aria-expanded', String(open));
+    });
+  }
   section.hidden = false;
 
   try {
     const profile = assertProfileResponse(await licenseBridge.getProfile());
-    accountEl.textContent = profile?.streamer?.accountName || '已授权账户';
+    const accountName = profile?.streamer?.accountName || '已授权账户';
+    accountEl.textContent = accountName;
     deviceEl.textContent = profile?.device?.name || '当前电脑';
+    if (avatarEl) {
+      const firstChar = Array.from(String(accountName).trim())[0];
+      avatarEl.textContent = firstChar ? firstChar.toUpperCase() : 'L';
+    }
   } catch (error) {
     accountEl.textContent = '暂时无法读取';
     deviceEl.textContent = '暂时无法读取';
+    if (avatarEl) avatarEl.textContent = 'L';
     void error;
   }
 }

@@ -41,7 +41,7 @@ test('fixed danmaku keeps perspective separate from filter reset and restores it
   assert.equal(await page.evaluate(() => edits), 1, 'one confirmed change produces one edit');
   assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.transform.rotateY), -30);
   assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.transform.rotateZ), 7);
-  await page.locator('summary').filter({ hasText: /^配色与外观$/ }).click();
+  await page.locator('#danmakuAdvancedOptions > summary').click();
   const resetEffects = page.getByRole('button', { name: '恢复当前样式效果', exact: true });
   await resetEffects.click();
   assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.whiteBalance), undefined);

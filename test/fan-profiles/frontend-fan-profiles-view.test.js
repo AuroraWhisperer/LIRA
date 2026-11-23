@@ -112,6 +112,7 @@ test('manual profiles bind a UID while editing retains an existing open platform
 test('daily update settings default off and return the selected values', async () => {
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'));
   const description = forms.settingsForm({});
+  assert.equal(description.settingsEditor, true);
   assert.doesNotMatch(description.fields, /name="autoSyncGuardRoster"[^>]*checked/);
   assert.match(forms.settingsForm({ autoSyncGuardRoster: true }).fields, /name="autoSyncGuardRoster"[^>]*checked/);
   const values = description.read({
@@ -127,6 +128,58 @@ test('daily update settings default off and return the selected values', async (
   assert.equal(values.autoCreate, false);
   assert.deepEqual(Array.from(values.accompanyMilestones), [100, 365, 500, 1000]);
   assert.equal(values.showAccompanyInCalendar, true);
+});
+
+test('milestone chip editor adds, removes and validates days while dispatching change for autosave', async () => {
+  const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), { Event });
+  const description = forms.settingsForm({ accompanyMilestones: [365, 100, 365] });
+  assert.match(description.fields, /name="accompanyMilestones" value="100, 365"/);
+
+  const listeners = (node) => {
+    const map = new Map();
+    return Object.assign(node, {
+      addEventListener: (type, fn) => { map.set(type, [...(map.get(type) || []), fn]); },
+      fire: (type, event = {}) => { for (const fn of map.get(type) || []) fn(event); },
+    });
+  };
+  let changes = 0;
+  const hidden = listeners({ value: '100, 365', dispatchEvent: (event) => { if (event.type === 'change' && event.bubbles) changes++; } });
+  const list = { innerHTML: '' };
+  const addButton = { hidden: false, focus() {} };
+  const input = listeners({ value: '', focus() {} });
+  const confirmButton = listeners({});
+  const inlineWrap = listeners({ hidden: true, contains: () => false });
+  const errorNode = { textContent: '', hidden: true };
+  const box = listeners({
+    querySelector: (selector) => ({
+      'input[name="accompanyMilestones"]': hidden,
+      '[data-milestone-list]': list,
+      '[data-add-milestone]': addButton,
+      '[data-milestone-inline]': inlineWrap,
+      '[data-milestone-input]': input,
+      '[data-milestone-confirm]': confirmButton,
+    })[selector] || null,
+    closest: () => ({ querySelector: () => errorNode }),
+  });
+
+  description.bind({ querySelector: (selector) => selector === '[data-milestones-editor]' ? box : null });
+
+  box.fire('click', { target: { closest: (s) => s === '[data-add-milestone]' ? addButton : null } });
+  assert.equal(inlineWrap.hidden, false);
+  input.value = '0';
+  input.fire('keydown', { key: 'Enter', preventDefault() {}, stopPropagation() {} });
+  assert.equal(errorNode.hidden, false);
+  assert.equal(changes, 0);
+
+  input.value = '500';
+  input.fire('keydown', { key: 'Enter', preventDefault() {}, stopPropagation() {} });
+  assert.equal(hidden.value, '100, 365, 500');
+  assert.equal(inlineWrap.hidden, true);
+  assert.equal(changes, 1);
+
+  box.fire('click', { target: { closest: (s) => s === '[data-remove-milestone]' ? { dataset: { removeMilestone: '365' } } : null } });
+  assert.equal(hidden.value, '100, 500');
+  assert.equal(changes, 2);
 });
 
 test('fan detail renders platform companion days independently of unknown local duration', async () => {

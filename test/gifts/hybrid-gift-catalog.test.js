@@ -263,7 +263,7 @@ test('hybrid catalog keeps local room catalog primary and exposes remote search 
     count: 2,
     cached: true,
   });
-  const search = await hybrid.searchRemote('服务器');
+  const search = hybrid.searchLocal('服务器');
   assert.deepEqual(
     search.gifts.map((gift) => gift.id),
     ['21'],
@@ -330,7 +330,7 @@ test('hybrid server search reports unavailable when refresh has no cache', async
       refresh: async () => null,
     },
   });
-  await assert.rejects(hybrid.searchRemote('礼物'), /服务器礼物目录本地缓存尚不可用/);
+  assert.throws(() => hybrid.searchLocal('礼物'), /服务器礼物目录本地缓存尚不可用/);
 });
 
 test('rule artwork lookup checks only the requested gift, not all catalog images', () => {

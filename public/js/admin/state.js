@@ -14,7 +14,6 @@ export class StateService {
   constructor() {
     this.appState = null;
     this.songs = [];
-    this.categories = [];
     this.songReloadTimer = null;
     this.songReloadVersion = 0;
     this.songInvalidationVersion = 0;
@@ -211,7 +210,6 @@ export class StateService {
     );
     this.appState = next;
     if (changedKeys.includes('roomGuard')) applyRoomGuardState(next.roomGuard);
-    if (changedKeys.includes('categories')) this.categories = next.categories || [];
     if (changedKeys.includes('tags')) this.songTags = new Set(next.tags || []);
     for (const [key, eventName] of [
       ['settings', 'app:settings-state'],
@@ -324,27 +322,6 @@ export class StateService {
    */
   getSongs() {
     return this.songs;
-  }
-
-  /**
-   * 获取分类列表
-   */
-  getCategories() {
-    return this.categories;
-  }
-
-  /**
-   * 获取歌曲语言列表
-   */
-  getSongLanguages() {
-    return this.songLanguages;
-  }
-
-  /**
-   * 获取歌手列表
-   */
-  getSongArtists() {
-    return this.songArtists;
   }
 
   /**

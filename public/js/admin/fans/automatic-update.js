@@ -14,7 +14,7 @@ export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } 
       if (disposed || !result.ok || !result.data) return;
       const update = result.data;
       if (update.status === 'error') {
-        const label = update.reason === 'startup' ? '启动补更新' : '12:10 定时更新';
+        const label = update.reason === 'startup' ? '启动补更新' : '00:10 定时更新';
         notify(`粉丝档案${label}失败：${update.error}`, { type: 'error', duration: 5000 });
       } else {
         for (const { message, ...options } of rosterUpdateNotices(update)) {

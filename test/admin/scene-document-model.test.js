@@ -12,6 +12,22 @@ const admin = path.join(__dirname, '../../public/js/admin');
 const modules = Promise.all(['scene-document-model.js', 'scene-template.js'].map((file) =>
   loadModuleExports(path.join(admin, file), { TextEncoder, URL, crypto: { randomUUID } })));
 
+const gestures = modules.then(([{ createSceneDocumentModel }]) => {
+  function applyGesture(document, ids, dx, dy, options) {
+    const model = createSceneDocumentModel(document);
+    model.beginGesture();
+    model.updateGestureGeometry(ids, dx, dy, options);
+    model.commitGesture();
+    return model.getDocument();
+  }
+  return {
+    move: applyGesture,
+    resize(document, id, handle, dx, dy, options) {
+      return applyGesture(document, [id], dx, dy, { ...options, handle });
+    },
+  };
+});
+
 function fixture() {
   return {
     schemaVersion: 1, id: randomUUID(), title: '场景', canvas: { width: 800, height: 600 },
@@ -154,7 +170,7 @@ test('geometry gestures retain validated appearances while enforcing bounds, doc
 });
 
 test('resizing anchors opposite edges, permits overflow and respects size limits, locks and automatic heights', async () => {
-  const [{ resizeSceneItem }] = await modules;
+  const { resize } = await gestures;
   const document = fixture();
   const item = document.items[0];
   item.type = 'danmaku';
@@ -164,32 +180,32 @@ test('resizing anchors opposite edges, permits overflow and respects size limits
     ne: [40, 64, 124, 44], se: [40, 48, 124, 76], sw: [64, 48, 76, 76], nw: [64, 64, 76, 44],
   };
   for (const [handle, [x, y, width, height]] of Object.entries(expected)) {
-    assert.deepEqual(geometry(resizeSceneItem(document, item.id, handle, 24, 16).items[0]), { x, y, width, height });
+    assert.deepEqual(geometry(resize(document, item.id, handle, 24, 16).items[0]), { x, y, width, height });
   }
-  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'nw', -1000, -1000).items[0]),
+  assert.deepEqual(geometry(resize(document, item.id, 'nw', -1000, -1000).items[0]),
     { x: -660, y: -492, width: 800, height: 600 });
-  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'nw', 1000, 1000).items[0]),
+  assert.deepEqual(geometry(resize(document, item.id, 'nw', 1000, 1000).items[0]),
     { x: 108, y: 76, width: 32, height: 32 });
-  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'se', 1000, 1000).items[0]),
+  assert.deepEqual(geometry(resize(document, item.id, 'se', 1000, 1000).items[0]),
     { x: 40, y: 48, width: 800, height: 600 });
-  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'se', -1000, -1000).items[0]),
+  assert.deepEqual(geometry(resize(document, item.id, 'se', -1000, -1000).items[0]),
     { x: 40, y: 48, width: 32, height: 32 });
-  assert.deepEqual(geometry(resizeSceneItem(document, item.id, 'se', 9, 9, { snap: true }).items[0]),
+  assert.deepEqual(geometry(resize(document, item.id, 'se', 9, 9, { snap: true }).items[0]),
     { x: 40, y: 48, width: 112, height: 72 });
   const overtime = document.items[2];
-  assert.deepEqual(plain(resizeSceneItem(document, overtime.id, 'se', 24, 16)), document);
+  assert.deepEqual(plain(resize(document, overtime.id, 'se', 24, 16)), document);
   overtime.locked = false;
-  assert.deepEqual(geometry(resizeSceneItem(document, overtime.id, 'nw', -24, -16).items[2]),
+  assert.deepEqual(geometry(resize(document, overtime.id, 'nw', -24, -16).items[2]),
     { x: 576, y: 400, width: 184, height: 160 });
   assert.deepEqual(geometry(document.items[0]), { x: 40, y: 48, width: 100, height: 60 });
 });
 
 test('clock and queue resize handles scale both dimensions and preserve the opposite anchor', async () => {
-  const [{ resizeSceneItem }] = await modules;
+  const { resize } = await gestures;
   const document = fixture();
   for (const item of document.items.slice(0, 2)) {
     for (const handle of ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw']) {
-      const resized = resizeSceneItem(document, item.id, handle, 24, 16).items.find(entry => entry.id === item.id);
+      const resized = resize(document, item.id, handle, 24, 16).items.find(entry => entry.id === item.id);
       assert.ok(Math.abs(resized.width / resized.height - item.width / item.height) < 0.02, handle);
       assert.equal(handle.includes('w') ? resized.x + resized.width : resized.x,
         handle.includes('w') ? item.x + item.width : item.x);
@@ -205,8 +221,9 @@ test('cancel, unchanged gestures and failed edits preserve redo; real edits inva
   model.edit((draft) => { draft.title = '后续'; });
   model.undo();
   model.beginGesture();
-  model.updateGesture((draft) => { draft.items[0].x = 80; });
-  assert.throws(() => model.updateGesture((draft) => { draft.items[0].x = -77; }));
+  const ids = [model.getSnapshot().items[0].id];
+  model.updateGestureGeometry(ids, 40, 0);
+  assert.throws(() => model.updateGestureGeometry(ids, NaN, 0));
   assert.equal(model.getDocument().items[0].x, 80);
   model.cancelGesture();
   assert.equal(model.getDocument().items[0].x, 40);
@@ -233,34 +250,35 @@ test('history is bounded to 100 edits; reset clears both history and active gest
   assert.deepEqual(plain(model.getDocument()), replacement);
   assert.deepEqual(plain(model.getState()), { canUndo: false, canRedo: false });
   assert.equal(model.cancelGesture(), false);
-  assert.throws(() => model.updateGesture(() => {}));
+  assert.throws(() => model.updateGestureGeometry([replacement.items[0].id], 10, 0));
 });
 
 test('bounded group move preserves spacing, ignores locked and absent IDs and leaves input unchanged', async () => {
-  const [{ moveSceneItems }] = await modules;
+  const { move } = await gestures;
   const document = fixture();
   const original = plain(document);
   const ids = [...document.items.map((item) => item.id), randomUUID()];
-  const right = moveSceneItems(document, ids, 900, 900);
+  const right = move(document, ids, 900, 900);
   assert.deepEqual(plain(right.items.map(({ x, y }) => [x, y])), [[616, 464], [776, 576], [600, 400]]);
-  const left = moveSceneItems(document, ids, -900, -900);
+  const left = move(document, ids, -900, -900);
   assert.deepEqual(plain(left.items.map(({ x, y }) => [x, y])), [[-76, -36], [84, 76], [600, 400]]);
   assert.deepEqual(document, original);
-  assert.deepEqual(plain(moveSceneItems(document, [], 20, 30)), original);
-  assert.throws(() => moveSceneItems(document, ids, Infinity, 0));
+  assert.deepEqual(plain(move(document, [], 20, 30)), original);
+  assert.throws(() => move(document, ids, Infinity, 0));
 });
 
 test('8px snap moves the group anchor without changing relative offsets; canvas bounds win', async () => {
-  const [{ moveSceneItems, snapSceneCoordinate }] = await modules;
+  const { move } = await gestures;
+  const [{ snapSceneCoordinate }] = await modules;
   const document = fixture();
   document.items[0].x = 43;
   const ids = document.items.map((item) => item.id);
-  const snapped = moveSceneItems(document, ids, 10, 13, { snap: true });
+  const snapped = move(document, ids, 10, 13, { snap: true });
   assert.equal(snapped.items[0].x, 56);
   assert.equal(snapped.items[0].y, 64);
   assert.equal(snapped.items[1].x - snapped.items[0].x, 157);
   assert.equal(snapSceneCoordinate(13), 16);
-  const bounded = moveSceneItems(document, ids, 1000, 0, { snap: true });
+  const bounded = move(document, ids, 1000, 0, { snap: true });
   assert.equal(bounded.items[1].x, 776);
   assert.throws(() => snapSceneCoordinate(NaN));
 });
@@ -432,11 +450,11 @@ test('export and import remove browser URLs and require an explicit valid replac
 });
 
 test('moving and resizing browser layers keeps their webpage viewport unchanged', async () => {
-  const { resizeSceneItem, moveSceneItems } = await loadWithUrl('admin/scene-document-model.js');
+  const { resize, move } = await gestures;
   const initial = browserDocument();
   const id = initial.items[0].id;
-  const resized = resizeSceneItem(initial, id, 'se', 160, 80);
-  const moved = moveSceneItems(resized, [id], 40, 30);
+  const resized = resize(initial, id, 'se', 160, 80);
+  const moved = move(resized, [id], 40, 30);
   assert.deepEqual(plain(moved.items[0].appearance.config), initial.items[0].appearance.config);
   assert.deepEqual([moved.items[0].x, moved.items[0].y, moved.items[0].width, moved.items[0].height], [50, 50, 560, 380]);
 });
@@ -448,14 +466,15 @@ function overflowScene(type = 'queue') {
 }
 
 test('shared geometry clamps every edge and corner to the same frontend and backend visible minimum', async () => {
-  const [{ moveSceneItems }, { validateSceneDocument }] = await modules;
+  const { move } = await gestures;
+  const [, { validateSceneDocument }] = await modules;
   const document = overflowScene();
   for (const [dx, dy, x, y] of [
     [-2000, 0, -296, 104], [2000, 0, 776, 104], [0, -2000, 104, -156], [0, 2000, 104, 576],
     [-2000, -2000, -296, -156], [2000, -2000, 776, -156],
     [-2000, 2000, -296, 576], [2000, 2000, 776, 576],
   ]) {
-    const moved = plain(moveSceneItems(document, [document.items[0].id], dx, dy, { snap: true }));
+    const moved = plain(move(document, [document.items[0].id], dx, dy, { snap: true }));
     assert.deepEqual([moved.items[0].x, moved.items[0].y], [x, y]);
     assert.deepEqual(plain(validateSceneDocument(moved)), moved);
     assert.deepEqual(normalizeSceneDocument(moved, { normalizeConfig: (_type, config) => config }), moved);
@@ -469,14 +488,15 @@ test('shared geometry clamps every edge and corner to the same frontend and back
 });
 
 test('resizing partially outside layers preserves anchors and enough visible area', async () => {
-  const [{ resizeSceneItem }, { validateSceneDocument }] = await modules;
+  const { resize } = await gestures;
+  const [, { validateSceneDocument }] = await modules;
   for (const type of ['danmaku', 'clock', 'overtime']) {
     for (const [x, y] of [[-296, -156], [776, 576]]) {
       const document = overflowScene(type);
       Object.assign(document.items[0], { x, y });
       for (const handle of ['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw']) {
         for (const delta of [-2000, 2000]) {
-          const resized = resizeSceneItem(document, document.items[0].id, handle, delta, delta, { snap: true });
+          const resized = resize(document, document.items[0].id, handle, delta, delta, { snap: true });
           assert.doesNotThrow(() => validateSceneDocument(resized), `${type} ${handle} ${delta}`);
           const item = resized.items[0];
           assert.equal(handle.includes('w') ? item.x + item.width : item.x,

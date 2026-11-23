@@ -1,5 +1,10 @@
 {
-  "description": "Function glyphs visually checked in the installed QQ Music and NetEase Cloud Music desktop clients on 2026-11-16. Bundled locally as vectors, using QQ green (#31c27c) and NetEase red (#ec4141) from LIRA's existing platform palette without colored tiles; these are not original PNG assets.",
+  "description": "The client glyphs listed below were visually checked in QQ Music and NetEase Cloud Music on 2026-11-16. All icons are bundled locally and use QQ green (#31c27c) or NetEase red (#ec4141).",
+  "liraGlyphs": {
+    "qq-daily": "Outline calendar with the local day for QQ Music",
+    "created-playlists": "List with a music note, shared by both platforms",
+    "collected-playlists": "List with a bookmark, shared by both platforms"
+  },
   "qq": {
     "version": "22.41",
     "source": "QQMusicUI.ttf",
@@ -20,7 +25,7 @@
       "created-playlists": "Text heading for self-created playlists",
       "collected-playlists": "Text heading for collected playlists"
     },
-    "adaptations": "Verified font outlines converted to SVG paths with original geometry preserved. No substitute glyph is assigned to text-only entries."
+    "adaptations": "Verified font outlines converted to SVG paths with original geometry preserved."
   },
   "netease": {
     "version": "3.1.4.203507",
@@ -44,6 +49,6 @@
       "created-playlists": "Text heading for created playlists",
       "collected-playlists": "Text heading for collected playlists"
     },
-    "adaptations": "Original SVG geometry preserved. Calendar date cutout separated from the calendar shell so the existing local date label can update at midnight. Fill follows currentColor; clip IDs namespaced. No substitute glyph is assigned to text-only entries."
+    "adaptations": "Original SVG geometry preserved. Calendar date cutout separated from the calendar shell so the existing local date label can update at midnight. Fill follows currentColor. Clip IDs are namespaced."
   }
 }

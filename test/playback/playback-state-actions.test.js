@@ -6,6 +6,24 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = (file) => path.join(__dirname, '../../public/js/playback', file);
 
+test('resuming current audio reports playback failures and ignores interrupted play requests', async () => {
+  const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));
+  let failure;
+  const errors = [];
+  const audio = { src: 'blob:song', dataset: { trackId: 'song' }, paused: true, async play() { throw failure; } };
+  const controls = createPlaybackControls({
+    playbackState: { current: { id: 'song' }, selectedSource: 'qq' },
+    getPlaybackAudio: () => audio, renderPlayback() {}, showError: (error) => errors.push(error),
+  });
+  for (failure of [Object.assign(new Error(), { name: 'AbortError' }), new Error('The play() request was interrupted')]) {
+    await controls.togglePlayback();
+  }
+  assert.deepEqual(errors, []);
+  failure = new Error('Output device denied playback');
+  await controls.togglePlayback();
+  assert.deepEqual(errors, [failure]);
+});
+
 test('lyric results retain their request generation when playback returns to the same song', async () => {
   const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));
   const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));

@@ -10,7 +10,7 @@ export function getBilibiliRoomProfileSnapshot(roomId) {
   return { ...currentRoomProfile };
 }
 
-export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken, onProfileChange = () => {} }) {
+export function createBilibiliRoomProfile({ documentRef, fetchRef, onProfileChange = () => {} }) {
   const input = documentRef.getElementById('roomId');
   const status = documentRef.getElementById('bilibiliRoomStatus');
   const hint = documentRef.getElementById('bilibiliRoomHint');
@@ -42,7 +42,7 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken, onP
     currentRoomProfile = null;
     if (profile) {
       name.textContent = profile.name || '暂未获取到房主昵称';
-      const source = bilibiliAvatarSource(profile.avatarUrl, apiToken);
+      const source = bilibiliAvatarSource(profile.avatarUrl);
       currentRoomProfile = { roomId: savedRoomId, uid: String(profile.uid || ''), name: name.textContent, avatarSource: source };
       fields.Title.textContent = profile.title || '暂未获取到直播标题';
       fields.Title.title = fields.Title.textContent;
@@ -80,9 +80,7 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken, onP
     }
     if (!keepProfile) render('已设置', 'good', '正在读取房主资料…');
     try {
-      const response = await fetchRef('/api/bilibili/room/profile', {
-        headers: apiToken ? { Authorization: `Bearer ${apiToken}` } : {},
-      });
+      const response = await fetchRef('/api/bilibili/room/profile');
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error('Room profile unavailable');
       if (version !== requestVersion) return;

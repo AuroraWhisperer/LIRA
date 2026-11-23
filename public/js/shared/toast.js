@@ -157,7 +157,8 @@ export function createToastStack({
           );
     entry.remaining = entry.duration;
     const detailed = Boolean(options.title || options.html);
-    entry.node.className = `toast toast-${entry.type}${detailed ? ' toast-detailed' : ''}${options.className ? ` ${options.className}` : ''}`;
+    const classes = `toast toast-${entry.type}${detailed ? ' toast-detailed' : ''}${options.className ? ` ${options.className}` : ''}`;
+    entry.node.className = entry.node.classList.contains('show') ? `${classes} show` : classes;
     entry.content.className = `toast-content${detailed ? '' : ' toast-content-compact'}`;
     entry.content.replaceChildren();
     if (options.html) entry.content.innerHTML = options.html;
@@ -196,8 +197,6 @@ export function createToastStack({
     entry.action.textContent = options.actionLabel || '查看';
     entry.node.setAttribute('aria-label', options.title || TYPE_LABELS[entry.type]);
     entry.needsAnnouncement = true;
-    void entry.node.offsetWidth;
-    entry.node.classList.add('show');
   }
 
   function show(options) {
@@ -269,6 +268,8 @@ export function createToastStack({
     entries.set(key, entry);
     container.prepend(node);
     render(entry, options);
+    void node.offsetWidth;
+    node.classList.add('show');
     layout();
     return entry.handle;
   }

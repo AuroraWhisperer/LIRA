@@ -104,9 +104,7 @@ export function createPlaybackController(initialOptions = {}) {
 
   const contentLoader = new ContentLoader({
     state: playbackState,
-    providerManager,
     cacheManager,
-    onError: (error) => showError(error),
     readJsonResponse: (r, msg) => readJsonResponse(r, msg),
     onBackgroundUpdate: applyBackgroundHomeUpdate,
   });
@@ -137,23 +135,18 @@ export function createPlaybackController(initialOptions = {}) {
   });
 
   const lyricService = new LyricService({
-    state: playbackState,
     readJsonResponse: (r, m) => readJsonResponse(r, m),
   });
 
   const matchService = new MatchService({
     state: playbackState,
     stateActions,
-    onError: (e) => showError(e),
     readJsonResponse: (r, m) => readJsonResponse(r, m),
-    toast: (m) => toast(m),
   });
 
   const importService = new ImportService({
     matchService,
-    onError: (e) => showError(e),
     readJsonResponse: (r, m) => readJsonResponse(r, m),
-    toast: (m) => toast(m),
   });
 
   const homeService = new HomeService({
@@ -161,7 +154,6 @@ export function createPlaybackController(initialOptions = {}) {
     contentLoader,
     onError: (e) => showError(e),
     readJsonResponse: (r, m) => readJsonResponse(r, m),
-    toast: (m) => toast(m),
   });
 
   const uiRenderer = new UIRenderer();

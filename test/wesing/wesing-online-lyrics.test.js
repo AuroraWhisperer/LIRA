@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { createWeSingOnlineLyricResolver, selectWeSingLyricTrack } = require('../../src/music/wesing-online-lyrics');
+const { createWeSingOnlineLyricResolver } = require('../../src/music/wesing-online-lyrics');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { createMusicProviderRegistry } = require('../../src/music/provider-registry');
 
@@ -185,13 +185,21 @@ test('WeSing does not let a late authorization read restore an older request ide
   assert.equal(searches, 1, 'an older authorization observation cannot restart the new account lookup');
 });
 
-test('WeSing online lyric matching uses duration to disambiguate same-title songs', () => {
-  const selected = selectWeSingLyricTrack('失控', 255000, [
+function lyricResolverFor(tracks) {
+  return createWeSingOnlineLyricResolver({
+    registry: {}, platforms: ['qq'],
+    catalogService: { async searchMusicTracks() { return { tracks }; } },
+    lyricsService: { async getMusicTrackLyrics() { return { lines: [{ startMs: 0, endMs: 1000, text: '歌词' }] }; } },
+  });
+}
+
+test('WeSing online lyric matching uses duration to disambiguate same-title songs', async () => {
+  const resolve = lyricResolverFor([
     createTrack('qq:cover', '翻唱歌手', 181000),
     createTrack('qq:original', '井迪', 255000),
   ]);
 
-  assert.equal(selected.id, 'qq:original');
+  assert.equal((await resolve({ title: '失控', durationMs: 255000 })).songMid, 'qq:original');
 });
 
 test('WeSing online lyric matching uses the WeSing artist to disambiguate covers', async () => {
@@ -309,25 +317,25 @@ test('WeSing compares version duration before word timing and preferred platform
   assert.equal((await resolve({ title: '春泥', artist: '余超颖', durationMs: 240000 }))?.source, 'qq');
 });
 
-test('WeSing preserves an explicit version while normalizing title punctuation', () => {
-  const selected = selectWeSingLyricTrack('春泥（Live）', 240000, [
-    createTrack('qq:studio', '余超颖', 240000, 'qq', '春泥'),
-    createTrack('qq:live', '余超颖', 240000, 'qq', '春泥 (Live)'),
-  ], '余超颖');
-  assert.equal(selected?.id, 'qq:live');
-  assert.equal(selectWeSingLyricTrack('另一首歌', 240000, [selected], '余超颖'), null);
-  assert.equal(selectWeSingLyricTrack('春泥（Live）', 240000, [
-    createTrack('qq:studio', '余超颖', 240000, 'qq', '春泥'),
-  ], '余超颖'), null);
+test('WeSing preserves an explicit version while normalizing title punctuation', async () => {
+  const studio = createTrack('qq:studio', '余超颖', 240000, 'qq', '春泥');
+  const live = createTrack('qq:live', '余超颖', 240000, 'qq', '春泥 (Live)');
+  const input = { title: '春泥（Live）', artist: '余超颖', durationMs: 240000 };
+  const resolve = lyricResolverFor([studio, live]);
+  assert.equal((await resolve(input))?.songMid, live.id);
+  assert.equal(await resolve({ ...input, title: '另一首歌' }), null);
+  assert.equal(await lyricResolverFor([studio])(input), null);
 });
 
-test('WeSing rejects incompatible durations and accepts missing duration metadata', () => {
+test('WeSing rejects incompatible durations and accepts missing duration metadata', async () => {
   const track = createTrack('qq:cover', '余超颖', 240000, 'qq', '春泥');
-  assert.equal(selectWeSingLyricTrack('春泥', 180000, [track], '余超颖'), null);
-  assert.equal(selectWeSingLyricTrack('春泥', 245000, [track], '余超颖'), track);
-  assert.equal(selectWeSingLyricTrack('春泥', 0, [track], '余超颖'), track);
-  const unknownDuration = { ...track, durationMs: 0 };
-  assert.equal(selectWeSingLyricTrack('春泥', 240000, [unknownDuration], '余超颖'), unknownDuration);
+  const input = { title: '春泥', artist: '余超颖' };
+  const resolve = lyricResolverFor([track]);
+  assert.equal(await resolve({ ...input, durationMs: 180000 }), null);
+  assert.equal((await resolve({ ...input, durationMs: 245000 }))?.songMid, track.id);
+  assert.equal((await resolve(input))?.songMid, track.id);
+  const missingDuration = lyricResolverFor([{ ...track, durationMs: 0 }]);
+  assert.equal((await missingDuration({ ...input, durationMs: 240000 }))?.songMid, track.id);
 });
 
 test('WeSing online fallback queries both providers and prefers complete word lyrics', async () => {

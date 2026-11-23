@@ -376,7 +376,7 @@ test('background refresh publishes interior track changes and playlist metadata 
     await loader.loadHomeContent(action);
     await new Promise(setImmediate);
     assert.equal(updates.length, 1);
-    assert.equal(loader.homeItems[3].title, 'updated entry');
+    assert.equal(updates[0].items[3].title, 'updated entry');
   }
 });
 
@@ -561,6 +561,7 @@ test('ContentLoader keeps the newest result when same-key requests finish out of
 
 test('ContentLoader background refresh does not overwrite a newer active page', async () => {
   let resolveBackground;
+  const updates = [];
   const cache = new Map([['qq:liked', { items: [{ id: 'cached-liked' }], itemType: 'track', action: 'liked' }]]);
   const { ContentLoader } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'content', 'loader.js'),
@@ -583,6 +584,7 @@ test('ContentLoader background refresh does not overwrite a newer active page', 
   );
   const loader = new ContentLoader({
     state: { selectedSource: 'qq' },
+    onBackgroundUpdate: (update) => updates.push(update),
     cacheManager: {
       get(key) {
         return cache.get(key) || null;
@@ -595,16 +597,16 @@ test('ContentLoader background refresh does not overwrite a newer active page', 
   });
 
   await loader.loadHomeContent('liked');
-  await loader.loadHomeContent('created-playlists', { forceRefresh: true });
+  const current = await loader.loadHomeContent('created-playlists', { forceRefresh: true });
   resolveBackground(response({ ok: true, data: { tracks: [{ id: 'fresh-liked' }] } }));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  const current = loader.getCurrentHomeContent();
   assert.deepEqual(
     current.items.map((item) => item.id),
     ['created-playlist'],
   );
   assert.equal(current.itemType, 'playlist');
   assert.equal(current.action, 'created-playlists');
-  assert.equal(current.page, 1);
+  assert.equal(cache.get('qq:liked').items[0].id, 'fresh-liked');
+  assert.deepEqual(updates, []);
 });

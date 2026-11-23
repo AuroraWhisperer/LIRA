@@ -209,7 +209,7 @@ async function initializeApp() {
   initGuardThanks();
   todo.init();
   const dynamicLottery = initDynamicLottery();
-  window.addEventListener('beforeunload', () => dynamicLottery.dispose(), {
+  window.addEventListener('pagehide', () => dynamicLottery.dispose(), {
     once: true,
   });
   const transitionGuideSidebar = initUsageGuide();

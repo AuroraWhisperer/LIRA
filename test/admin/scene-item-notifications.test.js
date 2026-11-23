@@ -139,7 +139,7 @@ test('same-style instances share edits while a different clock style and scene g
   assert.equal(controllers[0].getState().draft.label, 'shared');
   const beforeGeometry = [...notices];
   model.beginGesture();
-  model.updateGesture(draft => { draft.items[0].x += 20; });
+  model.updateGestureGeometry([document.items[0].id], 20, 0);
   model.commitGesture();
   model.undo();
   assert.deepEqual(notices, beforeGeometry);

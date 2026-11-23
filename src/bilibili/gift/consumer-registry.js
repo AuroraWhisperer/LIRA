@@ -18,11 +18,7 @@ function createGiftConsumerRegistry(options = {}) {
     return result;
   }
 
-  function getConsumers() {
-    return consumers.map((consumer) => consumer.name);
-  }
-
-  return { dispatch, getConsumers };
+  return { dispatch };
 }
 
 function isConsumer(value) {

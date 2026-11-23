@@ -105,25 +105,20 @@ function connectSocket() {
     },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
-      requestNotice?.update(payload.state.queue);
       if (payload.reason === 'live:status' && state) {
+        requestNotice?.update(payload.state.queue);
         liveStatusRevision += 1;
         state.liveStatus = payload.state.liveStatus;
         return;
       }
       if (payload.reason && payload.reason.startsWith('songs:')) {
+        requestNotice?.update(payload.state.queue);
         return;
       }
       stateRevision += 1;
-      if (queueStyleChanged(state, payload.state)) {
-        scheduleStateRefresh();
-        return;
-      }
-      if (isSongRequestSnapshotReason(payload.reason)) {
-        scheduleStateRefresh();
-        return;
-      }
+      const needsMetadata = queueStyleChanged(state, payload.state) || isSongRequestSnapshotReason(payload.reason);
       applyState(payload.state);
+      if (needsMetadata) scheduleStateRefresh();
     },
   });
   socketController.start();

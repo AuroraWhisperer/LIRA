@@ -77,7 +77,7 @@ test('appearance choices save immediately and commit only after success, with on
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'neutral');
   await fixture.choose('classic');
   assert.deepEqual(requests, ['terracotta']);
-  assert.equal(fixture.choices[2].checked, true);
+  assert.equal(fixture.choices.find((choice) => choice.checked).value, 'terracotta');
 
   complete({ ok: true, themeId: 'terracotta' });
   await applying;
@@ -96,7 +96,7 @@ test('failed appearance writes restore the current selection and allow retry', a
     });
     await fixture.choose('terracotta');
     assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'classic');
-    assert.equal(fixture.choices[1].checked, true);
+    assert.equal(fixture.choices.find((choice) => choice.checked).value, 'classic');
     await fixture.choose('terracotta');
     assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'terracotta');
   }
@@ -107,7 +107,7 @@ test('unknown initial themes select the terracotta fallback and invalid response
     themeId: 'future',
     setClientTheme: () => ({ ok: true, themeId: 'invalid' }),
   });
-  assert.equal(fixture.choices[2].checked, true);
+  assert.equal(fixture.choices.find((choice) => choice.checked).value, DEFAULT_CLIENT_THEME_ID);
   await fixture.choose('classic');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'future');
 });

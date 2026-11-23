@@ -124,10 +124,6 @@ export function createCanvasSharedAppearance({ model, request }) {
       const state = entry.controller.getState();
       return { ...state, error: state.error || entry.readError };
     },
-    getStates() { return [...entries.values()].map(entry => {
-      const state = entry.controller.getState();
-      return { ...state, error: state.error || entry.readError };
-    }); },
     getStatuses() { return [...entries.values()].map(entry => {
       const state = entry.controller.getStatus();
       return { ...state, error: state.error || entry.readError };

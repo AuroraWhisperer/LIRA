@@ -381,7 +381,8 @@ test('opening editor serializes saves with the latest controls and does not crea
   assert.equal(saves.length, 1);
   title.value = '最新文案';
   await dom.document.getElementById('openingAnimationForm').dispatch('input', { target: title });
-  await dom.tick(220);
+  const queuedSave = dom.tick(220);
+  await flush();
   assert.equal(saves.length, 1, 'do not overlap settings writes');
   saves[0].resolve({ ok: true });
   await flush();
@@ -389,7 +390,7 @@ test('opening editor serializes saves with the latest controls and does not crea
   assert.equal(saves[1].payload.openingTitle, '最新文案');
   assert.equal(saveStatus.dataset.state, 'saving', 'a completed request cannot claim newer queued edits are saved');
   saves[1].resolve({ ok: true });
-  await firstSave;
+  await Promise.all([firstSave, queuedSave]);
   assert.equal(saveStatus.dataset.state, 'saved');
   assert.equal(preview.srcWrites, 0);
   await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: title });

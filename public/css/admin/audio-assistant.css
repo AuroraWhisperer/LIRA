@@ -1,6 +1,7 @@
-.audio-assistant-settings {
+.other-feature-panel-body.audio-assistant-settings {
   width: 100%;
   max-width: none;
+  padding-top: 10px;
   scrollbar-width: none;
 }
 
@@ -18,8 +19,9 @@
 
 .audio-assistant-heading {
   flex-wrap: wrap;
+  row-gap: 8px;
   margin-bottom: 12px;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -46,12 +48,21 @@
   background: var(--color-bg-secondary);
 }
 
+.audio-assistant-placement-options button,
+.audio-assistant-settings button[data-audio-action] {
+  min-height: 32px;
+  padding-block: 4px;
+}
+
+.audio-assistant-settings button[data-audio-action] {
+  padding-inline: 10px;
+}
+
 .audio-assistant-placement-options button {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 32px;
-  padding: 4px 16px;
+  padding-inline: 16px;
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;

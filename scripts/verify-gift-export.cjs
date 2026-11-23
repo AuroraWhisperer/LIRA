@@ -191,7 +191,7 @@ const server = http.createServer((req, res) => {
       'second row must be captured',
     );
     console.log(JSON.stringify({ ok: true, width, height: 304, dpi: process.env.GIFT_TEST_DPI || '1', preview: file }));
-    const single = await controller.prepare({});
+    const single = await controller.prepare({ merge: true });
     await controller.configure({ id: single.id, mode: 'separate', background: 'white' });
     const separate = await controller.save({ id: single.id });
     assert.equal(separate.saved, 2);
@@ -215,7 +215,9 @@ const server = http.createServer((req, res) => {
     );
     console.log('PASS: 40 records split into 6224px and 144px images; last row visible');
     requestedAssets.clear();
-    const merged = await controller.prepare({ merge: true });
+    const original = await controller.prepare({ merge: true });
+    assert.deepEqual(original.snapshot.items.map(item => item.gift.num), [2, 3]);
+    const merged = await controller.configure({ id: original.id, mode: original.mode, background: original.background, mergeAcrossDates: true });
     assert.equal(merged.snapshot.selectedCount, 2);
     assert.equal(merged.snapshot.items.length, 1);
     assert.equal(merged.snapshot.items[0].gift.num, 5);

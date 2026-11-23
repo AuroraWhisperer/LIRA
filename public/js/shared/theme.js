@@ -40,16 +40,6 @@ export function getDefaultTheme() {
   return cachedDefaultTheme;
 }
 
-// 获取经典主题预设
-export function getClassicPreset(presetName) {
-  return themeConfig?.presets?.classic?.[presetName] || null;
-}
-
-// 获取歌单主题预设
-export function getSongBoardPreset(presetName) {
-  return themeConfig?.presets?.songBoard?.[presetName] || null;
-}
-
 // 获取所有经典主题预设
 export function getAllClassicPresets() {
   return cachedClassicPresets;
@@ -84,8 +74,6 @@ export function getSongBoardSwatches() {
 export const theme = {
   loadThemeConfig,
   getDefaultTheme,
-  getClassicPreset,
-  getSongBoardPreset,
   getAllClassicPresets,
   getAllSongBoardPresets,
   getClassicLabels,

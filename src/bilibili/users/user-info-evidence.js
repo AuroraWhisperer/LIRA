@@ -48,7 +48,7 @@ function normalizeUid(value) {
 }
 
 function profileEvidence(source, observedAt, extra = {}) {
-  return { source, observedAt, authority: SOURCE_AUTHORITY[source], ...extra };
+  return { source, observedAt, authority: sourceAuthority(source), ...extra };
 }
 
 function roomEvidence(value, source, observedAt) {
@@ -56,9 +56,13 @@ function roomEvidence(value, source, observedAt) {
     value,
     source,
     observedAt,
-    authority: SOURCE_AUTHORITY[source],
+    authority: sourceAuthority(source),
     verified: true,
   };
+}
+
+function sourceAuthority(source) {
+  return Object.hasOwn(SOURCE_AUTHORITY, source) ? SOURCE_AUTHORITY[source] : 0;
 }
 
 function shouldReplaceName(current, value, source, observedAt) {
@@ -69,13 +73,13 @@ function shouldReplaceName(current, value, source, observedAt) {
     return incomingQuality > currentQuality;
   }
   if (observedAt !== current.observedAt) return observedAt > current.observedAt;
-  return SOURCE_AUTHORITY[source] >= current.authority;
+  return sourceAuthority(source) >= current.authority;
 }
 
 function shouldReplaceProfileField(current, source, observedAt) {
   if (!current) return true;
   if (observedAt !== current.observedAt) return observedAt > current.observedAt;
-  return SOURCE_AUTHORITY[source] >= current.authority;
+  return sourceAuthority(source) >= current.authority;
 }
 
 function shouldReplaceRoomField(current, incoming, nowMs) {
@@ -85,6 +89,31 @@ function shouldReplaceRoomField(current, incoming, nowMs) {
     return incoming.authority > current.authority;
   }
   return incoming.observedAt >= current.observedAt;
+}
+
+// Standalone legacy callers provide one verification bit for both room fields.
+function projectLegacyRequester(input, cached, nowMs) {
+  const previousRoom = cached.currentRoom ? roomEvidence(null, cached.source, cached.seenAt) : null;
+  const useIncomingRoom = input.currentRoom &&
+    shouldReplaceRoomField(previousRoom, roomEvidence(null, input.source, nowMs), nowMs);
+  const room = useIncomingRoom ? input : previousRoom ? cached : null;
+  const profile = profileEvidence(cached.source, cached.seenAt, {
+    quality: isMaskedDisplayName(cached.userName) ? 'masked' : 'full',
+  });
+  const useIncomingName = input.userName && shouldReplaceName(cached.userName && profile, input.userName, input.source, nowMs);
+  const useIncomingAvatar = input.avatarUrl && shouldReplaceProfileField(cached.avatarUrl && profile, input.source, nowMs);
+  const avatarUrl = useIncomingAvatar ? input.avatarUrl : cached.avatarUrl;
+  return {
+    uid: input.uid || cached.uid,
+    userName: useIncomingName ? input.userName : cached.userName,
+    ...(avatarUrl ? { avatarUrl } : {}),
+    guardLevel: room ? room.guardLevel : input.guardLevel || cached.guardLevel,
+    medalName: room ? room.medalName : input.medalName || cached.medalName,
+    medalLevel: room ? room.medalLevel : input.medalLevel || cached.medalLevel,
+    seenAt: Math.max(input.seenAt, cached.seenAt),
+    currentRoom: Boolean(room),
+    source: room?.source || input.source,
+  };
 }
 
 function normalizeFansMedal(value) {
@@ -122,6 +151,7 @@ module.exports = {
   normalizeUid,
   profileEvidence,
   roomEvidence,
+  projectLegacyRequester,
   shouldReplaceName,
   shouldReplaceProfileField,
   shouldReplaceRoomField,

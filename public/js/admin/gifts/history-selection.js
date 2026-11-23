@@ -35,7 +35,7 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
 
   function refresh() {
     if (drag && drag.rows.some(({ node }) => !node.isConnected)) finish(true);
-    return drag?.addedCount ?? null;
+    return drag?.changes ?? null;
   }
 
   function paint() {
@@ -55,17 +55,21 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     marquee.hidden = false;
     let changed = false;
     let addedCount = 0;
+    let removedCount = 0;
     for (const row of drag.rows) {
-      const selected =
-        drag.base.has(row.id) || (row.right >= left && row.left <= right && row.bottom >= top && row.top <= bottom);
-      if (selected && !drag.original.has(row.id)) addedCount += 1;
+      const withinRange = row.right >= left && row.left <= right && row.bottom >= top && row.top <= bottom;
+      const wasSelected = drag.original.has(row.id);
+      // Always use the pointer-down state so moving within a row cannot toggle it repeatedly.
+      const selected = drag.toggle ? wasSelected !== withinRange : drag.base.has(row.id) || withinRange;
+      if (selected && !wasSelected) addedCount += 1;
+      if (!selected && wasSelected) removedCount += 1;
       if (state.selected.has(row.id) === selected) continue;
       if (selected) state.selected.add(row.id);
       else state.selected.delete(row.id);
       changed = true;
     }
-    if (changed || addedCount !== drag.addedCount) {
-      drag.addedCount = addedCount;
+    if (changed || addedCount !== drag.changes?.added || removedCount !== drag.changes?.removed) {
+      drag.changes = { added: addedCount, removed: removedCount };
       update();
     }
   }
@@ -119,7 +123,8 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     suppressClick = false;
     if (event.button !== 0 || event.isPrimary === false || event.pointerType === 'touch') return;
     if (event.target.closest('thead')) return;
-    const additive = event.ctrlKey || event.metaKey || event.shiftKey;
+    const toggle = event.ctrlKey || event.metaKey;
+    const additive = toggle || event.shiftKey;
     const control = event.target.closest(controls);
     if (control && !(additive && control.matches('input[data-gift-select]'))) return;
     const rect = surface.getBoundingClientRect();
@@ -150,8 +155,9 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
       rows,
       original,
       base,
+      toggle,
       active: false,
-      addedCount: null,
+      changes: null,
     };
     // Let a checkbox click keep its native focus and toggle until a drag starts.
     if (!control) event.preventDefault();

@@ -10,6 +10,9 @@ export function initDesktopNotificationSettings({ documentRef = document, bridge
   const gifts = documentRef.getElementById('largeGiftNotificationsEnabled');
   const threshold = documentRef.getElementById('largeGiftNotificationThreshold');
   const feedback = documentRef.getElementById('desktopNotificationsFeedback');
+  const presets = typeof panel.querySelectorAll === 'function'
+    ? [...panel.querySelectorAll('[data-gift-threshold-preset]')]
+    : [];
   let settings = null;
   let supported = false;
   let pending = null;
@@ -23,6 +26,11 @@ export function initDesktopNotificationSettings({ documentRef = document, bridge
     }
     planner.disabled = gifts.disabled = !supported || !settings || Boolean(pending);
     threshold.disabled = gifts.disabled || !values?.largeGiftEnabled;
+    for (const preset of presets) {
+      const amount = Number(preset.dataset.giftThresholdPreset);
+      preset.disabled = threshold.disabled;
+      preset.setAttribute('aria-pressed', String(Boolean(values?.largeGiftEnabled) && Number(values.largeGiftThresholdRmb) === amount));
+    }
     panel.setAttribute('aria-busy', String(Boolean(pending)));
   }
 
@@ -50,6 +58,19 @@ export function initDesktopNotificationSettings({ documentRef = document, bridge
     if (!threshold.reportValidity()) return;
     void save({ largeGiftThresholdRmb: Number(threshold.value) });
   });
+  for (const preset of presets) {
+    preset.addEventListener('click', () => {
+      if (threshold.disabled) return;
+      const amount = Number(preset.dataset.giftThresholdPreset);
+      if (!Number.isFinite(amount)) return;
+      threshold.value = String(amount);
+      if (Number(settings?.largeGiftThresholdRmb) === amount) {
+        render();
+        return;
+      }
+      void save({ largeGiftThresholdRmb: amount });
+    });
+  }
 
   async function load() {
     if (!bridge?.getState || !bridge?.update) {

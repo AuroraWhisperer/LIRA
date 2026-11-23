@@ -63,9 +63,12 @@
   padding-block: 4px;
 }
 
-/* 音乐分组保持固定几何尺寸，切换工作区时仅接续遮罩与选中底板。 */
+/* 音乐分组保持固定几何尺寸，切换工作区时由共享底板跨列滑移伸缩，内容层错峰淡入淡出。 */
 .playback-navigation {
-  --playback-switch-motion: 300ms cubic-bezier(0.22, 1, 0.36, 1);
+  --playback-workspace-motion: 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  --playback-source-motion: 220ms cubic-bezier(0.2, 0.85, 0.25, 1);
+  position: relative;
+  isolation: isolate;
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
   flex: 0 1 auto;
@@ -79,14 +82,41 @@
   box-shadow: var(--shadow-sm);
 }
 
+.playback-navigation::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 2px;
+  bottom: 2px;
+  left: calc(0% + 2px);
+  right: calc(25% + 5.5px);
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  pointer-events: none;
+  transition:
+    left var(--playback-workspace-motion),
+    right var(--playback-workspace-motion),
+    box-shadow var(--playback-workspace-motion);
+}
+
+.playback-navigation[data-workspace='appearance']::before {
+  left: calc(75% + 0.5px);
+  right: calc(0% + 2px);
+  box-shadow: inset 0 0 0 1px var(--border), var(--shadow-sm);
+}
+
 .playback-music-switch {
   position: relative;
+  z-index: 1;
   min-width: 0;
   overflow: hidden;
   border-radius: 999px;
 }
 
 .playback-navigation .playback-workspace-button {
+  position: relative;
+  z-index: 1;
   width: 100%;
   min-height: 36px;
   padding: 5px 12px;
@@ -97,18 +127,18 @@
   white-space: nowrap;
   font-weight: var(--type-weight-semibold);
   box-shadow: none;
-  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  transition: background-color 150ms ease, color 180ms ease;
 }
 
-.playback-navigation .playback-workspace-button:hover {
+.playback-navigation .playback-workspace-button:hover:not([aria-pressed='true']) {
   background: var(--color-bg-hover, var(--surface));
   color: var(--text);
 }
 
 .playback-navigation .playback-workspace-button[aria-pressed='true'] {
-  background: var(--surface-2);
+  background: transparent;
   color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border), var(--shadow-sm);
+  box-shadow: none;
 }
 
 .playback-music-switch > .playback-workspace-button {
@@ -121,13 +151,24 @@
   gap: 1px;
   min-height: 40px;
   padding: 3px 8px;
-  clip-path: inset(0 0 0 0 round 999px);
-  transition: clip-path var(--playback-switch-motion), background-color 160ms ease, color 160ms ease;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 170ms cubic-bezier(0.22, 1, 0.36, 1) 70ms,
+    transform 210ms cubic-bezier(0.22, 1, 0.36, 1) 50ms,
+    background-color 150ms ease,
+    color 180ms ease;
 }
 
-.playback-navigation[data-workspace='music'] .playback-music-switch > button {
-  clip-path: inset(0 100% 0 0 round 999px);
+.playback-navigation[data-workspace='music'] .playback-music-switch > .playback-workspace-button {
+  opacity: 0;
+  transform: translateX(-8px);
   pointer-events: none;
+  transition:
+    opacity 90ms ease-out 0ms,
+    transform 140ms ease-out 0ms,
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .playback-music-label {
@@ -145,20 +186,26 @@
 
 .source-tabs {
   position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   isolation: isolate;
   border-radius: 999px;
-  background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--border);
   padding: 2px;
-  clip-path: inset(0 0 0 0 round 999px);
-  transition: clip-path var(--playback-switch-motion);
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  transition:
+    opacity 185ms cubic-bezier(0.22, 1, 0.36, 1) 65ms,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1) 45ms;
 }
 
 .playback-navigation[data-workspace='appearance'] .source-tabs {
-  clip-path: inset(0 0 0 100% round 999px);
+  opacity: 0;
+  transform: translateX(10px) scale(0.985);
   pointer-events: none;
+  transition:
+    opacity 100ms ease-out 0ms,
+    transform 150ms ease-out 0ms;
 }
 
 .source-tabs::before {
@@ -170,7 +217,7 @@
   border-radius: 999px;
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--border), var(--shadow-sm);
-  transition: transform var(--playback-switch-motion);
+  transition: transform var(--playback-source-motion);
 }
 
 .source-tabs:has([data-source='netease'].active)::before {
@@ -193,7 +240,7 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--text);
+  color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
   line-height: var(--type-leading-control);
@@ -201,12 +248,21 @@
   white-space: nowrap;
   cursor: pointer;
   box-shadow: none;
+  transition: background-color 150ms ease, color 160ms ease;
 }
 
 .source-tab-icon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  opacity: 0.78;
+  filter: saturate(0.82);
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+.source-tab:is(:hover, .active) .source-tab-icon {
+  opacity: 1;
+  filter: none;
 }
 
 .source-tab-label {
@@ -244,7 +300,18 @@
 
 @media (prefers-reduced-motion: reduce) {
   .playback-navigation {
-    --playback-switch-motion: 0ms linear;
+    --playback-workspace-motion: 0ms linear;
+    --playback-source-motion: 0ms linear;
+  }
+
+  .playback-navigation::before,
+  .playback-navigation .playback-workspace-button,
+  .playback-music-switch > .playback-workspace-button,
+  .source-tabs,
+  .source-tabs::before,
+  .source-tab,
+  .source-tab-icon {
+    transition: none;
   }
 }
 

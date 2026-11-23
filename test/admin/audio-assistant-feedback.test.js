@@ -16,7 +16,7 @@ test('component errors keep their specific guidance without exposing native diag
     ['音频组件已关闭', /重新打开 LIRA/],
     ['下载音频组件需要 LIRA 账号授权', /授权/],
     ['这台设备不支持音频组件', /不支持/],
-    ['音频组件准备失败', /关于与更新.*重试/],
+    ['音频组件准备失败', /系统与关于.*重试/],
   ]) {
     const { message } = formatAudioFailure(`${reason}。\n${diagnostic}`, 'get');
     assert.match(message, guidance);

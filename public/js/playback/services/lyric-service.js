@@ -12,7 +12,6 @@ const MAX_PENDING_FORCED_STATES = 64;
  */
 export class LyricService {
   constructor(options = {}) {
-    this.state = options.state || null;
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
     this.lastPublishedState = '';
     this.lastPublishedAt = 0;
@@ -114,14 +113,14 @@ export class LyricService {
     const lyricLine = this.findLyricLine(track, currentTime * 1000);
     const hasLyrics = Boolean(track?.lyrics && Array.isArray(track.lyrics.lines));
     const trackKey = track ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}` : '';
-    const discontinuity = force || trackKey !== this.lastStateTrackKey || track?.lyrics !== this.lastStateLyrics;
+    const lyrics = track?.lyrics || null;
+    const discontinuity = force || trackKey !== this.lastStateTrackKey || lyrics !== this.lastStateLyrics;
     if (discontinuity) {
       this.stateGeneration += 1;
       this.stateSequence = 0;
     }
     this.lastStateTrackKey = trackKey;
-    this.lastStateLyrics = track?.lyrics || null;
-    this.stateSequence += 1;
+    this.lastStateLyrics = lyrics;
     const state = {
       trackTitle: track?.title || '',
       artists: Array.isArray(track?.artists) ? track.artists : [],
@@ -136,7 +135,6 @@ export class LyricService {
       playbackRate: audio?.playbackRate || 1,
       locked: false,
       generation: this.stateGeneration,
-      sequence: this.stateSequence,
       status: !track ? 'idle' : !hasLyrics ? 'loading' : track.lyrics.lines.length > 0 ? 'ready' : 'empty',
     };
 
@@ -212,7 +210,7 @@ export class LyricService {
     if (!force && serialized === this.lastPublishedState) return;
     if (!force && now - this.lastPublishedAt < 180) return;
     return new Promise((resolve) => {
-      const request = { serialized, state: roundedState, resolve };
+      const request = { serialized, state: { ...roundedState, sequence: ++this.stateSequence }, resolve };
       if (force) {
         if (this.forcedStateQueue.length >= MAX_PENDING_FORCED_STATES) this.forcedStateQueue.shift().resolve();
         this.forcedStateQueue.push(request);

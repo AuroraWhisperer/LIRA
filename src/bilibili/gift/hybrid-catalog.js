@@ -255,10 +255,6 @@ function createHybridGiftSaleCatalogService(options = {}) {
     return { query, count: gifts.length, gifts };
   }
 
-  async function searchRemote(value) {
-    return searchLocal(value);
-  }
-
   function resolveGiftImagePath(giftId, _imagePath, rule) {
     const id = String(giftId || '').trim();
     const gift =
@@ -298,7 +294,6 @@ function createHybridGiftSaleCatalogService(options = {}) {
     onInitializationStateChanged: (listener) => giftCatalogInitializer?.onStateChanged?.(listener) || (() => {}),
     refresh,
     refreshRemote,
-    searchRemote,
     searchLocal,
     resolveGiftImagePath,
     dispose() {

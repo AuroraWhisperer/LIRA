@@ -173,12 +173,9 @@ function writeRuntimeInfo(dataDir, info) {
 }
 
 function removeRuntimeInfo(dataDir, expected) {
+  if (!expected) return false;
   const current = readRuntimeInfo(dataDir);
-  if (
-    expected &&
-    current &&
-    (Number(expected.pid) !== Number(current.pid) || Number(expected.port) !== Number(current.port))
-  )
+  if (!current || Number(expected.pid) !== Number(current.pid) || Number(expected.port) !== Number(current.port))
     return false;
   try {
     fs.unlinkSync(getRuntimeInfoPath(dataDir));

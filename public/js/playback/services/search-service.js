@@ -88,12 +88,4 @@ export class SearchService {
     this.searchGeneration += 1;
     this.searchResults = [];
   }
-
-  /**
-   * 检查是否有搜索结果
-   * @returns {boolean}
-   */
-  hasResults() {
-    return this.searchResults.length > 0;
-  }
 }

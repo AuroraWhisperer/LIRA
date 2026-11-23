@@ -326,11 +326,6 @@ function createPlaybackStore(db) {
       return { removed: Number(result.changes) > 0 };
     },
 
-    isFavorite(trackKey) {
-      const row = db.prepare('SELECT id FROM favorites WHERE track_key = ?').get(cleanText(trackKey));
-      return Boolean(row);
-    },
-
     // ── 自建歌单 ──
 
     listPlaylists() {

@@ -4,7 +4,6 @@ const { cleanText, splitTextIntoCharacters } = require('../shared/utils');
 const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { DANMAKU_MESSAGE_LIMIT } = require('../bilibili/danmaku/contract');
 const { ANSWER_QUALITY_POLICY, buildTools } = require('./prompt');
-const { normalizeConversationContext } = require('./conversation-context');
 
 const MIN_REPLY_INTERVAL_MS = 500;
 const MAX_REPLY_INTERVAL_MS = 2000;
@@ -46,8 +45,7 @@ function normalizeDanmaku(danmaku, uid) {
   return { uid, roomId: cleanText(danmaku.roomId), userName: cleanText(danmaku.userName) || '观众' };
 }
 
-function buildConversationInput(question, context) {
-  const history = normalizeConversationContext(context);
+function buildConversationInput(question, history) {
   const exchanges = history?.exchanges || [];
   return JSON.stringify({
     question: String(question || ''),

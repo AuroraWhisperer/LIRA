@@ -58,13 +58,13 @@
   position: relative;
   min-height: 84px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: 32px minmax(0, 1fr);
   align-content: center;
   align-items: center;
   column-gap: 14px;
   row-gap: 2px;
   overflow: visible;
-  border: 0;
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--text) 3%, var(--surface));
   padding: 14px 16px;
@@ -74,11 +74,6 @@
     box-shadow 200ms ease,
     background 200ms ease;
   cursor: pointer;
-}
-
-.playback-home-card:has([data-playback-home-glyph='qq']),
-.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-card:has([data-playback-home-glyph='netease']) {
-  grid-template-columns: 32px minmax(0, 1fr);
 }
 
 .playback-home-icon {
@@ -100,8 +95,7 @@
   height: 32px;
 }
 
-/* Only show function icons verified in the corresponding desktop client. */
-.playback-home-icon--netease,
+/* Shared playlist icons stay visible for both providers. */
 .playback-home-icon [data-playback-home-glyph='netease'],
 .playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-icon [data-playback-home-glyph='qq'] {
   display: none;
@@ -111,13 +105,7 @@
   display: block;
 }
 
-.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-icon--netease {
-  display: grid;
-}
-
-/* NetEase's daily recommendation calendar includes today's date. */
 .playback-home-day {
-  display: none;
   position: absolute;
   inset: 16px 0 auto;
   font-family: var(--font-display);
@@ -129,7 +117,6 @@
 }
 
 .playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-day {
-  display: block;
   color: var(--surface);
 }
 
@@ -173,8 +160,9 @@
 }
 
 .playback-home-card.active {
+  border-color: var(--color-selection-marker, var(--primary));
   background: var(--color-primary-light);
-  box-shadow: 0 0 0 1.5px var(--color-selection-marker, var(--primary));
+  box-shadow: 0 0 0 1px var(--color-selection-marker, var(--primary));
 }
 
 .playback-home-card.active strong {

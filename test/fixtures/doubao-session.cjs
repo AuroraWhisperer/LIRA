@@ -8,6 +8,14 @@ const { createDoubaoClient } = require('../../src/ai/doubao-client');
 const directory = path.resolve(process.argv[2]);
 if (path.dirname(directory) !== path.resolve(__dirname, '../../tmp')) throw new Error('Expected isolated tmp directory.');
 fs.mkdirSync(directory, { recursive: true });
+if (process.argv[3] === 'busy-snapshot') {
+  const remove = fs.rmSync;
+  fs.rmSync = (file, options) => {
+    if (file !== path.join(directory, 'doubao-auth', 'cookies.enc')) return remove(file, options);
+    fs.rmSync = remove;
+    throw Object.assign(new Error('Snapshot temporarily locked'), { code: 'EBUSY' });
+  };
+}
 for (const key of ['userData', 'sessionData']) app.setPath(key, directory);
 app.setPath('crashDumps', path.join(directory, 'crashes'));
 let owner;

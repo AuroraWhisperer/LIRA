@@ -34,7 +34,6 @@
 }
 .fan-toolbar,
 .fan-actions,
-.fan-nav,
 .fan-section-title,
 .fan-record-top,
 .fan-editor-heading,
@@ -51,7 +50,40 @@
 }
 .fan-toolbar {
   margin-bottom: 12px;
-  padding-bottom: 0;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--color-border-light, var(--border));
+}
+.fan-toolbar-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fan-toolbar .fan-actions {
+  flex: 0 0 auto;
+}
+.fan-toolbar .fan-actions:not(:has(> :not([hidden]))) {
+  display: none;
+}
+.fan-toolbar .fan-actions .primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 13px;
+  border-radius: 9px;
+  font-weight: var(--type-weight-semibold);
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+.fan-toolbar .fan-actions .primary > svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
 }
 #fanPageError {
   margin: 0 0 12px;
@@ -72,28 +104,151 @@
   line-height: var(--type-leading-body);
 }
 .fan-nav {
-  flex: 1;
-  justify-content: flex-start;
-  border-bottom: 1px solid var(--color-border-light, var(--border));
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--client-main-nav-bg, var(--color-bg-secondary));
+  box-shadow: var(--client-main-nav-shadow, inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent));
 }
-.fan-nav [role='tab'],
+.fan-nav [role='tab'] {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-ui-duration) ease,
+    box-shadow var(--motion-ui-duration) ease,
+    color var(--motion-ui-duration) ease;
+}
+.fan-nav [role='tab'] > svg {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+  pointer-events: none;
+  transition:
+    color var(--motion-ui-duration) ease,
+    opacity var(--motion-ui-duration) ease;
+}
+.fan-nav [role='tab']:hover:not([aria-selected='true']) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+.fan-nav [aria-selected='true'] {
+  background: var(--client-main-nav-active-bg, var(--surface));
+  box-shadow: var(
+    --client-main-nav-active-shadow,
+    0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent)
+  );
+  color: var(--text);
+  font-weight: var(--type-weight-semibold);
+}
+.fan-nav [aria-selected='true'] > svg {
+  color: var(--color-selection-marker);
+  opacity: 1;
+}
+.fan-nav [role='tab']:focus-visible {
+  outline: 2px solid var(--color-selection-marker);
+  outline-offset: 1px;
+}
 .fan-detail-tabs button {
   border: 0;
   background: transparent;
   border-radius: 0;
   padding: 6px 12px;
 }
-.fan-nav [aria-selected='true'],
 .fan-detail-tabs [aria-selected='true'] {
   color: var(--color-selection-text);
   box-shadow: inset 0 -2px var(--color-selection-marker);
   font-weight: 600;
 }
+@keyframes fan-sync-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.86);
+  }
+}
 .fan-sync {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.2;
+  transition:
+    background-color var(--motion-ui-duration) ease,
+    border-color var(--motion-ui-duration) ease,
+    color var(--motion-ui-duration) ease;
+}
+.fan-sync:not(:has(#fanRosterHelp:not([hidden]))):has(#fanSyncState:empty) {
+  display: none;
+}
+.fan-sync:has(#fanSyncState:not(:empty))::before {
+  content: '';
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-text-muted, var(--muted));
+}
+.fan-sync:has(#fanSyncState[data-tone='warn']) {
+  background: var(--color-warning-light);
+  border-color: color-mix(in srgb, var(--color-warning) 26%, transparent);
+  color: var(--color-warning);
+}
+.fan-sync:has(#fanSyncState[data-tone='warn'])::before {
+  background: var(--color-warning);
+}
+.fan-sync:has(#fanSyncState[data-tone='ready']) {
+  background: var(--color-success-light);
+  border-color: color-mix(in srgb, var(--color-success) 26%, transparent);
+  color: var(--color-success-dark, var(--color-success));
+}
+.fan-sync:has(#fanSyncState[data-tone='ready'])::before {
+  background: var(--color-success);
+}
+.fan-sync:has(#fanSyncState[data-syncing='true'])::before {
+  animation: fan-sync-pulse 1.8s ease-in-out infinite;
+}
+#fanSyncState {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fan-sync > lira-help {
+  flex: 0 0 auto;
+  margin-inline-start: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fan-sync:has(#fanSyncState[data-syncing='true'])::before {
+    animation: none;
+  }
 }
 .fan-reminder-summary {
   display: flex;

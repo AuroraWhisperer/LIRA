@@ -41,8 +41,10 @@ export function initDanmakuInteractionThanks({ documentRef, windowRef, saveSetti
       const { get } = group;
       const supported = Array.isArray(state.saved?.[`${kind}ThanksMessages`]);
       const ready = Boolean(owner && state.available && supported);
-      get('Toggle').checked = state.saved?.[`${kind}ThanksEnabled`] === true;
-      get('Toggle').disabled = !ready || state.pending;
+      const toggle = get('Toggle');
+      toggle.checked = state.saved?.[`${kind}ThanksEnabled`] === true;
+      toggle.disabled = !ready || state.pending;
+      toggle.setAttribute('data-switch-pending', String(ready && state.pending));
       get('Fields').disabled = !ready;
       get('Save').disabled = !ready || state.pending || !group.dirty;
       documentRef.querySelector(`[data-fixed-open="${kind}Thanks"]`).disabled = !ready;

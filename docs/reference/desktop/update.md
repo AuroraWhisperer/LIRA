@@ -4,7 +4,7 @@
 
 本文档是自动更新运行时的**单一事实来源**，集中维护状态机、运行时配置、事件监听、状态载荷和错误映射。`electron-builder` / publish 配置与发布流程见 [../engineering/build.md](../engineering/build.md)，IPC 通道表见 [preload.md](preload.md) §2。
 
-界面入口为「百宝箱 → 设置 → 关于与更新」，更新通知也定位到此页签。[desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html) 由设置片段嵌入一次；[desktop.js](../../../public/js/desktop.js) 负责更新界面的渲染，并接入 [desktop-resource-integrity.js](../../../public/js/desktop-resource-integrity.js) 的资源检查界面。数据目录、日志与资源检查位于「本地数据与支持」分区。
+界面入口为「百宝箱 → 设置 → 系统与关于」，更新通知也定位到此页签。[desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html) 由设置片段嵌入一次；[desktop.js](../../../public/js/desktop.js) 负责更新界面的渲染，并接入 [desktop-resource-integrity.js](../../../public/js/desktop-resource-integrity.js) 的资源检查界面。数据目录、日志与资源检查位于「本地数据与诊断」分区。
 
 ## 1. 职责边界
 
@@ -66,7 +66,7 @@ generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的
 
 音频组件由独立的 [音频组件准备模块](main.md#电音助手生命周期) 校验和补齐，在同页下载任务中显示准备进度，并为可重试的失败提供「重试」；下面的安装资源诊断不会触发音频重下。
 
-版本更新页「本地数据与支持」提供手动只读诊断，独立于更新状态机和授权构建指纹。`resource-integrity-manager.js` 负责维护内存状态、单任务互斥和取消控制；`desktop-resource-integrity.js` 负责原始文件系统读取与状态推送接线，主进程在退出、重启和安装更新前会先停止并等待检查结束。下载安装包和普通更新检查不会中断资源检查。
+版本更新页「本地数据与诊断」提供手动只读诊断，独立于更新状态机和授权构建指纹。`resource-integrity-manager.js` 负责维护内存状态、单任务互斥和取消控制；`desktop-resource-integrity.js` 负责原始文件系统读取与状态推送接线，主进程在退出、重启和安装更新前会先停止并等待检查结束。下载安装包和普通更新检查不会中断资源检查。
 
 该诊断只支持打包后的 Windows x64 客户端，固定读取 `resources/client-integrity-manifest.json`，核对 `appVersion` / `platform` / `arch`、`schemaVersion=1`、`scope=packaged-app-resources`、SHA-256 及安全路径；范围仅限 `app.asar` 和清单中的 `app.asar.unpacked/` 普通文件。清单最多 4 MiB / 10000 项，拒绝符号链接、目录穿越、Windows 路径别名和大小写重复。清单无效时不重建基准、不联网回退；额外资源和用户数据不纳入扫描。
 

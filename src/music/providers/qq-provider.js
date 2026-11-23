@@ -392,9 +392,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
       needNewCode: '0',
     });
     const rawData = data && data.data;
-    const songlist =
-      rawData &&
-      (Array.isArray(rawData.songlist) ? rawData.songlist : Array.isArray(rawData.song_list) ? rawData.song_list : []);
+    const songlist = Array.isArray(rawData?.songlist) ? rawData.songlist
+      : Array.isArray(rawData?.song_list) ? rawData.song_list : [];
     const songs = songlist.map(mapQQSong).filter(Boolean).slice(0, limit);
     if (songs.length > 0) return songs;
     const legacyKeys = rawData ? Object.keys(rawData) : 'null';

@@ -86,10 +86,6 @@ function createDeviceKeyStore(options = {}) {
     return null;
   }
 
-  function loadOrCreate() {
-    return toKeyPair(loadPrivateKey()) || createNew();
-  }
-
   function loadPendingActivation() {
     const stored = readStoredKey(pendingKeyPath);
     return stored ? prepareKey(toKeyPair(stored.privateKeyPem), stored.encrypted) : null;
@@ -115,7 +111,6 @@ function createDeviceKeyStore(options = {}) {
     pendingKeyPath,
     loadPrivateKey,
     createNew,
-    loadOrCreate,
     prepareActivation,
     loadPendingActivation,
     getPublicKey() {

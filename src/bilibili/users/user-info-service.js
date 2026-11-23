@@ -30,6 +30,7 @@ const CACHE_CLEANUP_INTERVAL_MS = 30000;
 class UserInfoService {
   constructor(options = {}) {
     this.identityCache = options.identityCache || new IdentityCache();
+    this.identityCache.useServiceProjections();
     this.profileProvider = options.profileProvider || null;
     this.now = typeof options.now === 'function' ? options.now : Date.now;
     this.diagnostics = options.diagnostics || null;

@@ -86,6 +86,19 @@ async function fixture(t, intercept = async () => null) {
   };
 }
 
+test('paused samples of a local track without lyrics publish once until a forced update', async (t) => {
+  const f = await fixture(t);
+  const service = f.create();
+  const local = { id: 'local-file', source: 'local' };
+  for (let index = 0; index < 3; index++) {
+    f.tick();
+    await service.syncWindow(local, audioAt(2, true));
+  }
+  assert.equal(f.requests.length, 1);
+  await service.syncWindow(local, audioAt(2, true), true);
+  assert.equal(f.requests.length, 2);
+});
+
 test('rebuilt sender recovers the same track immediately and ordinary ticks keep advancing', async (t) => {
   const f = await fixture(t);
   const old = f.create();

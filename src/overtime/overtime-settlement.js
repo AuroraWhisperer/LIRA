@@ -107,7 +107,6 @@ function applyRule(rule, applicationCount, beforeMs, randomInt) {
 }
 
 function selectRuleResult(rule, totalWeight, randomInt) {
-  if (rule.mode === 'fixed') return { effect: rule.fixedEffect, outcome: null };
   const draw = randomInt(totalWeight);
   let cumulative = 0;
   for (let index = 0; index < rule.outcomes.length; index += 1) {

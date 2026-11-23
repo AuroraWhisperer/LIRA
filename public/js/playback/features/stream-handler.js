@@ -12,10 +12,6 @@ export function createStreamHandler(deps) {
     playbackNext,
   } = deps;
 
-  async function getPlaybackTrackUrl(track, options = {}) {
-    return await streamService.getTrackUrl(track, options);
-  }
-
   async function handlePlaybackError() {
     const track = playbackState.current;
     const audio = getPlaybackAudio();
@@ -43,7 +39,6 @@ export function createStreamHandler(deps) {
   }
 
   return {
-    getPlaybackTrackUrl,
     handlePlaybackError,
   };
 }

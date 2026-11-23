@@ -7,117 +7,222 @@
   hidden
 >
   <div class="client-settings">
-    <div class="client-settings-tabs" role="tablist" aria-label="设置分类">
-      <button id="settingsAppearanceTab" type="button" role="tab" aria-selected="true" aria-controls="settingsAppearancePanel" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.2" r="1" fill="currentColor"/><circle cx="15" cy="7.8" r="1" fill="currentColor"/></svg>外观与声音</button>
-      <button id="settingsAccountTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAccountPanel" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.4-3.3 4.2-5 7.5-5s6.1 1.7 7.5 5"/></svg>账号与服务</button>
-      <button id="settingsNotificationsTab" type="button" role="tab" aria-selected="false" aria-controls="settingsNotificationsPanel" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>通知提醒</button>
-      <button id="settingsAboutTab" type="button" role="tab" aria-selected="false" aria-controls="otherDesktopUpdateFeature" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6h.01"/></svg>关于与更新</button>
+    <div class="client-settings-header">
+      <div class="client-settings-tabs" role="tablist" aria-label="设置分类">
+        <button id="settingsAppearanceTab" type="button" role="tab" aria-selected="true" aria-controls="settingsAppearancePanel" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.2" r="1" fill="currentColor"/><circle cx="15" cy="7.8" r="1" fill="currentColor"/></svg>外观主题</button>
+        <button id="settingsNotificationsTab" type="button" role="tab" aria-selected="false" aria-controls="settingsNotificationsPanel" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 14h4M10 8h4M18 16h4"/></svg>声音与通知</button>
+        <button id="settingsAccountTab" type="button" role="tab" aria-selected="false" aria-controls="settingsAccountPanel" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.4-3.3 4.2-5 7.5-5s6.1 1.7 7.5 5"/></svg>账号与连接</button>
+        <button id="settingsAboutTab" type="button" role="tab" aria-selected="false" aria-controls="otherDesktopUpdateFeature" tabindex="-1" data-client-settings-tab><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>系统与关于</button>
+      </div>
     </div>
+
     <div class="client-settings-content">
-    <section id="settingsAppearancePanel" class="client-settings-panel client-settings-columns" role="tabpanel" aria-labelledby="settingsAppearanceTab">
-    <section id="clientAppearance" class="client-settings-group" aria-labelledby="clientAppearanceTitle">
-      <header class="client-settings-group-heading">
-        <div>
-          <h3 id="clientAppearanceTitle" class="ui-section-title">客户端外观</h3>
-          <p>选择喜欢的配色，仅影响 LIRA 客户端界面。</p>
-        </div>
-        <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
-      </header>
-      <fieldset class="client-appearance-choices" aria-label="客户端配色">
-        <template data-client-theme-option>
-          <label class="client-appearance-choice">
-            <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
-              <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
-              <span class="client-appearance-preview-layout">
-                <span class="client-appearance-preview-sidebar"><i></i><i></i><i></i></span>
-                <span class="client-appearance-preview-content"><i></i><span></span><b></b></span>
-              </span>
-            </span>
-            <span class="client-appearance-choice-heading">
-              <input type="radio" name="clientTheme" value="{{client-theme-id}}" {{client-theme-checked}} />
-              <span>{{client-theme-name}}</span>
-            </span>
-          </label>
-        </template>
-      </fieldset>
-    </section>
+      <section id="settingsAppearancePanel" class="client-settings-panel client-settings-panel--gallery" role="tabpanel" aria-labelledby="settingsAppearanceTab">
+        <section id="clientAppearance" aria-label="客户端配色">
+          <div class="client-appearance-toolbar">
+            <div class="client-appearance-active">
+              <span class="client-appearance-swatches" aria-hidden="true"><i></i><i></i><i></i></span>
+              <strong id="clientThemeCurrentName" class="client-appearance-current-name">暖陶</strong>
+              <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
+              <span class="client-appearance-scope">· 仅影响客户端界面</span>
+            </div>
+            <div id="clientThemeFilters" class="client-appearance-filters" role="group" aria-label="明暗筛选">
+              <button type="button" data-client-theme-filter="all" aria-pressed="true">全部 <span>{{client-theme-count-all}}</span></button>
+              <button type="button" data-client-theme-filter="light" aria-pressed="false">浅色 <span>{{client-theme-count-light}}</span></button>
+              <button type="button" data-client-theme-filter="dark" aria-pressed="false">深色 <span>{{client-theme-count-dark}}</span></button>
+            </div>
+          </div>
 
-    <section class="client-settings-group playback-output-settings" aria-labelledby="playbackOutputTitle">
-      <header class="client-settings-group-heading">
-        <div>
-          <h3 id="playbackOutputTitle" class="ui-section-title">内置播放器输出</h3>
-          <p>选择耳机、扬声器或声卡通道，切换后自动保存。</p>
-        </div>
-      </header>
-      <div class="playback-output-controls">
-        <label for="playbackOutputDevice">输出通道</label>
-        <select id="playbackOutputDevice" aria-describedby="playbackOutputHint playbackOutputFeedback">
-          <option value="">系统默认输出</option>
-        </select>
-        <button id="playbackOutputRefresh" type="button" class="secondary">刷新设备</button>
-      </div>
-      <details class="client-settings-help" open>
-        <summary>声卡与电音助手的输出说明</summary>
-        <p id="playbackOutputHint" class="hint">通常选「系统默认输出」或 WASAPI。同一设备可能提供多种输出方式，列表随设备和驱动变化。ASIO 首次选择后检查连接并列出可用声道。</p>
-        <p class="hint">配合电音助手时，建议选「系统默认输出」。如果这里已经选了助手的独立原声通道，可以保留，在助手里把「最终输出」手动选到另一条监听或推流通道。ASIO 声音需通过声卡回送接入。</p>
-      </details>
-      <p id="playbackOutputFeedback" class="hint" role="status" aria-live="polite"></p>
-    </section>
-    </section>
+          <div class="client-appearance-groups">
+            <div class="client-appearance-group" data-client-theme-group="light">
+              <span class="client-settings-section-label">浅色</span>
+              <fieldset class="client-appearance-choices" aria-label="浅色配色">
+                <template data-client-theme-option="light">
+                  <label class="client-appearance-choice">
+                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" {{client-theme-checked}} />
+                    <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
+                      <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
+                      <span class="client-appearance-preview-layout">
+                        <span class="client-appearance-preview-sidebar"><i></i><i></i><i></i></span>
+                        <span class="client-appearance-preview-content">
+                          <i></i>
+                          <span class="client-appearance-preview-card">
+                            <span class="client-appearance-preview-lines"><i></i><i></i></span>
+                            <b></b>
+                          </span>
+                        </span>
+                      </span>
+                      <span class="client-appearance-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                    </span>
+                    <span class="client-appearance-choice-heading">
+                      <span class="client-appearance-choice-name">{{client-theme-name}}</span>
+                      <span class="client-appearance-choice-dots" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true"><i></i><i></i></span>
+                    </span>
+                  </label>
+                </template>
+              </fieldset>
+            </div>
 
-    <section id="settingsAccountPanel" class="client-settings-panel client-settings-columns" role="tabpanel" aria-labelledby="settingsAccountTab" hidden>
-    <section id="licenseAccountDevice" class="client-settings-group" hidden aria-labelledby="licenseAccountTitle">
-      <header class="client-settings-group-heading">
-        <div>
-          <h3 id="licenseAccountTitle" class="ui-section-title">LIRA 账号 <lira-help label="密码找回说明">忘记 LIRA 密码：请联系管理员重置。B 站账号密码请通过 B 站找回。</lira-help></h3>
-          <p>当前客户端的授权账号与设备。</p>
-        </div>
-        <span class="pill good">已授权</span>
-      </header>
-      <dl class="license-account-details">
-        <div><dt>账号</dt><dd id="licenseAccountName">正在读取…</dd></div>
-        <div><dt>当前设备</dt><dd id="licenseDeviceName">正在读取…</dd></div>
-      </dl>
-    </section>
-    <section class="client-settings-group" aria-labelledby="clientServicesTitle">
-      <header class="client-settings-group-heading"><h3 id="clientServicesTitle" class="ui-section-title">关联服务</h3></header>
-      <div class="client-settings-row">
-        <div class="client-settings-row-copy"><h4 id="licenseAccountLoginTitle">网页主播中心</h4><p>管理网页歌单与云端数据</p></div>
-        <a class="secondary client-settings-action" href="https://admin.lirahub.cn/" target="_blank" rel="noopener noreferrer">打开主播中心 <span aria-hidden="true">↗</span></a>
-      </div>
-      <div class="client-settings-row">
-        <div class="client-settings-row-copy"><h4 id="bilibiliSettingsLinkTitle">B 站账号与直播间</h4><p>扫码登录、修改直播间号</p></div>
-        <button type="button" class="secondary client-settings-action" data-main-page-link="songAssistantPage" data-song-tab-target="settingsPage">前往登录</button>
-      </div>
-    </section>
-    </section>
-    <section id="settingsNotificationsPanel" class="client-settings-panel" role="tabpanel" aria-labelledby="settingsNotificationsTab" hidden>
-      <section class="client-settings-group" aria-labelledby="desktopNotificationsTitle">
-        <header class="client-settings-group-heading">
-          <div>
-            <h3 id="desktopNotificationsTitle" class="ui-section-title">系统通知</h3>
-            <p>通过 Windows 通知提醒你，修改后自动保存到本机。</p>
+            <div class="client-appearance-group" data-client-theme-group="dark">
+              <span class="client-settings-section-label">深色</span>
+              <fieldset class="client-appearance-choices" aria-label="深色配色">
+                <template data-client-theme-option="dark">
+                  <label class="client-appearance-choice">
+                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" {{client-theme-checked}} />
+                    <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
+                      <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
+                      <span class="client-appearance-preview-layout">
+                        <span class="client-appearance-preview-sidebar"><i></i><i></i><i></i></span>
+                        <span class="client-appearance-preview-content">
+                          <i></i>
+                          <span class="client-appearance-preview-card">
+                            <span class="client-appearance-preview-lines"><i></i><i></i></span>
+                            <b></b>
+                          </span>
+                        </span>
+                      </span>
+                      <span class="client-appearance-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                    </span>
+                    <span class="client-appearance-choice-heading">
+                      <span class="client-appearance-choice-name">{{client-theme-name}}</span>
+                      <span class="client-appearance-choice-dots" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true"><i></i><i></i></span>
+                    </span>
+                  </label>
+                </template>
+              </fieldset>
+            </div>
           </div>
-        </header>
-        <div class="client-settings-row client-notification-group">
-          <div class="client-settings-row-copy"><h4 id="plannerNotificationsTitle">工作台日程提醒</h4><p id="plannerNotificationsHint">提醒已勾选「系统通知提醒」的日程；关闭后保留日程，再次开启不补发已过期的提醒。</p></div>
-          <label class="switch-control"><input id="plannerNotificationsEnabled" type="checkbox" aria-labelledby="plannerNotificationsTitle" aria-describedby="plannerNotificationsHint" checked disabled /><span class="switch-track"></span></label>
-        </div>
-        <div class="client-notification-group">
-          <div class="client-settings-row">
-            <div class="client-settings-row-copy"><h4 id="largeGiftNotificationsTitle">大额礼物通知</h4><p id="largeGiftNotificationsHint">单次礼物结算总额大于下方金额时提醒。默认关闭。</p></div>
-            <label class="switch-control"><input id="largeGiftNotificationsEnabled" type="checkbox" aria-labelledby="largeGiftNotificationsTitle" aria-describedby="largeGiftNotificationsHint" disabled /><span class="switch-track"></span></label>
-          </div>
-          <div class="client-notification-threshold">
-            <label for="largeGiftNotificationThreshold">通知金额</label>
-            <span class="lira-number-field"><input id="largeGiftNotificationThreshold" type="number" min="0" step="0.01" value="1000" required aria-label="通知金额（元）" aria-describedby="largeGiftNotificationsHint" disabled /><span class="lira-number-field-unit" aria-hidden="true">元</span></span>
-          </div>
-        </div>
-        <p class="hint">LIRA 需保持运行，最小化或切换页面仍可提醒。若没有弹出通知，请检查 Windows 中的 LIRA 通知权限与勿扰设置。</p>
-        <p id="desktopNotificationsFeedback" class="hint" role="status" aria-live="polite">正在读取通知设置…</p>
+        </section>
       </section>
-    </section>
-    <!-- admin-fragment: pages/admin/toolbox/desktop-update.html -->
+
+      <section id="settingsNotificationsPanel" class="client-settings-panel client-settings-panel--narrow" role="tabpanel" aria-labelledby="settingsNotificationsTab" hidden>
+        <section class="client-settings-section playback-output-settings" aria-labelledby="playbackOutputTitle">
+          <div class="client-settings-section-head">
+            <h3 id="playbackOutputTitle" class="client-settings-section-label">内置播放器输出</h3>
+            <span id="playbackOutputFeedback" class="client-settings-section-meta" role="status" aria-live="polite"></span>
+            <span class="client-settings-section-note">仅作用于 LIRA 内置播放器</span>
+          </div>
+          <div class="client-settings-card playback-output-card">
+            <div class="playback-output-controls">
+              <label class="client-settings-sr-only" for="playbackOutputDevice">输出通道</label>
+              <select id="playbackOutputDevice" aria-describedby="playbackOutputHint playbackOutputFeedback">
+                <option value="">系统默认输出</option>
+              </select>
+              <button id="playbackOutputRefresh" type="button" class="secondary client-settings-action">
+                <svg class="client-settings-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
+                刷新设备
+              </button>
+            </div>
+            <details class="client-settings-help">
+              <summary>
+                <span class="playback-output-tip">配合电音助手推荐保持「系统默认输出」</span>
+                <span class="client-settings-help-toggle">声卡与电音助手说明<svg class="client-settings-help-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span>
+              </summary>
+              <div class="client-settings-help-body">
+                <p id="playbackOutputHint">· 通常选「系统默认输出」或 WASAPI；同一设备可能提供多种输出方式，ASIO 首次选择后会检查连接并列出可用声道。</p>
+                <p>· 已选助手独立原声通道时可保留，只需在助手内把「最终输出」选至监听或推流通道；ASIO 声音需通过声卡回送接入。</p>
+                <p>· QQ 音乐与网易云客户端需在各自设置中单独选择输出设备。</p>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section class="client-settings-section" aria-labelledby="desktopNotificationsTitle">
+          <div class="client-settings-section-head">
+            <h3 id="desktopNotificationsTitle" class="client-settings-section-label">系统通知</h3>
+            <span id="desktopNotificationsFeedback" class="client-settings-section-meta" role="status" aria-live="polite">正在读取通知设置…</span>
+          </div>
+          <div class="client-settings-card">
+            <div class="client-settings-row">
+              <div class="client-settings-row-copy">
+                <h4 id="plannerNotificationsTitle">工作台日程提醒</h4>
+                <p id="plannerNotificationsHint">到点提醒已勾选通知的日程，关闭不影响已有日程</p>
+              </div>
+              <label class="switch-control"><input id="plannerNotificationsEnabled" type="checkbox" aria-labelledby="plannerNotificationsTitle" aria-describedby="plannerNotificationsHint" checked disabled /><span class="switch-track"></span></label>
+            </div>
+            <div class="client-settings-row-block client-notification-gift-row">
+              <div class="client-settings-row">
+                <div class="client-settings-row-copy">
+                  <h4 id="largeGiftNotificationsTitle">大额礼物通知</h4>
+                  <p id="largeGiftNotificationsHint">单次礼物结算高于设定金额时通过 Windows 提醒</p>
+                </div>
+                <label class="switch-control"><input id="largeGiftNotificationsEnabled" type="checkbox" aria-labelledby="largeGiftNotificationsTitle" aria-describedby="largeGiftNotificationsHint" disabled /><span class="switch-track"></span></label>
+              </div>
+              <div class="client-notification-threshold-fold">
+                <div class="client-notification-threshold-inner">
+                  <div class="client-notification-threshold">
+                    <div class="client-notification-threshold-left">
+                      <label for="largeGiftNotificationThreshold">触发门槛</label>
+                      <div class="client-notification-presets" role="group" aria-label="快捷金额">
+                        <button type="button" class="client-notification-preset" data-gift-threshold-preset="100" disabled>¥100</button>
+                        <button type="button" class="client-notification-preset" data-gift-threshold-preset="500" disabled>¥500</button>
+                        <button type="button" class="client-notification-preset" data-gift-threshold-preset="1000" disabled>¥1000</button>
+                      </div>
+                    </div>
+                    <span class="lira-number-field"><input id="largeGiftNotificationThreshold" type="number" min="0" step="0.01" value="1000" required aria-label="通知金额（元）" aria-describedby="largeGiftNotificationsHint" disabled /><span class="lira-number-field-unit" aria-hidden="true">元</span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="client-settings-footnote">需保持 LIRA 运行（最小化仍可提醒）；未弹出时请检查 Windows 通知权限与专注助手。</p>
+        </section>
+      </section>
+
+      <section id="settingsAccountPanel" class="client-settings-panel client-settings-panel--narrow" role="tabpanel" aria-labelledby="settingsAccountTab" hidden>
+        <section id="licenseAccountDevice" class="client-settings-section" hidden aria-labelledby="licenseAccountTitle">
+          <div class="client-settings-section-head">
+            <h3 id="licenseAccountTitle" class="client-settings-section-label">LIRA 账号</h3>
+          </div>
+          <div class="client-settings-card client-account-card">
+            <div class="client-account-identity">
+              <div class="client-account-primary">
+                <span id="licenseAccountAvatar" class="client-account-avatar" aria-hidden="true">L</span>
+                <div class="client-account-meta">
+                  <div class="client-account-title-line">
+                    <strong id="licenseAccountName" class="client-account-name">正在读取…</strong>
+                    <span class="pill good client-account-badge"><i aria-hidden="true"></i>已授权</span>
+                  </div>
+                  <div class="client-account-device-line">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                    <span id="licenseDeviceName">正在读取…</span>
+                  </div>
+                </div>
+              </div>
+              <button id="licensePasswordHelpToggle" type="button" class="secondary client-settings-action client-settings-action--compact" aria-expanded="false" aria-controls="licensePasswordHelp">忘记密码？</button>
+            </div>
+            <div id="licensePasswordHelp" class="client-settings-fold">
+              <div class="client-settings-fold-inner">
+                <p class="client-account-help-note">忘记 LIRA 密码请联系管理员重置；B 站账号密码请通过 B 站官方找回。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="client-settings-section" aria-labelledby="clientServicesTitle">
+          <div class="client-settings-section-head">
+            <h3 id="clientServicesTitle" class="client-settings-section-label">关联服务</h3>
+          </div>
+          <div class="client-settings-card">
+            <div class="client-settings-row client-settings-row--service">
+              <div class="client-settings-row-leading">
+                <span class="client-settings-icon-box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3.6 9h16.8M3.6 15h16.8M12 3a13 13 0 0 0 0 18M12 3a13 13 0 0 1 0 18"/></svg></span>
+                <div class="client-settings-row-copy"><h4 id="licenseAccountLoginTitle">网页主播中心</h4><p>管理网页歌单与云端数据</p></div>
+              </div>
+              <a class="secondary client-settings-action client-settings-action--compact" href="https://admin.lirahub.cn/" target="_blank" rel="noopener noreferrer">打开主播中心<svg class="client-settings-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></a>
+            </div>
+            <div class="client-settings-row client-settings-row--service">
+              <div class="client-settings-row-leading">
+                <span class="client-settings-icon-box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="3"/><path d="m8 3 2.5 4M16 3l-2.5 4M9 13v2M15 13v2"/></svg></span>
+                <div class="client-settings-row-copy"><h4 id="bilibiliSettingsLinkTitle">B 站账号与直播间</h4><p>扫码登录、修改直播间号</p></div>
+              </div>
+              <button type="button" class="secondary client-settings-action client-settings-action--compact" data-main-page-link="songAssistantPage" data-song-tab-target="settingsPage">前往登录<svg class="client-settings-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- admin-fragment: pages/admin/toolbox/desktop-update.html -->
     </div>
   </div>
   <dialog id="licenseAgreementDialog" class="license-agreement-dialog" aria-labelledby="licenseAgreementDialogTitle">

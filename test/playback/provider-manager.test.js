@@ -58,6 +58,6 @@ test('provider state stays scoped to its source when checks finish out of order'
   assert.equal(manager.getProviderHealth('qq').message, 'QQ 可用');
   assert.equal(manager.getAuthState('netease').platform, 'netease');
   assert.equal(manager.getProviderHealth('netease').message, '网易云可用');
-  assert.equal(manager.authState.platform, 'netease');
-  assert.equal(manager.providerHealth.source, 'netease');
+  assert.equal(manager.getAuthState().platform, 'netease');
+  assert.equal(manager.getProviderHealth().source, 'netease');
 });

@@ -10,9 +10,7 @@ import { getSongRequestKey } from '../utils.js';
 export class ImportService {
   constructor(options = {}) {
     this.matchService = options.matchService || null;
-    this.onError = options.onError || (() => {});
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
-    this.toast = options.toast || (() => {});
   }
 
   /**
@@ -147,52 +145,5 @@ export class ImportService {
       this.matchService.addPendingRequest(item, matched);
       return { type: 'pending' };
     }
-  }
-
-  /**
-   * 批量导入指定的点歌项
-   * @param {Array} items - 点歌项列表
-   * @param {Array} platforms - 平台列表
-   * @returns {Promise<Object>} 导入结果
-   */
-  async importItems(items, platforms = []) {
-    if (!Array.isArray(items) || items.length === 0) {
-      return {
-        imported: 0,
-        pending: 0,
-        skipped: 0,
-        tracks: [],
-      };
-    }
-
-    let imported = 0;
-    let pending = 0;
-    let skipped = 0;
-    const importedTracks = [];
-
-    for (const item of items) {
-      try {
-        const result = await this.processQueueItem(item, platforms);
-
-        if (result.type === 'imported') {
-          importedTracks.push(result.track);
-          imported++;
-        } else if (result.type === 'pending') {
-          pending++;
-        } else {
-          skipped++;
-        }
-      } catch (error) {
-        console.warn('[ImportService] import item failed:', error.message || error);
-        skipped++;
-      }
-    }
-
-    return {
-      imported,
-      pending,
-      skipped,
-      tracks: importedTracks,
-    };
   }
 }

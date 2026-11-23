@@ -498,19 +498,87 @@ export function guardRosterForm(roomId, roomProfile = null) {
   };
 }
 
+const MAX_ACCOMPANY_MILESTONES = 10;
+
+function normalizeMilestones(list) {
+  return [...new Set((list || []).filter((day) => Number.isSafeInteger(day) && day >= 1 && day <= 100000))]
+    .sort((a, b) => a - b)
+    .slice(0, MAX_ACCOMPANY_MILESTONES);
+}
+
+function milestoneChipHtml(day) {
+  return `<span class="fan-milestone-chip" data-milestone-day="${day}"><span class="fan-milestone-value">${day}<span class="fan-milestone-unit">天</span></span><button type="button" class="fan-milestone-remove ghost" data-remove-milestone="${day}" aria-label="移除 ${day} 天"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>`;
+}
+
 export function settingsForm(settings) {
+  const initialMilestones = normalizeMilestones(settings.accompanyMilestones);
   return {
     title: '粉丝档案自动更新',
+    settingsEditor: true,
     closeOnBackdrop: true,
-    hint: '普通观众需要手动建档。生日、备注与话题仅保存在本机。',
+    hint: '',
     fields:
-      check('autoUpdate', '自动更新已有档案的昵称、点歌和上舰记录', settings.autoUpdate !== false) +
-      check('autoCreate', '有新粉丝上舰时自动建档', settings.autoCreate !== false) +
-      check('autoSyncGuardRoster', '每天自动更新名单、昵称、头像和陪伴天数', settings.autoSyncGuardRoster === true) +
-      '<p class="fan-field-wide fan-muted">北京时间每天 12:10 核对名单，并按 UID 更新名单外未归档档案的昵称和头像。可确认下舰时移除身份标记；神秘人成员跳过。错过后，当天首次打开软件时补更新。</p>' +
-      field('accompanyMilestones', '陪伴纪念日（天，以逗号分隔）', (settings.accompanyMilestones || []).join(', ')) +
-      check('showAccompanyInCalendar', '在工作台日历显示陪伴纪念日', settings.showAccompanyInCalendar !== false) +
-      '<p class="fan-field-wide fan-muted">日历自动提示 <lira-help label="日历自动提示说明">填好生日、纪念日、跟进/复查日期或上舰日期后，工作台日历会提前 3 天在对应日子上标出提醒（比如 10 月 12 日的纪念日，从 10 月 9 日起就能在日历的 12 日格子里看到），在档案「提醒」里标记处理后隐藏。大航海陪伴满 100、365、500、1000 天也会按同步数据自动推算并标为「预计」（超过 7 天未同步或下舰后暂停推算）。</lira-help></p>',
+      `<div class="fan-settings-panel fan-field-wide">
+        <div class="fan-settings-rows">
+          <label class="fan-settings-row">
+            <span class="fan-settings-row-copy">
+              <span class="fan-settings-row-title">更新已有档案</span>
+              <span class="fan-settings-row-desc">昵称、点歌与上舰记录</span>
+            </span>
+            <span class="switch-control">
+              <input name="autoUpdate" type="checkbox" ${settings.autoUpdate !== false ? 'checked' : ''} />
+              <span class="switch-track" aria-hidden="true"></span>
+            </span>
+          </label>
+          <label class="fan-settings-row">
+            <span class="fan-settings-row-copy">
+              <span class="fan-settings-row-title">新上舰自动建档</span>
+              <span class="fan-settings-row-desc">普通观众仍需手动建档</span>
+            </span>
+            <span class="switch-control">
+              <input name="autoCreate" type="checkbox" ${settings.autoCreate !== false ? 'checked' : ''} />
+              <span class="switch-track" aria-hidden="true"></span>
+            </span>
+          </label>
+          <div class="fan-settings-row">
+            <div class="fan-settings-row-copy">
+              <div class="fan-settings-row-head">
+                <label class="fan-settings-row-title" for="fanAutoSyncGuardRoster">每日定时同步</label>
+                <span class="fan-settings-time-tag">00:10</span>
+                <lira-help label="每日定时同步说明">北京时间每天 00:10 核对名单，并按 UID 更新名单外未归档档案的昵称和头像。可确认下舰时移除身份标记；神秘人成员跳过。错过后，当天首次打开软件时补更新。</lira-help>
+              </div>
+              <label class="fan-settings-row-desc" for="fanAutoSyncGuardRoster">名单、昵称、头像与陪伴天数</label>
+            </div>
+            <label class="switch-control">
+              <input id="fanAutoSyncGuardRoster" name="autoSyncGuardRoster" type="checkbox" ${settings.autoSyncGuardRoster === true ? 'checked' : ''} />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </div>
+        </div>
+        <section class="fan-settings-milestone-card" aria-label="陪伴纪念日设置">
+          <div class="fan-settings-milestone-head">
+            <span class="fan-settings-milestone-title">陪伴纪念日<lira-help label="日历自动提示说明">填好生日、纪念日、跟进/复查日期或上舰日期后，工作台日历会提前 3 天在对应日子上标出提醒（比如 10 月 12 日的纪念日，从 10 月 9 日起就能在日历的 12 日格子里看到），在档案「提醒」里标记处理后隐藏。大航海陪伴满设定天数也会按同步数据自动推算并标为「预计」（超过 7 天未同步或下舰后暂停推算）。</lira-help></span>
+            <label class="switch-control fan-settings-inline-switch">
+              <span class="fan-settings-inline-label">日历显示</span>
+              <input name="showAccompanyInCalendar" type="checkbox" ${settings.showAccompanyInCalendar !== false ? 'checked' : ''} />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </div>
+          <div class="fan-settings-milestones" data-milestones-editor>
+            <input type="hidden" name="accompanyMilestones" value="${attr(initialMilestones.join(', '))}" />
+            <div class="fan-milestone-list" data-milestone-list>${initialMilestones.map(milestoneChipHtml).join('')}</div>
+            <button type="button" class="fan-milestone-add ghost" data-add-milestone${initialMilestones.length >= MAX_ACCOMPANY_MILESTONES ? ' hidden' : ''}>
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              <span>添加</span>
+            </button>
+            <span class="fan-milestone-editor" data-milestone-inline hidden>
+              <input type="text" inputmode="numeric" maxlength="6" class="fan-milestone-input" data-milestone-input placeholder="天数" aria-label="添加陪伴纪念日天数" />
+              <button type="button" class="fan-milestone-confirm primary" data-milestone-confirm>确定</button>
+            </span>
+          </div>
+          <p class="fan-milestone-error" data-milestone-error role="alert" hidden></p>
+        </section>
+      </div>`,
     read: (form) => ({
       autoUpdate: form.elements.autoUpdate.checked,
       autoCreate: form.elements.autoCreate.checked,
@@ -519,6 +587,123 @@ export function settingsForm(settings) {
         ? form.elements.accompanyMilestones.value.trim().split(/[,，\s]+/).map(Number) : [],
       showAccompanyInCalendar: form.elements.showAccompanyInCalendar.checked,
     }),
+    bind(form) {
+      const box = form.querySelector('[data-milestones-editor]');
+      if (!box) return;
+      const hidden = box.querySelector('input[name="accompanyMilestones"]');
+      const list = box.querySelector('[data-milestone-list]');
+      const addButton = box.querySelector('[data-add-milestone]');
+      const inlineWrap = box.querySelector('[data-milestone-inline]');
+      const input = box.querySelector('[data-milestone-input]');
+      const confirmButton = box.querySelector('[data-milestone-confirm]');
+      const errorNode = box.closest('.fan-settings-milestone-card')?.querySelector('[data-milestone-error]');
+      let days = normalizeMilestones(initialMilestones);
+
+      const setError = (message = '') => {
+        if (!errorNode) return;
+        errorNode.textContent = message;
+        errorNode.hidden = !message;
+      };
+
+      const render = () => {
+        hidden.value = days.join(', ');
+        list.innerHTML = days.map(milestoneChipHtml).join('');
+        addButton.hidden = !inlineWrap.hidden || days.length >= MAX_ACCOMPANY_MILESTONES;
+      };
+
+      const closeInline = ({ focusAdd = false } = {}) => {
+        inlineWrap.hidden = true;
+        input.value = '';
+        setError('');
+        addButton.hidden = days.length >= MAX_ACCOMPANY_MILESTONES;
+        if (focusAdd && !addButton.hidden) addButton.focus();
+      };
+
+      const notify = () => {
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      };
+
+      const commitInput = () => {
+        const raw = input.value.trim();
+        if (!raw) {
+          closeInline({ focusAdd: true });
+          return;
+        }
+        const parsed = raw.split(/[,，\s]+/).map(Number);
+        if (parsed.some((day) => !Number.isSafeInteger(day) || day < 1 || day > 100000)) {
+          setError('请输入 1–100000 的整数天数');
+          input.focus();
+          return;
+        }
+        const merged = [...new Set([...days, ...parsed])].sort((a, b) => a - b);
+        if (merged.length > MAX_ACCOMPANY_MILESTONES) {
+          setError(`最多设置 ${MAX_ACCOMPANY_MILESTONES} 个陪伴纪念日`);
+          input.focus();
+          return;
+        }
+        const changed = merged.length !== days.length || merged.some((day, i) => day !== days[i]);
+        days = merged;
+        inlineWrap.hidden = true;
+        input.value = '';
+        setError('');
+        render();
+        if (changed) notify();
+      };
+
+      box.addEventListener('click', (event) => {
+        const remove = event.target.closest('[data-remove-milestone]');
+        if (remove) {
+          const targetDay = Number(remove.dataset.removeMilestone);
+          days = days.filter((day) => day !== targetDay);
+          setError('');
+          render();
+          notify();
+          return;
+        }
+        if (event.target.closest('[data-add-milestone]')) {
+          addButton.hidden = true;
+          inlineWrap.hidden = false;
+          setError('');
+          input.focus();
+          return;
+        }
+        if (event.target.closest('[data-milestone-confirm]')) {
+          commitInput();
+        }
+      });
+
+      confirmButton.addEventListener('mousedown', (event) => {
+        event.preventDefault();
+      });
+
+      input.addEventListener('input', (event) => {
+        event.stopPropagation();
+        setError('');
+      });
+
+      input.addEventListener('change', (event) => {
+        event.stopPropagation();
+      });
+
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          event.stopPropagation();
+          commitInput();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          closeInline({ focusAdd: true });
+        }
+      });
+
+      inlineWrap.addEventListener('focusout', () => {
+        requestAnimationFrame(() => {
+          if (inlineWrap.hidden || inlineWrap.contains(document.activeElement)) return;
+          if (!input.value.trim()) closeInline();
+        });
+      });
+    },
   };
 }
 

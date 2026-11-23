@@ -60,11 +60,13 @@ export function renderHistoryWaitingView(view) {
 export function renderGiftHistoryView(view) {
   const items = view.ledger.items;
   const detailStart = view.ledger.retention?.detailStart;
-  const retentionText = detailStart
-    ? `本机保留已接收的约一年明细，服务器可恢复约90天，历史统计长期保留。${
-      view.ledger.retention.availability === 'expired' ? '所选日期已过本机明细保留期。'
-        : view.ledger.retention.availability === 'partial' ? '所选范围明细不完整，仅展示本机已有记录。' : ''}`
-    : '';
+  const availability = detailStart ? view.ledger.retention.availability : null;
+  let retentionText = '';
+  if (availability === 'expired') {
+    retentionText = '所选日期已过本机明细保留期。';
+  } else if (availability === 'partial') {
+    retentionText = '当前范围内的礼物明细可能不全，列表和导出仅包含本机已有记录。';
+  }
   setText('giftHistoryTotal', `共 ${view.ledger.total} 条`);
   const total = get('giftHistoryTotal');
   if (total) total.hidden = false;

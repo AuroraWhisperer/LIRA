@@ -59,7 +59,7 @@ export function createProviderOperations(deps) {
     ]);
 
     if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
-    playbackAuthState = authResult.status === 'fulfilled' ? authResult.value : providerManager.getAuthState(platform);
+    playbackAuthState = (authResult.status === 'fulfilled' ? authResult.value : null) ?? providerManager.getAuthState(platform);
     playbackProviderHealth = providerManager.getProviderHealth(platform);
     if (!playbackProviderHealth && healthResult.status === 'rejected') {
       playbackProviderHealth = {
@@ -70,27 +70,6 @@ export function createProviderOperations(deps) {
       };
     }
     renderPlayback();
-  }
-
-  /**
-   * 仅刷新选中音乐源的认证状态
-   */
-  async function refreshSelectedMusicAuthState() {
-    const platform = playbackState.selectedSource;
-    if (platform === 'wesing') {
-      playbackAuthState = weSingService.getAuthState();
-      renderPlayback();
-      return playbackAuthState;
-    }
-    const authState = await providerManager.refreshAuthState({
-      platform,
-      notify: false,
-    });
-    if (playbackState.selectedSource === platform) {
-      playbackAuthState = authState;
-      renderPlayback();
-    }
-    return authState;
   }
 
   /**
@@ -173,7 +152,7 @@ export function createProviderOperations(deps) {
         authState = null;
       }
       if (playbackState.selectedSource === platform) {
-        playbackAuthState = authState;
+        playbackAuthState = authState ?? providerManager.getAuthState(platform);
         renderPlayback();
         await checkSelectedMusicProviderHealth({ silent: true });
       }
@@ -296,7 +275,6 @@ export function createProviderOperations(deps) {
 
   return {
     refreshSelectedMusicProviderState,
-    refreshSelectedMusicAuthState,
     checkSelectedMusicProviderHealth,
     loginSelectedMusicProvider,
     showPlaybackLoginPrompt,

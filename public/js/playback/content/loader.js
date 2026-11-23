@@ -13,18 +13,10 @@ export const CACHEABLE_ACTIONS = new Set(['liked', 'created-playlists', 'collect
 export class ContentLoader {
   constructor(options = {}) {
     this.state = options.state || null;
-    this.providerManager = options.providerManager || null;
-    this.onError = options.onError || (() => {});
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
     this.cacheManager = options.cacheManager || null;
     /** 后台刷新完成回调： ({action, items, itemType, changed}) => void */
     this.onBackgroundUpdate = options.onBackgroundUpdate || null;
-
-    // 主页内容缓存
-    this.homeItems = [];
-    this.homeItemType = '';
-    this.homeAction = '';
-    this.homePage = 1;
 
     // 防止同一 action 并发后台刷新
     this._bgRefreshing = new Map();
@@ -71,13 +63,6 @@ export class ContentLoader {
     );
   }
 
-  _applyResult(result) {
-    this.homeItems = Array.isArray(result.items) ? result.items : [];
-    this.homeItemType = result.itemType || '';
-    this.homeAction = result.action || '';
-    this.homePage = 1;
-  }
-
   _writeCache(request, result) {
     if (!CACHEABLE_ACTIONS.has(request.action) || !this.cacheManager) return false;
     if (this._cacheRequestGenerations.get(request.cacheKey) !== request.generation) return false;
@@ -109,7 +94,6 @@ export class ContentLoader {
     const changed = this._hasChanged(current.cachedResult.items, result.items);
     if (!changed) return;
     current.cachedResult = result;
-    this._applyResult(result);
     this.onBackgroundUpdate?.({
       ...result,
       platform: current.platform,
@@ -144,18 +128,11 @@ export class ContentLoader {
           title: request.title,
         };
         request.cachedResult = cachedResult;
-        this._applyResult(cachedResult);
 
         // 后台静默刷新：返回缓存数据的同时，异步请求最新数据
         void this._backgroundRefresh(request);
 
-        return {
-          items: this.homeItems,
-          itemType: this.homeItemType,
-          action: this.homeAction,
-          title: request.title,
-          fromCache: true,
-        };
+        return { ...cachedResult, fromCache: true };
       }
     }
 
@@ -166,14 +143,7 @@ export class ContentLoader {
       return { stale: true };
     }
 
-    this._applyResult(result);
-
-    return {
-      items: this.homeItems,
-      itemType: this.homeItemType,
-      action: this.homeAction,
-      title: request.title,
-    };
+    return result;
   }
 
   /**
@@ -369,26 +339,9 @@ export class ContentLoader {
 
   // ── 公开辅助方法 ──
 
-  getHomeActionTitle(action) {
-    return getHomeActionTitle(action);
-  }
-
-  getCurrentHomeContent() {
-    return {
-      items: this.homeItems,
-      itemType: this.homeItemType,
-      action: this.homeAction,
-      page: this.homePage,
-    };
-  }
-
   clearHomeContent() {
     this._requestGeneration += 1;
     this._activeRequest = null;
-    this.homeItems = [];
-    this.homeItemType = '';
-    this.homeAction = '';
-    this.homePage = 1;
   }
 
   invalidatePlatform(platform) {

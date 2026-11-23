@@ -7,6 +7,8 @@ const { projectGuardExpiry } = require('../fans/guard-expiry');
 const { identity } = require('../fans/validation');
 const { fetchBilibiliFormerNames } = require('../shared/bilibili-former-names');
 
+const AUTOMATIC_UPDATE_TIME = '00:10:00+08:00';
+
 function fanScopeFor(licenseManager) {
   if (!licenseManager?.isAuthorized()) return null;
   const identity = licenseManager.getCloudSyncIdentity();
@@ -275,7 +277,7 @@ function createFanProfileController({
     const settings = service?.execute(captured.scope, 'settings');
     if (settings?.autoSyncGuardRoster !== true) return;
     const date = dayOf(now());
-    const scheduledAt = Date.parse(`${date}T12:10:00+08:00`);
+    const scheduledAt = Date.parse(`${date}T${AUTOMATIC_UPDATE_TIME}`);
     if (now() < scheduledAt) return;
     const roomId = String(getRoomId() || '');
     if (!/^[1-9]\d{0,19}$/.test(roomId)) return;
@@ -310,7 +312,7 @@ function createFanProfileController({
     if (disposed || !isWindowOpen()) return;
     timers.clearTimeout(automaticTimer);
     const at = now();
-    const scheduledAt = Date.parse(`${dayOf(at)}T12:10:00+08:00`);
+    const scheduledAt = Date.parse(`${dayOf(at)}T${AUTOMATIC_UPDATE_TIME}`);
     const wait = at < scheduledAt ? Math.min(30000, scheduledAt - at) : 30000;
     automaticTimer = timers.setTimeout(() => {
       automaticTimer = null;

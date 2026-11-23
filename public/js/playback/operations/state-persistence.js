@@ -262,12 +262,12 @@ export function createStatePersistence(deps) {
   /** Electron 关闭服务前等待最后一份状态写入 SQLite。 */
   async function flushPlaybackStateForShutdown() {
     const payload = takeExplicitFlushPayload();
-    if (!payload) return;
+    if (!payload) return true;
 
     if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
       try {
         const result = await window.musicAPI.savePlaybackState(playbackClientId, payload);
-        if (result?.saved === true) return;
+        if (result?.saved === true) return true;
       } catch (_) {}
     }
 
@@ -279,10 +279,10 @@ export function createStatePersistence(deps) {
         keepalive: true,
       });
       const result = response.ok ? await response.json() : null;
-      if (result?.ok !== true || result.data?.saved !== true) retainPendingPayload(payload);
-    } catch (_) {
-      retainPendingPayload(payload);
-    }
+      if (result?.ok === true && result.data?.saved === true) return true;
+    } catch (_) {}
+    retainPendingPayload(payload);
+    return false;
   }
 
   return {

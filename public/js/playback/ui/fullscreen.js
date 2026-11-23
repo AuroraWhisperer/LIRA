@@ -70,7 +70,6 @@ export class FullscreenPlayer {
     this.vinylDiscEl = null;
     this.tonearmEl = null;
     this.lyricsContainer = null;
-    this.lyricsWrap = null;
     this.lyricTogglesEl = null;
     this.romaToggleBtn = null;
     this.translationToggleBtn = null;
@@ -101,7 +100,6 @@ export class FullscreenPlayer {
       this.tonearmEl.innerHTML = TONEARM_SVG;
     }
     this.lyricsContainer = document.getElementById('playerFsLyrics');
-    this.lyricsWrap = document.getElementById('playerFsLyricsWrap');
     this.followBtn = document.getElementById('playerFsFollowBtn');
     this.followBtn?.addEventListener('click', () => {
       this.lyricsContainer?.focus({ preventScroll: true });

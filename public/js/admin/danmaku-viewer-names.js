@@ -239,8 +239,8 @@ export function initDanmakuViewerNames({
     generation++;
     unsubscribe?.();
     root.removeEventListener('fixed-reply:select', select);
-    windowRef.removeEventListener('beforeunload', dispose);
+    windowRef.removeEventListener('pagehide', dispose);
   }
-  windowRef.addEventListener('beforeunload', dispose, { once: true });
+  windowRef.addEventListener('pagehide', dispose, { once: true });
   return { refresh, dispose };
 }

@@ -19,6 +19,300 @@
 .fan-editor-heading {
   margin-bottom: 24px;
 }
+.fan-editor-close {
+  display: none;
+}
+.fan-settings-editor {
+  width: min(520px, calc(100vw - 48px));
+  padding: 26px 28px;
+  border-radius: 20px;
+}
+.fan-settings-editor .fan-editor-heading {
+  margin-bottom: 10px;
+}
+.fan-settings-editor .fan-editor-heading h2 {
+  font-size: 19px;
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: var(--type-tracking-tight);
+  line-height: 1.3;
+}
+.fan-settings-editor .fan-editor-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted, var(--muted));
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+.fan-settings-editor .fan-editor-close:hover {
+  border-color: var(--border);
+  background: var(--color-bg-hover, var(--surface-2));
+  color: var(--text);
+}
+.fan-settings-editor #fanEditorFields {
+  display: block;
+}
+.fan-settings-editor #fanEditorError {
+  margin: 14px 0 0;
+}
+.fan-settings-editor .fan-editor-footer {
+  margin-top: 14px;
+  padding-top: 14px;
+  justify-content: flex-end;
+}
+.fan-settings-editor .fan-editor-footer:not(:has(#fanSaveButton:not([hidden]))) {
+  display: none;
+}
+.fan-settings-editor #fanEditorHint,
+.fan-settings-editor [data-fan-action='cancel-edit'] {
+  display: none;
+}
+.fan-settings-rows {
+  display: flex;
+  flex-direction: column;
+}
+.fan-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 15px 2px;
+}
+label.fan-settings-row,
+.fan-settings-row label {
+  cursor: pointer;
+}
+.fan-settings-row + .fan-settings-row {
+  border-top: 1px solid var(--color-border-light, var(--border));
+}
+.fan-settings-row-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.fan-settings-row-head {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.fan-settings-row-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: var(--type-weight-semibold);
+  line-height: 1.4;
+  transition: color 160ms ease;
+}
+.fan-settings-row-desc {
+  color: var(--color-text-muted, var(--muted));
+  font-size: 12px;
+  line-height: 1.45;
+}
+.fan-settings-row:has(.switch-control input:not(:checked)) .fan-settings-row-title {
+  color: var(--color-text-secondary, var(--muted));
+}
+.fan-settings-time-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--color-text-secondary, var(--muted));
+  font-size: 11px;
+  font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+.fan-settings-row:has(.switch-control input:checked) .fan-settings-time-tag {
+  border-color: color-mix(in srgb, var(--primary) 26%, transparent);
+  background: var(--color-primary-light, var(--surface-2));
+  color: var(--color-primary-text, var(--primary));
+}
+.fan-settings-row-head > lira-help,
+.fan-settings-milestone-title > lira-help {
+  margin-inline-start: 2px;
+  vertical-align: 0;
+}
+.fan-settings-editor .switch-control {
+  min-height: 24px;
+  flex-shrink: 0;
+}
+.fan-settings-milestone-card {
+  margin-top: 12px;
+  padding: 16px 18px 18px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
+}
+.fan-settings-milestone-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.fan-settings-milestone-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: var(--type-weight-semibold);
+  line-height: 1.4;
+}
+.fan-settings-inline-switch {
+  gap: 8px;
+}
+.fan-settings-inline-label {
+  color: var(--color-text-muted, var(--muted));
+  font-size: 12px;
+  font-weight: var(--type-weight-regular);
+  transition: color 160ms ease;
+}
+.fan-settings-inline-switch:has(input:checked) .fan-settings-inline-label {
+  color: var(--color-text-secondary, var(--muted));
+}
+.fan-settings-inline-switch .switch-track {
+  width: 36px;
+  height: 20px;
+}
+.fan-settings-inline-switch .switch-track::after {
+  width: 14px;
+  height: 14px;
+}
+.fan-settings-inline-switch input:checked + .switch-track::after {
+  transform: translateX(16px);
+}
+.fan-settings-milestones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.fan-milestone-list {
+  display: contents;
+}
+.fan-milestone-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 5px 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 5%, transparent);
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+.fan-milestone-chip:hover {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+}
+.fan-milestone-value {
+  font-weight: var(--type-weight-semibold);
+  line-height: 1;
+}
+.fan-milestone-unit {
+  margin-left: 2px;
+  color: var(--color-text-muted, var(--muted));
+  font-size: 11px;
+  font-weight: var(--type-weight-regular);
+}
+.fan-settings-editor .fan-milestone-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted, var(--muted));
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+.fan-settings-editor .fan-milestone-remove:hover {
+  background: var(--color-primary-light, var(--surface-2));
+  color: var(--color-primary-text, var(--primary));
+}
+.fan-settings-editor .fan-milestone-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px dashed color-mix(in srgb, var(--primary) 42%, var(--border));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-primary-text, var(--primary));
+  font-size: 12px;
+  font-weight: var(--type-weight-medium);
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+.fan-settings-editor .fan-milestone-add:hover {
+  border-color: color-mix(in srgb, var(--primary) 65%, transparent);
+  background: var(--color-primary-light, var(--surface-2));
+}
+.fan-milestone-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.fan-settings-editor .fan-milestone-input {
+  width: 78px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--primary);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+.fan-settings-editor .fan-milestone-confirm {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: var(--type-weight-medium);
+}
+.fan-milestone-error {
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.4;
+}
 .fan-form-grid,
 .fan-membership-fields {
   display: grid;
@@ -303,14 +597,17 @@
   .fan-back-list {
     display: inline-flex;
   }
-  .fan-toolbar,
+  .fan-toolbar {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
   .fan-setting-row {
     align-items: flex-start;
     flex-wrap: wrap;
   }
-  .fan-sync {
-    max-width: 190px;
-    font-size: 12px;
+  .fan-toolbar-end {
+    margin-left: auto;
   }
 }
 @media (max-width: 600px) {

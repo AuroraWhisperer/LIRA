@@ -1,21 +1,17 @@
 // 编写人：Aurora
-// 用户身份缓存 — 缓存和合并用户身份信息（勋章、舰长等）。
+// 用户身份缓存 — 维护合并结果的索引，并适配旧调用形态。
 'use strict';
 
 const { cleanText, normalizePositiveInteger } = require('../../shared/utils');
 const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
 const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
+const { projectLegacyRequester } = require('../users/user-info-evidence');
 
 const BILIBILI_IDENTITY_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
-const IDENTITY_SOURCE_PRIORITY = {
-  fans_rank: 10,
-  online_rank: 5,
-  history: 20,
-  superchat: 30,
-  danmaku: 30,
-};
 
 class IdentityCache {
+  #serviceOwned = false;
+
   constructor() {
     this.identityByUid = new Map();
     this.identityByName = new Map();
@@ -23,24 +19,27 @@ class IdentityCache {
     this.onlineUids = new Set();
   }
 
+  useServiceProjections() {
+    this.#serviceOwned = true;
+  }
+
   resolve(input) {
     const uid = cleanText(input && input.uid);
-    const userName = cleanText(input && input.userName) || '观众';
-    const cached = this.lookup(uid, userName);
-    const merged = mergeRequesterIdentity(
-      {
-        uid,
-        userName,
-        avatarUrl: normalizeBilibiliAvatarUrl(input && input.avatarUrl),
-        guardLevel: normalizeGuardLevel(input && input.requesterGuardLevel),
-        medalName: cleanText(input && input.requesterMedalName),
-        medalLevel: normalizePositiveInteger(input && input.requesterMedalLevel),
-        currentRoom: Boolean(input && input.currentRoomVerified),
-        source: input && input.identitySource,
-      },
-      cached,
-    );
-    this.remember(merged);
+    const userName = cleanText(input && input.userName);
+    const previous = this.lookup(uid, userName);
+    if (this.#serviceOwned) {
+      return publicRequesterIdentity(previous || { uid, userName: userName || '观众' });
+    }
+    const merged = this.#rememberIdentity(normalizeRequesterIdentity({
+      uid,
+      userName: userName || previous?.userName || '观众',
+      avatarUrl: input && input.avatarUrl,
+      guardLevel: input && input.requesterGuardLevel,
+      medalName: input && input.requesterMedalName,
+      medalLevel: input && input.requesterMedalLevel,
+      currentRoom: Boolean(input && input.currentRoomVerified),
+      source: input && input.identitySource,
+    }), previous);
     if (uid) {
       this.recentByUid.set(uid, {
         ...publicRequesterIdentity(merged),
@@ -62,13 +61,15 @@ class IdentityCache {
 
     const nameKey = requesterNameKey(userName);
     const nameIdentity = nameKey ? this.identityByName.get(nameKey) : null;
-    if (nameIdentity && nowMs - nameIdentity.seenAt <= BILIBILI_IDENTITY_CACHE_MAX_AGE_MS) {
+    if (nameIdentity && (!uidKey || !nameIdentity.uid || nameIdentity.uid === uidKey) &&
+        nowMs - nameIdentity.seenAt <= BILIBILI_IDENTITY_CACHE_MAX_AGE_MS) {
       return nameIdentity;
     }
     return null;
   }
 
   remember(input, options = {}) {
+    if (this.#serviceOwned) return false;
     const identity = normalizeRequesterIdentity({
       ...input,
       currentRoom: options.currentRoom === true || Boolean(input && input.currentRoom),
@@ -85,16 +86,19 @@ class IdentityCache {
     )
       return false;
 
-    const previous = this.lookup(identity.uid, identity.userName);
-    const merged = {
-      ...mergeRequesterIdentity(identity, previous),
-      seenAt: Date.now(),
-    };
-
-    if (merged.uid) this.identityByUid.set(merged.uid, merged);
-    const nameKey = requesterNameKey(merged.userName);
-    if (nameKey) this.identityByName.set(nameKey, merged);
+    this.#rememberIdentity(identity, this.lookup(identity.uid, identity.userName));
     return true;
+  }
+
+  #rememberIdentity(identity, previous) {
+    const nowMs = Date.now();
+    const merged = projectLegacyRequester(identity, normalizeRequesterIdentity(previous), nowMs);
+    const stored = { ...merged, seenAt: nowMs };
+
+    if (stored.uid) this.identityByUid.set(stored.uid, stored);
+    const nameKey = requesterNameKey(stored.userName);
+    if (nameKey) this.identityByName.set(nameKey, stored);
+    return merged;
   }
 
   cleanup() {
@@ -151,17 +155,16 @@ class IdentityCache {
     });
     if (!identity.uid) return false;
 
-    const stored = { ...identity };
-    this.identityByUid.set(identity.uid, stored);
+    const previous = this.identityByUid.get(identity.uid);
+    const previousNameKey = requesterNameKey(previous?.userName);
     const nameKey = requesterNameKey(identity.userName);
-    if (nameKey) this.identityByName.set(nameKey, stored);
-    if (options.recent === true) this.recentByUid.set(identity.uid, stored);
+    if (previousNameKey && previousNameKey !== nameKey && this.identityByName.get(previousNameKey) === previous) {
+      this.identityByName.delete(previousNameKey);
+    }
+    this.identityByUid.set(identity.uid, identity);
+    if (nameKey) this.identityByName.set(nameKey, identity);
+    if (options.recent === true) this.recentByUid.set(identity.uid, identity);
     return true;
-  }
-
-  readMerged(uid) {
-    const identity = this.identityByUid.get(cleanText(uid));
-    return identity ? { ...identity } : null;
   }
 
   listRecentUids() {
@@ -213,53 +216,6 @@ function normalizeRequesterIdentity(input) {
   return addAvatarUrl(identity, input && input.avatarUrl);
 }
 
-function mergeRequesterIdentity(primary, fallback) {
-  const base = normalizeRequesterIdentity(primary);
-  const extra = normalizeRequesterIdentity(fallback);
-  if (base.currentRoom) return mergeCurrentRoomIdentity(base, extra);
-  if (extra.currentRoom) return mergeCurrentRoomIdentity(extra, base);
-  return addAvatarUrl(
-    {
-      uid: base.uid || extra.uid,
-      userName: chooseRequesterUserName(base.userName, extra.userName),
-      guardLevel: base.guardLevel || extra.guardLevel,
-      medalName: base.medalName || extra.medalName,
-      medalLevel: base.medalLevel || extra.medalLevel,
-      seenAt: Math.max(base.seenAt, extra.seenAt),
-      currentRoom: false,
-    },
-    base.avatarUrl || extra.avatarUrl,
-  );
-}
-
-function mergeCurrentRoomIdentity(currentRoom, fallback) {
-  const selected = chooseCurrentRoomEvidence(currentRoom, fallback);
-  return addAvatarUrl(
-    {
-      uid: selected.uid || fallback.uid || currentRoom.uid,
-      userName: chooseRequesterUserName(selected.userName, fallback.userName || currentRoom.userName),
-      guardLevel: selected.guardLevel,
-      medalName: selected.medalName,
-      medalLevel: selected.medalLevel,
-      seenAt: Math.max(selected.seenAt, fallback.seenAt, currentRoom.seenAt),
-      source: selected.source,
-      currentRoom: true,
-    },
-    selected.avatarUrl || fallback.avatarUrl || currentRoom.avatarUrl,
-  );
-}
-
-function chooseCurrentRoomEvidence(primary, fallback) {
-  const primaryPriority = identitySourcePriority(primary.source);
-  const fallbackPriority = identitySourcePriority(fallback.source);
-  if (fallback.currentRoom && fallbackPriority > primaryPriority) return fallback;
-  return primary;
-}
-
-function identitySourcePriority(source) {
-  return IDENTITY_SOURCE_PRIORITY[cleanText(source)] || 0;
-}
-
 function publicRequesterIdentity(input) {
   const identity = normalizeRequesterIdentity(input);
   return addAvatarUrl(
@@ -279,19 +235,6 @@ function addAvatarUrl(identity, value) {
   const avatarUrl = normalizeBilibiliAvatarUrl(value);
   if (avatarUrl) identity.avatarUrl = avatarUrl;
   return identity;
-}
-
-function chooseRequesterUserName(primary, fallback) {
-  if (!primary) return fallback;
-  if (!fallback) return primary;
-  if (isMaskedDisplayName(primary) && !isMaskedDisplayName(fallback)) {
-    return fallback;
-  }
-  return primary;
-}
-
-function isMaskedDisplayName(value) {
-  return /\*{2,}/.test(cleanText(value));
 }
 
 function requesterNameKey(value) {

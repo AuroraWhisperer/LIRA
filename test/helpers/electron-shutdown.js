@@ -440,6 +440,11 @@ function createShutdownHarness(options = {}) {
     },
     './update-manager': {
       configureAutoUpdater({ onStateChange }) { publishUpdate = onStateChange; },
+      async checkForUpdates() {
+        const state = { status: 'dev-disabled', canDownload: false, canInstall: false };
+        publishUpdate(state);
+        return state;
+      },
       async installUpdate() {
         calls.push('update:install');
         if (options.installUpdate) return options.installUpdate({ app, autoUpdater, calls });

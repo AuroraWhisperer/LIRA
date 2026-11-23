@@ -158,14 +158,6 @@ async function resolveProviderLyrics(options) {
   };
 }
 
-/**
- * Match the requested rendition, including covers, before comparing timelines.
- * The general song-request matcher prefers originals and is unsuitable here.
- */
-function selectWeSingLyricTrack(title, durationMs, tracks, artist = '') {
-  return rankWeSingLyricTracks(title, durationMs, tracks, artist)[0]?.track || null;
-}
-
 function rankWeSingLyricTracks(title, durationMs, tracks, artist = '') {
   const candidates = Array.isArray(tracks) ? tracks : [];
   const requestedTitle = normalizeMatchText(title);
@@ -260,5 +252,4 @@ function getLastLineEnd(lines) {
 module.exports = {
   createWeSingOnlineLyricResolver,
   selectBestLyricCandidate,
-  selectWeSingLyricTrack,
 };

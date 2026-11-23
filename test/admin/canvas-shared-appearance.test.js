@@ -74,7 +74,7 @@ test('shared appearance follows the desktop, shares instances and retains failed
   assert.equal(f.provider.getState(f.twin).draft.songBoardTitle, 'canvas');
   f.saveError(true);
   await assert.rejects(f.provider.flush(), /save failed/);
-  assert.equal(f.provider.getStates()[0].dirty, true);
+  assert.equal(f.provider.getState(f.item).dirty, true);
   f.values.songBoardFontSize = '48';
   await f.provider.reload();
   assert.equal(f.provider.getState(f.item).draft.songBoardTitle, 'canvas');

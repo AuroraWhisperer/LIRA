@@ -12,7 +12,6 @@ export class LyricWordAnimator {
     this.words = [];
     this.elements = [];
     this.container = null;
-    this.signature = '';
     this.discreteCursor = 0;
     this.discreteLastMs = null;
   }
@@ -22,7 +21,6 @@ export class LyricWordAnimator {
     this.container = lineElement || null;
     this.words = Array.isArray(words) ? words : [];
     this.mode = options.mode || this.mode;
-    this.signature = JSON.stringify(this.words);
     if (!this.container || !this.words.length) return;
 
     this.words.forEach((word) => {
@@ -174,7 +172,6 @@ export class LyricWordAnimator {
     this.container = null;
     this.elements = [];
     this.words = [];
-    this.signature = '';
     this.discreteCursor = 0;
     this.discreteLastMs = null;
   }

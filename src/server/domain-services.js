@@ -229,7 +229,6 @@ function createDomainServices(options) {
     const data = createDataMaintenanceRuntime({
       db,
       getSettings: () => settingsStore.getSettings(),
-      ensureSongCategory: name => songs.ensureCategory(name),
       ensureUnifiedQueue: () => queue.ensureUnified(),
       clearSuperChatUndo: () => superChatUndo.clear(),
       getActiveGiftSource: () => gifts.getActiveSource?.(),

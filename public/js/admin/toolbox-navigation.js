@@ -257,6 +257,38 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     }
   }
 
+  function slideSelectionIndicator(root, targetButton) {
+    if (!moduleState.initialized || targetButton.getAttribute('aria-selected') === 'true') return;
+    const indicator = root.querySelector('.other-feature-indicator');
+    if (!indicator) return;
+    const running = indicator.getAnimations();
+    const from = indicator.getBoundingClientRect();
+    if (!from.height || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      running.forEach((animation) => animation.cancel());
+      return;
+    }
+
+    const targetTop = targetButton.getBoundingClientRect().top;
+    let startTop = from.top;
+    if (running.length) {
+      const previousTop = root.querySelector('.other-feature-button.active').getBoundingClientRect().top;
+      // Keep the current velocity when extending the path. A closer target or a
+      // reversal starts at the painted position so the old glide cannot overshoot it.
+      const extendsGlide = (from.top < previousTop && previousTop < targetTop)
+        || (from.top > previousTop && previousTop > targetTop);
+      if (extendsGlide) startTop = previousTop;
+      else running.forEach((animation) => animation.cancel());
+    }
+
+    const offset = startTop - targetTop;
+    if (!offset) return;
+    indicator.animate([{ transform: `translateY(${offset}px)` }, { transform: 'translateY(0)' }], {
+      composite: 'add',
+      duration: Math.min(340, 200 + Math.abs(offset) * 0.25),
+      easing: 'cubic-bezier(0.35, 0, 0.25, 1)',
+    });
+  }
+
   /**
    * 根据按钮声明的面板 ID 切换内容，不依赖任何具体功能模块。
    */
@@ -281,6 +313,7 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
 
     if (!selectedButton) return false;
 
+    slideSelectionIndicator(root, selectedButton);
     const selectedId = selectedButton.dataset.otherFeature;
     buttons.forEach((button) => {
       const isActive = button === selectedButton;

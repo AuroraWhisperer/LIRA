@@ -131,16 +131,8 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
     image.src = bindGiftImage(image, source);
   }
 
-  /**
-   * 重置通知状态（用于手动清理后）
-   */
-  function resetNotificationState() {
-    giftNoticeKeys = null;
-  }
-
   return {
     notifyNewGift,
-    resetNotificationState,
   };
 }
 export const giftNotification = createGiftNotification();

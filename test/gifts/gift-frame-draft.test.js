@@ -86,6 +86,22 @@ test('save uses the submitted draft and preserves edits made while awaiting its 
   assert.equal(node('giftFrameThresholdRmb').value, '120');
 });
 
+test('a preview failure cannot save an empty threshold as zero', async () => {
+  const { node, requests, render, edit } = await createFixture();
+  render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'true' });
+  edit('giftFrameThresholdRmb', '');
+  node('giftFramePreviewNum').value = '0';
+  await node('giftFramePreviewBtn').handlers.get('click')();
+  assert.equal(node('giftFrameSaveBtn').hidden, true);
+  await node('giftFrameSaveBtn').handlers.get('click')();
+  assert.equal(requests.length, 0);
+  edit('giftFrameThresholdRmb', '0');
+  const save = node('giftFrameSaveBtn').handlers.get('click')();
+  assert.equal(requests[0].body.giftFrameThresholdRmb, '0.00');
+  requests[0].resolve();
+  await save;
+});
+
 test('saving woodland does not resubmit retired ribbon settings', async () => {
   const { node, requests, render, edit } = await createFixture();
   render({ giftFrameThresholdRmb: '20', giftFrameEnabled: 'true', giftFrameRibbonThresholdRmb: '100', giftFrameRibbonEnabled: 'true' });

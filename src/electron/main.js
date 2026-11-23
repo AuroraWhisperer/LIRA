@@ -159,6 +159,7 @@ var disposePlaybackOutputIpc = null;
 var disposeAudioAssistantIpc = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
+var disposeLicenseIpc = null;
 var guardExpiryAuth = null;
 var disposeGuardExpiryIpc = null;
 var disposeGiftInteractionIpc = null;
@@ -324,6 +325,7 @@ async function drainBeforeRuntimeStop() {
   readinessController?.dispose();
   readinessController = null;
   licenseResumeController?.unregister();
+  disposeLicenseIpc?.();
   disposeLotteryAuthIpc?.();
   disposeGuardExpiryIpc?.();
   guardExpiryAuth?.dispose();
@@ -630,7 +632,7 @@ async function startDesktopApp() {
     getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
-  registerLicenseIpc({
+  disposeLicenseIpc = registerLicenseIpc({
     ipcMain,
     licenseManager,
     getCloudSyncController: () => cloudSyncController,
@@ -747,8 +749,16 @@ async function startDesktopApp() {
     powerMonitor,
     getLicenseManager: () => licenseManager,
     afterResume: async () => {
-      await cloudSyncController?.syncNow();
-      await remoteGiftController?.resume();
+      if (!licenseManager?.isAuthorized()) return;
+      try {
+        await cloudSyncController?.syncNow();
+      } catch (error) {
+        writeLog('cloud-sync-resume', error);
+      }
+      if (licenseManager?.isAuthorized()) {
+        try { await remoteGiftController?.resume(); }
+        catch (error) { writeLog('gift-sync-resume', error); }
+      }
     },
     writeLog,
   });
@@ -777,7 +787,7 @@ async function startDesktopApp() {
   logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
-  if (!app.isPackaged) desktopUpdate.setDevelopmentMode();
+  if (!app.isPackaged) await desktopUpdate.checkForUpdates();
 }
 
 function configureDesktopEnvironment() {

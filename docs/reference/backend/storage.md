@@ -335,7 +335,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 
 v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-migration.js) 将旧 `deleted` 行转为防重 ID 并删除内容，活动与已处理的显示项保留。删除触发器在同一事务写入 ID，覆盖手动删除、平台撤回、清空和显式配置的按天清理；没有平台 ID 的已删留言不留记录。平台撤回先于原消息时也保存 ID，迟到包不会重新入库。防重 ID 不按天删除，清空使用记录也保留。
 
-历史数据由 `migrateLegacySuperChatsToDedicatedDatabase` 从 songDb 旧表迁移后删表([legacy-superchat-migration.js](../../../src/storage/legacy-superchat-migration.js))。稳定平台 ID 优先去重；没有平台 ID 时，按 UID、正文、创建时间和规范化金额共同比较，不合并仅金额不同的留言。目标事务失败时保留源表，成功后才清理。旧表的 `deleted` 行同样只转移 ID，已存在防重 ID 的消息不会因迁移重试恢复内容。
+历史数据由 `migrateLegacySuperChatsToDedicatedDatabase` 从 songDb 旧表迁移后删表([legacy-superchat-migration.js](../../../src/storage/legacy-superchat-migration.js))。有平台 ID 的行只按平台 ID 和撤回凭证去重。无平台 ID 的行只与同为无 ID 的行按 UID、正文、创建时间和规范化金额比较，不合并仅金额不同的留言。目标事务失败时保留源表，成功后才清理。旧表的 `deleted` 行同样只转移 ID，已存在防重 ID 的消息不会因迁移重试恢复内容。
 
 ### 3.3 gift-data.db(礼物库,17 表，含上文礼物保留表)
 
@@ -502,7 +502,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 清空全部的应用流程由 [data-maintenance-runtime.js](../../../src/server/data-maintenance-runtime.js) 的同步 `runClearAll` 拥有。[路由](../../../src/server/routes/data-routes.js)从 [API 上下文](../../../src/server/api-context.js)传入窄能力，运行时依次暂停写入、清库并恢复，全程不插入 `await`:
 
-同文件的 `createDataMaintenanceRuntime` 提供 `domainServices.data`：它拥有活动礼物来源选择、SC 撤销状态清理、清库成功后的倒计时/冷却/默认曲风/队列恢复，以及保留策略与 schema 版本缓存。组合根只注入数据库和必要的运行期操作；跨库提交、回滚与 SQL 继续由 storage 拥有。
+同文件的 `createDataMaintenanceRuntime` 提供 `domainServices.data`：它拥有活动礼物来源选择、SC 撤销状态清理、清库成功后的倒计时、冷却和队列恢复。单独清空歌库时，默认曲风与待上传快照均在删除歌曲的同一事务内写入。运行时还负责保留策略与 schema 版本缓存。组合根只注入数据库和必要的运行期操作；跨库提交、回滚与 SQL 继续由 storage 拥有。
 
 - `context.gifts.pauseDetection()`:暂停本地检测、finalize 与消费重试，取消计时器且不强制 flush；暂停期间销毁也不 flush。远端实时/历史导入抛出 `GIFT_DETECTION_PAUSED`，使礼物与同步游标所属事务一起回滚，避免丢事件
 - `context.overtime.pauseRecovery()`:暂停礼物结算、后台补偿与倒计时归零写入，取消零点/重试计时器
@@ -623,7 +623,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode`（四键默认 `''`） | 两套本地开关与文字独立保存，不加入云设置范围。空值继承旧配置：仅 `guardThanksStyle` 指定的风格继承旧开关，两者继承旧文字；独立保存后该风格不再受旧键影响。旧默认仍为 `false/bilingual/aurora`，新安装两套均关闭。无数据库结构迁移 | 设置 HTTP → 每个启用风格的 `gift:guard-thanks`/overlay；[guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)、[共用兼容解析](../../../public/js/shared/guard-thanks-settings.js) |
 | `guardThanksNauticalEnabled`（默认 `''`） | 航海旗帜本地开关，`true/false` 独立生效；空值兼容任一内置感谢已启用的旧行为。新安装保持关闭，不加入云设置范围 | 同一 final 上舰行投影为专属 `style:nautical` 场景事件，不广播给旧独立礼物特效页，不触发其他样式 |
 | `openingEnabled='false'`、openingAudioFile/Name、openingCharacterFile/Name、openingPixelCharacterFile/Name | 本机上传素材与开播展示；每次 bootstrap 强制关闭 openingEnabled | 专属上传/删除路由保存素材路径，普通设置不是任意路径导入；目录见本文件 §1 |
-| `enableAutoUpdate='false'` | 本机偏好，不同步 | 管理设置 HTTP；desktop:set-auto-update 仅记日志；[update.md](../desktop/update.md) |
+| `enableAutoUpdate='false'` | 本机偏好，不同步 | 管理设置 HTTP 持久化，旧 desktop:set-auto-update 入口仅记日志；[update.md](../desktop/update.md) |
 | `interaction*`、`clock*` | 本机展示，不同步 | 各自 HTTP normalizer/展示 projection，默认值见代表项及 defaults |
 
 ### 7.2 defaults 外的领域设置与公开投影

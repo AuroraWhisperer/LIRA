@@ -90,17 +90,6 @@ function createRemoteGiftImageCache(options = {}) {
     return result;
   }
 
-  function getFilePath(imagePathOrBasename) {
-    const basename = imageBasename(imagePathOrBasename, getImageBaseUrl());
-    if (basename) rememberImage(basename);
-    return basename ? path.join(cacheDir, basename) : '';
-  }
-
-  function getCachedImagePath(imagePath) {
-    const candidate = serverImageCandidate(imagePath, safeImageBaseUrl());
-    return getCachedCandidatePath(candidate);
-  }
-
   function getCachedGiftImagePath(gift) {
     const imageBaseUrl = safeImageBaseUrl();
     for (const candidate of giftImageCandidates(gift, imageBaseUrl)) {
@@ -249,11 +238,9 @@ function createRemoteGiftImageCache(options = {}) {
     cacheGiftImage,
     getSourceImagePath,
     cacheSourceImage,
-    getCachedImagePath,
     getCachedGiftImagePath,
     isGiftImageCurrent,
     hasGiftImageSource,
-    getFilePath,
     dispose() { shutdown.abort(); return Promise.allSettled([...pending.values(), persistImageIndex()]); },
   };
 }
@@ -409,12 +396,6 @@ function parseAllowedImageUrl(value, imageBaseUrl) {
   const basename = path.posix.basename(parsed.pathname);
   if (!isSafeBasename(basename)) return null;
   return parsed;
-}
-
-function imageBasename(value, imageBaseUrl) {
-  if (isSafeBasename(value)) return value;
-  const parsed = parseAllowedImageUrl(value, imageBaseUrl);
-  return parsed ? path.posix.basename(parsed.pathname) : '';
 }
 
 function isSafeBasename(value) {

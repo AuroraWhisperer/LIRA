@@ -102,11 +102,11 @@ function createCloudSyncRuntime({
     });
   }
 
-  function getCloudSongsSnapshot(accountKey) {
+  function getOwnedSongLibrary(accountKey) {
     const songs = getSongs();
     if (!songs) throw new Error('Song library not ready.');
     if (accountKey) songs.assertCloudSongAccount(accountKey);
-    return songs.list({});
+    return songs;
   }
 
   function replaceCloudSongsSnapshot(input, accountKey) {
@@ -153,7 +153,9 @@ function createCloudSyncRuntime({
     },
     getBlindBoxMappingState: () => blindBoxMappingState,
     setBlindBoxMappingState,
-    getCloudSongsSnapshot,
+    getCloudSongsSnapshot: key => getOwnedSongLibrary(key).list({}),
+    getCloudSongCount: key => getOwnedSongLibrary(key).count(),
+    assertCloudSongAccount: key => { getOwnedSongLibrary(key); },
     acceptCloudSongsAccount: (key) => getSongs().acceptCloudSongAccount(key),
     hasPendingCloudSongs: (key) => getSongs().hasPendingCloudSongs(key),
     getPendingCloudSongs: (key) => getSongs().getPendingCloudSongs(key),

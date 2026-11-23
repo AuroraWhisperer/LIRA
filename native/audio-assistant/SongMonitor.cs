@@ -6,9 +6,9 @@ using Windows.Media.Control;
 internal sealed record SongIdentity(string Title, string Artist, string Album, int Track);
 
 internal sealed class SongMonitor(Func<CancellationToken, Task<SongIdentity?>> read, SongIdentity initial,
-  Func<IEnumerable<string>>? readPlayingPlayers = null)
+  Func<IEnumerable<string>> readPlayingPlayers)
 {
-  HashSet<string> playingPlayers = new(readPlayingPlayers?.Invoke() ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+  HashSet<string> playingPlayers = new(readPlayingPlayers(), StringComparer.OrdinalIgnoreCase);
 
   public async Task<bool> HasChanged(CancellationToken cancellation = default)
   {
@@ -18,22 +18,20 @@ internal sealed class SongMonitor(Func<CancellationToken, Task<SongIdentity?>> r
 
   public bool HasPlayerChanged()
   {
-    if (readPlayingPlayers == null) return false;
     var current = new HashSet<string>(readPlayingPlayers(), StringComparer.OrdinalIgnoreCase);
     bool started = current.Except(playingPlayers).Any();
     playingPlayers = current;
     return started;
   }
 
-  public static async Task<SongMonitor> Start(AudioApp app, CancellationToken cancellation, Func<string, bool>? isMusicPlayer = null)
+  public static async Task<SongMonitor> Start(AudioApp app, CancellationToken cancellation)
   {
-    isMusicPlayer ??= AudioDevices.IsMusicPlayer;
     GlobalSystemMediaTransportControlsSessionManager? manager = null;
     try { manager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync().AsTask(cancellation).WaitAsync(TimeSpan.FromSeconds(3), cancellation); }
     catch (Exception error) when (error is not OperationCanceledException) { }
     IEnumerable<string> ReadPlayingPlayers() => manager == null ? Array.Empty<string>() : manager.GetSessions()
       .Where(item => !MatchesApp(item.SourceAppUserModelId, app.Name)
-        && isMusicPlayer(Path.GetFileNameWithoutExtension(item.SourceAppUserModelId))
+        && AudioDevices.IsMusicPlayer(Path.GetFileNameWithoutExtension(item.SourceAppUserModelId))
         && item.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
       .Select(item => item.SourceAppUserModelId);
     var session = manager?.GetSessions().FirstOrDefault(item => MatchesApp(item.SourceAppUserModelId, app.Name));
