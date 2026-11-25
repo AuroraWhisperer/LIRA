@@ -5,7 +5,7 @@
   "arch": "x64",
   "entry": "LiraAudioAssistant.exe",
   "archive": {
-    "path": "resources/audio/audio-win-x64-97b4559ed2bfa19bc5e30347.zip",
+    "path": "client/resources/audio/audio-win-x64-97b4559ed2bfa19bc5e30347.zip",
     "size": 69698125,
     "sha256": "97b4559ed2bfa19bc5e30347229512ba5010f3b472a034af8c48e0faa17ab8eb"
   },

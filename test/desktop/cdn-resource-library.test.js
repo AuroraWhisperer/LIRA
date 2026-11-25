@@ -48,7 +48,7 @@ function packageFixture(files, readBytes, { corruptMember, extraEntry } = {}) {
     const sha256 = digest(bytes);
     packages.push({ id: resource.id, size: bytes.length, sha256, files: resource.files.map(file => file.path) });
     const source = packagePath({ ...resource, sha256 }).split('/').map(encodeURIComponent).join('/');
-    responses.set(`${origin}/resources/${source}`, bytes);
+    responses.set(`${origin}/client/resources/${source}`, bytes);
   }
   return { manifest: { version: 2, files, packages }, responses };
 }
@@ -71,7 +71,7 @@ async function fixture(t, contents) {
   const fetch = async (url, options) => {
     requests.push({ url, options, startedAt: Date.now() });
     if (offline) throw new Error('offline');
-    if (url === `${origin}/resources/manifest.json`) return Response.json(packaged?.manifest || { version: 1, files });
+    if (url === `${origin}/client/resources/manifest.json`) return Response.json(packaged?.manifest || { version: 1, files });
     active++;
     peak = Math.max(peak, active);
     try {

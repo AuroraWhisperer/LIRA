@@ -11,7 +11,7 @@
 | 侧 | 事实 | 出处 |
 | --- | --- | --- |
 | 运行时 | `electron-updater` 6.x 的 `autoUpdater`；延迟加载（`getAutoUpdater` 首次调用才 `require`，避免 `ready` 前初始化） | [update-manager.js](../../../src/electron/update-manager.js) |
-| 版本来源 | CDN `https://assets.lirahub.cn/downloads/latest.yml` | [../engineering/build.md](../engineering/build.md) |
+| 版本来源 | CDN `https://assets.lirahub.cn/client/downloads/latest.yml` | [../engineering/build.md](../engineering/build.md) |
 | 开关 | 设置 `enableAutoUpdate === 'true'`（设置存储见 [../backend/storage.md](../backend/storage.md) §7） | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `readAutoUpdateSetting` |
 | 触发 | 主窗口 `ready-to-show` 后，仅**打包版且开关开启**时延迟 **1s** 首查 | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `scheduleStartupCheck`，由主进程注入窗口 `onReady` |
 
@@ -45,7 +45,7 @@ checking ──无新版本──▶ not-available
 
 ## 3. 运行时配置与事件
 
-Windows 端复用 `electron-updater.autoUpdater` 及 Electron HTTP 下载器，仅在首次初始化下载组件前将应用适配器的 `baseCachePath` 设为 `<安装目录>/updates`（实际缓存目录为 `<安装目录>/updates/lira-updater/`）。安装成功后也会将当前安装包保留在此处，并清理 builder 在系统用户缓存中暂存的副本。构建时由 `package.json` 的首个 generic provider（`https://assets.lirahub.cn/downloads/`）生成 `resources/app-update.yml`，安装包由同目录 `latest.yml` 指定（正常构建为 `lira-setup-{version}.exe`）。运行时由 `electron-updater` 直接读取该文件，不再读取打包后已剔除的 `package.json` `build` 字段，也不再调用 `setFeedURL` 覆盖配置。
+Windows 端复用 `electron-updater.autoUpdater` 及 Electron HTTP 下载器，仅在首次初始化下载组件前将应用适配器的 `baseCachePath` 设为 `<安装目录>/updates`（实际缓存目录为 `<安装目录>/updates/lira-updater/`）。安装成功后也会将当前安装包保留在此处，并清理 builder 在系统用户缓存中暂存的副本。构建时由 `package.json` 的首个 generic provider（`https://assets.lirahub.cn/client/downloads/`）生成 `resources/app-update.yml`，安装包由同目录 `latest.yml` 指定（正常构建为 `lira-setup-{version}.exe`）。运行时由 `electron-updater` 直接读取该文件，不再读取打包后已剔除的 `package.json` `build` 字段，也不再调用 `setFeedURL` 覆盖配置。
 
 缓存根目录通过 `desktop-user-data.js` 按实际可执行文件位置解析，开发版按仓库根目录解析；不依赖迁移后的 Chromium `userData`，因此浏览器目录调整不会把更新文件写进 `data`。
 

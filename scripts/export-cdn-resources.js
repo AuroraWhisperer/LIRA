@@ -35,10 +35,10 @@ function exportCdnResources({ rootDir = root, outputDir = path.join(rootDir, 'tm
     const bytes = resource.archive ? createStoredStyleZip(members) : members.values().next().value;
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     packages.push({ id: resource.id, size: bytes.length, sha256, files: resource.files.map(file => file.path) });
-    entries.set(`resources/${packagePath({ ...resource, sha256 })}`, bytes);
+    entries.set(`client/resources/${packagePath({ ...resource, sha256 })}`, bytes);
   }
   const manifest = Buffer.from(`${JSON.stringify({ version: 2, files, packages }, null, 2)}\n`);
-  entries.set('resources/manifest.json', manifest);
+  entries.set('client/resources/manifest.json', manifest);
   const uploadDirectory = path.resolve(outputDir, 'upload');
   // This directory is generated staging; source assets and application notices are elsewhere.
   fs.rmSync(uploadDirectory, { recursive: true, force: true });
@@ -49,7 +49,7 @@ function exportCdnResources({ rootDir = root, outputDir = path.join(rootDir, 'tm
   }
   const archivePath = path.join(outputDir, 'lira-cdn-resources.zip');
   fs.writeFileSync(archivePath, createStoredStyleZip(entries));
-  const instructions = '将 upload 里的 resources 文件夹直接拖到多吉云 lirahub 空间根目录上传，保留目录结构。\nfonts 是具名字体下载包，images 是具名图片，manifest.json 是自动更新清单。\n字体包由软件自动下载、校验并解包，无需手动解压每个字体包。\n三张航海旗帜图片与对应清单条目为旧客户端保留；新客户端从导入样式包读取，不再预下载。不要删除线上兼容文件或清单条目。\n首次上传可一次上传整个文件夹；后续更新先上传变化的字体包或图片，最后替换 manifest.json。\nmanifest.json 使用不缓存规则；文件名末尾的短版本号用于区分更新，保留旧版本文件。\n更新资源后重新运行 npm run export:resources。\n';
+  const instructions = '将 upload 里的 client 文件夹直接拖到多吉云 lirahub 空间根目录上传，保留目录结构。\nfonts 是具名字体下载包，images 是具名图片，manifest.json 是自动更新清单。\n字体包由软件自动下载、校验并解包，无需手动解压每个字体包。\n三张航海旗帜图片与对应清单条目为旧客户端保留；新客户端从导入样式包读取，不再预下载。不要删除线上兼容文件或清单条目。\n首次上传可一次上传整个文件夹；后续更新先上传变化的字体包或图片，最后替换 manifest.json。\nmanifest.json 使用不缓存规则；文件名末尾的短版本号用于区分更新，保留旧版本文件。\n更新资源后重新运行 npm run export:resources。\n';
   fs.writeFileSync(path.join(outputDir, '上传说明.txt'), instructions);
   if (writeCatalog) fs.writeFileSync(path.join(rootDir, 'src/resources/catalog.json'), manifest);
   const startupPackages = packages.filter(resource => resource.files.some(name => !isLegacyResource(name)));
@@ -59,7 +59,7 @@ function exportCdnResources({ rootDir = root, outputDir = path.join(rootDir, 'tm
     startupDownloads: startupPackages.length, startupDownloadBytes,
     compatibilityDownloadBytes: packages.reduce((sum, resource) => sum + resource.size, 0) - startupDownloadBytes,
     totalBytes: files.reduce((sum, file) => sum + file.size, 0), uploadDirectory, archivePath,
-    manifestPath: path.join(uploadDirectory, 'resources/manifest.json') };
+    manifestPath: path.join(uploadDirectory, 'client/resources/manifest.json') };
 }
 
 if (require.main === module) console.log(JSON.stringify(exportCdnResources({

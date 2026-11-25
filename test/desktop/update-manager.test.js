@@ -53,7 +53,7 @@ test('packaged startup leaves the update feed to app-update.yml and enables auto
 for (const operation of ['checkForUpdates', 'downloadUpdate']) {
   test(`${operation} reports a missing CDN manifest as an error when the updater emits and rejects`, async (t) => {
     const { manager, updater, states, logs } = loadUpdateManager(t);
-    const error = new Error('404 https://assets.lirahub.cn/downloads/latest.yml');
+    const error = new Error('404 https://assets.lirahub.cn/client/downloads/latest.yml');
     updater[operation] = async () => {
       updater.emit('error', error);
       throw error;
@@ -70,7 +70,7 @@ for (const operation of ['checkForUpdates', 'downloadUpdate']) {
 
   test(`${operation} logs rejection-only failures on every retry`, async (t) => {
     const { manager, updater, logs } = loadUpdateManager(t);
-    const error = new Error('Cannot download "https://assets.lirahub.cn/downloads/lira-setup-5.7.7.exe", status 404');
+    const error = new Error('Cannot download "https://assets.lirahub.cn/client/downloads/lira-setup-5.7.7.exe", status 404');
     updater[operation] = async () => { throw error; };
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       const state = await manager[operation]();
@@ -366,9 +366,9 @@ test(
       const { info, provider } = await updater.getUpdateInfoAndProvider();
       assert.equal(requested.length, 1);
       assert.equal(requested[0].origin, 'https://assets.lirahub.cn');
-      assert.equal(requested[0].pathname, '/downloads/latest.yml');
+      assert.equal(requested[0].pathname, '/client/downloads/latest.yml');
       const files = provider.resolveFiles(info);
-      assert.equal(files[0].url.href, 'https://assets.lirahub.cn/downloads/lira-setup-4.1.1.exe');
+      assert.equal(files[0].url.href, 'https://assets.lirahub.cn/client/downloads/lira-setup-4.1.1.exe');
       assert.equal(files[0].info.sha512, sha512);
       // Resolve the actual download helper using the same packaged configuration.
       updater.logger = null;

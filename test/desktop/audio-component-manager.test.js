@@ -39,7 +39,7 @@ async function fixture(t) {
   const archive = createDeflatedZip(entries);
   const manifest = { id: '0123456789abcdef01234567', platform: 'win32', arch: 'x64', entry: 'LiraAudioAssistant.exe',
     files: [...entries].map(([name, bytes]) => ({ path: name, size: bytes.length, sha256: hash(bytes) })),
-    archive: { path: 'resources/audio/fixture.zip', size: archive.length, sha256: hash(archive) } };
+    archive: { path: 'client/resources/audio/fixture.zip', size: archive.length, sha256: hash(archive) } };
   let requests = 0;
   const states = [];
   function manager(extra = {}) {

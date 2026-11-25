@@ -21,7 +21,7 @@ async function run() {
   await app.whenReady();
   const publicDir = path.join(archive, 'public');
   const cdnDir = path.join(directory, 'cdn/upload');
-  const manifest = JSON.parse(await fs.readFile(path.join(cdnDir, 'resources/manifest.json'), 'utf8'));
+  const manifest = JSON.parse(await fs.readFile(path.join(cdnDir, 'client/resources/manifest.json'), 'utf8'));
   let downloads = 0;
   let checks = 0;
   const downloadsReady = Promise.withResolvers();
@@ -36,7 +36,7 @@ async function run() {
       downloads++;
       await downloadsReady.promise;
       const source = decodeURIComponent(new URL(url).pathname);
-      if (!/^\/resources\/(fonts|images)\/[^/]+$/.test(source)) throw new Error('Unexpected CDN file');
+      if (!/^\/client\/resources\/(fonts|images)\/[^/]+$/.test(source)) throw new Error('Unexpected CDN file');
       return new Response(await fs.readFile(path.join(cdnDir, source.slice(1))));
     } });
   const library = createFontLibrary({ dataDir: path.join(directory, 'data'), publicDir, resources });

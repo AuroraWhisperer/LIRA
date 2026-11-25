@@ -87,12 +87,12 @@ test('export preserves named packages and legacy inventory without old staging f
   const definitions = new Map(createResourcePackages(manifest.files).map(resource => [resource.id, resource]));
   for (const resource of manifest.packages) {
     const definition = definitions.get(resource.id);
-    const filename = `resources/${packagePath({ ...definition, sha256: resource.sha256 })}`;
+    const filename = `client/resources/${packagePath({ ...definition, sha256: resource.sha256 })}`;
     const bytes = await fs.readFile(path.join(result.uploadDirectory, filename));
     assert.equal(bytes.length, resource.size);
     assert.equal(createHash('sha256').update(bytes).digest('hex'), resource.sha256);
     if (definition.archive) {
-      assert.match(filename, /^resources\/fonts\/.+-[a-f0-9]{12}\.zip$/);
+      assert.match(filename, /^client\/resources\/fonts\/.+-[a-f0-9]{12}\.zip$/);
       const fontZip = await yauzl.fromBufferPromise(bytes, { lazyEntries: true });
       const members = [];
       try {
@@ -104,7 +104,7 @@ test('export preserves named packages and legacy inventory without old staging f
         }
       } finally { fontZip.close(); }
       assert.deepEqual(members, resource.files);
-    } else assert.match(filename, /^resources\/images\/.+-[a-f0-9]{12}\.(png|webp)$/);
+    } else assert.match(filename, /^client\/resources\/images\/.+-[a-f0-9]{12}\.(png|webp)$/);
   }
   await assert.rejects(fs.access(path.join(oldOutput, 'licenses')), { code: 'ENOENT' });
   await assert.rejects(fs.access(path.join(oldOutput, 'objects')), { code: 'ENOENT' });
@@ -113,6 +113,6 @@ test('export preserves named packages and legacy inventory without old staging f
   const names = [];
   try { for await (const entry of zip.eachEntry()) names.push(entry.fileName); } finally { zip.close(); }
   assert.equal(names.length, result.downloads + 1);
-  assert.ok(names.includes('resources/manifest.json'));
-  assert.equal(names.some(name => name.startsWith('resources/licenses/')), false);
+  assert.ok(names.includes('client/resources/manifest.json'));
+  assert.equal(names.some(name => name.startsWith('client/resources/licenses/')), false);
 });
