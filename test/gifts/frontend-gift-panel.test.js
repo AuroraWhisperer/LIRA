@@ -54,8 +54,8 @@ test('room sale arriving before the official read preserves both catalog project
 });
 
 test('gift subviews skip unrelated state updates while corrections, catalogs and drafts still render', async () => {
-  const f = await createBlindboxFixture();
-  const recent = { classList: { toggle() {} }, querySelectorAll: () => [] };
+  const recent = { isConnected: true, closest: () => null, classList: { toggle() {} }, querySelectorAll: () => [] };
+  const f = await createBlindboxFixture({ recentList: recent });
   const writes = { recent: 0, blindbox: 0 };
   for (const [name, node] of [['recent', recent], ['blindbox', f.container]]) {
     let html = node.innerHTML || '';
@@ -117,6 +117,19 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
     snapshot: { gifts: [{ id: '1', name: '礼物', imagePath: '/overtime-gift-images/new.webp' }] },
   });
   assert.match(recent.innerHTML, /\/overtime-gift-images\/new.webp/);
+
+  const beforeHiding = writes.recent;
+  f.document.hidden = true;
+  f.document.dispatchEvent({ type: 'visibilitychange' });
+  for (const num of [3, 4]) {
+    state.gifts.recent[0].num = num;
+    render({ state, changedKeys: ['gifts'] });
+  }
+  assert.equal(writes.recent, beforeHiding);
+  f.document.hidden = false;
+  f.document.dispatchEvent({ type: 'visibilitychange' });
+  assert.equal(writes.recent, beforeHiding + 1);
+  assert.match(recent.innerHTML, /礼物 x4/);
 
   f.textarea.value = JSON.stringify([{ name: '未保存配置', price: 5, outputs: [] }]);
   f.textarea.dataset = { dirty: 'true' };

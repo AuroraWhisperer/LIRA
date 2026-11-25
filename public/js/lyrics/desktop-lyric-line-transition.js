@@ -1,3 +1,23 @@
+function viewportIndexes(rows, range, scrollTop, clientHeight) {
+  const first = range?.first ?? 0;
+  const last = range?.last ?? rows.length - 1;
+  const indexes = new Set();
+  if (clientHeight <= 0) return indexes;
+
+  // In-flow rows in the displayed range are ordered. The preceding row may be tall enough to overlap.
+  let low = first, high = last + 1;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (rows[mid].offsetTop < scrollTop) low = mid + 1;
+    else high = mid;
+  }
+  for (let index = Math.max(first, low - 1); index <= last; index++) {
+    if (rows[index].offsetTop > scrollTop + clientHeight) break;
+    indexes.add(index);
+  }
+  return indexes;
+}
+
 // Playback line changes keep their visual positions while the visible window moves.
 export function createLyricLineTransition(viewport, timeline) {
   const running = new Set();
@@ -11,12 +31,12 @@ export function createLyricLineTransition(viewport, timeline) {
     running.clear();
   }
 
-  function animate(element, frames, duration, ghost = null) {
+  function animate(element, frames, duration, { index, ghost }) {
     const animation = element.animate(frames, {
       duration,
       easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
     });
-    const entry = { animation, ghost };
+    const entry = { animation, index, ghost };
     running.add(entry);
     animation.onfinish = () => {
       ghost?.remove();
@@ -24,14 +44,22 @@ export function createLyricLineTransition(viewport, timeline) {
     };
   }
 
-  function capture(rows, nextRange) {
+  function capture(rows, nextRange, visibleRange) {
     const positions = new Map();
-    for (const [index, row] of rows.entries()) {
-      if (!row.offsetHeight) continue;
+    const { scrollTop, clientHeight } = viewport;
+    const indexes = viewportIndexes(rows, visibleRange, scrollTop, clientHeight);
+    // An unfinished translation can keep a row on screen after its layout box has scrolled out.
+    for (const { index } of running) {
+      if (index !== undefined) indexes.add(index);
+    }
+    for (const index of indexes) {
+      const row = rows[index];
+      const height = row.offsetHeight;
+      if (!height) continue;
       const style = getComputedStyle(row);
       const translateY = Number.parseFloat(style.translate.split(' ')[1]) || 0;
-      const top = row.offsetTop - viewport.scrollTop + translateY;
-      if (top + row.offsetHeight < 0 || top > viewport.clientHeight) continue;
+      const top = row.offsetTop - scrollTop + translateY;
+      if (top + height < 0 || top > clientHeight) continue;
       const position = { top, opacity: style.opacity };
       if (index < nextRange.first || index > nextRange.last) {
         const ghost = row.cloneNode(true);
@@ -60,14 +88,18 @@ export function createLyricLineTransition(viewport, timeline) {
     return positions;
   }
 
-  function play(rows, positions) {
+  function play(rows, positions, visibleRange) {
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    for (const row of rows) {
-      if (!row.offsetHeight) continue;
-      const top = row.offsetTop - viewport.scrollTop;
-      if (top + row.offsetHeight < 0 || top > viewport.clientHeight) continue;
+    const { scrollTop, clientHeight } = viewport;
+    const entering = [];
+    for (const index of viewportIndexes(rows, visibleRange, scrollTop, clientHeight)) {
+      const row = rows[index];
+      const height = row.offsetHeight;
+      if (!height) continue;
+      const top = row.offsetTop - scrollTop;
+      if (top + height < 0 || top > clientHeight) continue;
       const previous = positions.get(row);
-      const distance = reducedMotion ? 0 : previous ? previous.top - top : Math.min(24, row.offsetHeight / 3);
+      const distance = reducedMotion ? 0 : previous ? previous.top - top : Math.min(24, height / 3);
       if (previous && Math.abs(distance) < 0.5) continue;
       const from = { translate: `0 ${distance}px` };
       const to = { translate: '0 0' };
@@ -75,16 +107,17 @@ export function createLyricLineTransition(viewport, timeline) {
         from.opacity = 0;
         to.opacity = getComputedStyle(row).opacity;
       }
-      animate(row, [from, to], reducedMotion ? 140 : 360);
+      entering.push({ index, frames: [from, to] });
     }
+    for (const { index, frames } of entering) animate(rows[index], frames, reducedMotion ? 140 : 360, { index });
     for (const { top, opacity, ghost } of positions.values()) {
       if (!ghost) continue;
-      ghost.style.top = `${top + viewport.scrollTop}px`;
+      ghost.style.top = `${top + scrollTop}px`;
       timeline.appendChild(ghost);
       animate(ghost, [
         { translate: '0 0', opacity },
         { translate: reducedMotion ? '0 0' : '0 -18px', opacity: 0 },
-      ], reducedMotion ? 140 : 180, ghost);
+      ], reducedMotion ? 140 : 180, { ghost });
     }
   }
 

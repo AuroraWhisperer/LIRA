@@ -4,9 +4,11 @@ const { validateEpochAwareCursorPage, giftSyncStalledError } = require('./remote
 
 // All mutations are fenced by both the controller and the persisted projection generation.
 // Tokens live in the store so a rate limit, network loss or restart resumes the same snapshot.
-async function syncRetainedGifts({ runtime, licenseManager, sourceId, projectionGeneration, syncEpoch, full, signal, isCurrent }) {
+async function syncRetainedGifts({ runtime, licenseManager, sourceId, projectionGeneration, syncEpoch, full, signal, isCurrent,
+  beginUpdate = () => {} }) {
   const scope = { sourceId, projectionGeneration };
   let progress = runtime.getGiftRetentionProgress(sourceId);
+  if (full || progress.staging) beginUpdate();
   if (progress.staging && (progress.staging.sync_epoch !== syncEpoch ||
     progress.staging.projection_generation !== projectionGeneration ||
     (full && progress.staging.member_snapshot_id !== progress.staging.id))) {
@@ -25,6 +27,7 @@ async function syncRetainedGifts({ runtime, licenseManager, sourceId, projection
         if (!full && !progress.staging && progress.active?.revision === page.revision &&
           progress.active.detail_start === page.detailStart && !page.hasMore && page.rows.length === 0) return true;
         if (page.hasMore && page.nextPageToken === pageToken) throw giftSyncStalledError();
+        beginUpdate();
         progress = runtime.commitGiftSummaryPage({ ...scope, page, pageToken, full });
         continue;
       }
@@ -57,6 +60,7 @@ async function syncRetainedGifts({ runtime, licenseManager, sourceId, projection
       if (!isCurrent()) return false;
       if (!restarted && ['BOOTSTRAP_TOKEN_EXPIRED', 'INVALID_BOOTSTRAP_TOKEN', 'GIFT_QUERY_SNAPSHOT_EXPIRED'].includes(error.code)) {
         if (error.code === 'GIFT_QUERY_SNAPSHOT_EXPIRED' && !progress.staging) full = true;
+        beginUpdate();
         progress = runtime.restartGiftRetention(scope);
         restarted = true;
         continue;

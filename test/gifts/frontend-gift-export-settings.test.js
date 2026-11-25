@@ -56,6 +56,7 @@ async function openExport(t) {
           await new Promise((resolve) => {
             window.finishConfigure = resolve;
           });
+        if (options.directoryAction === 'choose' && window.cancelPicker) return { ok: true, data: describe() };
         task.mergeAcrossDates = options.mergeAcrossDates ?? task.mergeAcrossDates;
         task.mode = options.mode;
         task.background = options.background;
@@ -70,8 +71,9 @@ async function openExport(t) {
         Object.assign(window.exportDefaults, options);
         return { ok: true, data: window.exportDefaults };
       },
-      async save(id) {
+      async save(id, roomGuard) {
         window.savedExportId = id;
+        window.savedRoomGuard = roomGuard;
         task.attempted = true;
         if (window.exportFailure) return window.exportFailure;
         return { ok: true, saved: describe().files.length };
@@ -101,7 +103,7 @@ test('history export settings update the current preview and remember the next e
   );
   assert.deepEqual(await visibleCards(), ['1', '2']);
   assert.equal(await page.locator('#giftExportPreview .gift-banner').first().getAttribute('data-sheen'), 'false');
-  await page.locator('#giftExportMode').selectOption('separate');
+  await page.getByRole('radio', { name: '每条一张' }).check();
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.deepEqual(await visibleCards(), ['1']);
   await page.locator('#giftExportNext').click();
@@ -111,19 +113,25 @@ test('history export settings update the current preview and remember the next e
   await page.getByRole('switch', { name: '合并同种礼物' }).setChecked(true);
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.equal(await page.locator('#giftExportNext').isDisabled(), true);
-  await page.locator('#giftExportBackground').selectOption('white');
+  await page.getByRole('radio', { name: '白色' }).check();
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   await page.locator('#giftExportChoose').click();
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
-  assert.equal(await page.locator('#giftExportDirectory').textContent(), 'Chosen/Gifts/batch');
+  assert.equal(await page.locator('#giftExportDirectory').textContent(), '/batch');
+  assert.equal(await page.locator('#giftExportDirectory').getAttribute('title'), 'Chosen/Gifts/batch');
+  await page.evaluate(async () => {
+    const { stateService } = await import('/js/admin/state.js');
+    stateService.applySnapshot({ roomGuard: { roomId: '123', count: 1001 } });
+  });
   await page.locator('#giftExportSave').click();
   assert.equal(await page.locator('#giftExportSave').isDisabled(), true);
   assert.equal(await page.evaluate(() => window.savedExportId), '1');
+  assert.equal(await page.evaluate(() => window.savedRoomGuard?.count), 1001);
   await page.locator('#giftExportBack').click();
   await page.evaluate(() => window.preview.open({ eventIds: ['1', '2'] }));
   assert.equal(await page.getByRole('switch', { name: '合并同种礼物' }).isChecked(), true);
-  assert.equal(await page.locator('#giftExportMode').inputValue(), 'separate');
-  assert.equal(await page.locator('#giftExportBackground').inputValue(), 'white');
+  assert.equal(await page.getByRole('radio', { name: '每条一张' }).isChecked(), true);
+  assert.equal(await page.getByRole('radio', { name: '白色' }).isChecked(), true);
   assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Chosen/Gifts');
   await page.locator('#giftExportDefault').click();
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
@@ -135,15 +143,15 @@ test('failed settings restore the current format and pending settings cannot exp
   await page.evaluate(() => {
     window.failConfigure = true;
   });
-  await page.locator('#giftExportMode').selectOption('separate');
+  await page.getByRole('radio', { name: '每条一张' }).click();
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
-  assert.equal(await page.locator('#giftExportMode').inputValue(), 'combined');
+  assert.equal(await page.getByRole('radio', { name: '拼成长图' }).isChecked(), true);
   await page.evaluate(() => {
     window.failConfigure = false;
     window.delayConfigure = true;
   });
-  await page.locator('#giftExportMode').selectOption('separate');
-  assert.equal(await page.locator('#giftExportMode').isDisabled(), true);
+  await page.getByRole('radio', { name: '每条一张' }).check();
+  assert.equal(await page.getByRole('radio', { name: '每条一张' }).isDisabled(), true);
   assert.equal(await page.locator('#giftExportSave').isDisabled(), true);
   await page.locator('#giftExportBack').click();
   await page.evaluate(() => window.finishConfigure());
@@ -153,14 +161,31 @@ test('failed settings restore the current format and pending settings cannot exp
 
 test('failed gift exports can retry in a new batch while keeping the original saved files', async (t) => {
   const page = await openExport(t);
-  await page.evaluate(() => { window.exportFailure = { ok: false, saved: 1, error: '图片生成失败' }; });
+  await page.evaluate(() => {
+    window.exportFailure = { ok: false, saved: 1, error: '图片生成失败' };
+    window.cancelPicker = true;
+  });
+  async function cancelFolder() {
+    const status = page.locator('#giftExportStatus');
+    const previous = await status.textContent();
+    await page.locator('#giftExportChoose').click();
+    await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+    assert.equal(await status.textContent(), previous);
+    assert.equal(await page.locator('#giftExportOpenFolder').isVisible(), true);
+  }
   await page.locator('#giftExportSave').click();
   await page.getByRole('button', { name: '重新导出', exact: true }).waitFor();
+  await cancelFolder();
   assert.equal(await page.locator('#giftExportSave').isEnabled(), true);
   await page.evaluate(() => { window.exportFailure = null; });
   await page.locator('#giftExportSave').click();
   await page.waitForFunction(() => document.getElementById('giftExportStatus').dataset.state === 'success');
-  assert.deepEqual(await page.evaluate(() => window.exportCalls), [{ id: '1', mode: 'combined', background: 'transparent' }]);
-  assert.equal(await page.locator('#giftExportDirectory').textContent(), 'Pictures/LIRA/retry-batch');
+  assert.deepEqual(await page.evaluate(() => window.exportCalls), [
+    { id: '1', mode: 'combined', background: 'transparent', directoryAction: 'choose', remember: true },
+    { id: '1', mode: 'combined', background: 'transparent' },
+  ]);
+  await cancelFolder();
+  assert.equal(await page.locator('#giftExportDirectory').textContent(), '/retry-batch');
+  assert.equal(await page.locator('#giftExportDirectory').getAttribute('title'), 'Pictures/LIRA/retry-batch');
   assert.equal(await page.locator('#giftExportSave').isDisabled(), true);
 });

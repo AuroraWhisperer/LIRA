@@ -15,7 +15,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 12px;
-  padding-top: 4px;
 }
 .danmaku-welcome-server-status > span {
   margin-right: auto;

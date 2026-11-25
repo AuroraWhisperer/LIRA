@@ -83,7 +83,15 @@ ${WESING_NATIVE_MONITOR_SOURCE}
 '@
 Add-Type -TypeDefinition $nativeSource -ReferencedAssemblies Accessibility | Out-Null
 $descendants = [System.Windows.Automation.TreeScope]::Descendants
+$textCondition = [System.Windows.Automation.PropertyCondition]::new(
+  [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+  [System.Windows.Automation.ControlType]::Text
+)
 $diagnosticsEnabled = ${includeDiagnostics}
+$clock = [Diagnostics.Stopwatch]::StartNew()
+$nextTextCheck = 0
+$lastTitle = ''
+$wasLoading = $false
 while ($true) {
   $sample = @{ detected = $false; title = ''; currentSec = -1; totalSec = -1; loading = $false; audioPeak = -1; windowHandle = 0 }
   $processes = @()
@@ -100,7 +108,7 @@ while ($true) {
       $sample.audioActive = $audioSnapshot.State -eq 1
       $sample.audioPeak = [Math]::Round([double]$audioSnapshot.Peak, 6)
     }
-    $windowSnapshot = [WeSingNativeMonitor]::FindPlaybackWindow($processIds)
+    $windowSnapshot = if ($sample.detected) { [WeSingNativeMonitor]::FindPlaybackWindow($processIds) }
     if ($null -ne $windowSnapshot) {
       $sample.title = $windowSnapshot.Title
       $sample.windowHandle = $windowSnapshot.Handle.ToInt64()
@@ -112,12 +120,13 @@ while ($true) {
       }
       if ($accessibleSnapshot.Loading) { $sample.loading = $true }
       try {
-        $playWindow = [System.Windows.Automation.AutomationElement]::FromHandle($windowSnapshot.Handle)
+        # Loading may be a separate UIA label even while MSAA retains the previous position.
+        $playWindow = if ($diagnosticsEnabled -or $sample.currentSec -le 0 -or $sample.loading -or $wasLoading -or
+            $sample.title -ne $lastTitle -or $clock.ElapsedMilliseconds -ge $nextTextCheck) {
+          $nextTextCheck = $clock.ElapsedMilliseconds + 1000
+          [System.Windows.Automation.AutomationElement]::FromHandle($windowSnapshot.Handle)
+        }
         if ($null -ne $playWindow) {
-          $textCondition = [System.Windows.Automation.PropertyCondition]::new(
-            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
-            [System.Windows.Automation.ControlType]::Text
-          )
           $texts = $playWindow.FindAll($descendants, $textCondition)
           foreach ($textElement in $texts) {
             $text = [string]$textElement.Current.Name
@@ -160,9 +169,12 @@ while ($true) {
   } finally {
     foreach ($process in $processes) { $process.Dispose() }
   }
+  $lastTitle = $sample.title
+  $wasLoading = $sample.loading
   Write-Output ($sample | ConvertTo-Json -Compress)
   [Console]::Out.Flush()
-  Start-Sleep -Milliseconds ${pollIntervalMs}
+  $delay = if ($sample.windowHandle -or $diagnosticsEnabled) { ${pollIntervalMs} } else { ${Math.max(pollIntervalMs, 1000)} }
+  Start-Sleep -Milliseconds $delay
 }
 `;
 }

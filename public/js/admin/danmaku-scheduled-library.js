@@ -4,11 +4,13 @@ export function createScheduledLibraryEditor({ documentRef, changed,
   prefix = 'danmakuScheduledLibrary', label = '定时弹幕', maxItems = 300 }) {
   const element = (suffix) => documentRef.getElementById(`${prefix}${suffix}`);
   const list = element('List');
-  let items = [], search = '';
+  const search = element('Search');
+  let items = [];
 
   function render() {
+    const query = search.value.trim().toLocaleLowerCase();
     const matches = items.map((text, index) => ({ text, index }))
-      .filter(({ text }) => text.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
+      .filter(({ text }) => text.toLocaleLowerCase().includes(query));
     list.replaceChildren();
     for (const { text, index } of matches) {
       const row = documentRef.createElement('div');
@@ -38,22 +40,20 @@ export function createScheduledLibraryEditor({ documentRef, changed,
     if (!matches.length) {
       const empty = documentRef.createElement('p');
       empty.className = 'danmaku-blessing-empty';
-      empty.textContent = search ? '没有匹配的文案' : '还没有文案，点击下方添加。';
+      empty.textContent = query ? '没有匹配的文案' : '还没有文案，点击下方添加。';
       list.append(empty);
     }
-    element('Search').value = search;
-    element('Count').textContent = `${items.length} 条${search ? ` · 找到 ${matches.length} 条` : ''}`;
+    element('Count').textContent = `${items.length} 条${query ? ` · 找到 ${matches.length} 条` : ''}`;
     element('Add').disabled = items.length >= maxItems;
   }
 
-  element('Search').addEventListener('input', () => {
-    search = element('Search').value.trim();
+  search.addEventListener('input', () => {
     render();
     revealEditorItem(list, 0);
   });
   element('Add').addEventListener('click', () => {
     items.push('');
-    search = '';
+    search.value = '';
     changed();
     render();
     list.lastElementChild?.querySelector('input')?.focus();
@@ -61,13 +61,13 @@ export function createScheduledLibraryEditor({ documentRef, changed,
 
   return {
     load(value) { items = [...value]; render(); },
-    reset() { items = []; search = ''; render(); },
+    reset() { items = []; search.value = ''; render(); },
     read({ reportValidity = true } = {}) {
       const result = items.map((text) => text.trim());
       const invalid = result.findIndex((text) => !text || Array.from(text).length > 120);
       if (invalid >= 0) {
         if (!reportValidity) return null;
-        search = '';
+        search.value = '';
         render();
         revealEditorItem(list, invalid);
         const input = list.querySelectorAll('input')[invalid];

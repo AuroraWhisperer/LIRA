@@ -2,6 +2,7 @@
 // 搜索服务 - 负责在线搜索和搜索结果管理
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 /**
  * 搜索服务类
  */
@@ -46,9 +47,7 @@ export class SearchService {
       const payload = await this.readJsonResponse(response, '在线搜索失败');
       if (generation !== this.searchGeneration) return [];
 
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || '在线搜索失败');
-      }
+      assertApiResponse(response, payload, '在线搜索失败');
 
       this.searchResults = Array.isArray(payload.data && payload.data.tracks) ? payload.data.tracks : [];
 

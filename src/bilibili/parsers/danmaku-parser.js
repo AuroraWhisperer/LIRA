@@ -19,9 +19,11 @@ function extractBilibiliDanmakuTimestamp(info) {
   return nowMs;
 }
 
-function extractBilibiliDanmakuAvatarUrl(info) {
-  const rawOptions = Array.isArray(info) && Array.isArray(info[0]) ? info[0][15] : null;
-  const options = parseDanmakuOptions(rawOptions);
+function readDanmakuOptions(info) {
+  return parseDanmakuOptions(Array.isArray(info?.[0]) ? info[0][15] : null);
+}
+
+function extractBilibiliDanmakuAvatarUrl(info, options = readDanmakuOptions(info)) {
   const user = options && typeof options === 'object' ? options.user : null;
   const base = user && typeof user.base === 'object' ? user.base : null;
   const face =
@@ -29,16 +31,15 @@ function extractBilibiliDanmakuAvatarUrl(info) {
   return normalizeBilibiliAvatarUrl(face);
 }
 
-function extractBilibiliDanmakuEmotes(info) {
+function extractBilibiliDanmakuEmotes(info, options = readDanmakuOptions(info)) {
   const metadata = Array.isArray(info) && Array.isArray(info[0]) ? info[0] : [];
-  const options = parseDanmakuOptions(metadata[15]) || {};
-  const extra = parseDanmakuOptions(options.extra) || {};
+  const extra = parseDanmakuOptions(options?.extra) || {};
   const message = String(Array.isArray(info) ? info[1] || '' : '');
   const records = [];
   const seen = new Set();
 
-  appendEmoticon(records, seen, options.emoticon, message);
-  appendEmoteMap(records, seen, options.emots);
+  appendEmoticon(records, seen, options?.emoticon, message);
+  appendEmoteMap(records, seen, options?.emots);
   appendEmoticon(records, seen, extra.emoticon, message);
   appendEmoteMap(records, seen, extra.emots);
   appendEmoticon(records, seen, parseDanmakuOptions(metadata[13]), message);
@@ -90,6 +91,7 @@ function parseDanmakuOptions(value) {
 
 function normalizeBilibiliAvatarUrl(value) {
   const source = String(value || '').trim();
+  if (!source) return '';
   return normalizeBilibiliImageUrl(source.startsWith('//') ? `https:${source}` : source);
 }
 
@@ -106,6 +108,7 @@ function normalizeBilibiliImageUrl(value) {
 }
 
 module.exports = {
+  readDanmakuOptions,
   parseDanmakuOptions,
   extractBilibiliDanmakuTimestamp,
   extractBilibiliDanmakuAvatarUrl,

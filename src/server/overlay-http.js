@@ -1,7 +1,7 @@
 'use strict';
 
 const { sendJson } = require('./http-utils');
-const { projectOverlayResponse } = require('./overlay-projection');
+const { getOverlayStateFields, projectOverlayResponse } = require('./overlay-projection');
 const { getClockConfig } = require('./clock-contract');
 const { getOpeningConfig } = require('./opening-service');
 const { readNowPlayingConfig } = require('./now-playing-settings');
@@ -29,13 +29,13 @@ async function handleOverlayApi(context, principal, request, res) {
       case '/api/interactions/session':
         return reply(context.interactions.getState());
       case '/api/state':
-        return reply(context.system.getState());
+        return reply(context.system.getState(getOverlayStateFields(principal.scope) ?? undefined, { includeRecentGifts: false }));
       case '/api/songs':
         return reply(context.songs.list({ enabledOnly: true, categories: query.getAll('category') }));
       case '/api/gifts/blind-box-stats':
         try {
           return reply(context.gifts.getBlindBoxStats({ boxName: query.get('boxName') || '',
-            top: query.get('top') ?? -1, hideLoss: query.get('hideLoss') ?? false }));
+            top: query.get('top') ?? -1, hideLoss: query.get('hideLoss') ?? false, includeRecords: false }));
         } catch (error) {
           if (error.code !== 'INVALID_GIFT_STATS_OPTIONS') throw error;
           return sendJson(res, 400, { ok: false, code: error.code, error: error.message });
@@ -48,7 +48,10 @@ async function handleOverlayApi(context, principal, request, res) {
           return sendJson(res, 400, { ok: false, error: '礼物来源不能由页面指定。' });
         }
         try {
-          return reply(await (pathName === '/api/gifts/wishes' ? context.giftWishes : context.heartBoxCollection).getSnapshot());
+          if (pathName === '/api/gifts/wishes') {
+            return reply(await context.giftWishes.getSnapshot({ includeSession: query.get('includeSession') !== '0' }));
+          }
+          return reply(await context.heartBoxCollection.getSnapshot());
         } catch (error) {
           if (['GIFT_VIEW_STALE', 'GIFT_SOURCE_UNAVAILABLE'].includes(error.code)) {
             return sendJson(res, 409, { ok: false, error: error.message, code: error.code });

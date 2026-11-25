@@ -1,4 +1,5 @@
 import { normalizeTextFormat, TEXT_FORMAT_KEYS } from './text-format.js';
+import { normalizeComponentCssStyle } from './component-css-style.js';
 
 export const TEXT_BOX_SIZE = Object.freeze([640, 180]);
 export const TEXT_BOX_SCROLL_SPEED = Object.freeze({ min: 10, max: 200, default: 40 });
@@ -46,7 +47,7 @@ export function normalizeTextBoxImageSource(value, type = 'image') {
 }
 
 export function normalizeTextBoxConfig(config) {
-  record(config, ['version', 'fontSize', 'color', 'backgroundColor', 'align', 'lineHeight', 'nodes', 'scrollMode', 'scrollSpeed'],
+  record(config, ['version', 'fontSize', 'color', 'backgroundColor', 'align', 'lineHeight', 'nodes', 'scrollMode', 'scrollSpeed', 'cssStyle'],
     ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes']);
   const scrollMode = Object.hasOwn(config, 'scrollMode') ? config.scrollMode : 'none';
   if (!['none', 'horizontal', 'vertical'].includes(scrollMode)) throw invalid();
@@ -81,5 +82,6 @@ export function normalizeTextBoxConfig(config) {
   });
   return { version: 1, fontSize: fontSize(config.fontSize), color: color(config.color),
     backgroundColor: Object.hasOwn(config, 'backgroundColor') ? color(config.backgroundColor) : '#00000000',
-    align: config.align, lineHeight: config.lineHeight, scrollMode, scrollSpeed, nodes };
+    align: config.align, lineHeight: config.lineHeight, scrollMode, scrollSpeed, nodes,
+    ...(Object.hasOwn(config, 'cssStyle') ? { cssStyle: normalizeComponentCssStyle('text-box', config.cssStyle) } : {}) };
 }

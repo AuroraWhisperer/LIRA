@@ -14,6 +14,7 @@ internal sealed class AudioSession : IDisposable
   AudioInputDevice? inputDevice;
   string inputError = "";
   AudioEngine? engine;
+  StemModel? stemModel;
   RouteSession? route;
   SongMonitor? song;
   CancellationTokenSource? startup;
@@ -66,7 +67,7 @@ internal sealed class AudioSession : IDisposable
   {
     names.Clear();
     outputs = AudioDevices.Outputs(names);
-    playbackOutputs = PlaybackOutputs.Enumerate();
+    playbackOutputs = PlaybackOutputs.Enumerate(outputs);
     inputs = AudioDevices.Inputs(names);
     apps = AudioDevices.Apps(names, PlaybackProcessId);
     RefreshInput();
@@ -151,20 +152,30 @@ internal sealed class AudioSession : IDisposable
     if (values.TryGetProperty("inputMusic", out var music)) { RequireIdle(); settings.InputMusic = music.GetBoolean(); }
     if (values.TryGetProperty("source", out _) || values.TryGetProperty("inputId", out _) || values.TryGetProperty("loopbackId", out _))
       RefreshInput();
-    if (values.TryGetProperty("strength", out var strength)) settings.Strength = Math.Clamp(strength.GetInt32(), -100, 100);
+    int nextStrength = values.TryGetProperty("strength", out var strength) ? Math.Clamp(strength.GetInt32(), -100, 100) : settings.Strength;
+    bool nextOriginal = values.TryGetProperty("original", out var bypass) ? bypass.GetBoolean() : original;
+    PrepareSeparation(nextStrength, nextOriginal);
+    settings.Strength = nextStrength;
+    original = nextOriginal;
     if (values.TryGetProperty("semitones", out var semitones)) settings.Semitones = Math.Clamp(semitones.GetInt32(), -12, 12);
     if (values.TryGetProperty("speedPercent", out var speed)) settings.SpeedPercent = Math.Clamp(speed.GetInt32(), 50, 200);
     if (values.TryGetProperty("volume", out var volume)) settings.Volume = Math.Clamp(volume.GetInt32(), 0, 200);
-    if (values.TryGetProperty("original", out var bypass)) original = bypass.GetBoolean();
     ApplyControls();
     Save();
     if (!starting && engine == null && (!pendingRecovery || recoveryDeferred)) status = "设置已保存。";
   }
 
+  void PrepareSeparation(int strength, bool bypass)
+  {
+    if (engine != null && strength != 0 && !bypass && (!DeviceSource || settings.InputMusic))
+      engine.Dsp.PrepareSeparation(stemModel ??= new StemModel());
+  }
+
   void ApplyControls()
   {
     if (engine == null) return;
-    engine.Dsp.StrengthPercent = DeviceSource && !settings.InputMusic ? 0 : settings.Strength;
+    int strength = DeviceSource && !settings.InputMusic ? 0 : settings.Strength;
+    engine.Dsp.StrengthPercent = strength;
     engine.Dsp.Semitones = settings.Semitones;
     engine.Dsp.SpeedPercent = source == "file" ? settings.SpeedPercent : 100;
     engine.Dsp.OutputVolume = settings.Volume / 100f;
@@ -223,7 +234,6 @@ internal sealed class AudioSession : IDisposable
       status = "正在启动音频处理…";
       Changed?.Invoke();
       var created = new AudioEngine(source == "file" ? filePath : null, external ? app!.Pid : null, outputId,
-        DeviceSource && !settings.InputMusic ? 0 : settings.Strength, settings.Semitones, settings.SpeedPercent,
         DeviceSource ? inputDevice : null, source == "loopback", settings.InputChannels, outputBackend);
       engine = created;
       activePid = external ? app!.Pid : null;
@@ -234,6 +244,7 @@ internal sealed class AudioSession : IDisposable
         if (error != null && !playerExited) status = $"音频已停止：{error.Message}\n{status}";
         Changed?.Invoke();
       });
+      PrepareSeparation(settings.Strength, original);
       ApplyControls();
       await created.Start(cancellation.Token);
       cancellation.Token.ThrowIfCancellationRequested();
@@ -310,7 +321,7 @@ internal sealed class AudioSession : IDisposable
     bool refreshed = ticks % 8 == 0 && PlayerSource;
     if (route?.PlayerExited == true) { Stop(); return; }
     if (refreshed) apps = AudioDevices.Apps(names, PlaybackProcessId);
-    if (route != null && !AudioDevices.IsMuted(route.EndpointId))
+    if (route != null && !names.IsMuted(route.EndpointId))
     {
       Fail(new InvalidOperationException("原声通道被解除静音，已停止处理，避免重复播放。")); return;
     }
@@ -356,6 +367,7 @@ internal sealed class AudioSession : IDisposable
     if (disposed) return;
     disposed = true;
     Stop();
+    stemModel?.Dispose();
     names.Dispose();
   }
 }

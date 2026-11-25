@@ -33,6 +33,35 @@ async function createFixture(utils = {}) {
   };
 }
 
+test('desktop shell subscribes once per visible page and refreshes after BFCache restore', async () => {
+  const { desktop, nodes, windowRef } = await createFixture();
+  const events = new Map();
+  const firstRead = Promise.withResolvers();
+  let reads = 0;
+  let subscriptions = 0;
+  let removals = 0;
+  function subscribe() {
+    subscriptions++;
+    return () => { removals++; };
+  }
+  windowRef.addEventListener = (name, fn) => events.set(name, fn);
+  windowRef.songAssistantDesktop = {
+    onShowUpdatePage: subscribe, onUpdateState: subscribe,
+    getInfo: async () => ++reads === 1 ? firstRead.promise : { version: '2.0' },
+  };
+  desktop.initDesktopShell();
+  desktop.initDesktopShell();
+  assert.equal(subscriptions, 2);
+  assert.equal(reads, 1);
+  events.get('pagehide')({ persisted: true });
+  assert.equal(removals, 2);
+  events.get('pageshow')();
+  firstRead.resolve({ version: '1.0' });
+  await new Promise(setImmediate);
+  assert.equal(subscriptions, 4);
+  assert.equal(nodes.desktopVersionPill.textContent, 'v2.0');
+});
+
 test('update failures notify once for manual checks and active downloads, keeping background checks quiet', async () => {
   const notices = [];
   const { desktop, nodes, windowRef } = await createFixture({

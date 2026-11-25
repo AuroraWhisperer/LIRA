@@ -3,7 +3,6 @@
 const { cleanText } = require('../../shared/utils');
 const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
 const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
-const { IdentityCache } = require('../danmaku/identity-cache');
 const {
   USER_INFO_TTL_MS,
   PROFILE_FAILURE_TTL_MS,
@@ -29,8 +28,10 @@ const CACHE_CLEANUP_INTERVAL_MS = 30000;
 
 class UserInfoService {
   constructor(options = {}) {
-    this.identityCache = options.identityCache || new IdentityCache();
-    this.identityCache.useServiceProjections();
+    this.identityCache = options.identityCache;
+    this.identityCache?.useServiceProjections();
+    this.recentSeenAt = new Map();
+    this.onlineUids = new Set();
     this.profileProvider = options.profileProvider || null;
     this.now = typeof options.now === 'function' ? options.now : Date.now;
     this.diagnostics = options.diagnostics || null;
@@ -100,10 +101,12 @@ class UserInfoService {
 
     record.seenAt = observedAt;
     if (changed.size > 0) record.updatedAt = observedAt;
-    this.storeCompatibilityRecord(record, source !== 'profile');
+    if (this.identityCache) this.storeCompatibilityRecord(record, source !== 'profile');
+    else if (source !== 'profile') this.recentSeenAt.set(uid, observedAt);
 
     const changedFields = ALL_FIELDS.filter((field) => changed.has(field));
     if (changedFields.length > 0) this.notify(record, changedFields);
+    if (context.projectSnapshot === false) return { accepted: true };
     return {
       snapshot: this.project(record, normalizeFields(undefined, ALL_FIELDS)),
       changedFields,
@@ -188,8 +191,9 @@ class UserInfoService {
     const selection = normalizeFields(options.fields, ALL_FIELDS);
     if (!this.matchesRequestedRoom(options.roomId)) return [];
     this.cleanupExpired();
-    return this.identityCache
-      .listRecentUids()
+    const uids = this.identityCache ? this.identityCache.listRecentUids()
+      : [...this.recentSeenAt].sort((left, right) => right[1] - left[1]).map(([uid]) => uid);
+    return uids
       .map((uid) => this.records.get(uid))
       .filter(Boolean)
       .map((record) => this.project(record, selection));
@@ -199,8 +203,7 @@ class UserInfoService {
     const selection = normalizeFields(options.fields, ALL_FIELDS);
     if (!this.matchesRequestedRoom(options.roomId)) return [];
     this.cleanupExpired();
-    return this.identityCache
-      .listOnlineUids()
+    return (this.identityCache ? this.identityCache.listOnlineUids() : [...this.onlineUids])
       .map((uid) => this.records.get(uid))
       .filter(Boolean)
       .map((record) => this.project(record, selection))
@@ -209,8 +212,7 @@ class UserInfoService {
 
   replaceOnlineSnapshot(uids = [], context = {}) {
     if (this.disposed || !this.matchesActiveRun(context)) return false;
-    const normalizedUids = [...new Set((Array.isArray(uids) ? uids : []).map(normalizeUid).filter(Boolean))];
-    this.identityCache.replaceOnlineSnapshot(normalizedUids);
+    this.setOnlineUids((Array.isArray(uids) ? uids : []).map(normalizeUid).filter(Boolean));
     return true;
   }
 
@@ -264,15 +266,24 @@ class UserInfoService {
     this.generation += 1;
     this.roomScope = roomId ? Object.freeze({ roomId, ownerUid, generation: this.generation }) : null;
     this.activeRoomRun = null;
-    this.identityCache.clearRoomIndexes();
-    for (const record of this.records.values()) this.storeCompatibilityRecord(record, false);
+    this.recentSeenAt.clear();
+    this.onlineUids.clear();
+    if (this.identityCache) {
+      this.identityCache.clearRoomIndexes();
+      for (const record of this.records.values()) this.storeCompatibilityRecord(record, false);
+    }
     for (const item of invalidated) this.notify(item.record, item.changedFields);
     return this.roomScope ? { ...this.roomScope } : { roomId: '', ownerUid: '', generation: this.generation };
   }
 
+  setOnlineUids(uids) {
+    if (this.identityCache) this.identityCache.replaceOnlineSnapshot(uids);
+    else this.onlineUids = new Set(uids);
+  }
+
   beginRoomRun() {
     if (!this.roomScope) throw new Error('Cannot begin room run without a room scope.');
-    this.identityCache.replaceOnlineSnapshot([]);
+    this.setOnlineUids([]);
     this.activeRoomRun = Object.freeze({
       ...this.roomScope,
       runToken: ++this.nextRunToken,
@@ -283,7 +294,7 @@ class UserInfoService {
   endRoomRun(context = {}) {
     if (!this.matchesActiveRun(context)) return false;
     this.activeRoomRun = null;
-    this.identityCache.replaceOnlineSnapshot([]);
+    this.setOnlineUids([]);
     return true;
   }
 
@@ -292,7 +303,7 @@ class UserInfoService {
     this.disposed = true;
     this.lifecycleToken += 1;
     this.activeRoomRun = null;
-    this.identityCache.replaceOnlineSnapshot([]);
+    this.setOnlineUids([]);
     this.subscriptions.clear();
     this.profileRequests.clear();
     this.profileFailures.clear();
@@ -418,7 +429,7 @@ class UserInfoService {
     // Throttle whole-cache sweeps, but never return or revive an expired viewer.
     if (record && record.seenAt < nowMs - USER_INFO_TTL_MS) {
       this.records.delete(uid);
-      this.identityCache.deleteMerged(uid);
+      this.deleteIndexes(uid);
       return null;
     }
     return record;
@@ -431,12 +442,21 @@ class UserInfoService {
     for (const [uid, record] of this.records) {
       if (record.seenAt >= cutoff) continue;
       this.records.delete(uid);
-      this.identityCache.deleteMerged(uid);
+      this.deleteIndexes(uid);
     }
     for (const [uid, expiresAt] of this.profileFailures) {
       if (expiresAt <= nowMs) this.profileFailures.delete(uid);
     }
-    this.identityCache.cleanup();
+    for (const [uid, seenAt] of this.recentSeenAt) {
+      if (seenAt < cutoff) this.recentSeenAt.delete(uid);
+    }
+    this.identityCache?.cleanup();
+  }
+
+  deleteIndexes(uid) {
+    this.recentSeenAt.delete(uid);
+    this.onlineUids.delete(uid);
+    this.identityCache?.deleteMerged(uid);
   }
 
   recordDiagnostic(kind, uid, error) {

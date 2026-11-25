@@ -3,7 +3,7 @@ body[data-style='minimal'] {
   --danmaku-move-base-ms: 360;
   --danmaku-move-max-ms: 620;
   --danmaku-move-curve: .26, .08, .24, 1;
-  --danmaku-enter-animation: minimalMessageIn 380ms cubic-bezier(.16, 1, .3, 1) backwards;
+  --danmaku-enter-animation: danmakuEnterOpacity 380ms cubic-bezier(.16, 1, .3, 1) backwards;
 }
 body[data-style='minimal'] .danmaku-signal-header {
   display: none;
@@ -25,7 +25,7 @@ body[data-style='minimal'] .draw-danmaku-item {
   background: transparent;
   box-shadow: none;
   clip-path: none;
-  animation-name: minimalMessageIn;
+  animation-name: danmakuEnterOpacity;
 }
 body[data-style='minimal'] .draw-danmaku-item::after,
 body[data-style='minimal'] .draw-danmaku-avatar,
@@ -118,11 +118,6 @@ body[data-style='minimal'] .draw-danmaku-gift-count {
   color: #ffe2a8;
   font-size: var(--danmaku-font-size);
   font-weight: 700;
-}
-
-@keyframes minimalMessageIn {
-  from { --danmaku-enter-opacity: 0; }
-  to { --danmaku-enter-opacity: 1; }
 }
 
 /* Keep readable type inside the existing card and region dimensions. */

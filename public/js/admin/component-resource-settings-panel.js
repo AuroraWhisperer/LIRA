@@ -28,7 +28,7 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
   const surface = previewElement('div', 'resource-style-preview'); surface.hidden = true;
   root.append(heading, hint, parameters, actions, status, surface); host.append(root);
   const requests = new AbortController();
-  const { controller } = createResourceStyleSettings(style, { request, signal: requests.signal });
+  const { controller, savedStyle, observeReturn } = createResourceStyleSettings(style, { request, signal: requests.signal });
   const preset = COMPONENT_RESOURCE_PRESETS[style.config.resourceStyle.preset];
   const component = COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview({ controller, embedded: true, restrictResourceStyle: true, panelPrefix: `resource-${style.id}`,
     previewHint: onPreview ? '上方预览展示正在编辑的这条许愿；显示条数和间距用于画布及直播画面。' : undefined });
@@ -78,20 +78,17 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
   });
   save.addEventListener('click', () => { void controller.save(); });
   const autosave = bindComponentAutosave(controller, { root, saveButton: save, discardButton: discard, status });
+  const stopReturn = observeReturn(root);
   discard.addEventListener('click', () => controller.discard());
   use.addEventListener('click', async () => {
     use.disabled = true;
     try {
-      if (controller.getState().dirty && !await controller.save()) throw new Error(controller.getState().error || '样式保存失败，请重试。');
-      await onUse({ ...style, config: controller.getState().saved }, compactGuardThanks ? { previewData, reuseExisting: true } : undefined);
+      await onUse(await savedStyle(), compactGuardThanks ? { previewData, reuseExisting: true } : undefined);
     }
     catch (error) { status.textContent = error.message; }
     finally { use.disabled = false; }
   });
   let preview;
-  const timer = setInterval(() => {
-    if (!document.hidden && !controller.getStatus().error && root.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
-  }, 1000);
   function closePreview() {
     preview?.dispose(); preview = null;
     surface.hidden = true; previewButton.textContent = '预览'; previewButton.setAttribute('aria-expanded', 'false');
@@ -112,6 +109,6 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
       if (visible) updatePagePreview(controller.getState().draft);
       else { closePreview(); previewedConfig = undefined; }
     },
-    dispose() { clearInterval(timer); autosave.dispose(); requests.abort(); closePreview(); stopPreviewData?.(); stop(); panel.dispose(); toggle?.dispose(); root.remove(); },
+    dispose() { stopReturn(); autosave.dispose(); requests.abort(); closePreview(); stopPreviewData?.(); stop(); panel.dispose(); toggle?.dispose(); root.remove(); },
   };
 }

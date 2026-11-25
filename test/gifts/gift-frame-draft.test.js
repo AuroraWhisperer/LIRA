@@ -22,6 +22,8 @@ async function createFixture() {
         checked: false,
         checkValidity: () => true,
         dataset: {},
+        classList: { toggle() {} },
+        setAttribute() {},
         handlers: new Map(),
         addEventListener(name, fn) {
           this.handlers.set(name, fn);

@@ -1,11 +1,7 @@
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement as node } from '../shared/dom-element.js';
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function ornament(document, className) {
   const element = node(document, 'span', className);
@@ -24,10 +20,7 @@ function star(document, className) {
   return svg;
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-}
+const amount = value => formatDanmakuAmount(value, 2);
 
 // Only composition lives here; the canonical renderer retains text and inline emotes.
 export function createAstralMessageRenderer(options, render) {

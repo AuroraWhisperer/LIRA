@@ -253,6 +253,7 @@ const BROWSER_GLOBALS = new Set(
 );
 
 const IDENTIFIER_RE = /(?<![\w$])[A-Za-z_$][\w$]*/g;
+const IMPORT_CLAUSE_RE = /\bimport\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\}|\*\s*as\s+([A-Za-z_$][\w$]*))?\s*from\s*/g;
 
 // Keywords that can precede `(...)` and a following `{` in a non-definition
 // position. `get`/`set`/`async`/`static` are deliberately absent so that a
@@ -329,9 +330,7 @@ function captureStatement(text, start) {
 
 function collectImportedNames(sanitized) {
   const imported = new Set();
-  const importRe = /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\}|\*\s*as\s+([A-Za-z_$][\w$]*))?\s*from\s*/g;
-  let match;
-  while ((match = importRe.exec(sanitized))) {
+  for (const match of sanitized.matchAll(IMPORT_CLAUSE_RE)) {
     if (match[1]) imported.add(match[1]);
     if (match[2]) {
       for (const part of match[2].split(',')) {
@@ -345,6 +344,16 @@ function collectImportedNames(sanitized) {
     if (match[3]) imported.add(match[3]);
   }
   return imported;
+}
+
+function maskModuleSpecifiers(sanitized) {
+  const blank = text => text.replace(/[^\r\n]/g, ' ');
+  // Source/exported names are not local bindings. Mask only their declaration
+  // positions, so using the same names in executable code is still audited.
+  return sanitized
+    .replace(IMPORT_CLAUSE_RE, blank)
+    .replace(/\bexport\s*(?:\{[^}]*\}|\*\s*(?:as\s+[A-Za-z_$][\w$]*)?)\s*from\b/g, blank)
+    .replace(/\bexport\s*\{[^}]*\}/g, clause => clause.replace(/\bas\s+[A-Za-z_$][\w$]*/g, blank));
 }
 
 function collectDeclaredNames(sanitized) {
@@ -471,7 +480,7 @@ function auditFile(filePath) {
 
   const imported = collectImportedNames(sanitized);
   const declared = collectDeclaredNames(sanitized);
-  const unresolved = collectUnresolvedUsages(sanitized, imported, declared);
+  const unresolved = collectUnresolvedUsages(maskModuleSpecifiers(sanitized), imported, declared);
   return { file: filePath, unresolved };
 }
 

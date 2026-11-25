@@ -2,6 +2,7 @@
 
 import { api, readJsonResponse, showError, toast } from '../shared/utils.js';
 import { createDrawWordPicker } from './games-word-picker.js';
+import { observePanelVisibility } from './panel-visibility.js';
 
 export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess }) {
   // Only syncSession replaces this snapshot; action responses go back through the page owner.
@@ -10,6 +11,8 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
   let hostStateRequest = 0;
   let drawClock = null;
   let drawClockTimer = null;
+  let stopVisibility;
+  let disposed = false;
   let drawWordCategories = [];
   let activeDrawCategoryIds = null;
 
@@ -253,14 +256,18 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
   }
 
   function syncDrawClockTimer() {
-    const active = sessionSnapshot?.game === 'draw-guess' && sessionSnapshot.state?.phase === 'drawing';
-    if (!active) {
+    if (disposed || sessionSnapshot?.game !== 'draw-guess' || sessionSnapshot.state?.phase !== 'drawing') {
+      stopVisibility?.();
+      stopVisibility = null;
       stopDrawClockTimer();
       return;
     }
-    if (drawClockTimer === null) {
-      drawClockTimer = setInterval(updateDrawClock, 250);
-    }
+    stopVisibility ||= observePanelVisibility(byId('drawHostClock'), visible => {
+      if (visible) {
+        updateDrawClock();
+        drawClockTimer = setInterval(updateDrawClock, 250);
+      } else stopDrawClockTimer();
+    });
   }
 
   function stopDrawClockTimer() {
@@ -270,7 +277,8 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
     }
   }
 
-  return { syncSession, start, refreshHostState, refreshCategories: refreshDrawCategories, dispose: stopDrawClockTimer };
+  return { syncSession, start, refreshHostState, refreshCategories: refreshDrawCategories,
+    dispose() { disposed = true; syncDrawClockTimer(); } };
 }
 
 function byId(id) {

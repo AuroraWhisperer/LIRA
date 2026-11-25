@@ -2,7 +2,7 @@
 
 // Documentation fixture: real Electron/preload/local runtime, synthetic remote replies.
 // Never launches src/electron/main.js or opens the user's desktop data/profile.
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage, session } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { createServerRuntime } = require('../../src/server');
@@ -196,6 +196,7 @@ app
     const exportController = createGiftExportController({
       app: { getPath: () => path.join(OUT_ROOT, 'exports') },
       BrowserWindow,
+      nativeImage,
       dialog: {},
       shell: {},
       runtime: exportRuntime,

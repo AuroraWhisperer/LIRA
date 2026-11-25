@@ -18,6 +18,32 @@ const SUBSCRIPTION_TOPICS = new Set(['danmaku']);
 // These owners already publish every change; negotiated clients need a full
 // music baseline only when connecting, not again on unrelated gift snapshots.
 const MUSIC_EVENT_FIELDS = ['lyricState', 'lyricTimeline', 'nowPlaying', 'lyricSource', 'weSing'];
+const HOT_SNAPSHOT_FIELDS = {
+  'bilibili:gift': ['gifts', 'giftSprint', 'giftDetection', 'blindBoxMapping', 'overtime', 'danmakuFeed', 'bilibiliDiagnostics'],
+  'bilibili:danmaku': ['queue', 'danmakuFeed', 'bilibiliDiagnostics'],
+  'bilibili:superchat': ['queue', 'superChats', 'danmakuFeed', 'bilibiliDiagnostics'],
+  'queue:add': ['queue', 'danmakuFeed', 'bilibiliDiagnostics'],
+  'queue:request-result': ['queue', 'danmakuFeed', 'bilibiliDiagnostics'],
+};
+// Some pages invalidate an HTTP read on a reason without owning its state field.
+const OVERLAY_REASON_SCOPES = new Map([
+  ...['next', 'clear', 'live', 'unlive', 'pin', 'unpin', 'delete', 'done', 'skip']
+    .map(action => [`queue:${action}`, ['queue']]),
+  ...['delete', 'undo', 'assist', 'unassist'].map(action => [`superchat:${action}`, ['queue']]),
+  ...['songs:save', 'songs:delete', 'songs:toggle', 'songs:import', 'songs:import-xlsx', 'cloud:songs']
+    .map(reason => [reason, ['queue', 'songlist']]),
+  ['gift:wishes', ['gift-wishes']], ['gift:heart-box-collection', ['heart-box-collection']],
+]);
+const SHARED_OVERLAY_REASONS = new Set(['settings', 'live:status', 'database:clear', 'database:clear-all',
+  'database:clear-gifts', 'gift:source', 'gift:clear-recent', 'gift:sprint:reset']);
+
+function receivesOverlaySnapshot(scope, reason, feedDeliveredByEvents = false) {
+  if (OVERLAY_REASON_SCOPES.has(reason)) return OVERLAY_REASON_SCOPES.get(reason).includes(scope);
+  if (!Object.hasOwn(HOT_SNAPSHOT_FIELDS, reason)) return true;
+  if (scope === 'blindbox' && reason === 'bilibili:gift') return true;
+  return getOverlayStateFields(scope)?.some(field =>
+    !(feedDeliveredByEvents && field === 'danmakuFeed') && HOT_SNAPSHOT_FIELDS[reason].includes(field)) === true;
+}
 
 function isValidHandshake(req) {
   const headers = req.headers;
@@ -95,6 +121,8 @@ function createWebSocketHub(options = {}) {
     socket._wsPrincipal = principal;
     socket._wsMusicEvents = principal.type === 'admin' && requestUrl.searchParams.get('snapshot') === 'music-events-v1';
     socket._wsTopics = parseSubscriptionTopics(requestUrl.searchParams);
+    socket._wsDanmakuEvents = principal.type === 'overlay' && principal.scope === 'danmaku'
+      && socket._wsTopics.has('danmaku') && requestUrl.searchParams.get('snapshot') === 'danmaku-events-v1';
     socket._wsMaxPendingBytes = maxPendingBytes;
 
     sockets.add(socket);
@@ -170,6 +198,7 @@ function createWebSocketHub(options = {}) {
     socket._wsContext = null;
     socket._wsPrincipal = null;
     socket._wsMusicEvents = false;
+    socket._wsDanmakuEvents = false;
     socket._wsBuffer = null;
     socket._wsBufferStorage = null;
     socket._wsFragment = null;
@@ -351,7 +380,10 @@ function createWebSocketHub(options = {}) {
 
   function broadcastSnapshot(context, reason) {
     if (sockets.size === 0) return;
-    pendingSnapshot = { context, reason };
+    const reasons = pendingSnapshot?.reasons ?? new Set();
+    reasons.delete(reason);
+    reasons.add(reason);
+    pendingSnapshot = { context, reason, reasons };
     if (snapshotFlushQueued) return;
     snapshotFlushQueued = true;
     queueMicrotask(() => {
@@ -359,14 +391,26 @@ function createWebSocketHub(options = {}) {
       const next = pendingSnapshot;
       pendingSnapshot = null;
       if (!next || sockets.size === 0) return;
+      const reasons = [...next.reasons];
+      const bounded = reasons.every(value => Object.hasOwn(HOT_SNAPSHOT_FIELDS, value));
+      const byScope = new Map();
+      const recipients = [...sockets].filter(socket => {
+        if (socket._wsPrincipal.type === 'admin') return true;
+        const scope = socket._wsPrincipal.scope;
+        if (socket._wsDanmakuEvents && reasons.length === 1 && !receivesOverlaySnapshot(scope, reasons[0], true)) return false;
+        if (!byScope.has(scope)) byScope.set(scope, reasons.filter(reason => receivesOverlaySnapshot(scope, reason)));
+        return byScope.get(scope).length > 0;
+      });
+      if (!recipients.length) return;
+      const changed = bounded ? new Set(reasons.flatMap(value => HOT_SNAPSHOT_FIELDS[value])) : null;
       const payload = {
         type: 'snapshot',
         reason: next.reason,
-        state: readSnapshot(next.context, sockets, true),
+        state: readSnapshot(next.context, recipients, true, changed),
       };
       const frames = new Map();
-      for (const socket of Array.from(sockets)) {
-        if (!sendWebSocket(socket, payload, frames)) dropSocket(socket);
+      for (const socket of recipients) {
+        if (!sendWebSocket(socket, payload, frames, changed, byScope.get(socket._wsPrincipal.scope) ?? reasons)) dropSocket(socket);
       }
     });
   }
@@ -408,9 +452,10 @@ function createWebSocketHub(options = {}) {
   };
 }
 
-function readSnapshot(context, sockets, incremental = false) {
+function readSnapshot(context, sockets, incremental = false, changed = null) {
   const fields = new Set();
   let admin = false;
+  let legacyGameState = false;
   for (const socket of sockets) {
     if (socket._wsPrincipal?.type === 'admin') {
       if (!incremental || !socket._wsMusicEvents) return context.getState();
@@ -418,14 +463,18 @@ function readSnapshot(context, sockets, incremental = false) {
       continue;
     }
     const requested = getOverlayStateFields(socket._wsPrincipal?.scope);
-    if (requested === null) return context.getState();
-    for (const field of requested) fields.add(field);
+    if (requested === null) legacyGameState = true;
+    else for (const field of requested) fields.add(field);
   }
-  if (admin) return context.getState(undefined, { exclude: MUSIC_EVENT_FIELDS.filter(field => !fields.has(field)) });
-  return context.getState([...fields]);
+  if (legacyGameState) return context.getState(undefined, { includeRecentGifts: admin });
+  if (admin) {
+    if (!changed) return context.getState(undefined, { exclude: MUSIC_EVENT_FIELDS.filter(field => !fields.has(field)) });
+    for (const field of changed) fields.add(field);
+  }
+  return context.getState([...fields], { includeRecentGifts: admin });
 }
 
-function sendWebSocket(socket, payload, frames) {
+function sendWebSocket(socket, payload, frames, changed = null, reasons = []) {
   if (!socket._wsPrincipal) return false;
   const partial = socket._wsMusicEvents && payload.type === 'snapshot' && payload.reason !== 'connect';
   const key = `${socket._wsPrincipal.type}:${socket._wsPrincipal.scope || ''}:${partial ? 'music-events' : ''}`;
@@ -433,7 +482,16 @@ function sendWebSocket(socket, payload, frames) {
   if (frame === undefined) {
     let projected = projectWebSocketPayload(socket._wsPrincipal, payload);
     if (partial) projected = { ...projected, type: 'snapshot:patch',
-      state: Object.fromEntries(Object.entries(projected.state).filter(([field]) => !MUSIC_EVENT_FIELDS.includes(field))) };
+      ...(reasons.length > 1 ? { reasons } : {}),
+      state: Object.fromEntries(Object.entries(projected.state).filter(([field]) =>
+        changed ? changed.has(field) : !MUSIC_EVENT_FIELDS.includes(field))) };
+    if (socket._wsPrincipal.type === 'overlay' && reasons.length && projected) {
+      // Unknown causes retain the legacy scalar path. Only public page invalidations may be added to the frame.
+      const visible = reasons.filter(reason => Object.hasOwn(HOT_SNAPSHOT_FIELDS, reason)
+        || OVERLAY_REASON_SCOPES.has(reason) || SHARED_OVERLAY_REASONS.has(reason));
+      projected.reason = reasons.includes(payload.reason) ? payload.reason : reasons.at(-1);
+      if (visible.some(reason => reason !== projected.reason)) projected.reasons = visible;
+    }
     frame = projected === null ? null : encodeWebSocketFrame(Buffer.from(JSON.stringify(projected)), 0x1);
     frames?.set(key, frame);
   }

@@ -4,8 +4,10 @@ import { componentEffectProfiles, createEffectFilters, effectColor, effectTransf
 const CLOCK_TEXT = '.clock-time > span, .clock-flip-value, .clock-flip-half > span, .clock-date-row > span, .clock-label, .clock-period, .clock-year';
 const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name, .comic-role, .comic-event, .comic-amount, .window-role, .window-event, .window-amount, .stardust-event, .sinking-event-label, .sinking-amount, .wireframe-amount';
 const DANMAKU_STYLE_TEXT = {
+  'pastel-scrapbook': '.scrapbook-copy, .scrapbook-name, .scrapbook-amount, .scrapbook-action',
   'neon-glass': '.neon-glass-name, .neon-glass-amount, .neon-glass-separator',
   'horizontal-charm': '.charm-name, .charm-role, .charm-amount, .charm-event-label',
+  'charm-thread': '.thread-event, .thread-amount',
   astral: '.astral-name, .astral-role, .astral-event-label, .astral-amount',
   glowy: '.glowy-time, .glowy-role, .glowy-event-label, .glowy-amount',
   'glass-bubble': '.glass-bubble-name, .glass-bubble-amount',
@@ -18,6 +20,7 @@ const DANMAKU_STYLE_TEXT = {
 const SURFACES = {
   'neon-glass': '.neon-glass-panel',
   'horizontal-charm': '.charm-item[data-charm-kind="chat"] .charm-content',
+  'charm-thread': '.thread-copy',
   glowy: '.glowy-material',
   'glass-bubble': '.glass-bubble-surface',
   'animated-gradient': '.gradient-panel',
@@ -86,6 +89,7 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
     filters.clear();
   }
   function textEffects(root, selector, shadowMode) {
+    if (!parameters.textOutline && !(shadowMode && (parameters.shadow || parameters.outerGlow))) return;
     for (const text of root.querySelectorAll(selector)) {
       if (textSeen.has(text)) continue;
       textSeen.add(text);
@@ -157,10 +161,12 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
       ? '.danmaku-author-name, .danmaku-message' : config.cssStyle?.engine === 'blivechat'
         ? '#author-name, #message' : [DANMAKU_TEXT, DANMAKU_STYLE_TEXT[config.style]].filter(Boolean).join(', '), textOnly ? 'replace' : artwork ? 'clear' : '');
   }
-  function apply() {
-    if (disposed || !Object.keys(parameters).some(key => key !== 'showEntryMessages')) return;
+  function releaseDetached() {
     for (const element of originals.keys()) if (!element.isConnected) originals.delete(element);
     for (const element of roots) if (!element.isConnected) { roots.delete(element); componentEffectProfiles.delete(element); }
+  }
+  function apply(items) {
+    if (disposed || !Object.keys(parameters).some(key => key !== 'showEntryMessages')) return;
     if (externalFrame) { applyRoot(externalFrame, null, true); return; }
     if (config.mediaStyle) {
       applyRoot(document.body, null, true);
@@ -184,9 +190,9 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
       applyRoot(card, surface, kind === 'art', kind === 'text');
       return;
     }
-    for (const item of document.querySelectorAll('#danmakuFeed > .draw-danmaku-item')) {
+    for (const item of items ?? document.querySelectorAll('#danmakuFeed > .draw-danmaku-item')) {
       const surface = ['panel', 'frame'].includes(kind)
-        ? ['neon-glass', 'horizontal-charm', 'glowy', 'animated-gradient', 'wireframe', 'window', 'glass', 'glass-bubble'].includes(config.style) ? SURFACES[config.style] : item.classList.contains('is-superchat') ? '.sc-message'
+        ? ['neon-glass', 'horizontal-charm', 'charm-thread', 'glowy', 'animated-gradient', 'wireframe', 'window', 'glass', 'glass-bubble'].includes(config.style) ? SURFACES[config.style] : item.classList.contains('is-superchat') ? '.sc-message'
           : config.style === 'glow' && item.classList.contains('is-gift') ? ':self' : SURFACES[config.style] || ':self' : null;
       applyRoot(item, surface, kind === 'art', kind === 'text');
     }
@@ -205,11 +211,23 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
       apply();
       view.dispatchEvent(new view.Event('lira:effects-updated'));
       if (!externalFrame && Object.keys(parameters).some(key => key !== 'showEntryMessages')) {
-        observer ||= new view.MutationObserver(() => {
-          apply();
+        const feed = type === 'danmaku' && !config.mediaStyle && !config.cssStyle && document.getElementById('danmakuFeed');
+        observer = new view.MutationObserver(records => {
+          if (records.some(record => [...record.removedNodes].some(node => node.nodeType === 1))) releaseDetached();
+          const added = records.flatMap(record => [...record.addedNodes]).filter(node => node.nodeType === 1 && node.isConnected);
+          if (feed) {
+            const cards = added.filter(node => node.parentNode === feed && node.classList.contains('draw-danmaku-item') && !rootSeen.has(node));
+            if (!cards.length) return;
+            apply(cards);
+            view.dispatchEvent(new view.CustomEvent('lira:effects-updated', { detail: { cards } }));
+            return;
+          } else {
+            if (!added.length) return;
+            apply();
+          }
           if (type === 'danmaku') view.dispatchEvent(new view.Event('lira:effects-updated'));
         });
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(feed || document.body, { childList: true, subtree: !feed });
       }
     },
     refresh: apply,

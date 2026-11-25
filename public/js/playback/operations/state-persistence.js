@@ -10,7 +10,7 @@ let nextSenderGeneration = 0;
 // 恢复未获确认时，只比较当前曲目、队列成员及顺序。曲目元数据和偏好可以独立变化。
 function queueIdentity(state) {
   const trackKey = (track) => track
-    ? [track.source, track.id, track.songRequestKey || '', track.playNext === true]
+    ? [track.source, track.id, track.songRequestKey || '', track.playNext === true, track.playlistOccurrence]
     : null;
   return JSON.stringify([
     trackKey(state.current), state.queueType, state.queueSourceKey, state.playlistIndex,
@@ -78,6 +78,7 @@ export function createStatePersistence(deps) {
       songRequestKey: track.songRequestKey || '',
       requestedBy: track.requestedBy || '',
       playNext: track.playNext === true,
+      playlistOccurrence: track.playlistOccurrence,
     };
   }
 

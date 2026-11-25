@@ -12,6 +12,7 @@ function createFixture({ loadPending = false, getAuthState = async () => ({ logg
   const timers = new Set();
   const asyncErrors = [];
   const external = [];
+  const logs = [];
   let window;
   let finishLoad;
   const load = loadPending ? new Promise((resolve) => (finishLoad = resolve)) : Promise.resolve();
@@ -67,11 +68,24 @@ function createFixture({ loadPending = false, getAuthState = async () => ({ logg
         };
       }
       if (name === './external-url-policy') return require('../../src/electron/external-url-policy');
+      if (name === './login-window') {
+        const shared = { exports: {} };
+        vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../src/electron/login-window.js'), 'utf8'), {
+          module: shared,
+          setInterval: addTimer,
+          setTimeout: addTimer,
+          clearInterval: (timer) => timers.delete(timer),
+          clearTimeout: (timer) => timers.delete(timer),
+          require: require('node:module').createRequire(path.join(__dirname, '../../src/electron/login-window.js')),
+        });
+        return shared.exports;
+      }
       return require(name);
     },
   });
   return {
-    open: () => module.exports.loginMusicAccount(null, 'qq', 'synthetic-data'),
+    open: () => module.exports.loginMusicAccount(null, 'qq', 'synthetic-data', { writeLog: (...args) => logs.push(args) }),
+    logs,
     get window() {
       return window;
     },
@@ -97,9 +111,10 @@ test('music login closed before the first page finishes still settles and releas
 });
 
 test('music login resolves safely when the final authentication lookup fails', async () => {
+  const failure = new Error('session unavailable');
   const fixture = createFixture({
     getAuthState: async () => {
-      throw new Error('session unavailable');
+      throw failure;
     },
   });
   let result;
@@ -111,6 +126,7 @@ test('music login resolves safely when the final authentication lookup fails', a
   assert.ok(result, 'a failed final lookup must not leave IPC pending');
   assert.equal(result.state.loggedIn, false);
   assert.equal(fixture.timers.size, 0);
+  assert.equal(fixture.logs.find(([scope]) => scope === 'music-auth-state')[1], failure);
   await completion;
 });
 
@@ -129,6 +145,8 @@ test('music login remains usable after a subframe fails to load', async () => {
     );
     assert.equal(fixture.window.isDestroyed(), false);
     assert.equal(fixture.window.webContents.session.cookies.listenerCount('changed'), 1);
+    fixture.window.webContents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://y.qq.com/', true);
+    assert.equal(fixture.logs.at(-1)[1].platform, 'qq');
   } finally {
     fixture.window.close();
     await completion;

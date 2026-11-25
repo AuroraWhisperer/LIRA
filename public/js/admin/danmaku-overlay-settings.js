@@ -56,7 +56,6 @@ export function initDanmakuOverlaySettings(elements, toast) {
     renderComponentSaveStatus(elements.styleSaveState, state, account ? undefined : '请先连接已授权的 LIRA 账号。');
     elements.previewOverlayButton.disabled = false;
     applyButton.disabled = !loaded || !dirty || saving;
-    applyButton.textContent = saving ? '正在保存…' : '保存外观';
     reloadButton.disabled = !account || loading || saving;
     if (discardButton) discardButton.disabled = !dirty || saving;
   });

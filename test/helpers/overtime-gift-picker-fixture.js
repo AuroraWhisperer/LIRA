@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { pathToFileURL } = require('node:url');
+const { createClock } = require('./toast-dom');
 
 const OVERTIME_ENTRY = path.join(__dirname, '..', '..', 'public', 'js', 'admin', 'overtime.js');
 
@@ -23,6 +24,7 @@ async function createFixture({
   apiImpl = null,
 } = {}) {
   const document = createFakeDocument();
+  const clock = createClock();
   const window = { AdminApp: {} };
   const state = {
     fetchCalls: [],
@@ -32,10 +34,12 @@ async function createFixture({
     confirmImpl,
     parsedDuration,
     apiImpl,
-    overtimeState: initialState.overtime || null,
+    ruleRenders: 0,
+    timerClears: 0,
     fetchImpl: fetchImpl || (() => Promise.resolve({ ok: true, payload: fetchPayload })),
   };
   const namespace = await loadOvertimeModule({
+    clock,
     document,
     window,
     state,
@@ -58,6 +62,7 @@ async function createFixture({
   namespace.initOvertime(initialState);
   await flush();
   return {
+    clock,
     namespace,
     state,
     document,
@@ -70,8 +75,10 @@ async function createFixture({
   };
 }
 
-async function loadOvertimeModule({ document, window, state, saleGifts }) {
+async function loadOvertimeModule({ document, window, state, saleGifts, clock }) {
   const context = vm.createContext({
+    setTimeout: clock.setTimeout,
+    clearTimeout(id) { state.timerClears++; clock.clearTimeout(id); },
     console,
     document,
     window,
@@ -95,13 +102,13 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
         });
       throw new Error(`Unexpected overtime request: ${url}`);
     },
-    performance: { now: () => 0 },
+    performance: { now: clock.now },
     requestAnimationFrame: () => 1,
     cancelAnimationFrame() {},
   });
   const source = `${fs.readFileSync(OVERTIME_ENTRY, 'utf8')}
     const { applyGiftCatalog, applyServerGiftArtwork, open: openGiftPicker } = giftPicker;
-    export { applyGiftCatalog, applyServerGiftArtwork, openGiftPicker };`;
+    export { applyGiftCatalog, applyServerGiftArtwork, openGiftPicker, eventBus, Events };`;
   const entryUrl = pathToFileURL(OVERTIME_ENTRY).href;
   const module = new vm.SourceTextModule(source, {
     context,
@@ -117,7 +124,13 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     );
   }
   const dependencies = {
-    '../shared/event-bus.js': stub({ eventBus: { on() {} }, Events: {} }),
+    './panel-visibility.js': stub({
+      observePanelVisibility(panel, listener) {
+        state.setPanelVisible = listener;
+        listener(true);
+        return () => { state.setPanelVisible = null; };
+      },
+    }),
     '../shared/utils.js': stub({
       async api(url, body) {
         state.apiCalls.push({ url, body });
@@ -142,7 +155,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
       createOvertimeRuleEditor(root) {
         return {
           setLimits() {},
-          renderRules() {},
+          renderRules() { state.ruleRenders++; },
           readRules: () => [],
           createRule(gift) {
             state.addedGifts.push({ ...gift });
@@ -164,18 +177,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
         acceptInitialDuration() {},
         readInitialDuration: () => state.parsedDuration,
         renderInitialDuration() {},
-        formatClockDisplay: (milliseconds) => `${milliseconds / 1000} 秒`,
-      }),
-    }),
-    './overtime-status-view.js': stub({
-      createOvertimeStatusView: () => ({
-        renderState(next) {
-          state.overtimeState = { ...state.overtimeState, ...next };
-        },
-        syncClockLoop() {},
-        stopClockLoop() {},
-        setBusy() {},
-        getState: () => state.overtimeState,
+        formatClockDisplay: require('../../public/js/shared/overtime-time-format.js').formatClockDisplay,
       }),
     }),
     './overtime-preview.js': stub({
@@ -289,6 +291,13 @@ class FakeElement {
     this.children = [];
     this.append(...nodes);
   }
+
+  remove() {
+    this.parentNode.children.splice(this.parentNode.children.indexOf(this), 1);
+    this.parentNode = null;
+  }
+
+  get childElementCount() { return this.children.length; }
 
   addEventListener(type, listener) {
     const listeners = this.listeners.get(type) || [];

@@ -10,11 +10,11 @@ function cleanText(value) {
     .trim();
 }
 
+const graphemes = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+
 function splitTextIntoCharacters(value) {
   const text = String(value || '');
-  if (typeof Intl.Segmenter === 'function') {
-    return Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text), (item) => item.segment);
-  }
+  if (graphemes) return Array.from(graphemes.segment(text), (item) => item.segment);
   return Array.from(text);
 }
 
@@ -120,44 +120,28 @@ function parseBooleanLike(value) {
 
 // ── 拼音首字母 ──
 
+const pinyin = new Intl.Collator('zh-Hans-CN-u-co-pinyin');
+const pinyinBounds = [
+  ['A', '阿'], ['B', '八'], ['C', '嚓'], ['D', '咑'], ['E', '妸'], ['F', '发'],
+  ['G', '旮'], ['H', '哈'], ['J', '丌'], ['K', '咔'], ['L', '垃'], ['M', '妈'],
+  ['N', '拏'], ['O', '噢'], ['P', '妑'], ['Q', '七'], ['R', '呥'], ['S', '仨'],
+  ['T', '他'], ['W', '屲'], ['X', '夕'], ['Y', '丫'], ['Z', '帀'],
+];
+
 function getInitial(text) {
-  const first = Array.from(cleanText(text))[0];
+  const first = cleanText(text)[Symbol.iterator]().next().value;
   if (!first) return '#';
   if (/^[a-z]$/i.test(first)) return first.toUpperCase();
   if (/^\d$/.test(first)) return '#';
 
-  const pinyinBounds = [
-    ['A', '阿'],
-    ['B', '八'],
-    ['C', '嚓'],
-    ['D', '咑'],
-    ['E', '妸'],
-    ['F', '发'],
-    ['G', '旮'],
-    ['H', '铪'],
-    ['J', '丌'],
-    ['K', '咔'],
-    ['L', '垃'],
-    ['M', '妈'], // 嘸 sorts under F in current ICU and would overwrite F–L initials.
-    ['N', '拏'],
-    ['O', '噢'],
-    ['P', '妑'],
-    ['Q', '七'],
-    ['R', '呥'],
-    ['S', '仨'],
-    ['T', '他'],
-    ['W', '屲'],
-    ['X', '夕'],
-    ['Y', '丫'],
-    ['Z', '帀'],
-  ];
-  let result = '#';
-  for (const [letter, boundary] of pinyinBounds) {
-    if (first.localeCompare(boundary, 'zh-Hans-CN-u-co-pinyin') >= 0) {
-      result = letter;
-    }
+  let low = 0;
+  let high = pinyinBounds.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (pinyin.compare(first, pinyinBounds[middle][1]) >= 0) low = middle + 1;
+    else high = middle;
   }
-  return result;
+  return low ? pinyinBounds[low - 1][0] : '#';
 }
 
 // ── CSV ──

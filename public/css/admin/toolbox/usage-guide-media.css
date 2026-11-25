@@ -63,9 +63,6 @@
   place-items: center;
 }
 
-.usage-guide-lightbox::backdrop {
-  background: var(--color-bg-overlay-light);
-}
 
 .usage-guide-lightbox-image {
   display: block;

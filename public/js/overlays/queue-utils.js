@@ -1,6 +1,9 @@
 // Queue overlay stateless formatting and timing helpers.
 'use strict';
 
+import { GUARD_LABELS } from '../shared/bilibili-guard-labels.js';
+import { formatSuperChatPrice } from '../shared/display-format.js';
+export { formatSuperChatPrice };
 import {
   escapeHtml,
   hexToRgb,
@@ -8,7 +11,7 @@ import {
   withMultilingualFallback,
   scrollTravelSeconds,
   overlayLowPowerEnabled,
-} from './overlay-utils-module.js';
+} from './overlay-utils.js';
 
 export { escapeHtml, hexToRgb, hexToRgba, withMultilingualFallback, scrollTravelSeconds, overlayLowPowerEnabled };
 
@@ -73,13 +76,7 @@ export function scaleToFontSize(scale, baseSize) {
 }
 
 export function guardLabel(level) {
-  return (
-    {
-      1: '总督',
-      2: '提督',
-      3: '舰长',
-    }[level] || '观众'
-  );
+  return GUARD_LABELS[level] || '观众';
 }
 
 export function requesterIdentityLabel(guardLevel, medalName) {
@@ -105,11 +102,6 @@ export function medalLevelClass(level) {
   return 'none';
 }
 
-export function formatSuperChatPrice(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number)) return '0';
-  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-}
 
 export function superChatPriceClass(value) {
   const number = Number(value);

@@ -116,11 +116,21 @@ function createLotteryDrawStore(db) {
       }));
   }
 
+  function lastPauseReason(roundId) {
+    const lastPause = db.prepare(
+      "SELECT payload_json FROM lottery_events WHERE round_id = ? AND event_type = 'paused' ORDER BY id DESC LIMIT 1",
+    ).get(roundId);
+    return lastPause ? JSON.parse(lastPause.payload_json).reason : 'LOTTERY_INTERRUPTED';
+  }
+
   function setStatus(task, status, reason, nowMs) {
     return transaction(db, () => {
       const round = readRound(task.id);
       if (!round) return null;
       if (['completed', 'exhausted'].includes(round.status)) return getRound(task.id);
+      if (round.status === 'paused' && status === 'paused' && lastPauseReason(round.id) === reason) {
+        return getRound(task.id);
+      }
       db.prepare('UPDATE lottery_rounds SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?').run(
         status,
         nowMs,
@@ -201,11 +211,6 @@ function createLotteryDrawStore(db) {
     const round = readRound(taskId);
     if (!round) return null;
     const awards = winners(round.id);
-    const lastPause = round.status === 'paused'
-      ? db.prepare(
-          "SELECT payload_json FROM lottery_events WHERE round_id = ? AND event_type = 'paused' ORDER BY id DESC LIMIT 1",
-        ).get(round.id)
-      : null;
     return {
       roundId: round.id,
       status: round.status,
@@ -215,12 +220,7 @@ function createLotteryDrawStore(db) {
       excludedCount: round.nextIndex - awards.length,
       requestedCount: round.rules.winnerCount,
       shortage: round.status === 'exhausted' ? round.rules.winnerCount - awards.length : 0,
-      reason:
-        round.status === 'paused'
-          ? lastPause
-            ? JSON.parse(lastPause.payload_json).reason
-            : 'LOTTERY_INTERRUPTED'
-          : '',
+      reason: round.status === 'paused' ? lastPauseReason(round.id) : '',
       digest: round.digest,
       algorithm: round.algorithm,
       winners: awards,

@@ -1,5 +1,6 @@
 import { CANVAS_PRESETS, createLayout, defaultRegion, fitRegion, normalizeLayout, resizeCanvas } from '../shared/danmaku-layout.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, normalizeStyleOptions } from '../shared/danmaku-style-options.js';
+import { isExternalComponentStyle } from '../shared/component-resource-style.js';
 import { applyCanvas } from './danmaku-canvas.js';
 import { initRegionEditor } from './danmaku-region-editor.js';
 import { initPreviewAppearance } from './danmaku-preview-appearance.js';
@@ -60,13 +61,33 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   if (isComponentPreview()) return initComponentCanvas({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData });
   const byId = (id) => document.getElementById(id);
   const controls = byId('danmakuPreviewControls');
+  const choices = byId('danmakuPreviewStyles');
+  const builtInStyles = Object.entries(DANMAKU_STYLE_OPTIONS).filter(([style]) => !isExternalComponentStyle(style));
+  for (const [layout, label] of [['fixed', '固定位置弹幕'], ['horizontal', '横向弹幕'], ['random', '区域随机弹幕'], ['floating', '飘窗弹幕']]) {
+    const group = document.createElement('div');
+    group.className = 'danmaku-preview-choices';
+    group.setAttribute('role', 'group');
+    group.setAttribute('aria-label', label);
+    const heading = document.createElement('h2'); heading.textContent = label; group.append(heading);
+    for (const [style, options] of builtInStyles) {
+      const kind = isFloatingDanmakuStyle(style) ? 'floating' : isRandomDanmakuStyle(style) ? 'random' : options.layout === 'horizontal' ? 'horizontal' : 'fixed';
+      if (kind !== layout) continue;
+      const button = document.createElement('button'); button.type = 'button'; button.dataset.previewStyle = style;
+      const image = document.createElement('img'); image.src = `/img/overlays/danmaku-previews/${style}.${style === 'twitter' ? 'svg' : 'png'}`; image.alt = ''; image.loading = 'lazy';
+      const name = document.createElement('span'); name.textContent = options.label;
+      button.append(image, name); group.append(button);
+    }
+    choices.append(group);
+  }
+  for (const [width, height] of CANVAS_PRESETS) {
+    const option = document.createElement('option'); option.value = width + 'x' + height; option.textContent = width + ' × ' + height;
+    byId('canvasPreset').append(option);
+  }
+  const custom = document.createElement('option'); custom.value = 'custom'; custom.textContent = '自定义'; byId('canvasPreset').append(custom);
   enhanceColorControls(controls);
   const buttons = Array.from(controls.querySelectorAll('[data-preview-style]'));
   const host = byId('danmakuCanvasHost');
   const status = byId('previewSaveState');
-  const apply = byId('previewApply');
-  const embedded = window.parent !== window;
-  const parentOrigin = new URL(window.location.href).origin;
   let savedHistory = {};
   let historyAvailable = true;
   try { savedHistory = window.history.state || {}; } catch { historyAvailable = false; }
@@ -79,11 +100,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   };
   if (!buttons.some((button) => button.dataset.previewStyle === draft.style)) draft.style = 'signal';
   let scale = 1;
-  let canApply = false;
-  let saving = false;
   controls.hidden = false;
-  byId('previewClose').hidden = !embedded;
-  const send = (type, extra = {}) => { if (embedded) window.parent.postMessage({ type, ...extra }, parentOrigin); };
   const appearance = initPreviewAppearance({ getDraft: () => draft, change: edit, error: (message) => { status.textContent = message; } });
 
   function fit() {
@@ -104,7 +121,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
       field.max = String(key === 'x' ? canvas.width - region.width : key === 'y' ? canvas.height - region.height
         : key === 'width' ? canvas.width : canvas.height);
     }
-    const label = buttons.find((button) => button.dataset.previewStyle === draft.style).querySelector('span').firstChild.textContent;
+    const label = DANMAKU_STYLE_OPTIONS[draft.style].label;
     byId('danmakuPreviewDescription').textContent = `${canvas.width} × ${canvas.height} · ${label}`;
     byId('selectionLabel').textContent = `${region.width} × ${region.height}`;
     byId('regionHint').textContent = isFloatingDanmakuStyle(draft.style)
@@ -127,9 +144,8 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   }
   function edit(next, refreshSamples = true) {
     draft = next;
-    status.textContent = '修改尚未应用。';
+    status.textContent = '本地预览；请从客户端打开场景编辑器以保存外观。';
     render(refreshSamples);
-    send('danmaku-editor:change', { draft });
   }
   function regionChange(region) {
     edit({ ...draft, layout: { ...draft.layout, regions: { ...draft.layout.regions, [draft.style]: region } } }, false);
@@ -168,37 +184,11 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
     renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft, true);
   });
   byId('previewRefresh').addEventListener('click', () => renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft, true));
-  byId('previewClose').addEventListener('click', () => send('danmaku-editor:close'));
-  apply.addEventListener('click', () => { if (canApply && !saving) send('danmaku-editor:apply', { draft }); });
   initRegionEditor(byId('danmakuSelection'), { getLayout: () => draft.layout, getStyle: () => draft.style,
     getScale: () => scale, change: regionChange });
   const observer = new ResizeObserver(fit);
   observer.observe(host);
-  const receive = (event) => {
-    if (!embedded || event.source !== window.parent || event.origin !== parentOrigin) return;
-    const data = event.data;
-    if (data?.type === 'danmaku-editor:init') {
-      const incoming = data.draft;
-      if (!buttons.some((button) => button.dataset.previewStyle === incoming?.style)) return;
-      try {
-        draft = { ...incoming, style: incoming.style, styleOptions: normalizeStyleOptions(incoming.styleOptions || {}),
-          fullscreenDurationSeconds: incoming.fullscreenDurationSeconds,
-          layout: normalizeLayout(incoming.layout ?? null) || createLayout() };
-      } catch { return; }
-      canApply = data.canApply === true;
-      status.textContent = canApply ? '调整后点击应用，更新直播画面。' : data.message;
-      render();
-    } else if (data?.type === 'danmaku-editor:status') {
-      saving = data.saving === true;
-      status.textContent = data.message;
-    } else return;
-    apply.disabled = !canApply || saving;
-    apply.textContent = saving ? '正在应用…' : '应用到直播画面';
-  };
-  window.addEventListener('message', receive);
-  window.addEventListener('pagehide', () => { appearance.dispose(); observer.disconnect(); window.removeEventListener('message', receive); }, { once: true });
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') send('danmaku-editor:close'); });
-  status.textContent = embedded ? '正在读取草稿…' : '本地预览；请从客户端打开场景编辑器以应用修改。';
+  window.addEventListener('pagehide', () => { appearance.dispose(); observer.disconnect(); }, { once: true });
+  status.textContent = '本地预览；请从客户端打开场景编辑器以保存外观。';
   render();
-  send('danmaku-editor:ready');
 }

@@ -36,6 +36,35 @@ async function assertSource(frame, instance, width, height) {
   { width, height, referrer: '', messages: [] });
 }
 
+test('a selected browser source publishes its fractional fitted height', async t => {
+  const fixture = await startCanvasOutputFixture();
+  t.after(() => fixture.close());
+  const scene = fixture.service.create({ title: '等比缩放', canvas: { width: 1280, height: 720 } });
+  fixture.service.publishCanvas({ id: scene.document.id, expectedRevision: scene.revision, expectedPublishedVersion: 0 });
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const desktop = await browser.newPage();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  page.setDefaultTimeout(5000);
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '添加组件' });
+  await picker.getByRole('button', { name: '更多', exact: true }).click();
+  await picker.getByRole('textbox', { name: '浏览器源地址' }).fill(`${fixture.origin}/preview-test-host`);
+  await changeNumber(picker, '网页宽度', 1366);
+  await changeNumber(picker, '网页高度', 768);
+  await picker.getByRole('button', { name: '添加到画布' }).click();
+  const height = page.locator('.scene-editor-geometry').getByRole('spinbutton', { name: '高度', exact: true });
+  assert.equal(Number(await height.inputValue()), 768 * (1280 / 1366));
+  assert.equal(await height.evaluate(input => input.checkValidity()), true);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  assert.equal(fixture.service.getCanvas().publishedVersion, 2);
+  assert.equal(fixture.service.get(scene.document.id).document.items[0].height, 768 * (1280 / 1366));
+});
+
 test('canvas browser sources keep independent viewports through editing, saving and published output', { timeout: 90000 }, async (t) => {
   const fixture = await startCanvasOutputFixture();
   const browser = await chromium.launch({ headless: true });

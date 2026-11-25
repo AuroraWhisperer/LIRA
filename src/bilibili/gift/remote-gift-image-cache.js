@@ -55,6 +55,10 @@ function createRemoteGiftImageCache(options = {}) {
   let indexDirty = false;
   let revision = 0;
   let indexWrite = Promise.resolve();
+  const snapshotCandidates = new WeakMap();
+  const snapshotFiles = new Map();
+  let checkedRevision;
+  let checkedBase;
 
   function rememberImage(basename) {
     usedImages.add(basename);
@@ -68,9 +72,10 @@ function createRemoteGiftImageCache(options = {}) {
     let available = 0;
     const result = await Promise.all(
       gifts.map(async (gift) => {
-        const imagePath = await cacheGiftImage(gift, false);
+        const currentPath = await cachePrimaryImage(gift, false);
+        const imagePath = currentPath || getCachedGiftImagePath(gift);
         completed += 1;
-        if (isGiftImageCurrent(gift)) available += 1;
+        if (currentPath) available += 1;
         try {
           cacheOptions.onProgress?.({
             completed,
@@ -91,13 +96,37 @@ function createRemoteGiftImageCache(options = {}) {
   }
 
   function getCachedGiftImagePath(gift) {
-    const imageBaseUrl = safeImageBaseUrl();
-    for (const candidate of giftImageCandidates(gift, imageBaseUrl)) {
-      const imagePath = getCachedCandidatePath(candidate);
+    return resolveCachedPath(gift, giftImageCandidates(gift, safeImageBaseUrl()), getCachedCandidatePath);
+  }
+
+  // Hybrid owns these immutable source rows. Direct file lookups still check the disk on every call.
+  function getSnapshotGiftImagePath(gift, imageRevision) {
+    if (imageRevision === undefined || checkedRevision !== imageRevision) {
+      checkedRevision = imageRevision;
+      checkedBase = safeImageBaseUrl();
+      snapshotFiles.clear();
+    }
+    let entry = snapshotCandidates.get(gift);
+    if (!entry || entry.base !== checkedBase) {
+      entry = { base: checkedBase, candidates: giftImageCandidates(gift, checkedBase) };
+      snapshotCandidates.set(gift, entry);
+    }
+    return resolveCachedPath(gift, entry.candidates, (candidate) => {
+      if (!snapshotFiles.has(candidate.basename)) snapshotFiles.set(candidate.basename, getCachedCandidatePath(candidate));
+      return snapshotFiles.get(candidate.basename);
+    });
+  }
+
+  function resolveCachedPath(gift, candidates, lookup) {
+    for (const candidate of candidates) {
+      const imagePath = lookup(candidate);
       if (imagePath) return imagePath;
     }
     const previousBasename = lastGoodImages.get(gift?.variantId || giftVariantId(gift));
-    return getCachedCandidatePath(previousBasename ? { basename: previousBasename } : bilibiliImageCandidate(gift));
+    // Legacy CDN filenames predate the server-image portion of the source hash.
+    const fallback = previousBasename ? { basename: previousBasename }
+      : candidates.length === 2 ? bilibiliImageCandidate(gift) : null;
+    return fallback && !candidates.some(({ basename }) => basename === fallback.basename) ? lookup(fallback) : '';
   }
 
   function isGiftImageCurrent(gift) {
@@ -109,6 +138,16 @@ function createRemoteGiftImageCache(options = {}) {
     return giftImageCandidates(gift, safeImageBaseUrl()).length > 0;
   }
 
+  async function inspectGifts(gifts) {
+    const base = safeImageBaseUrl();
+    const states = await Promise.all(gifts.map((gift) => runWithLimit(async () => {
+      const [candidate] = giftImageCandidates(gift, base);
+      if (!candidate) return null;
+      return isValidImageFile(path.join(cacheDir, candidate.basename), candidate.basename);
+    })));
+    return { available: states.filter(Boolean).length, missing: gifts.filter((_, i) => states[i] === false) };
+  }
+
   function getCachedCandidatePath(candidate) {
     const filePath = candidate ? path.join(cacheDir, candidate.basename) : '';
     if (!filePath) return '';
@@ -118,11 +157,15 @@ function createRemoteGiftImageCache(options = {}) {
   }
 
   async function cacheGiftImage(gift, persist = true) {
+    return await cachePrimaryImage(gift, persist) || getCachedGiftImagePath(gift);
+  }
+
+  async function cachePrimaryImage(gift, persist) {
     const imageBaseUrl = safeImageBaseUrl();
     // A CDN outage must not turn every client into a full-library server download.
     const [candidate] = giftImageCandidates(gift, imageBaseUrl);
     const imagePath = await cacheCandidate(candidate);
-    if (shutdown.signal.aborted) return imagePath || getCachedGiftImagePath(gift);
+    if (shutdown.signal.aborted) return imagePath;
     const id = gift?.variantId || giftVariantId(gift);
     if (imagePath && id) {
       const basename = path.posix.basename(imagePath);
@@ -133,7 +176,7 @@ function createRemoteGiftImageCache(options = {}) {
       }
       if (persist) await persistImageIndex();
     }
-    return imagePath || getCachedGiftImagePath(gift);
+    return imagePath;
   }
 
   function getSourceImagePath(source, gift) {
@@ -175,8 +218,6 @@ function createRemoteGiftImageCache(options = {}) {
     const { url, basename, headers } = candidate;
     rememberImage(basename);
     const targetPath = path.join(cacheDir, basename);
-    if (await isValidImageFile(targetPath, basename)) return `${LOCAL_IMAGE_PREFIX}${basename}`;
-
     if (pending.has(basename)) return pending.get(basename);
     const task = runWithLimit(async () => {
       if (shutdown.signal.aborted) return '';
@@ -186,7 +227,7 @@ function createRemoteGiftImageCache(options = {}) {
         shutdown.signal.throwIfAborted();
         if (!validateImageBytes(bytes, basename))
           throw new Error('downloaded image signature does not match extension');
-        await writeAtomic(targetPath, bytes);
+        await writeAtomic(targetPath, bytes, shutdown.signal);
         revision += 1;
         return `${LOCAL_IMAGE_PREFIX}${basename}`;
       } catch (error) {
@@ -199,13 +240,14 @@ function createRemoteGiftImageCache(options = {}) {
   }
 
   async function runWithLimit(task) {
-    if (active >= concurrency) await new Promise((resolve) => waiting.push(resolve));
-    active += 1;
+    if (active < concurrency) active += 1;
+    else await new Promise((resolve) => waiting.push(resolve));
     try {
       return await task();
     } finally {
-      active -= 1;
-      waiting.shift()?.();
+      const next = waiting.shift();
+      if (next) next();
+      else active -= 1;
     }
   }
 
@@ -239,6 +281,8 @@ function createRemoteGiftImageCache(options = {}) {
     getSourceImagePath,
     cacheSourceImage,
     getCachedGiftImagePath,
+    getSnapshotGiftImagePath,
+    inspectGifts,
     isGiftImageCurrent,
     hasGiftImageSource,
     dispose() { shutdown.abort(); return Promise.allSettled([...pending.values(), persistImageIndex()]); },
@@ -424,10 +468,16 @@ function normalizeCacheImageBaseUrl(value) {
 
 async function isValidImageFile(filePath, basename) {
   try {
-    const stats = await fs.promises.stat(filePath);
-    if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_IMAGE_BYTES) return false;
-    const bytes = await fs.promises.readFile(filePath);
-    return validateImageBytes(bytes, basename);
+    const file = await fs.promises.open(filePath, fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK || 0));
+    try {
+      const stats = await file.stat();
+      if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_IMAGE_BYTES) return false;
+      const bytes = Buffer.alloc(12);
+      const { bytesRead } = await file.read(bytes, 0, bytes.length, 0);
+      return validateImageBytes(bytes.subarray(0, bytesRead), basename);
+    } finally {
+      await file.close();
+    }
   } catch (_) {
     return false;
   }
@@ -471,22 +521,23 @@ function validateImageBytes(bytes, basename) {
   return false;
 }
 
-async function writeAtomic(filePath, bytes) {
+async function writeAtomic(filePath, bytes, signal) {
   const tempPath = path.join(
     path.dirname(filePath),
     `.${path.basename(filePath)}.tmp-${process.pid}-${crypto.randomBytes(6).toString('hex')}`,
   );
   try {
-    fs.writeFileSync(tempPath, bytes, { flag: 'wx', mode: 0o600 });
+    await fs.promises.writeFile(tempPath, bytes, { flag: 'wx', mode: 0o600 });
     for (let attempt = 0; ; attempt++) {
-      try { fs.renameSync(tempPath, filePath); break; }
+      signal?.throwIfAborted();
+      try { await fs.promises.rename(tempPath, filePath); break; }
       catch (error) {
         if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
         await delay(50 * (attempt + 1));
       }
     }
   } finally {
-    if (fs.existsSync(tempPath)) fs.rmSync(tempPath, { force: true });
+    await fs.promises.rm(tempPath, { force: true });
   }
 }
 

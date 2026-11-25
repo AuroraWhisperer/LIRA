@@ -90,8 +90,10 @@ test('dispose aborts in-flight work, clears retries, removes listeners and preve
 });
 
 test('legacy server 404 disables automatic facts gracefully while manual profile actions keep working', async (t) => {
+  let supported = false;
   const f = fixture(t, {
     fetch: () => {
+      if (supported) return f.page();
       throw Object.assign(new Error('not found'), { status: 404 });
     },
   });
@@ -104,10 +106,15 @@ test('legacy server 404 disables automatic facts gracefully while manual profile
   assert.equal(saved.ok, true);
   assert.equal(saved.data.saved, true);
   assert.equal(f.calls.consume.length, 0);
+  assert.equal(f.timers.pending.size, 0);
+  f.state.epoch++;
+  f.emit();
+  await f.controller.whenIdle();
+  assert.equal(f.calls.fetch.length, 1, 'renewing the same account does not probe an unsupported API');
+  supported = true;
+  await f.controller.start(); // The desktop resume hook probes capability again.
+  assert.equal(f.calls.consume.length, 1);
   assert.equal(f.timers.pending.size, 1);
-  const retry = f.timers.pending.values().next().value;
-  assert.ok(retry.delay >= 15000);
-  assert.equal(retry.unrefCalled, true);
   f.controller.dispose();
   assert.equal(f.timers.pending.size, 0);
 });
@@ -126,6 +133,7 @@ test('first-use settings gate remote facts until configuration and committed cur
   });
   await f.controller.start();
   assert.equal(f.calls.fetch.length, 0);
+  assert.equal(f.timers.pending.size, 0);
   const opened = f.invoke({ action: 'open' });
   f.invoke({ action: 'configure', contextId: opened.contextId, payload: { autoCreate: true, autoUpdate: true } });
   await f.controller.whenIdle();

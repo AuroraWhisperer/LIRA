@@ -1,3 +1,4 @@
+import { hashCodePoints } from '../shared/string-hash.js';
 export const FULLSCREEN_SAFE_INSET_PX = 16;
 const ITEM_GAP_PX = 10;
 const CANDIDATE_COUNT = 48;
@@ -5,8 +6,7 @@ const CANDIDATE_COUNT = 48;
 // A message seed keeps the same candidate set across relayouts and both renderers.
 function messageRandom(item = {}) {
   const seed = [item.id, item.uid, item.timestamp, item.name, item.message].join('|');
-  let state = 2166136261;
-  for (const character of seed) state = Math.imul(state ^ character.codePointAt(0), 16777619);
+  let state = hashCodePoints(seed);
   return () => {
     state = (state + 0x6d2b79f5) | 0;
     let value = Math.imul(state ^ (state >>> 15), 1 | state);

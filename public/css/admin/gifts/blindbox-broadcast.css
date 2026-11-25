@@ -190,10 +190,6 @@
   min-width: 0;
 }
 
-.blindbox-appearance-grid > .blindbox-span-2 {
-  grid-column: span 2;
-}
-
 /* 浏览器源地址 */
 .blindbox-url-bar {
   display: flex;
@@ -243,10 +239,6 @@
   .blindbox-builder-row,
   .blindbox-appearance-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .blindbox-appearance-grid > .blindbox-span-2 {
-    grid-column: auto;
   }
 }
 

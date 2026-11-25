@@ -185,10 +185,6 @@
   flex-direction: column;
 }
 
-.danmaku-style-library::backdrop {
-  background: rgb(0 0 0 / 35%);
-}
-
 .live-components-page .danmaku-style-library button.danmaku-library-close {
   position: absolute;
   top: 12px;

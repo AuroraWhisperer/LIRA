@@ -331,7 +331,7 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
 
     if (selectedId === 'otherDanmakuFeature') {
       moduleState.danmakuTool?.refresh({ reconnectIfDisconnected: true });
-      moduleState.aiAssistantSettings?.refresh();
+      if (moduleState.initialized) moduleState.aiAssistantSettings?.refresh();
     }
 
     return true;

@@ -2,6 +2,7 @@ import { mountComponentStyleLibrary } from './component-style-library.js';
 import { createResourceStyleSettings } from './resource-style-settings.js';
 import { addStyleToCanvas } from './component-style-client.js';
 import { previewElement } from './component-preview-elements.js';
+import { isPanelVisible } from './panel-visibility.js';
 
 export function mountOpeningStylePicker({ onBuiltin, beforeSelect }) {
   const host = document.getElementById('openingStyleOptions');
@@ -52,17 +53,20 @@ export function mountOpeningStylePicker({ onBuiltin, beforeSelect }) {
     actionLabel: '选择样式', onUse: select,
     renderList(value) {
       cards = value.cards;
-      for (const { card } of cards) card.querySelector('.component-style-select').firstElementChild.remove();
+      for (const { card, style } of cards) {
+        card.querySelector('.component-style-select').firstElementChild.remove();
+        sessions.get(style.id)?.controller.receive(style.config);
+        if (selected?.id === style.id) selected = style;
+      }
+      for (const id of sessions.keys()) if (!cards.some(({ style }) => style.id === id)) sessions.delete(id);
       if (selected && !cards.some(({ style }) => style.id === selected.id)) select(null);
       render();
     },
   });
-  const refresh = () => { void library.refresh(); };
+  const refresh = () => { if (isPanelVisible(host)) void library.refresh(); };
   window.addEventListener('component-styles:changed', refresh);
-  window.addEventListener('focus', refresh);
   window.addEventListener('pagehide', () => {
     window.removeEventListener('component-styles:changed', refresh);
-    window.removeEventListener('focus', refresh);
     panel?.dispose(); library.dispose();
   }, { once: true });
   return {

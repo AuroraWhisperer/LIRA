@@ -1,18 +1,32 @@
 'use strict';
 
 const path = require('node:path');
+const { execFile } = require('node:child_process');
+const { promisify } = require('node:util');
 const { createWeSingCacheReader, safeInitialCachePath } = require('./wesing-cache');
 
-function getWeSingCacheCandidates(environment = process.env) {
+async function getFixedDriveRoots() {
+  if (process.platform !== 'win32') return [];
+  const command = "[IO.DriveInfo]::GetDrives() | Where-Object DriveType -eq Fixed | ForEach-Object Name";
+  try {
+    const { stdout } = await promisify(execFile)('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command],
+      { windowsHide: true, timeout: 5000 });
+    return stdout.trim().split(/\r?\n/).filter(root => /^[A-Z]:\\$/i.test(root));
+  } catch {
+    return [];
+  }
+}
+
+function getWeSingCacheCandidates(environment = process.env, roots = []) {
   const profilePaths = [environment.APPDATA, environment.LOCALAPPDATA]
     .filter(Boolean)
     .map((directory) => path.join(directory, 'Tencent', 'WeSing', 'WeSingCache'));
-  const drivePaths = Array.from({ length: 24 }, (_, index) => `${String.fromCharCode(67 + index)}:\\WeSingCache`);
-  return [...profilePaths, ...drivePaths];
+  return [...profilePaths, ...roots.map(root => path.join(root, 'WeSingCache'))];
 }
 
-async function discoverWeSingCachePath({ cachePath, title = '', candidates = getWeSingCacheCandidates(),
+async function discoverWeSingCachePath({ cachePath, title = '', includeDriveRoots = true, candidates,
   readCache = createWeSingCacheReader().read } = {}) {
+  candidates ??= getWeSingCacheCandidates(process.env, includeDriveRoots ? await getFixedDriveRoots() : []);
   const savedPath = safeInitialCachePath(cachePath);
   const uniquePaths = new Map();
   for (const candidate of [savedPath, ...candidates]) {

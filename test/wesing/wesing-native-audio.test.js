@@ -73,6 +73,10 @@ internal sealed class FakeAudioSession : IAudioSessionControl, IAudioSessionCont
   public int QueryHardwareSupport(out int mask) { throw new NotSupportedException(); }
 }
 public static class WeSingAudioFixture {
+  private static int releases;
+  public static void ReleaseChild(object child) {
+    if (++releases == 2) throw new System.Runtime.InteropServices.InvalidComObjectException();
+  }
   private static void Check(int state, float peak, string message, params FakeAudioDevice[] devices) {
     FakeAudioDevices.Devices = devices;
     var sample = WeSingNativeMonitor.GetAudioSessionSnapshot(new[] { 42 });
@@ -81,6 +85,10 @@ public static class WeSingAudioFixture {
     }
   }
   public static void Run() {
+    typeof(WeSingNativeMonitor).GetMethod("ReleaseAccessibleChildren",
+      System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+      .Invoke(null, new object[] { new object[] { 1, 2, 3 } });
+    if (releases != 3) throw new Exception("A failed release skipped the remaining children");
     var stopped = new FakeAudioDevice(new FakeAudioSession(42, AudioSessionState.Inactive, 0f));
     var playing = new FakeAudioDevice(new FakeAudioSession(42, AudioSessionState.Active, 0.2f));
     var unrelated = new FakeAudioDevice(new FakeAudioSession(99, AudioSessionState.Active, 0.9f));
@@ -101,7 +109,9 @@ public static class WeSingAudioFixture {
 `;
   // Replace only COM activation; execute the production traversal and session filtering.
   assert.equal(WESING_NATIVE_MONITOR_SOURCE.split('new MMDeviceEnumeratorComObject()').length, 2);
-  const source = WESING_NATIVE_MONITOR_SOURCE.replace('new MMDeviceEnumeratorComObject()', 'new FakeAudioDevices()') + fixture;
+  const source = WESING_NATIVE_MONITOR_SOURCE
+    .replace('new MMDeviceEnumeratorComObject()', 'new FakeAudioDevices()')
+    .replace('if (child != null && Marshal.IsComObject(child)) Marshal.ReleaseComObject(child)', 'WeSingAudioFixture.ReleaseChild(child)') + fixture;
   const scriptPath = path.join(createScratchDirectory('wesing-native-audio-', t), 'audio.ps1');
   fs.writeFileSync(scriptPath, "\ufeff$ErrorActionPreference = 'Stop'\nAdd-Type -AssemblyName Accessibility\nAdd-Type -TypeDefinition @'\n" +
     source + "\n'@ -ReferencedAssemblies Accessibility\n[WeSingAudioFixture]::Run()\n");

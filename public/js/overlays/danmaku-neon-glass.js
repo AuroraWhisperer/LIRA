@@ -1,6 +1,8 @@
+import { createTextElement } from '../shared/dom-element.js';
+import { formatDanmakuAmount as amount } from '../shared/display-format.js';
 import { setColorProperties } from '../shared/color-value.js';
 
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const NAME_COLORS = ['#ffa58d', '#f09bc9', '#8dd9ef', '#b4df75', '#c2adff'];
 const ICONS = {
   crown: 'M3 6l4 4 5-7 5 7 4-4-2 13H5Z',
@@ -25,19 +27,9 @@ function icon(document, kind) {
   return svg;
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—';
-}
-
 // The shared renderer owns literal text and safe emotes; this adapter only composes the capsule.
 export function createNeonGlassMessageRenderer({ document, classNames }, render) {
-  const element = (tag, className, text) => {
-    const node = document.createElement(tag);
-    node.className = className;
-    if (text !== undefined) node.textContent = String(text);
-    return node;
-  };
+  const element = createTextElement.bind(null, document);
   return (item = {}, index = 0) => {
     const sc = item.kind === 'superchat';
     const gift = item.kind === 'gift';

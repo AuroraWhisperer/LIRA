@@ -83,10 +83,15 @@ test('an upload SSE echo before its response does not cause a redundant trailing
   t.after(() => fixture.controller.dispose());
   await fixture.controller.start();
   const before = reads;
+  const deadline = [...fixture.timers.values()].find(timer => timer.delay === 600_000);
   fixture.emitLocal('settings');
   await new Promise(setImmediate);
   await fixture.controller.whenIdle();
-  assert.equal(reads - before, 1);
+  assert.equal(reads - before, 0);
+  assert.equal(fixture.timers.get(deadline.id), deadline);
+  deadline.callback();
+  await fixture.controller.whenIdle();
+  assert.equal(reads - before, 1, 'the original recovery deadline still reads the authoritative summary');
 });
 
 test('queued cloud events merge scopes and still fetch changes newer than the running read', async (t) => {

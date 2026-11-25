@@ -53,6 +53,18 @@ function createGiftCatalogInitializer(options = {}) {
     return () => listeners.delete(listener);
   }
 
+  function inspectExistingImages(gifts) {
+    if (imageCache.inspectGifts) return imageCache.inspectGifts(gifts);
+    if (!imageCache.isGiftImageCurrent) return null;
+    let available = 0;
+    const missing = [];
+    for (const gift of gifts) {
+      if (imageCache.isGiftImageCurrent(gift)) available += 1;
+      else if (imageCache.hasGiftImageSource?.(gift) !== false) missing.push(gift);
+    }
+    return { available, missing };
+  }
+
   function initialize(request = {}) {
     if (pending) return pending;
     const wasInitialized = isInitialized();
@@ -93,7 +105,7 @@ function createGiftCatalogInitializer(options = {}) {
 
       let version = String(snapshot.version || '').trim();
       if (
-        typeof imageCache.isGiftImageCurrent !== 'function' &&
+        !imageCache.inspectGifts && !imageCache.isGiftImageCurrent &&
         wasInitialized &&
         completion?.catalogVersion === version &&
         completion.failed === 0
@@ -120,12 +132,11 @@ function createGiftCatalogInitializer(options = {}) {
       for (;;) {
         version = String(snapshot.version || '').trim();
         const gifts = snapshot.gifts;
-        const giftsToCache =
-          wasInitialized && typeof imageCache.isGiftImageCurrent === 'function'
-            ? gifts.filter(
-                (gift) => !imageCache.isGiftImageCurrent(gift) && imageCache.hasGiftImageSource?.(gift) !== false,
-              )
-            : gifts;
+        const inspected = wasInitialized ? await inspectExistingImages(gifts) : null;
+        const giftsToCache = inspected ? inspected.missing : gifts;
+        completed = giftsToCache.length;
+        available = 0;
+        failed = 0;
         if (giftsToCache.length) {
           publish({
             status: wasInitialized ? 'updating' : 'running',
@@ -138,8 +149,10 @@ function createGiftCatalogInitializer(options = {}) {
             percent: 5,
             warning: refreshError ? 'CATALOG_REFRESH_FAILED' : '',
           });
+          let verifiedAvailable;
           const cachedGifts = await imageCache.cacheGifts(giftsToCache, {
             onProgress(progress) {
+              if (progress.completed === giftsToCache.length) verifiedAvailable = progress.available;
               publish({
                 completed: progress.completed,
                 total: progress.total,
@@ -151,8 +164,7 @@ function createGiftCatalogInitializer(options = {}) {
               });
             },
           });
-          completed = giftsToCache.length;
-          available = cachedGifts.filter((gift, index) =>
+          available = verifiedAvailable ?? cachedGifts.filter((gift, index) =>
             typeof imageCache.isGiftImageCurrent === 'function'
               ? imageCache.isGiftImageCurrent(giftsToCache[index])
               : Boolean(gift.imagePath),
@@ -167,10 +179,7 @@ function createGiftCatalogInitializer(options = {}) {
           snapshot = latest;
           continue;
         }
-        const catalogAvailable =
-          typeof imageCache.isGiftImageCurrent === 'function'
-            ? gifts.filter((gift) => imageCache.isGiftImageCurrent(gift)).length
-            : gifts.length - (giftsToCache.length ? failed : 0);
+        const catalogAvailable = (inspected?.available || 0) + available;
         completion = {
           schemaVersion: STATE_SCHEMA_VERSION,
           catalogVersion: version,

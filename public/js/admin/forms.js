@@ -1,3 +1,4 @@
+import { bindTabNavigation } from '../shared/tab-navigation.js';
 // 编写人：Aurora
 // 表单工具和通用组件
 ('use strict');
@@ -47,26 +48,15 @@ export class FormsService {
           panel.hidden = !active;
         }
       };
-      tabs.forEach((tab, index) => {
+      tabs.forEach((tab) => {
         const panel = document.getElementById(tab.dataset.tab);
         tab.id ||= `${tab.dataset.tab}Tab`;
         tab.setAttribute('role', 'tab');
         tab.setAttribute('aria-controls', panel.id);
         panel.setAttribute('role', 'tabpanel');
         panel.setAttribute('aria-labelledby', tab.id);
-        tab.addEventListener('click', () => select(tab));
-        tab.addEventListener('keydown', (event) => {
-          let next;
-          if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-          else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
-          else if (event.key === 'Home') next = 0;
-          else if (event.key === 'End') next = tabs.length - 1;
-          else return;
-          event.preventDefault();
-          select(tabs[next]);
-          tabs[next].focus();
-        });
       });
+      bindTabNavigation(tabs, select);
       select(tabs.find((tab) => tab.classList.contains('active')) || tabs[0]);
     });
   }

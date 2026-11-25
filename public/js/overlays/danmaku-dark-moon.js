@@ -1,15 +1,11 @@
-const GUARDS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement as node } from '../shared/dom-element.js';
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const SHAPES = Object.freeze({
   star: 'M12 1C13.5 8.6 15.4 10.5 23 12C15.4 13.5 13.5 15.4 12 23C10.5 15.4 8.6 13.5 1 12C8.6 10.5 10.5 8.6 12 1Z',
   moon: 'M19.8 15.4A8.9 8.9 0 0 1 8.6 4.2A9 9 0 1 0 19.8 15.4Z',
 });
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function icon(document, shape, className) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -35,8 +31,7 @@ function decorations(document, event) {
 }
 
 function price(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+  return formatDanmakuAmount(value, 2);
 }
 
 // The canonical renderer owns safe text and emotes; this adapter only composes the theme.

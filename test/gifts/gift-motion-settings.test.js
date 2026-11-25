@@ -69,9 +69,7 @@ async function fixture() {
         return pending.promise;
       },
     },
-    './component-preview-registry.js': { prepareComponentPreviews() {} },
-    './component-preview-session.js': { getActiveComponentPreview() {} },
-    './component-preview-dialog.js': { openComponentPreview() {} },
+    './canvas-item-entry.js': { openOrCreateCanvasItem() {} },
   };
   const file = path.resolve(__dirname, '../../public/js/admin/gift-motion-settings.js');
   const entry = new vm.SourceTextModule(fs.readFileSync(file, 'utf8'), { context, identifier: file });

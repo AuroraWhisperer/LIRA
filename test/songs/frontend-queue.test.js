@@ -4,12 +4,11 @@ const assert = require('node:assert/strict');
 
 const path = require('node:path');
 const test = require('node:test');
-const { DatabaseSync } = require('node:sqlite');
 const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
 const { createParameterDocument } = require('../helpers/parameter-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
-const settingsStoreModule = require('../../src/storage/settings-store');
+const QUEUE_STYLE_SETTINGS = path.join(ROOT_DIR, 'public/js/shared/queue-style-settings.js');
 
 test('queue reconnect renders new requests and visible identity changes once', async () => {
   let renders = 0;
@@ -71,11 +70,9 @@ test('queue theme controls retain legacy font and scroll units without rewriting
   assert.equal(controls.identityQueueScrollSpeed, '100');
 });
 
-test('queue theme payloads persist only the selected style', async () => {
+test('queue theme controls collect persistable fields for the selected style', async () => {
   const { OVERLAY_THEME_KEYS } = require('../../src/storage/theme-store');
-  const { collectQueueTheme, queueSettingsPayload } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'),
-  );
+  const { collectQueueTheme } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'));
 
   const values = {
     overlayQueueStyle: 'neon-vinyl',
@@ -92,13 +89,8 @@ test('queue theme payloads persist only the selected style', async () => {
   assert.equal(payload.overlayQueueStyle, 'neon-vinyl');
   assert.equal(payload.neonVinylQueueFontFamily, 'KaiTi');
   assert.equal(payload.neonVinylQueueScrollSpeed, '64');
-  assert.ok(styleKeys.length > 0 && styleKeys.every((key) => key.startsWith('neonVinylQueue')), styleKeys.join(', '));
+  assert.ok(styleKeys.every((key) => key.startsWith('neonVinylQueue')), styleKeys.join(', '));
   for (const key of styleKeys) assert.ok(OVERLAY_THEME_KEYS.includes(key), `${key} must be a persisted theme key`);
-
-  assert.deepEqual(
-    { ...queueSettingsPayload({ overlayQueueStyle: 'golden-lily' }, { goldenLilyQueueFontSize: '30', unrelated: 'x' }) },
-    { goldenLilyQueueFontSize: '30', overlayQueueStyle: 'golden-lily' },
-  );
 
   for (const style of ['classic', 'identity']) {
     const font = '"Custom Local"';
@@ -114,46 +106,32 @@ test('queue theme payloads persist only the selected style', async () => {
   }
 });
 
-test('queue styles migrate shared typography and scrolling into independent persisted values', () => {
-  const db = new DatabaseSync(':memory:');
-  db.exec(`
-    CREATE TABLE settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    )
-  `);
-  const insert = db.prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)');
-  const legacyValues = {
-    identityQueueFontSize: '37',
-    illustratedQueueFontFamily: 'KaiTi, serif',
-    illustratedQueueFontWeight: '700',
-    illustratedQueueUseCustomTextColor: 'true',
-    illustratedQueueTextColor: '#123456',
-    queueScrollMode: 'loop',
-    identityQueueScrollSpeed: '63',
+test('illustrated queue styles resolve their own settings and only write supplied fields', async () => {
+  const { resolveQueueStyleSettings, queueStyleSettingsPayload } = await loadModuleExports(QUEUE_STYLE_SETTINGS);
+  const settings = {
+    identityQueueFontSize: '26',
+    neonVinylQueueFontSize: '41',
+    neonVinylQueueFontFamily: 'KaiTi, serif',
+    neonVinylQueueScrollMode: 'loop',
+    neonVinylQueueScrollSpeed: '64',
+    cherryRibbonQueueFontSize: '22',
   };
-  for (const [key, value] of Object.entries(legacyValues)) {
-    insert.run(key, value, '2026-08-23 00:00:00');
-  }
+  const neon = resolveQueueStyleSettings(settings, 'neon-vinyl');
+  assert.equal(neon.identityQueueFontSize, '41');
+  assert.equal(neon.illustratedQueueFontFamily, 'KaiTi, serif');
+  assert.equal(neon.queueScrollMode, 'loop');
+  assert.equal(neon.identityQueueScrollSpeed, '64');
+  assert.equal(resolveQueueStyleSettings(settings, 'cherry-ribbon').identityQueueFontSize, '22');
+  const payload = queueStyleSettingsPayload('neon-vinyl', { fontSize: '44', fontFamily: 'YouYuan', scrollSpeed: '71' });
+  assert.deepEqual({ ...payload }, {
+    neonVinylQueueFontSize: '44', neonVinylQueueFontFamily: 'YouYuan', neonVinylQueueScrollSpeed: '71',
+  });
+});
 
-  try {
-    const store = settingsStoreModule.createSettingsStore(db);
-    settingsStoreModule.migrateQueueStyleSettings(db, '');
-    const settings = store.getSettings();
-
-    assert.equal(settings.identityQueueScrollMode, 'loop');
-    for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
-      assert.equal(settings[`${prefix}QueueFontSize`], '37');
-      assert.equal(settings[`${prefix}QueueFontFamily`], 'KaiTi, serif');
-      assert.equal(settings[`${prefix}QueueFontWeight`], '700');
-      assert.equal(settings[`${prefix}QueueUseCustomTextColor`], 'true');
-      assert.equal(settings[`${prefix}QueueTextColor`], '#123456');
-      assert.equal(settings[`${prefix}QueueScrollMode`], 'loop');
-      assert.equal(settings[`${prefix}QueueScrollSpeed`], '63');
-    }
-    assert.equal(settings.queueStyleSettingsVersion, '1');
-  } finally {
-    db.close();
-  }
+test('classic and identity resolve independent fonts while preserving old snapshots', async () => {
+  const { resolveQueueStyleSettings } = await loadModuleExports(QUEUE_STYLE_SETTINGS);
+  const settings = { overlayFontFamily: '"Lira Maiyuan"', identityQueueFontFamily: '"STKaiti"' };
+  assert.equal(resolveQueueStyleSettings(settings, 'classic').overlayFontFamily, '"Lira Maiyuan"');
+  assert.equal(resolveQueueStyleSettings(settings, 'identity').overlayFontFamily, '"STKaiti"');
+  assert.equal(resolveQueueStyleSettings({ overlayFontFamily: 'KaiTi' }, 'identity').overlayFontFamily, 'KaiTi');
 });

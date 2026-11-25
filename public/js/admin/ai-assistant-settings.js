@@ -416,7 +416,7 @@ function showProviderToast(notify, { provider, good, title, message }) {
     type: good ? 'success' : 'warning',
     title,
     message,
-    className: `xiaomi-ai-test-toast xiaomi-ai-test-toast-${good ? 'good' : 'warn'}`,
+    className: `toast-with-icon toast-icon-${good ? 'success' : 'warn'}`,
     duration: good ? 3600 : 5200,
   });
 }

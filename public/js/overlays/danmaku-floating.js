@@ -19,9 +19,20 @@ export function createFloatingDanmakuFeed(root, options = {}) {
   let entries = [];
   let sequence = 0;
   const reducedMotion = root.ownerDocument?.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)');
-  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(layout) : null;
+  let measurements = new WeakMap();
+  function remeasure(event) {
+    if (event?.detail?.cards) {
+      for (const node of event.detail.cards) measurements.delete(node);
+    } else measurements = new WeakMap();
+    layout();
+  }
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(records => {
+    if (!records || records.some(({ target }) => target === root)) return remeasure();
+    for (const { target } of records) measurements.delete(target);
+    layout();
+  }) : null;
   observer?.observe(root);
-  root.ownerDocument?.defaultView?.addEventListener('lira:effects-updated', layout);
+  root.ownerDocument?.defaultView?.addEventListener('lira:effects-updated', remeasure);
   reducedMotion?.addEventListener?.('change', finishEntrances);
 
   function finishEntrances() {
@@ -54,19 +65,25 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     const height = root.clientHeight;
     if (!width || !height) return;
     const time = now();
+    for (const { node } of entries) {
+      if (measurements.has(node)) continue;
+      const style = node.ownerDocument.defaultView.getComputedStyle(node);
+      measurements.set(node, {
+        bounds: componentEffectBounds(node, node.offsetWidth, node.offsetHeight),
+        trailWidth: parseFloat(style.getPropertyValue('--danmaku-trail-width')) || 0,
+        inset: Math.max(0, parseFloat(style.getPropertyValue('--danmaku-entry-inset')) || 0),
+      });
+    }
     for (const entry of [...entries]) {
       const { node } = entry;
-      node.style.zoom = '1';
-      const bounds = componentEffectBounds(node, node.offsetWidth, node.offsetHeight);
+      const { bounds, trailWidth, inset } = measurements.get(node);
       const scale = Math.min(1, width / (bounds.width || 1), height / (bounds.height || 1));
       const cardWidth = bounds.width * scale;
       const cardHeight = bounds.height * scale;
-      const computedStyle = node.ownerDocument.defaultView.getComputedStyle(node);
-      const trailWidth = parseFloat(computedStyle.getPropertyValue('--danmaku-trail-width')) || 0;
-      const entryInset = Math.max(0, parseFloat(computedStyle.getPropertyValue('--danmaku-entry-inset')) || 0) * scale;
+      const entryInset = inset * scale;
       const initialLeft = width - (entry.live ? Math.min(width, entryInset) : 0);
       const travelWidth = cardWidth + trailWidth * scale;
-      const geometry = `${width}:${height}:${travelWidth}:${cardHeight}:${speed}`;
+      const geometry = `${width}:${height}:${travelWidth}:${cardHeight}:${bounds.x}:${bounds.y}:${scale}:${speed}`;
       if (entry.geometry === geometry) continue;
       const left = Math.min(width, entry.startedAt === undefined
         ? entry.waitingAt === undefined
@@ -120,6 +137,7 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     if (!entries.length) root.replaceChildren();
     const node = createMessage(item, sequence++);
     node.style.visibility = 'hidden';
+    node.style.zoom = '1';
     const entry = { node, item, live: live && !reducedMotion?.matches, timer: null };
     entries.push(entry);
     root.append(node);
@@ -154,14 +172,14 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     },
     setSpeedPixelsPerSecond(value) {
       speed = value;
-      layout();
+      remeasure();
     },
     setFloatingDispersion(value) {
       dispersion = value;
     },
     destroy() {
       observer?.disconnect();
-      root.ownerDocument?.defaultView?.removeEventListener('lira:effects-updated', layout);
+      root.ownerDocument?.defaultView?.removeEventListener('lira:effects-updated', remeasure);
       reducedMotion?.removeEventListener?.('change', finishEntrances);
       clear();
       delete root.dataset.layout;

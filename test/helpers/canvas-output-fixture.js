@@ -1,9 +1,8 @@
 'use strict';
 
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+const { migrateTestSongDb } = require('./song-database');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
-const { migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { createLayout } = require('../../src/shared/danmaku-layout');
@@ -11,10 +10,7 @@ const { startComponentPreviewServer } = require('./component-preview-server');
 
 async function startCanvasOutputFixture({ extraContext, notifications = false, dataDir } = {}) {
   const db = new DatabaseSync(':memory:');
-  migrateScenes(db);
-  migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db); migrateSceneDeletion(db);
-  migrateDanmakuAppearance(db);
+  migrateTestSongDb(db);
   const owner = { scope: 'synthetic-canvas-owner', epoch: 1 };
   const runtime = { settings: { ...DEFAULT_SETTINGS }, queue: { current: null,
     waiting: [{ id: 1, song_name: '合成实时歌曲', requester: '合成观众' }] }, superChats: [],

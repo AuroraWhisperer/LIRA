@@ -154,6 +154,30 @@ test('library requests reject incorrect digests and discard late account respons
   resolveRead({ kind: 'checkin', version: digest(['词库。']), unchanged: false, library: ['词库。'] });
   await assert.rejects(pending, /ACCOUNT_CHANGED/);
 });
+
+test('library save verifies compact receipts against the submitted copy and full replies against their contents', async (t) => {
+  const library = ['提交词库。'];
+  const version = digest(library);
+  const expectedVersion = digest(['旧词库。']);
+  const receipt = { kind: 'checkin', version, unchanged: true };
+  let reply = receipt;
+  const { controller } = setup(t, async operation => operation === 'read' ? fixture.defaultResponse : reply);
+  const { contextId } = await controller.invoke({ action: 'open' });
+  const save = () => controller.invoke({ action: 'library-save', contextId, payload: { kind: 'checkin', expectedVersion, library } });
+  const pending = save();
+  library[0] = '继续编辑。';
+  assert.deepEqual((await pending).library.library, ['提交词库。']);
+
+  for (reply of [
+    { ...receipt, version: expectedVersion },
+    { ...receipt, version: digest(library), library: ['矛盾回执。'] },
+    { ...receipt, version: digest(library), unchanged: false, library: ['摘要不符。'] },
+  ]) await assert.rejects(save(), { code: 'DAILY_BOT_INVALID_RESPONSE' });
+  reply = receipt;
+  const cached = await controller.invoke({ action: 'library-read', contextId, payload: { kind: 'checkin' } });
+  assert.deepEqual(cached.library.library, ['提交词库。']);
+});
+
 test('main preserves an open editor through token renewal and forwards direct enabling without a legacy decision', async (t) => {
   const calls = [],
     initial = structuredClone(fixture.defaultResponse);

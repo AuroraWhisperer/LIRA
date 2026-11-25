@@ -1,48 +1,31 @@
-# ADR-0019: Stable Owner Identity For Gift Sources
+# ADR-0019: 以稳定主播 ID 标识礼物数据来源
 
-- Status: Accepted
-- Date: 2026-09-16
-- Supersedes: ADR-0011's account-name-only source identity
+## 状态
 
-## Context
+已采纳（2026-09-16，替代 [ADR-0011](0011-source-partitioned-gift-ledger-projection.md) 仅按账号名标识来源的方案）
 
-Server tenant removal permits account-name reuse with a new immutable Streamer ID.
-The previous gift-source-v1 hash contained only origin and account name, so a new
-owner could read the previous owner's local projection before discovery succeeded.
-The earlier client specification's immutable-account assumption conflicts with
-the server identity contract and [LIRA Server ADR-0016: Permanent Streamer Removal](https://github.com/AuroraWhisperer/LIRA-server/blob/b4e7447c5a83c03b3e0bfc62a733782886f05da9/docs/architecture/decisions/0016-permanent-streamer-removal.md).
+## 背景
 
-## Decision
+服务端移除租户后允许以新的不可变主播 ID（`streamerId`）复用原账号名。旧版 `gift-source-v1` 哈希仅包含服务端源地址与账号名，导致同名新建的主播在发现接口完成前可能读到前任账号的本地投影。早期客户端规格中“账号名不可变”的假设与服务端身份约定及 [LIRA Server ADR-0016: Permanent Streamer Removal](https://github.com/AuroraWhisperer/LIRA-server/blob/b4e7447c5a83c03b3e0bfc62a733782886f05da9/docs/architecture/decisions/0016-permanent-streamer-removal.md) 相冲突。
 
-Use a versioned SHA-256 source key over canonical HTTPS origin, lowercase account
-name, and the positive safe-integer streamerId from the existing main-only
-getCloudSyncIdentity boundary. Missing stable identity fails closed. The renderer
-snapshot cannot substitute for that principal and no identity field is added to
-gift wire DTOs or renderer APIs.
+## 决策
 
-Existing v1 sources have no provable stable owner. Retain their rows for diagnosis
-without assigning, copying, or automatically migrating them to a v2 source.
-Bootstrap v2 sources from the authenticated server ledger. Normal offline reads
-remain available for the same verified v2 owner, including discovery failure.
-Existing authorization/controller/projection fences discard late old-owner work.
+改用带版本号的 SHA-256 来源键，输入为规范 HTTPS 源地址、小写账号名以及来自主进程专用 `getCloudSyncIdentity` 边界的正安全整数 `streamerId`。缺少稳定身份时按默认拒绝（fail-closed）处理。渲染进程快照不可替代该主体身份，也不向礼物传输格式（DTO）或渲染进程接口额外暴露身份字段。
 
-## Consequences
+存量 v1 来源缺少可证明的稳定归属，保留其记录仅供诊断，不自动分配、复制或迁移至 v2 来源。v2 来源从已认证的服务端账本重新初始化；对同一已验证的 v2 账号，正常离线读取（含发现接口失败场景）依然可用。沿用 [ADR-0011](0011-source-partitioned-gift-ledger-projection.md) 的授权/控制器/投影防护校验（fence），丢弃旧账号的迟到异步任务。
 
-- Same-name recreation cannot reuse the predecessor's projection or cursor.
-- The first v2 use downloads history again; unsupported old servers remain
-  LEGACY_PARTIAL and cannot claim retained v1 history as complete.
-- Old rows remain on disk but do not participate in active-source results.
-- SQLite schema, storage transactions, renderer routes and wire contracts stay
-  unchanged.
+## 影响
 
-## Verification
+- 同名重建的主播无法复用前任账号的本地投影或同步游标。
+- 首次切换至 v2 来源时会重新拉取历史记录；不支持新协议的旧服务端保持 `LEGACY_PARTIAL`，不能把留存的 v1 历史视为完整账本。
+- 旧记录保留在磁盘上，但不参与活动来源查询结果。
+- SQLite 表结构、存储事务、渲染进程路由与传输协议均保持不变。
 
-Source-key tests distinguish recreated owners and reject missing IDs. A real
-SQLite/controller/query regression preserves old and legacy rows while returning
-only the new owner's empty projection on discovery failure. A deferred old
-discovery response cannot advance either owner's cursor after a principal switch.
+## 验证
 
-## References
+来源键单元测试覆盖同名重建区分与缺失 ID 拒绝；基于真实 SQLite/控制器/查询服务的回归测试验证保留旧记录与遗留记录的同时，在发现接口失败时仅返回新账号的空投影，且切号后延迟到达的旧发现响应不得推进任何一方游标。
 
-- [Gift projection specification](../../../specs/gift-ledger-projection-sync_design.md)
-- [Original projection ADR](0011-source-partitioned-gift-ledger-projection.md)
+## 参考
+
+- [礼物账本投影同步设计规格](../../../specs/gift-ledger-projection-sync_design.md)
+- [ADR-0011](0011-source-partitioned-gift-ledger-projection.md)

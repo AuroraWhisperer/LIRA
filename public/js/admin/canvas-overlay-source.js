@@ -5,6 +5,7 @@ import { requestScene } from './scene-api.js';
 import { observeAuthorizedAccount } from './authorized-account.js';
 import { sceneSourceUrl } from './scene-source-url.js';
 import { eventBus } from '../shared/event-bus.js';
+import { isPanelVisible, refreshOnPanelReturn } from './panel-visibility.js';
 
 export function initCanvasOverlaySource() {
   const address = document.getElementById('liveCanvasUrl');
@@ -13,17 +14,20 @@ export function initCanvasOverlaySource() {
   let generation = 0;
   let sourceUrl = '';
   let sourceSize = null;
-  async function refresh() {
-    const requested = ++generation;
+  function clearSource() {
     sourceUrl = '';
     sourceSize = null;
     copy.disabled = true;
     address.textContent = '正在读取场景地址…';
     status.textContent = '';
+  }
+  async function refresh() {
+    const requested = ++generation;
     try {
       const canvas = await requestScene('canvas');
       if (requested !== generation) return;
       if (!canvas?.publishedVersion) {
+        clearSource();
         address.textContent = '请先编辑场景，保存并应用后显示地址';
         return;
       }
@@ -31,19 +35,28 @@ export function initCanvasOverlaySource() {
       if (requested !== generation) return;
       sourceUrl = sceneSourceUrl(source);
       sourceSize = source.canvas;
+      status.textContent = '';
       address.textContent = sourceUrl;
       copy.disabled = false;
     } catch (error) {
       if (requested !== generation) return;
+      clearSource();
       address.textContent = '场景地址暂时无法读取';
       status.textContent = error.message;
     }
   }
-  const stop = observeAuthorizedAccount(refresh);
-  const stopPublication = eventBus.on('scene:published', refresh);
-  const tab = document.querySelector('[data-tab="overlayPage"]');
-  tab.addEventListener('click', refresh);
-  window.addEventListener('focus', refresh);
+  function invalidate() {
+    generation++;
+    clearSource();
+    if (isPanelVisible(address)) void refresh();
+  }
+  let accountInitialized = false;
+  const stop = observeAuthorizedAccount(() => {
+    if (accountInitialized) invalidate();
+    accountInitialized = true;
+  });
+  const stopPublication = eventBus.on('scene:published', invalidate);
+  const stopRefresh = refreshOnPanelReturn(address, refresh);
   document.querySelectorAll('#liveCanvasPreview, #liveComponentsCanvas').forEach((button) => {
     button.addEventListener('click', () => openComponentPreview());
   });
@@ -65,7 +78,6 @@ export function initCanvasOverlaySource() {
     generation += 1;
     stop();
     stopPublication();
-    tab.removeEventListener('click', refresh);
-    window.removeEventListener('focus', refresh);
+    stopRefresh();
   }, { once: true });
 }

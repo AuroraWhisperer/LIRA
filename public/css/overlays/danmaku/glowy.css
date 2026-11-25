@@ -109,9 +109,6 @@ body[data-style='glowy'][data-ambient-motion='off'] .glowy-item:not([data-live-e
 @keyframes glowyPlate { from { opacity: 0; clip-path: inset(0 0 0 100% round 12px); } to { opacity: 1; clip-path: inset(0 round 12px); } }
 @keyframes glowyReveal { from { opacity: 0; } to { opacity: 1; } }
 @keyframes glowyGuard { 0%, 100% { opacity: .78; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='glowy'] .glowy-item, body[data-style='glowy'] .glowy-item * { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='glowy'] .glowy-item:is([data-glowy-kind='gift'], [data-glowy-kind='member']) .glowy-heading strong {

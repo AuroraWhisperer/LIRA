@@ -1,5 +1,6 @@
 'use strict';
 
+import { readApiResponse } from '../shared/json-response.js';
 import { bilibiliAvatarSource } from '../shared/bilibili-avatar.js';
 
 let currentRoomProfile = null;
@@ -81,8 +82,7 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, onProfileChan
     if (!keepProfile) render('已设置', 'good', '正在读取房主资料…');
     try {
       const response = await fetchRef('/api/bilibili/room/profile');
-      const result = await response.json();
-      if (!response.ok || !result.ok) throw new Error('Room profile unavailable');
+      const result = await readApiResponse(response, 'Room profile unavailable');
       if (version !== requestVersion) return;
       render('已设置', 'good', '', result.data);
     } catch (_) {

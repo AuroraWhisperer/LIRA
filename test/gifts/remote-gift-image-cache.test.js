@@ -86,6 +86,29 @@ test('catalog image revisions invalidate on downloads and recheck external file 
   assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
 });
 
+test('unversioned snapshot lookups see externally repaired, corrupt and removed images', t => {
+  const { createHybridGiftSaleCatalogService } = require('../../src/bilibili/gift/hybrid-catalog');
+  const dataDir = createScratchDirectory('gift-image-unversioned-', t);
+  const cache = createRemoteGiftImageCache({ dataDir, imageBaseUrl: 'https://api.example.test', logger: QUIET_LOGGER });
+  const gift = { id: '1', imagePath: 'https://api.example.test/gift-media/images/image.webp' };
+  const file = path.join(cache.cacheDir, 'image.webp');
+  const catalog = createHybridGiftSaleCatalogService({
+    local: { getRevision: () => 0, getSnapshot: () => ({ gifts: [] }), refresh: async () => null },
+    remoteCatalog: { getRevision: () => 0, getSnapshot: () => ({ gifts: [gift] }), refresh: async () => null },
+    remoteImageCache: { getRevision: () => undefined, getSnapshotGiftImagePath: cache.getSnapshotGiftImagePath },
+  });
+  const lookup = () => catalog.getArtworkResolver()('1');
+  assert.equal(lookup(), '');
+  fs.writeFileSync(file, webpBytes());
+  assert.equal(lookup(), '/overtime-gift-images/image.webp');
+  fs.writeFileSync(file, 'corrupt');
+  assert.equal(lookup(), '');
+  fs.writeFileSync(file, webpBytes());
+  assert.equal(lookup(), '/overtime-gift-images/image.webp');
+  fs.unlinkSync(file);
+  assert.equal(lookup(), '');
+});
+
 test('repairs corrupt images after transient atomic replacement failures', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(__dirname, '../../tmp/gift-image-replacement-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
@@ -95,10 +118,10 @@ test('repairs corrupt images after transient atomic replacement failures', async
   const imagePath = path.join(cache.cacheDir, 'image.webp');
   fs.writeFileSync(imagePath, 'invalid');
   const revision = cache.getRevision();
-  const rename = fs.renameSync;
+  const rename = fs.promises.rename;
   let attempts = 0;
   let retryYielded = false;
-  t.mock.method(fs, 'renameSync', (source, destination) => {
+  t.mock.method(fs.promises, 'rename', async (source, destination) => {
     if (destination === imagePath && ++attempts <= 2) {
       if (attempts === 1) setImmediate(() => { retryYielded = true; });
       assert.equal(fs.readFileSync(imagePath, 'utf8'), 'invalid');
@@ -127,9 +150,9 @@ test('preserves the last image index when atomic replacement remains unavailable
   await cache.cacheGiftImage(first);
   const indexPath = path.join(cache.cacheDir, 'index.json');
   const previousIndex = fs.readFileSync(indexPath);
-  const rename = fs.renameSync;
+  const rename = fs.promises.rename;
   let attempts = 0;
-  t.mock.method(fs, 'renameSync', (source, destination) => {
+  t.mock.method(fs.promises, 'rename', async (source, destination) => {
     if (destination === indexPath) {
       attempts += 1;
       throw Object.assign(new Error('Replacement remains locked'), { code: 'EPERM' });
@@ -156,9 +179,9 @@ test('serializes image index commits while a concurrent image finishes during a 
   const indexPath = path.join(cache.cacheDir, 'index.json');
   let onLocked;
   const locked = new Promise(resolve => { onLocked = resolve; });
-  const rename = fs.renameSync;
+  const rename = fs.promises.rename;
   let attempts = 0;
-  t.mock.method(fs, 'renameSync', (source, destination) => {
+  t.mock.method(fs.promises, 'rename', async (source, destination) => {
     if (destination === indexPath && ++attempts === 1) {
       onLocked();
       throw Object.assign(new Error('Index temporarily locked'), { code: 'EBUSY' });

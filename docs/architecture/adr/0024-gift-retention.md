@@ -1,78 +1,33 @@
-# ADR-0024: Gift retention with daily statistical contributions
+# ADR-0024: 礼物明细期限管理与按日统计汇总
 
-- Status: Accepted
-- Date: 2026-10-12
-- Supersedes the permanent-detail assumption of ADR-0011 and its projection
-  specification; source identity, atomic final delivery and authorization fences
-  remain in force.
-- Original implementation evidence is tracked in the [original plan](../../../specs/plans/2026-10-12-gift-retention.md).
-  The accepted 2026-11-11 extension below is implemented in the working tree; see the
-  [current execution plan](../../../specs/plans/2026-11-11-gift-retention-tiers.md).
+## 状态
 
-## Context
+已采纳（2026-10-12；2026-11-11 扩展方案已采纳并在工作区实现，物理删除默认关闭）
 
-The owner requests approximately 90 days of gift details while retaining existing
-date filters, website totals and yearly/all-time chat queries. Monthly totals
-cannot reproduce arbitrary date ranges or personal and gift-name filters.
+- 替代 [ADR-0011](0011-source-partitioned-gift-ledger-projection.md) 及其投影规格中的“明细永久保留”假设；来源身份、终态原子交付与授权防护校验（fence）继续生效。
+- 原方案实现证据见 [礼物保留原计划](../../../specs/plans/2026-10-12-gift-retention.md)；2026-11-11 扩展实现见 [分层保留实施计划](../../../specs/plans/2026-11-11-gift-retention-tiers.md)。
 
-## Decision
+## 背景
 
-Keep versioned daily statistical contributions in the existing gift database.
-Replace changed source-scoped days atomically and combine them with uncovered
-details. Preserve counts and per-event integer cents, historical names, identity,
-known/unknown costs and query revision. Keep consumer-qualified local totals
-separate from the authoritative server's all-gift totals.
+产品需将礼物明细控制在约 90 天窗口内，同时保持既有日期筛选、站点总额以及年度/历史累计查询能力。仅按月汇总无法还原任意日期区间查询，也无法支持按送礼人或礼物名称筛选。
 
-Only verified, covered details outside the published window may be removed,
-after snapshot and pending-consumer protection. Server deduplication receipts and
-monotonic cursor boundaries survive deletion. Existing clear/rebuild operations
-own all new state. The [specification](../../../specs/gift-retention.md) owns the
-behavior; this decision adds no service, database or runtime dependency.
+## 决策
 
-## Consequences
+在现有礼物数据库中持久化带版本号的按日统计汇总增量：按来源原子替换发生变化的日期统计，并与尚未归档的明细实时合并查询。汇总保留笔数、逐条整数分金额、历史礼物名称、完整身份、已知/未知成本及查询修订号（`revision`）；按本地业务条件筛选的统计总额与服务端权威全量礼物总额分开记录。
 
-Historical statistics remain exact while detailed history and exports have an
-explicit limit. Summaries and exact deduplication receipts still grow. This costs
-schema and protocol complexity and requires coordinated rollout; removing raw
-rows alone or retaining only monthly totals would produce incorrect results.
+仅允许在完成快照保护与待处理消费者校验后，清理已发布保留窗口之外且经核验已被日汇总覆盖的明细。服务端去重回执与单调游标边界在明细清理后继续保留；既有清库与重建操作统一管理全部新增状态。详细规则由 [礼物保留规格](../../../specs/gift-retention.md) 维护，本决策不新增服务、数据库或运行时依赖。
 
-## Accepted extension: independent retention and coordinated maintenance
+## 影响
 
-Date: 2026-11-11. The owner accepts approximately 90 days of server details,
-365 days of already-synchronized desktop details, and lasting daily aggregates.
-Monthly and yearly views continue to derive from those aggregates. This changes
-the original shared detail-window assumption without changing gift detection,
-valuation, tenant identity or authoritative server statistics.
+历史统计保持精确，而逐条明细查询与导出拥有明确的时间边界；日汇总表与精确去重回执仍会随时间增长。该方案增加了表结构与同步协议复杂度，需要双端协同发布；但若直接删除原始记录或只留月汇总，将导致统计结果失真。
 
-The desktop keeps published same-epoch detail membership through ordinary
-resynchronization. Its history/export availability is separate from the server
-recovery window and from statistical completeness. New devices and long-offline
-devices cannot recover details already deleted on the server. Existing explicit
-clear and epoch invalidation still revoke old visibility.
+## 扩展决策：双端独立保留与协同维护（2026-11-11）
 
-The owner additionally permits a one-time reset of incompatible pre-release
-local gift projections because no formal users depend on them. This replaces
-legacy projection/archive migration, not the new rule's data safety: subsequent
-same-epoch rebuilds preserve received details. A rebuild that skips unconsumed
-cursors revokes old completeness proofs, including dates preceding the outage;
-only the newly verified bootstrap range is marked complete.
+2026-11-11 采纳分层保留扩展：服务端保留约 90 天礼物明细，桌面端对已同步数据保留约 365 天明细，按日统计汇总长期留存，月度与年度视图继续由日汇总派生。本次扩展仅调整双端共享同一明细窗口的原假设，不改变礼物检测、估值、租户身份或服务端权威统计口径。
 
-Before desktop deletion, validate authoritative summary coverage without adding
-the same contributions twice. Carry consumer-qualified local statistics
-separately; compact year-old eligible blind-box details and immutable wish-boundary
-contributions rather than retaining a disguised second per-event ledger.
-Day archives preserve their recorded timezone and disclose precision limits when
-later viewed in another timezone.
+- **同纪元保留与可见性**：桌面端在常规重新同步期间保留已发布的同纪元（`epoch`）明细，其历史查询与导出周期独立于服务端恢复窗口和统计完整性证明。新设备或长期离线设备无法找回服务端已清理的明细；显式清库与纪元失效仍会撤销旧可见性。
+- **预发布旧投影一次性重置**：鉴于预发布阶段无正式用户依赖旧格式，允许对不兼容的旧本地投影执行一次性重置，替代复杂的历史归档迁移；这不削弱新规则的数据安全——后续同纪元重建仍完整保留已接收明细。若重建跳过未消费游标，则撤销既有完整性证明（含断连之前的日期），仅将新核验的初始化范围标为完整。
+- **防重复计入与时区声明**：桌面端物理删除前须核验权威日汇总覆盖且不重复累加同一贡献；将满一年的合资格盲盒明细与不可变心愿边界汇总压缩存储，避免变相维护第二套逐条明细账本。日归档记录原始时区，在其他时区查看时披露精度限制。
+- **有序低干扰维护调度**：服务端复用既有维护模块与租户队列，仅在 `Asia/Shanghai` 03:00–04:00 窗口启动物理删除批次，增量汇总可在窗口外继续。桌面端在启动及界面就绪后再注册维护任务，经由单一 `giftDb` 归属模块恢复执行：同步、启动与手动触发自动合并；有限事务间隙优先让位实时写入；导出使用短读快照；清库、切号与停机通过防护校验（fence）拦截过期任务。不新增第二套 SQL 脚本、独立调度服务或跨主机锁。
 
-Use the existing server maintenance owner and tenant queue. Start physical
-detail-deletion batches only during 03:00-04:00 Asia/Shanghai; incremental
-aggregation can continue outside that window. The desktop registers maintenance
-after startup/UI readiness and resumes it through one giftDb owner. Sync, startup
-and manual triggers coalesce; live input takes precedence between bounded
-transactions, export uses a short read snapshot, and clear/switch/shutdown fence
-stale work. No second SQL script, scheduler service or cross-host lock is added.
-
-The tradeoff is that older detail recovery depends on the local copy and its
-backup. Safety checks may extend physical retention beyond the nominal days.
-Discarding exact timestamps also limits later timezone re-bucketing. These
-limits and implementation evidence are recorded in the [specification](../../../specs/gift-retention.md).
+权衡在于：超期明细的恢复依赖本机副本及其备份；安全检查可能使实际物理保留略长于名义天数；丢弃精确时间戳后也限制了事后跨时区重新按日分桶。具体边界与实现证据见 [礼物保留规格](../../../specs/gift-retention.md)。

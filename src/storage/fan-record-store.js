@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomUUID, createHash } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const { songIdentity, summarizeSongs, SONG_STATS_DAYS } = require('../fans/song-summary');
@@ -16,7 +18,7 @@ function decodeData(row) {
 
 function decodeRecord(row) {
   if (row?.roster_template_id && (!row.roster_data || !row.roster_original))
-    throw new Error('大航海名单原始依据缺失。');
+    throw createPublicError('大航海名单原始依据缺失。');
   return row
     ? {
         id: row.id,
@@ -34,7 +36,7 @@ function decodeRecord(row) {
 
 function decodeProjectionInput(row) {
   if (row.roster_template_id && (!row.roster_data || !row.roster_original))
-    throw new Error('大航海名单原始依据缺失。');
+    throw createPublicError('大航海名单原始依据缺失。');
   return {
     id: row.id,
     profileId: row.profile_id,
@@ -67,11 +69,12 @@ function createFanRecordStore(db) {
       .map(decodeRecord);
   }
 
-  function readForProfiles(scope, profileIds, select, decode, beforeByProfile) {
+  function readForProfiles(scope, profileIds, select, decode, beforeByProfile, membershipOnly = false) {
     const grouped = new Map();
     for (let offset = 0; offset < profileIds.length; offset += 500) {
       const batch = profileIds.slice(offset, offset + 500);
       let filter = `r.profile_id IN (${batch.map(() => '?').join(', ')})`;
+      if (membershipOnly) filter += " AND r.kind = 'membership'";
       let params = batch;
       if (hasRosterTemplates && beforeByProfile) {
         // Only pristine automatic observations share a template. Before the earliest
@@ -109,7 +112,7 @@ function createFanRecordStore(db) {
         .prepare(`${selectRecords} WHERE r.scope = ? AND r.source_key = ?`)
         .get(scope, record.sourceKey);
       if (existing) {
-        if (existing.profile_id !== profileId) throw new Error('相同来源记录已关联另一份档案，请先核对。');
+        if (existing.profile_id !== profileId) throw createPublicError('相同来源记录已关联另一份档案，请先核对。');
         return decodeRecord(existing);
       }
     }
@@ -174,14 +177,14 @@ function createFanRecordStore(db) {
   }
 
   function update(scope, profileId, record, changedAt, source = 'manual') {
-    if (record.kind === 'song') throw new Error('点歌已合并为汇总，不再保存或编辑逐次记录。');
+    if (record.kind === 'song') throw createPublicError('点歌已合并为汇总，不再保存或编辑逐次记录。');
     const previous = decodeRecord(
       db
         .prepare(`${selectRecords} WHERE r.scope = ? AND r.profile_id = ? AND r.id = ?`)
         .get(scope, profileId, record.id),
     );
-    if (!previous) throw new Error('记录不存在。');
-    if (previous.revision !== record.revision) throw new Error('记录已更新，请重新打开后核对修改。');
+    if (!previous) throw createPublicError('记录不存在。');
+    if (previous.revision !== record.revision) throw createPublicError('记录已更新，请重新打开后核对修改。');
     if (previous.occurredAt === record.occurredAt && isDeepStrictEqual(previous.data, record.data)) return previous;
     const revisions = [
       ...previous.revisions,
@@ -215,6 +218,7 @@ function createFanRecordStore(db) {
   return {
     list,
     listForProfiles: (scope, ids) => readForProfiles(scope, ids, selectRecords, decodeRecord),
+    listMembershipForProfiles: (scope, ids) => readForProfiles(scope, ids, selectProjectionInputs, decodeProjectionInput, null, true),
     listProjectionInputs: (scope, ids, beforeByProfile) =>
       readForProfiles(scope, ids, selectProjectionInputs, decodeProjectionInput, beforeByProfile),
     insert,

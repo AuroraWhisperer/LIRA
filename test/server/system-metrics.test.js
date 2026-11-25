@@ -28,6 +28,12 @@ test('GPU command timeout stays unavailable instead of reporting zero load', asy
   assert.equal(result.totalPercent, null);
 });
 
+test('logical CPU count covers all sockets and falls back to the OS total for incomplete inventory', () => {
+  const cpu = { NumberOfCores: 8, NumberOfLogicalProcessors: 16 };
+  assert.equal(buildHardwareSummary({ cpus: [cpu, cpu] }).cpu.logicalCores, 32);
+  assert.equal(buildHardwareSummary({ cpus: [cpu, {}] }, { logicalCpuCount: 24 }).cpu.logicalCores, 24);
+});
+
 test('hardware and display summaries never expose serial numbers or product IDs', () => {
   const summary = buildHardwareSummary({
     memoryModules: [{ PartNumber: 'EX-3200-16G', Capacity: '17179869184', SerialNumber: 'must-not-leak' }],

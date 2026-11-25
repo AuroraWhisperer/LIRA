@@ -62,7 +62,7 @@ export function createTextBoxPreview({ media } = {}) {
       const switches = new Map();
       for (const [mode, title] of [['horizontal', '横向滚动'], ['vertical', '纵向滚动']]) {
         const label = previewElement('label', 'text-box-scroll-option', title);
-        const control = previewElement('span', 'switch-control');
+        const control = previewElement('span', 'switch-control switch-control--fill-hit');
         const input = previewElement('input');
         input.type = 'checkbox'; input.setAttribute('role', 'switch'); input.setAttribute('aria-label', title);
         const track = previewElement('span', 'switch-track');

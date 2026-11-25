@@ -82,9 +82,10 @@ async function createAnalysisHarness({ autoResolve = false, filters = {} } = {})
   const clock = createClock();
   const requests = [];
   const window = {};
-  const [{ giftAnalysis }, { eventBus }] = await loadModuleExports([
+  const [{ giftAnalysis }, { eventBus }, { stateService }] = await loadModuleExports([
     path.join(ROOT_DIR, 'public/js/admin/gifts/blindbox-analysis.js'),
     path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+    path.join(ROOT_DIR, 'public/js/admin/state.js'),
   ], {
     window,
     HTMLElement: class {},
@@ -106,14 +107,21 @@ async function createAnalysisHarness({ autoResolve = false, filters = {} } = {})
       return request.promise;
     },
   });
-  function result(count, selectedFilters = filters) {
+  function result(count, selectedFilters = filters, table = {}) {
     return { ok: true, text: async () => JSON.stringify({ ok: true, data: {
-      filters: selectedFilters, summary: { boxCount: count }, items: [], pagination: {},
+      filters: selectedFilters, summary: { boxCount: count }, items: [], pagination: {}, ...table,
     } }) };
   }
-  return { giftAnalysis, eventBus, clock, requests, element, optionCounts,
-    async finish(index, count = 1, selectedFilters) {
-      requests[index].resolve(result(count, selectedFilters));
+  const clickSort = (sort) => element('blindBoxAnalysisHead').emit('click', {
+    target: { closest: () => ({ dataset: { blindSort: sort } }) },
+  });
+  const reconnect = (viewRevision) => {
+    stateService.applySnapshot({ gifts: { viewRevision } }, Infinity, true);
+    eventBus.emit('gift:received', { reason: 'connect' });
+  };
+  return { giftAnalysis, eventBus, clock, requests, element, optionCounts, clickSort, reconnect,
+    async finish(index, count = 1, selectedFilters, table) {
+      requests[index].resolve(result(count, selectedFilters, table));
       await new Promise(setImmediate);
     } };
 }
@@ -164,6 +172,57 @@ test('blind box filter selections update without replacing unchanged options and
   giftAnalysis.close();
 });
 
+test('blind box sorting resets the page and carries the selected order through pagination and filters', async () => {
+  const { giftAnalysis, element, requests, finish, clickSort } = await createAnalysisHarness();
+  const filters = { selectedBox: '红盒' };
+  const query = () => {
+    const params = new URL(requests.at(-1).url, 'http://localhost').searchParams;
+    return ['sort', 'direction', 'page', 'box', 'viewer'].map(key => params.get(key));
+  };
+  const reply = (sort, direction, page) => finish(requests.length - 1, 25, filters, {
+    sort, direction, pagination: { page, totalPages: 2 },
+  });
+  giftAnalysis.open({ view: 'records', box: '红盒' });
+  await reply('createdAt', 'desc', 1);
+  element('blindBoxAnalysisNext').emit('click');
+  await reply('createdAt', 'desc', 2);
+  clickSort('profit');
+  assert.deepEqual(query(), ['profit', 'desc', '1', '红盒', null]);
+  await reply('profit', 'desc', 1);
+  clickSort('profit');
+  assert.deepEqual(query(), ['profit', 'asc', '1', '红盒', null]);
+  await reply('profit', 'asc', 1);
+  element('blindBoxAnalysisNext').emit('click');
+  assert.deepEqual(query(), ['profit', 'asc', '2', '红盒', null]);
+  await reply('profit', 'asc', 2);
+  element('blindBoxAnalysisViewer').emit('change', { target: { value: 'uid:b' } });
+  assert.deepEqual(query(), ['profit', 'asc', '1', '红盒', 'uid:b']);
+  giftAnalysis.close();
+});
+
+test('blind box header and retry button repeat a failed sort from the last displayed order', async () => {
+  const { giftAnalysis, requests, element, clickSort, finish } = await createAnalysisHarness();
+  giftAnalysis.open();
+  await finish(0, 3, {}, { sort: 'profit', direction: 'desc' });
+  const fail = async () => {
+    requests.at(-1).resolve({ ok: false, status: 503, text: async () => '' });
+    await new Promise(setImmediate);
+  };
+  clickSort('profit');
+  await fail();
+  assert.match(element('blindBoxAnalysisHead').innerHTML, /aria-sort="descending"/);
+  clickSort('profit');
+  await fail();
+  element('blindBoxAnalysisRetry').emit('click');
+  assert.deepEqual(requests.slice(1).map(({ url }) => {
+    const params = new URL(url, 'http://localhost').searchParams;
+    return `${params.get('sort')} ${params.get('direction')}`;
+  }), ['profit asc', 'profit asc', 'profit asc']);
+  await finish(3, 3, {}, { sort: 'profit', direction: 'asc' });
+  assert.match(element('blindBoxAnalysisHead').innerHTML, /aria-sort="ascending"/);
+  giftAnalysis.close();
+});
+
 test('gift refreshes finish slow analysis reads while newer filters and closing reject stale results', async () => {
   const { giftAnalysis, eventBus, clock, requests, element, finish } = await createAnalysisHarness();
   giftAnalysis.open();
@@ -196,9 +255,10 @@ test('gift refreshes finish slow analysis reads while newer filters and closing 
 });
 
 test('source changes reset blind box analysis filters and reject old reads while reconnect consumes queued refreshes', async () => {
-  const { giftAnalysis, eventBus, clock, requests, element, finish } = await createAnalysisHarness();
+  const { giftAnalysis, eventBus, clock, requests, element, finish, clickSort, reconnect } = await createAnalysisHarness();
   const oldFilters = { selectedViewer: 'uid:old', viewers: [{ value: 'uid:old', label: 'Old viewer' }],
     selectedBox: 'Old box', boxes: ['Old box'] };
+  reconnect('source-a');
   giftAnalysis.open({ viewer: 'uid:old', box: 'Old box' });
   await finish(0, 5, oldFilters);
   element('blindBoxAnalysisNext').emit('click');
@@ -212,20 +272,28 @@ test('source changes reset blind box analysis filters and reject old reads while
   assert.equal(element('blindBoxAnalysisViewer').children.length, 1);
   assert.equal(element('blindBoxAnalysisBox').children.length, 1);
   assert.equal(element('blindBoxAnalysisCount').textContent, '0');
-  await finish(2, 10);
+  await finish(2, 10, {}, { sort: 'profit', direction: 'desc' });
   await finish(1, 99, oldFilters);
   assert.equal(element('blindBoxAnalysisCount').textContent, '10');
   assert.equal(element('blindBoxAnalysisViewer').value, '');
+  clickSort('profit');
+  await finish(3, 10, {}, { sort: 'profit', direction: 'asc' });
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
-  eventBus.emit('gift:received', { reason: 'connect' });
-  assert.equal(requests.length, 4);
+  reconnect('source-a');
+  assert.equal(requests.length, 5);
+  assert.match(requests[4].url, /sort=profit&direction=asc/);
+  reconnect('source-b');
+  assert.equal(requests.length, 6);
+  assert.equal(requests[4].signal.aborted, true);
+  assert.doesNotMatch(requests[5].url, /[?&](sort|direction)=/);
+  await finish(5, 8, {}, { sort: 'profit', direction: 'desc' });
+  await finish(4, 99, {}, { sort: 'profit', direction: 'asc' });
   clock.tick(1000);
-  assert.equal(requests.length, 4, 'reconnect consumes the queued ordinary gift refresh');
-  await finish(3, 8);
+  assert.equal(requests.length, 6, 'reconnect consumes the queued ordinary gift refresh');
   assert.equal(element('blindBoxAnalysisCount').textContent, '8');
   giftAnalysis.close();
   eventBus.emit('gift:received', { reason: 'gift:source' });
-  assert.equal(requests.length, 4, 'closed workspaces clear old data without reading');
+  assert.equal(requests.length, 6, 'closed workspaces clear old data without reading');
   assert.equal(element('blindBoxAnalysisCount').textContent, '0');
 });
 

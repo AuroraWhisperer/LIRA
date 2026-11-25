@@ -2,6 +2,7 @@
 // 点歌匹配服务 - 负责点歌请求的自动匹配和待确认管理
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import { createPlaybackStateActions } from '../state/actions.js';
 
 import * as PlaybackUtils from '../utils.js';
@@ -97,7 +98,7 @@ export class MatchService {
     });
 
     const searchPayload = await this.readJsonResponse(searchResponse, '搜索点歌候选失败');
-    if (!searchResponse.ok || !searchPayload.ok) throw new Error(searchPayload.error || '搜索点歌候选失败');
+    assertApiResponse(searchResponse, searchPayload, '搜索点歌候选失败');
 
     const candidates = Array.isArray(searchPayload.data && searchPayload.data.tracks) ? searchPayload.data.tracks : [];
 
@@ -112,7 +113,7 @@ export class MatchService {
     });
 
     const matchPayload = await this.readJsonResponse(matchResponse, '点歌匹配失败');
-    if (!matchResponse.ok || !matchPayload.ok) throw new Error(matchPayload.error || '点歌匹配失败');
+    assertApiResponse(matchResponse, matchPayload, '点歌匹配失败');
     return matchPayload.data;
   }
 

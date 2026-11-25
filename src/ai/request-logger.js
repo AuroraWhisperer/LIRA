@@ -2,15 +2,12 @@
 
 const path = require('node:path');
 const { redactCredentials } = require('../shared/log-redaction');
-const { truncateUtf8, appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS } = require('../shared/log-size-limit');
+const { truncateUtf8, appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS, NORMAL_ENTRY_BYTES,
+  ERROR_ENTRY_BYTES, NORMAL_FILE_BYTES, ERROR_FILE_BYTES, RUNTIME_LOG_DIRECTORY, ERROR_LOG_DIRECTORY } = require('../shared/log-size-limit');
 const { createLogRateLimit } = require('../shared/log-rate-limit');
 const { createHash } = require('node:crypto');
 
 const SUMMARY_WINDOW_MS = 15 * 60 * 1000;
-const NORMAL_ENTRY_BYTES = 2 * 1024;
-const ERROR_ENTRY_BYTES = 16 * 1024;
-const MAX_FILE_BYTES = 3 * 1024 * 1024;
-const RUNTIME_FILE_BYTES = 1024 * 1024;
 const MAX_SUMMARY_GROUPS = 128;
 const MAX_QUEUE_ENTRIES = 2000;
 const MAX_QUEUE_BYTES = 4 * 1024 * 1024;
@@ -22,8 +19,8 @@ function createAiRequestLogger(options = {}) {
   const compatibilityFilePath = path.resolve(options.filePath || path.join(process.cwd(), 'logs', 'ai.log'));
   const targetPaths = logDir
     ? {
-        runtime: path.join(logDir, 'runtime', 'ai.jsonl'),
-        errors: path.join(logDir, 'errors', 'ai.jsonl'),
+        runtime: path.join(logDir, RUNTIME_LOG_DIRECTORY, 'ai.jsonl'),
+        errors: path.join(logDir, ERROR_LOG_DIRECTORY, 'ai.jsonl'),
       }
     : {
         runtime: compatibilityFilePath,
@@ -37,8 +34,8 @@ function createAiRequestLogger(options = {}) {
   const maxSummaryGroups = positiveNumber(options.maxSummaryGroups, MAX_SUMMARY_GROUPS);
   const maxQueueEntries = positiveNumber(options.maxQueueEntries, MAX_QUEUE_ENTRIES);
   const maxQueueBytes = positiveNumber(options.maxQueueBytes, MAX_QUEUE_BYTES);
-  const runtimeFileBytes = positiveNumber(options.maxFileBytes, logDir ? RUNTIME_FILE_BYTES : MAX_FILE_BYTES);
-  const errorFileBytes = positiveNumber(options.maxFileBytes, MAX_FILE_BYTES);
+  const runtimeFileBytes = positiveNumber(options.maxFileBytes, logDir ? NORMAL_FILE_BYTES : ERROR_FILE_BYTES);
+  const errorFileBytes = positiveNumber(options.maxFileBytes, ERROR_FILE_BYTES);
   const appendLine = options.appendLine || appendToCompatibilityFile;
   const summaries = new Map();
   const admitError = createLogRateLimit({ now: () => new Date(now()).getTime() });

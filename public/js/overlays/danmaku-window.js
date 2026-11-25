@@ -1,23 +1,18 @@
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement } from '../shared/dom-element.js';
+import { hashCodePoints } from '../shared/string-hash.js';
 import { setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 
 function mixedEntrance(item) {
-  let hash = 2166136261;
-  for (const character of [item.id, item.uid, item.timestamp, item.name, item.message].join('|')) {
-    hash = Math.imul(hash ^ character.codePointAt(0), 16777619);
-  }
+  let hash = hashCodePoints([item.id, item.uid, item.timestamp, item.name, item.message].join('|'));
   return ['pop', 'unfold', 'rise'][(hash >>> 0) % 3];
 }
 
 // Only the window's composition is new. Safe content, placement and lifetime keep their owners.
 export function createWindowMessageRenderer({ document, classNames }, render) {
-  const element = (tag, className, text) => {
-    const node = document.createElement(tag);
-    node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  };
+  const element = createTextElement.bind(null, document);
   return (item = {}, index = 0) => {
     const settings = document.body?.dataset || {};
     const sc = item.kind === 'superchat';
@@ -83,8 +78,7 @@ export function createWindowMessageRenderer({ document, classNames }, render) {
     }
     if (gift || sc) {
       const total = sc ? item.price : item.giftTotalPrice;
-      const amount = Number.isFinite(total) && total >= 0
-        ? `¥${total.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
+      const amount = formatDanmakuAmount(total, 2);
       const footer = element('div', 'window-footer');
       footer.append(element('span', 'window-event', sc ? '醒目留言' : membership ? '大航海' : '礼物'),
         element('b', 'window-amount', amount));

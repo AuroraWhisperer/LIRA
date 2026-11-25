@@ -1,16 +1,17 @@
 'use strict';
 
-import { CITIES, matchesCity } from './cities.js';
+import { cityFilter } from './base-cities.js';
 import { clockAt } from './time.js';
 
 export function createCityPicker({ dialog, search, results, footer, summary, more, closeButton,
-  getSelectedIds, getFormat, createAddIcon, onAdd, onOpenChange }) {
+  getCities, getSelectedIds, getFormat, createAddIcon, onAdd, onOpenChange }) {
   const events = new AbortController();
   const listen = (node, name, listener) => node.addEventListener(name, listener, { signal: events.signal });
   let matches = [];
   let shown = 0;
   let renderedTimes = [];
   let renderedMinute = '';
+  let searchTimer;
 
   function updateTime(now, format) {
     const key = `${Math.floor(now.getTime() / 60000)}/${format}`;
@@ -27,8 +28,9 @@ export function createCityPicker({ dialog, search, results, footer, summary, mor
     renderedMinute = '';
     const query = search.value.trim();
     if (!append) {
-      const selectedIds = getSelectedIds();
-      matches = query ? CITIES.filter(city => !selectedIds.includes(city.id) && matchesCity(city, query)) : [];
+      const selectedIds = new Set(getSelectedIds());
+      const matchesQuery = cityFilter(query);
+      matches = query ? getCities().filter(city => !selectedIds.has(city.id) && matchesQuery(city)) : [];
       shown = 0;
       renderedTimes = [];
       results.replaceChildren();
@@ -83,19 +85,23 @@ export function createCityPicker({ dialog, search, results, footer, summary, mor
   }
 
   listen(closeButton, 'click', close);
-  listen(dialog, 'close', onOpenChange);
+  listen(dialog, 'close', () => { clearTimeout(searchTimer); onOpenChange(); });
   listen(dialog, 'click', event => {
     if (event.target !== dialog) return;
     const rect = dialog.getBoundingClientRect();
     if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) close();
   });
-  listen(search, 'input', () => render());
+  listen(search, 'input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => render(), 100);
+  });
   listen(more, 'click', () => render(true));
 
   function dispose() {
+    clearTimeout(searchTimer);
     events.abort();
     close();
   }
 
-  return { open, close, updateTime, dispose };
+  return { open, close, render, updateTime, dispose };
 }

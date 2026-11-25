@@ -1,4 +1,4 @@
-# 圣诞绮笺装饰
+# 圣诞华灯装饰
 
 `bow.svg`、`corner.svg`、`pendant.svg`、`garland.svg`、`wreath.svg` 为本款手工绘制的本地矢量装饰，参考 [Cozy Christmas](https://www.etsy.com/listing/1623353307/cozy-christmas-chat-widget-customizable) 的红金卡片与节日挂饰构图，未使用其付费文件或代码。
 

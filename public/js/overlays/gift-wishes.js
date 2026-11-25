@@ -15,6 +15,7 @@ document.title = `${periodName} · LIRA`;
 let revision = null;
 let signature = '';
 const feed = createGiftWishFeed({
+  includeSession: preview && period === 'session',
   onData(data) {
     revision = data.viewRevision;
     const items = period ? data.items.filter((wish) => wish.period === period) : data.items;
@@ -26,9 +27,9 @@ const feed = createGiftWishFeed({
     const messages = [];
     if (!items.length) messages.push(`还没有${periodName}，请在礼物姬中添加。`);
     if (data.partial) messages.push('正在同步已捕获的礼物，进度可能尚未完整。');
-    const showSessionStatus = period === 'session' || items.some((wish) => wish.period === 'session');
-    if (showSessionStatus && data.session.stale) messages.push('开播状态暂未确认，已暂停本场计数。');
-    if (showSessionStatus && data.session.state === 'offline') messages.push('还未开播，等待本场心愿开始。');
+    const showSessionStatus = preview && (period === 'session' || items.some((wish) => wish.period === 'session'));
+    if (showSessionStatus && data.session?.stale) messages.push('开播状态暂未确认，已暂停本场计数。');
+    if (showSessionStatus && data.session?.state === 'offline') messages.push('还未开播，等待本场心愿开始。');
     status.textContent = messages.join(' ');
     status.hidden = !preview || !messages.length;
   },
@@ -50,7 +51,7 @@ const socket = createOverlaySocket({
       clear();
       revision = message.state?.gifts?.viewRevision;
       feed.refresh();
-    } else if (message.reason === 'gift:wishes') feed.refresh();
+    } else if (message.reason === 'gift:wishes' || message.reasons?.includes('gift:wishes')) feed.refresh();
   },
 });
 let componentConfig;

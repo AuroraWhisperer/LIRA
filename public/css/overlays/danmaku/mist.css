@@ -291,9 +291,6 @@ body[data-style='mist'] .sc-copy { padding: 0.6em 0.7em; color: var(--mist-deep)
   from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 6px; }
   to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='mist'] .draw-danmaku-item { animation: none; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='mist'] .draw-danmaku-item .draw-danmaku-body > p {

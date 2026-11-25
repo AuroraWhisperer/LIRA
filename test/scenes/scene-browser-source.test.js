@@ -9,7 +9,7 @@ const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
 const { normalizeSceneConfig, createSceneComponentPorts } = require('../../src/server/scene-components');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+const { migrateTestSongDb } = require('../helpers/song-database');
 
 const sourceUrl = 'https://overlay.example.test/widget?token=private-provider-capability#session=private-fragment';
 const sourceConfig = () => ({ ...BROWSER_SOURCE_DEFAULTS, url: sourceUrl });
@@ -20,8 +20,7 @@ const sourceItem = () => ({ id: randomUUID(), type: 'browser', name: '外部浏�
 function fixture(t) {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
-  migrateScenes(db); migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db); migrateSceneDeletion(db);
+  migrateTestSongDb(db);
   const owner = { scope: 'synthetic-browser-source-owner', epoch: 1 };
   const state = { available: true, failEncrypt: false, failDecrypt: false };
   const key = randomBytes(32);

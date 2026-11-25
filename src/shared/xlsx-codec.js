@@ -62,14 +62,17 @@ function decodeXmlCodePoint(codePoint) {
   return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : '';
 }
 
+const attributePatterns = new Map();
 function getXmlAttr(attrs, name) {
-  const match = String(attrs || '').match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, 'i'));
+  if (!attributePatterns.has(name)) attributePatterns.set(name, new RegExp(`(?:^|\\s)${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, 'i'));
+  const match = String(attrs || '').match(attributePatterns.get(name));
   return match ? unescapeXml(match[2]) : '';
 }
 
 function readWorkbookFiles(buffer) {
   let fallbackWorksheet = '';
-  const metadata = readZipFiles(buffer, { selectEntry(name) {
+  const directory = readZipEntries(buffer, XLSX_LIMITS.zipEntries);
+  const metadata = expandZipFiles(buffer, directory, { selectEntry(name) {
     if (!fallbackWorksheet && /^xl\/worksheets\/sheet\d+\.xml$/i.test(name)) fallbackWorksheet = name;
     return name === 'xl/workbook.xml' || name === 'xl/_rels/workbook.xml.rels';
   } });
@@ -91,7 +94,7 @@ function readWorkbookFiles(buffer) {
   if (!worksheetEntry) throw new Error('Excel 文件里没有找到工作表。');
   const metadataBytes = [...metadata.values()].reduce((total, text) => total + Buffer.byteLength(text), 0);
   checkBudget(metadataBytes + 1, XLSX_LIMITS.totalBytes, 'workbook metadata');
-  const files = readZipFiles(buffer, {
+  const files = expandZipFiles(buffer, directory, {
     selectEntry: (name) => name === worksheetEntry || name === 'xl/sharedStrings.xml',
     limits: { totalBytes: XLSX_LIMITS.totalBytes - metadataBytes },
   });
@@ -304,12 +307,14 @@ function readZipEntries(buffer, maxEntries) {
 }
 
 /** Validate all record ranges before allocating decoded data; only expand selected entries. */
-function readZipFiles(buffer, { selectEntry = () => true, limits = {} } = {}) {
+function readZipFiles(buffer, options = {}) {
+  return expandZipFiles(buffer, readZipEntries(buffer, resourceLimit(options.limits || {}, 'zipEntries')), options);
+}
+
+function expandZipFiles(buffer, directory, { selectEntry = () => true, limits = {} }) {
   const maxEntryBytes = resourceLimit(limits, 'entryBytes');
   const maxTotalBytes = resourceLimit(limits, 'totalBytes');
-  const entries = readZipEntries(buffer, resourceLimit(limits, 'zipEntries')).filter((entry) =>
-    selectEntry(entry.filename),
-  );
+  const entries = directory.filter(entry => selectEntry(entry.filename));
   let declaredBytes = 0;
   for (const entry of entries) {
     if (entry.flags & 0x41 || ![0, 8].includes(entry.method)) {

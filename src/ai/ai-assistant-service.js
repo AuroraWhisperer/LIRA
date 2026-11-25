@@ -62,6 +62,7 @@ function createAiAssistantService(dependencies) {
   let submittedAutoReply = null;
   let autoGeneration = null;
   let currentConfig = store.getConfig();
+  let sessionRevision = getSessionRevision(currentConfig);
   let replyConfigKey = getReplyConfigKey(currentConfig);
 
   const generator = createAiReplyGenerator({ store, modelClient, tools, quotaStore, now,
@@ -112,8 +113,12 @@ function createAiAssistantService(dependencies) {
   }
 
   function generationLimit() {
-    const config = store.getConfig();
+    const config = currentConfig;
     return config.modelProvider === 'doubao' ? 1 : config.generationConcurrency;
+  }
+
+  function getSessionRevision(config) {
+    return usesAccountModel(config) ? modelClient.getSessionRevision?.(config) : null;
   }
 
   function getReplyConfigKey(config) {
@@ -121,20 +126,21 @@ function createAiAssistantService(dependencies) {
     // Kept only in memory. Compare the effective selection, not unrelated packs or UI descriptions.
     return JSON.stringify([config.enabled, config.trigger, config.modelProvider, config.modelAuthMode,
       config.deepseekResponsesUrl, config.deepseekApiKey, config.modelApiProtocol, config.model,
-      config.reasoningEnabled, config.reasoningEffort, persona.id, persona.prompt,
-      usesAccountModel(config) ? modelClient.getSessionRevision?.(config) : null]);
+      config.reasoningEnabled, config.reasoningEffort, persona.id, persona.prompt]);
   }
 
   function synchronizeConfig(snapshot) {
     if (shuttingDown) return;
     const config = snapshot ?? store.getConfig();
     const nextKey = getReplyConfigKey(config);
-    if (replyConfigKey !== nextKey) {
+    const nextRevision = getSessionRevision(config);
+    if (replyConfigKey !== nextKey || nextRevision !== sessionRevision) {
       const accountProviderChanged = (currentConfig.modelProvider !== config.modelProvider || currentConfig.modelAuthMode !== config.modelAuthMode)
         && (usesAccountModel(currentConfig) || usesAccountModel(config));
       const error = !config.enabled ? codedError('AI_DISABLED', 'AI 助手已关闭。')
         : codedError(accountProviderChanged ? 'DOUBAO_SESSION_CHANGED' : 'AI_CONFIG_CHANGED', '模型或人格已变化，本次回复已取消。');
       replyConfigKey = nextKey;
+      sessionRevision = nextRevision;
       replyController.abort(error);
       autoReplies.reset();
       const drain = coordinator.stop();
@@ -153,7 +159,7 @@ function createAiAssistantService(dependencies) {
   function getIngressConfig() {
     // The store publishes committed settings synchronously. Account sessions can also change independently.
     if (!unsubscribeConfig) synchronizeConfig();
-    else if (usesAccountModel(currentConfig)) synchronizeConfig(currentConfig);
+    else if (getSessionRevision(currentConfig) !== sessionRevision) synchronizeConfig(currentConfig);
     return currentConfig;
   }
 
@@ -171,8 +177,9 @@ function createAiAssistantService(dependencies) {
     const question = extractTriggeredQuestion(message, config.trigger);
     if (question === null) {
       if (!config.autoReplyEnabled) return { accepted: false, reason: 'not_triggered' };
+      if (danmaku.autoReplyExcluded || uid.startsWith('name:')) return { accepted: false, reason: 'auto_ineligible' };
       if (store.isBlacklisted(uid)) return { accepted: false, reason: 'blacklisted' };
-      if (danmaku.autoReplyExcluded || !checkLocalInput(message).allowed || uid.startsWith('name:')) {
+      if (!checkLocalInput(message).allowed) {
         return { accepted: false, reason: 'auto_ineligible' };
       }
       return autoReplies.observe({ ...danmaku, uid, message });
@@ -199,6 +206,7 @@ function createAiAssistantService(dependencies) {
   }
 
   function rememberReply({ accountUid, message, mentionName }) {
+    dependencies.trackDelivery?.({ accountUid, message, mentionName });
     pruneReplyEchoes();
     replyEchoes.push({
       uid: cleanText(accountUid),
@@ -211,7 +219,7 @@ function createAiAssistantService(dependencies) {
     item.signal = AbortSignal.any([shutdownController.signal, replyController.signal]);
     item.replySession = captureReplySession?.();
     item.replyConfigKey = replyConfigKey;
-    const config = store.getConfig();
+    const config = currentConfig;
     if (usesAccountModel(config)) {
       item.modelSessionConfig = { modelProvider: config.modelProvider, modelAuthMode: config.modelAuthMode };
       item.modelSessionRevision = modelClient.getSessionRevision?.(item.modelSessionConfig);
@@ -227,7 +235,7 @@ function createAiAssistantService(dependencies) {
     const item = { uid: '', userName: '', roomId: autoTask.snapshot.roomId, autoTask,
       signal: AbortSignal.any([shutdownController.signal, replyController.signal, autoTask.signal]),
       replySession: autoTask.replySession, replyConfigKey };
-    const config = store.getConfig();
+    const config = currentConfig;
     if (usesAccountModel(config)) {
       item.modelSessionConfig = { modelProvider: config.modelProvider, modelAuthMode: config.modelAuthMode };
       item.modelSessionRevision = modelClient.getSessionRevision?.(item.modelSessionConfig);
@@ -485,7 +493,9 @@ function createAiAssistantService(dependencies) {
   function throwIfReplyCancelled(item) {
     throwIfShuttingDown();
     item.signal.throwIfAborted();
-    if (item.replyConfigKey !== getReplyConfigKey(store.getConfig())) {
+    if (!unsubscribeConfig) synchronizeConfig();
+    item.signal.throwIfAborted();
+    if (item.replyConfigKey !== replyConfigKey) {
       throw codedError('AI_CONFIG_CHANGED', '模型或人格已变化，本次回复已取消。');
     }
     if (item.modelSessionRevision !== undefined && item.modelSessionRevision !== modelClient.getSessionRevision?.(item.modelSessionConfig)) {

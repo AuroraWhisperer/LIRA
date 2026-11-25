@@ -11,9 +11,9 @@ internal static class PlaybackOutputs
   static readonly Dictionary<string, List<PlaybackOutput>> AsioPorts = new();
   static string Label(string backend) => backend switch { "wasapi" => "WASAPI", "directsound" => "DirectSound", _ => "WaveOut" };
 
-  public static List<PlaybackOutput> Enumerate()
+  public static List<PlaybackOutput> Enumerate(List<(string Id, string Name)>? endpoints = null)
   {
-    var endpoints = AudioDevices.Outputs();
+    endpoints ??= AudioDevices.Outputs();
     var directSound = DirectSoundOut.Devices.Select(device => device.ModuleName).ToHashSet(StringComparer.OrdinalIgnoreCase);
     var waveOut = WaveOutEndpoints();
     var result = new List<PlaybackOutput>();

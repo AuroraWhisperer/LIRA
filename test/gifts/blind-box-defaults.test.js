@@ -1,62 +1,36 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
-const { closeDatabases, createDatabases } = require('../../src/storage/database');
-const settingsStoreModule = require('../../src/storage/settings-store');
+const { DEFAULT_SETTINGS, bootstrapSettingsStore, migrateBlindBoxConfig } = require('../../src/storage/settings-store');
 const settingsRoutes = require('../../src/server/routes/settings-routes');
 const { normalizeGiftBlindBoxConfig } = require('../../src/bilibili/gift/blind-box-config');
 const defaultBlindBoxConfig = require('../../src/storage/default-blind-box-config.json');
-const { DEFAULT_SETTINGS, migrateBlindBoxConfig } = settingsStoreModule;
 
-test('blind-box migration appends missing defaults without replacing user entries', () => {
-  const existing = [
-    { name: '心动盲盒', price: 15, outputs: [] },
-    { name: '幸运盲盒', price: 5, outputs: [] },
-    { name: '小熊虫盲盒', price: 9, outputs: [] },
-    {
-      name: '用户自定义盲盒',
-      price: 88,
-      outputs: [{ name: '自定义礼物', price: 188 }],
-    },
-  ];
-  const updates = [];
-  const db = {
-    prepare(sql) {
-      if (sql.includes('SELECT value FROM settings')) {
-        return { get: () => ({ value: JSON.stringify(existing) }) };
-      }
-      if (sql.includes('UPDATE settings SET value')) {
-        return {
-          run: (value, updatedAt) => updates.push({ value, updatedAt }),
-        };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
-    },
-  };
+function createSettingsDb(t, storedValue) {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
+  db.prepare("INSERT INTO settings VALUES ('giftBlindBoxConfig', ?, 'before')").run(storedValue);
+  return db;
+}
 
+function assertMigrationSkipsWrite(db) {
+  const changes = db.prepare('SELECT total_changes() AS count');
+  const before = changes.get().count;
   migrateBlindBoxConfig(db);
+  assert.equal(changes.get().count, before);
+}
 
-  assert.equal(updates.length, 1);
-  const migrated = JSON.parse(updates[0].value);
-  assert.deepEqual(migrated.slice(0, existing.length), existing);
-});
-
-test('settings bootstrap merges new blind-box defaults before the first settings read', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-blind-box-bootstrap-'));
-  const databases = createDatabases({
-    dataDir,
-    defaultSettings: DEFAULT_SETTINGS,
-  });
+test('settings bootstrap appends missing blind boxes once and preserves user entries', (t) => {
   const existing = [
     {
       name: '心动盲盒',
       price: 12,
       outputs: [{ name: '用户修改礼物', price: 99 }],
     },
+    { name: '幸运盲盒', price: 5, outputs: [] },
     {
       name: '用户自定义盲盒',
       price: 88,
@@ -64,92 +38,22 @@ test('settings bootstrap merges new blind-box defaults before the first settings
     },
   ];
 
-  try {
-    databases.songDb
-      .prepare(
-        `
-      INSERT INTO settings (key, value, updated_at)
-      VALUES ('giftBlindBoxConfig', ?, ?)
-    `,
-      )
-      .run(JSON.stringify(existing), new Date().toISOString());
+  const db = createSettingsDb(t, JSON.stringify(existing));
+  const migrated = JSON.parse(bootstrapSettingsStore(db).getSettings().giftBlindBoxConfig);
 
-    const settingsStore = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
-    const migrated = JSON.parse(settingsStore.getSettings().giftBlindBoxConfig);
-
-    assert.deepEqual(migrated.slice(0, existing.length), existing);
-    assert.deepEqual(
-      migrated.slice(existing.length).map((box) => box.name),
-      defaultBlindBoxConfig.map((box) => box.name).filter((name) => name !== '心动盲盒'),
-    );
-  } finally {
-    closeDatabases(databases);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
+  const missing = defaultBlindBoxConfig.filter((box) => !existing.some((entry) => entry.name === box.name));
+  assert.deepEqual(migrated, [...existing, ...missing]);
+  assertMigrationSkipsWrite(db);
 });
 
-test('blind-box migration does not duplicate existing default entries', () => {
-  const existing = JSON.parse(DEFAULT_SETTINGS.giftBlindBoxConfig);
-  const updates = [];
-  const db = {
-    prepare(sql) {
-      if (sql.includes('SELECT value FROM settings')) {
-        return { get: () => ({ value: JSON.stringify(existing) }) };
-      }
-      if (sql.includes('UPDATE settings SET value')) {
-        return { run: () => updates.push(true) };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
-    },
-  };
+test('settings bootstrap preserves both legacy and explicitly cleared blind-box configurations', (t) => {
+  const legacy = createSettingsDb(t, '');
+  assert.equal(bootstrapSettingsStore(legacy).getSettings().giftBlindBoxConfig, '[]');
 
-  migrateBlindBoxConfig(db);
-
-  assert.equal(updates.length, 0);
-});
-
-test('blind-box migration preserves an explicit empty configuration', () => {
-  for (const [storedValue, expectedUpdates] of [
-    ['', ['[]']],
-    ['[]', []],
-  ]) {
-    const updates = [];
-    const db = {
-      prepare(sql) {
-        if (sql.includes('SELECT value FROM settings')) {
-          return { get: () => ({ value: storedValue }) };
-        }
-        if (sql.includes('UPDATE settings SET value')) {
-          return {
-            run: (value) => updates.push(value),
-          };
-        }
-        throw new Error(`Unexpected SQL: ${sql}`);
-      },
-    };
-
-    migrateBlindBoxConfig(db);
-    assert.deepEqual(updates, expectedUpdates);
-  }
-});
-
-test('an empty blind-box configuration survives repeated settings bootstrap', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-empty-blind-box-bootstrap-'));
-  const databases = createDatabases({
-    dataDir,
-    defaultSettings: DEFAULT_SETTINGS,
-  });
-
-  try {
-    const first = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
-    first.setSetting('giftBlindBoxConfig', '[]');
-
-    const second = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
-    assert.equal(second.getSettings().giftBlindBoxConfig, '[]');
-  } finally {
-    closeDatabases(databases);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
+  const current = createSettingsDb(t, DEFAULT_SETTINGS.giftBlindBoxConfig);
+  bootstrapSettingsStore(current).setSetting('giftBlindBoxConfig', '[]');
+  assertMigrationSkipsWrite(current);
+  assert.equal(bootstrapSettingsStore(current).getSettings().giftBlindBoxConfig, '[]');
 });
 
 test('settings route rejects malformed blind-box values and stores normalized JSON', async () => {
@@ -232,38 +136,20 @@ test('blind-box prices must remain positive after two-decimal normalization', ()
   assert.deepEqual(normalizeGiftBlindBoxConfig(config(0.01)), config(0.01));
 });
 
-test('blind-box migration upgrades legacy string outputs by known price and is stable on rerun', () => {
-  let stored = JSON.stringify([
+test('blind-box migration upgrades legacy string outputs by known price and is stable on rerun', (t) => {
+  const db = createSettingsDb(t, JSON.stringify([
     { name: '心动盲盒', price: 15, outputs: ['电影票', '未知礼物', { name: '已有对象', price: 3 }] },
     { name: '用户盲盒', price: 6, outputs: ['棉花糖'] },
-  ]);
-  const db = {
-    prepare(sql) {
-      if (sql.includes('SELECT value FROM settings')) return { get: () => ({ value: stored }) };
-      if (sql.includes('UPDATE settings SET value')) {
-        return {
-          run: (value) => {
-            stored = value;
-          },
-        };
-      }
-      throw new Error(`Unexpected SQL: ${sql}`);
-    },
-  };
+  ]));
+  const read = db.prepare("SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'");
 
   migrateBlindBoxConfig(db);
-  const migrated = JSON.parse(stored);
-  // Known 心动盲盒 prices become objects; unknown names and other boxes stay untouched.
+  const firstValue = read.get().value;
+  const migrated = JSON.parse(firstValue);
   assert.deepEqual(migrated[0].outputs, [{ name: '电影票', price: 2 }, '未知礼物', { name: '已有对象', price: 3 }]);
   assert.deepEqual(migrated[1], { name: '用户盲盒', price: 6, outputs: ['棉花糖'] });
-  assert.deepEqual(
-    migrated.slice(2).map((box) => box.name),
-    defaultBlindBoxConfig.map((box) => box.name).filter((name) => name !== '心动盲盒'),
-  );
-
-  const firstValue = stored;
   migrateBlindBoxConfig(db);
-  assert.equal(stored, firstValue);
+  assert.equal(read.get().value, firstValue);
 });
 
 test('custom V2 blind-box settings are normalized and invalid configurations are rejected before saving', () => {

@@ -1,12 +1,9 @@
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { createTextElement } from '../shared/dom-element.js';
+import { formatDanmakuAmount as amount } from '../shared/display-format.js';
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const SC_TIERS = [[10000, 'red'], [5000, 'magenta'], [2000, 'orange'], [1000, 'yellow'],
   [500, 'green'], [200, 'cyan'], [0, 'blue']];
 const graphemes = new Intl.Segmenter('zh-CN', { granularity: 'grapheme' });
-
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—';
-}
 
 // Keep the safe renderer's nodes, including emotes, and reveal complete graphemes.
 // CSS owns playback; the feed owns placement, expiry and removal.
@@ -36,12 +33,7 @@ function prepareTyping(document, copy, maxDurationMs, typingStepMs) {
 
 export function createGlassBubbleMessageRenderer(options, render) {
   const { document, classNames } = options;
-  const element = (tag, className, text) => {
-    const node = document.createElement(tag);
-    node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  };
+  const element = createTextElement.bind(null, document);
   return (item = {}, index = 0) => {
     const sc = item.kind === 'superchat';
     const gift = item.kind === 'gift';

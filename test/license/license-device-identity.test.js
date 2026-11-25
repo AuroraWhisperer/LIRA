@@ -50,7 +50,9 @@ test('device private key is encrypted at rest and cannot use an unavailable mach
 });
 
 test('Windows hardware fingerprint returns only SHA-256 values', async () => {
+  let calls = 0;
   const execFile = (command, _args, _options, callback) => {
+    calls++;
     if (command === 'reg') return callback(null, 'MachineGuid    REG_SZ    raw-machine-guid');
     if (command === 'powershell.exe') return callback(null, 'raw-smbios-uuid');
     return callback(null, 'Volume Serial Number is RAW-DRIVE-ID');
@@ -63,4 +65,7 @@ test('Windows hardware fingerprint returns only SHA-256 values', async () => {
   assert.equal(fingerprint.smbiosUuidHash, hashRaw('raw-smbios-uuid'));
   assert.equal(fingerprint.systemDriveHash, hashRaw('RAW-DRIVE-ID'));
   assert.doesNotMatch(JSON.stringify(fingerprint), /raw-machine-guid|raw-smbios-uuid|RAW-DRIVE-ID/i);
+  fingerprint.machineGuidHash = '';
+  assert.equal((await provider.collect()).machineGuidHash, hashRaw('raw-machine-guid'));
+  assert.equal(calls, 3);
 });

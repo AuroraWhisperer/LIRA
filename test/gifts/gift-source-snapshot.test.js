@@ -70,4 +70,9 @@ test('recent gift snapshots recover when the active source becomes readable agai
   runtime.setActiveGiftSource({ sourceId: null, syncState: 'OFFLINE' });
   assert.deepEqual(snapshots.at(-1).recent, []);
   assert.equal(snapshots.at(-1).viewRevision, null);
+  const recent = t.mock.method(fixture.context.queryStore, 'listRecent');
+  assert.deepEqual(gifts.getSnapshot({ includeRecent: false }), { viewRevision: null });
+  gifts.setActiveSource({ sourceId: sourceA.id, syncState: 'LIVE' });
+  assert.deepEqual(gifts.getSnapshot({ includeRecent: false }), { viewRevision: gifts.getViewRevision() });
+  assert.equal(recent.mock.callCount(), 0);
 });

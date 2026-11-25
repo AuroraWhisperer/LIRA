@@ -11,7 +11,7 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 test('queue A/B/A drafts save all changed styles and exclude unrelated settings', async () => {
   const config = await loadModuleExports(entry('admin/queue-theme-config.js'));
   const { createComponentConfigController } = await loadModuleExports(entry('admin/component-config-controller.js'));
-  let settings = config.queueConfigFromSettings(DEFAULT_SETTINGS);
+  let settings = config.queueConfigFromSettings({ ...DEFAULT_SETTINGS, overlayQueueStyle: 'storybook' });
   let fail = true;
   let payload;
   const controller = createComponentConfigController({ initial: settings, persist: async (draft, changed) => {

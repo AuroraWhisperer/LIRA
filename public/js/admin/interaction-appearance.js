@@ -1,3 +1,4 @@
+import { eventBus } from '../shared/event-bus.js';
 import {
   INTERACTION_APPEARANCE_DEFAULTS,
   readInteractionAppearance,
@@ -90,7 +91,6 @@ export function initInteractionAppearance() {
     controller.edit(draft());
     const dirty = controller.getStatus().dirty;
     apply.disabled = !dirty;
-    status.textContent = dirty ? '未应用' : '';
     preview();
   }
   async function load() {
@@ -122,13 +122,10 @@ export function initInteractionAppearance() {
     if (!before.loaded || before.saving || !before.dirty) return;
     controller.edit(draft());
     fields.disabled = true;
-    status.textContent = '正在应用…';
-    const applied = await controller.save();
+    await controller.save();
     if (disposed) return;
     const state = controller.getState();
     fill(state.draft);
-    status.textContent = applied ? '已应用'
-      : state.dirty ? `应用失败，修改已保留：${state.error}` : state.error;
     fields.disabled = false;
     apply.disabled = !state.dirty;
   });
@@ -140,14 +137,14 @@ export function initInteractionAppearance() {
   void load();
   const receive = event => {
     if (disposed) return;
-    controller.receive(readInteractionAppearance(event.detail));
+    if (!controller.receive(readInteractionAppearance(event.detail))) return;
     const state = controller.getState();
     apply.disabled = state.saving || !state.dirty;
     fill(state.draft);
   };
   window.addEventListener('app:settings-state', receive);
   const autosave = bindComponentAutosave(controller, { root: form, saveButton: apply, status });
-  window.addEventListener(
+  eventBus.once(
     'app:shutdown',
     () => {
       disposed = true;
@@ -155,7 +152,6 @@ export function initInteractionAppearance() {
       observer.disconnect();
       window.removeEventListener('app:settings-state', receive);
     },
-    { once: true },
   );
   return {
     setKind(nextKind) {

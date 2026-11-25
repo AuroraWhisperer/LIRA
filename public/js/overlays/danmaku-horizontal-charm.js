@@ -1,4 +1,6 @@
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement as node } from '../shared/dom-element.js';
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const ICONS = {
   chat: 'M5 5h14v12H9l-4 3V5Zm3 4v2h8V9H8Zm0 4v2h5v-2H8Z',
   streamer: 'm3 7 5 4 4-7 4 7 5-4-2 12H5L3 7Z',
@@ -7,12 +9,6 @@ const ICONS = {
   superchat: 'M12 21S2 15 2 8a5 5 0 0 1 10-1 5 5 0 0 1 10 1c0 7-10 13-10 13Z',
 };
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function badge(document, kind) {
   const plate = node(document, 'span', 'charm-badge');
@@ -26,10 +22,7 @@ function badge(document, kind) {
   return plate;
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-}
+const amount = value => formatDanmakuAmount(value, 2);
 
 // Reuse literal text and inline-emote rendering; only this style owns the ribbon composition.
 export function createHorizontalCharmMessageRenderer(options, render) {

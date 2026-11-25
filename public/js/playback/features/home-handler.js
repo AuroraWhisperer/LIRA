@@ -3,6 +3,7 @@
 'use strict';
 
 import { createPlaybackStateActions } from '../state/actions.js';
+import { findSourcePlaylistIndex, sourcePlaylistTracks } from '../queue/playlist-entries.js';
 
 import * as PlaybackUtils from '../utils.js';
 import { HomeService } from '../services/home-service.js';
@@ -207,6 +208,9 @@ export function createHomeHandler(deps) {
     if (homeState.itemType !== 'track' || !homeState.items.length) return;
 
     let tracks = homeState.items.map(normalizeHomeTrack);
+    if (homeState.action !== 'radio' && (action === 'play-all' || action === 'shuffle-all')) {
+      tracks = sourcePlaylistTracks(tracks);
+    }
     if (action === 'shuffle-all') {
       tracks = PlaybackUtils.shuffleTracks(tracks);
       stateActions.setMode('shuffle');
@@ -303,15 +307,16 @@ export function createHomeHandler(deps) {
     const homeState = homeService.getHomeState();
 
     if (action === 'play-context' || action === 'play') {
-      const tracks = homeState.items.map(normalizeHomeTrack);
       const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
+      const items = homeState.items.map(normalizeHomeTrack);
+      const tracks = queueType === 'playlist' ? sourcePlaylistTracks(items) : items;
       const collection = getHomeCollectionContext(homeState);
       const selectedTrack = tracks[index];
       const activeIndex =
         queueType === 'playlist' &&
         playbackState.queueType === 'playlist' &&
         playbackState.queueSourceKey === collection.sourceKey
-          ? playbackState.normalQueueTracks.findIndex((item) => item.id === selectedTrack.id)
+          ? findSourcePlaylistIndex(playbackState.normalQueueTracks, selectedTrack, homeState.action === 'recent' ? track : null)
           : -1;
 
       if (activeIndex >= 0) {

@@ -49,6 +49,7 @@ function createOvertimeService(options = {}) {
   const randomInt = typeof options.randomInt === 'function' ? options.randomInt : cryptoRandomInt;
   const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
   const store = options.store;
+  let cachedRules;
   let state = normalizeState(store.getState() || store.ensureState(toIso(now())));
   let monotonicAnchorMs = monotonicNow();
   let zeroTimer = null;
@@ -64,7 +65,7 @@ function createOvertimeService(options = {}) {
     recoverPersistedClock();
     recoverSettlements();
   } catch (error) {
-    dispose();
+    pauseRecovery();
     throw error;
   }
 
@@ -79,7 +80,7 @@ function createOvertimeService(options = {}) {
       serverNowMs,
       revision: state.revision,
       background: { path: state.backgroundPath, fit: state.backgroundFit },
-      rules: migrateRuleImages(store.listRules()),
+      rules: migrateRuleImages(structuredClone(cachedRules ??= store.listRules())),
       limits: { ...OVERTIME_LIMITS },
     };
   }
@@ -198,7 +199,7 @@ function createOvertimeService(options = {}) {
   }
 
   function observeGift(event) {
-    if (recoveryPaused) return false;
+    if (recoveryPaused || !state.enabled) return false;
     const giftEventId = getGiftEventId(event);
     if (giftEventId === 0) return false;
     try {
@@ -211,17 +212,11 @@ function createOvertimeService(options = {}) {
   }
 
   function finalizeGift(event) {
-    if (recoveryPaused) return false;
+    if (recoveryPaused || !state.enabled) return false;
     const giftEventId = getGiftEventId(event);
     if (giftEventId === 0) return false;
 
     try {
-      const observed = store.observeGift(giftEventId, toIso(now()));
-      if (observed.kind === 'complete' || observed.kind === 'ineligible' || observed.kind === 'missing') {
-        scheduleNextRecovery();
-        return false;
-      }
-
       const settlementAnchorMs = monotonicNow();
       const materializedState = materialize(settlementAnchorMs);
       const updatedAt = toIso(now());
@@ -254,6 +249,9 @@ function createOvertimeService(options = {}) {
       const currentMs = Math.floor(now());
       let retry = null;
       try {
+        // A failed first settlement rolls back its pending row too. Re-create the
+        // retry checkpoint on the error path instead of opening two transactions per gift.
+        store.observeGift(giftEventId, toIso(currentMs));
         retry = store.recordFailure(giftEventId, error, currentMs, toIso(currentMs));
       } catch (_) {
         retry = null;
@@ -297,6 +295,7 @@ function createOvertimeService(options = {}) {
 
   function reloadState() {
     if (disposed) return;
+    cachedRules = undefined;
     state = normalizeState(store.getState() || store.ensureState(toIso(now())));
     clearRetryTimer();
     recoveryAfterId = 0;
@@ -329,8 +328,10 @@ function createOvertimeService(options = {}) {
       updatedAt: toIso(now()),
     };
     const nextMonotonicAnchorMs = monotonicNow();
-    if (options.rules) store.replaceRulesAndState(options.rules, committedState);
-    else if (options.ignorePending) store.saveStateAndIgnorePending(committedState);
+    if (options.rules) {
+      store.replaceRulesAndState(options.rules, committedState);
+      cachedRules = undefined;
+    } else if (options.ignorePending) store.saveStateAndIgnorePending(committedState);
     else store.saveState(committedState);
     state = committedState;
     monotonicAnchorMs = nextMonotonicAnchorMs;
@@ -471,6 +472,12 @@ function createOvertimeService(options = {}) {
     if (zeroTimer) cancelTimeout(zeroTimer);
     zeroTimer = null;
     clearRetryTimer();
+    if (!recoveryPaused && state.status === 'running') {
+      const checkpoint = materialize();
+      if (checkpoint.status === 'finished') checkpoint.revision += 1;
+      checkpoint.updatedAt = toIso(checkpoint.anchorAtMs);
+      store.saveState(checkpoint);
+    }
   }
 
   return {

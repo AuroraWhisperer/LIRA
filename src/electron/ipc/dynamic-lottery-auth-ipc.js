@@ -1,6 +1,6 @@
 'use strict';
 
-const { hasExactOrigin } = require('../local-media-access');
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
 
 const PUBLIC_ERRORS = new Set([
   'LOTTERY_IDENTITY_UNAVAILABLE',
@@ -13,6 +13,7 @@ const PUBLIC_ERRORS = new Set([
 ]);
 
 function registerDynamicLotteryAuthIpc({ ipcMain, auth, getMainWindow, getDesktopBaseUrl }) {
+  const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
   const channels = [];
   for (const [action, method] of [
     ['get-state', 'getAuthState'],
@@ -21,17 +22,7 @@ function registerDynamicLotteryAuthIpc({ ipcMain, auth, getMainWindow, getDeskto
   ]) {
     const channel = `dynamic-lottery-auth:${action}`;
     channels.push(channel);
-    ipcMain.handle(channel, async (event) => {
-      const window = getMainWindow();
-      if (
-        !window ||
-        window.isDestroyed() ||
-        event?.sender !== window.webContents ||
-        event?.senderFrame !== window.webContents.mainFrame ||
-        !hasExactOrigin(event?.senderFrame?.url, getDesktopBaseUrl())
-      ) {
-        return { ok: false, error: 'IPC_SOURCE_INVALID' };
-      }
+    register(channel, async (event) => {
       try {
         const state = await auth[method]();
         const loggedIn =

@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "6.3.4",
+  "version": "6.3.5",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -66,7 +66,6 @@
     "files": [
       "src/**/*",
       "public/**/*",
-      "build/icon.png",
       "!**/AGENTS.md",
       "!**/*.map",
       "!public/img/**/README.md",
@@ -76,7 +75,9 @@
       "!public/img/**/*.webp.json",
       "!public/img/**/sources.json",
       "!public/img/**/*-sources.json",
+      "!public/img/**/*.sources.json",
       "!public/fonts/**/README.md",
+      "!public/css/shared/display-fonts.css",
       "!public/fonts/{player,library,moonlit-wenkai,lyrics-fallback,spooky,sea-breeze,stargazer,glass,animated-gradient,celestial-horizontal,glass-bubble}/**/*.woff2",
       "!public/fonts/{player,library,moonlit-wenkai,lyrics-fallback,spooky,sea-breeze,stargazer,glass,animated-gradient,celestial-horizontal,glass-bubble}/**/*.ttf",
       "!public/fonts/{player,library,moonlit-wenkai,lyrics-fallback,spooky,sea-breeze,stargazer,glass,animated-gradient,celestial-horizontal,glass-bubble}/**/*.otf",
@@ -111,7 +112,6 @@
       "!public/img/playback/player-turntable-chassis.png",
       "!public/img/playback/qqmusic-icon.png",
       "!public/img/usage-guide/*.png",
-      "!public/img/usage-guide/S/server-manage-overview.webp",
       "!public/pages/gift-audit.html",
       "!public/css/gift-audit.css",
       "!public/js/gift-audit/**/*",
@@ -123,6 +123,9 @@
       "!node_modules/pend/test.js",
       "!node_modules/**/*.d.{cts,mts}",
       "!node_modules/semver/range.bnf",
+      "!node_modules/semver/bin/semver.js",
+      "!node_modules/js-yaml/bin/js-yaml.js",
+      "!node_modules/js-yaml/lib/index_vite_proxy.tmp.mjs",
       "!node_modules/pako/dist/*.js",
       "!node_modules/js-yaml/dist/*.js",
       "package.json"

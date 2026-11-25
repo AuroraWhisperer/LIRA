@@ -40,11 +40,45 @@ export function renderPollRows(container, session) {
   return changed;
 }
 
-export function interactionStatus(session) {
+function pollSnapshotAge(serverNowMs, receivedAtMs, receivedWallMs, requested) {
+  if (!Number.isFinite(serverNowMs)) return 0;
+  const age = receivedWallMs - serverNowMs;
+  if (!requested) return Math.max(0, age);
+  const roundTrip = receivedAtMs - requested.atMs;
+  if (age >= 0 && age <= roundTrip) return age;
+  // A clock adjustment during this local HTTP read cannot make the snapshot older than the read.
+  return Math.min(roundTrip, Math.max(0, requested.wallMs + roundTrip - serverNowMs));
+}
+
+export function createPollCountdown() {
+  let sessionId = null;
+  let deadlineMs = 0;
+  return {
+    sync(session, receivedAtMs = performance.now(), receivedWallMs = Date.now(), requested) {
+      if (session?.kind !== 'poll') {
+        sessionId = null;
+        return;
+      }
+      if (session.sessionId !== sessionId) {
+        sessionId = session.sessionId;
+        const remaining = Number.isFinite(session.remainingMs)
+          ? session.remainingMs - pollSnapshotAge(session.serverNowMs, receivedAtMs, receivedWallMs, requested)
+          : (session.endsAt ?? 0) - receivedWallMs;
+        deadlineMs = receivedAtMs + Math.max(0, remaining);
+      } else if (Number.isFinite(session.remainingMs)) {
+        // A delayed snapshot from this poll cannot extend its deadline.
+        deadlineMs = Math.min(deadlineMs, receivedAtMs + session.remainingMs);
+      }
+    },
+    remainingMs: () => Math.max(0, deadlineMs - performance.now()),
+  };
+}
+
+export function interactionStatus(session, remainingMs = session.remainingMs) {
   if (session.phase === 'finished') return session.kind === 'poll' ? '投票已结束' : '评分已结束';
   if (session.phase === 'interrupted') return '接收已中断';
   if (!session.connected) return '连接中断，可能漏收';
   if (session.kind === 'rating') return '正在收集评分';
-  const seconds = Math.max(0, Math.ceil((session.endsAt - Date.now()) / 1000));
+  const seconds = Math.max(0, Math.ceil(remainingMs / 1000));
   return `剩余 ${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }

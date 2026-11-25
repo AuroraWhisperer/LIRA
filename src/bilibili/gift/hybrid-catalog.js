@@ -30,6 +30,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
         })
       : null);
   const logger = options.logger || console;
+  const snapshotImagePath = remoteImageCache?.getSnapshotGiftImagePath || remoteImageCache?.getCachedGiftImagePath?.bind(remoteImageCache);
   let giftCatalogInitializer = options.giftCatalogInitializer || null;
   let stopped = false;
   let disposed = false;
@@ -114,14 +115,14 @@ function createHybridGiftSaleCatalogService(options = {}) {
 
   function readRoomSnapshot() {
     const custom = getCustomBlindBoxes();
-    const key = [local.getRevision?.(), remoteCatalog.getRevision?.(), remoteImageCache?.getRevision?.(), JSON.stringify(custom)];
-    const cacheable = local.getRevision && remoteCatalog.getRevision && (!remoteImageCache || remoteImageCache.getRevision);
+    const key = [local.getRevision?.(), remoteCatalog.getRevision?.(), JSON.stringify(custom)];
+    const cacheable = local.getRevision && remoteCatalog.getRevision;
     if (!cacheable || !roomCache || !key.every((value, index) => value === roomCache.key[index])) {
       roomSnapshot = local.getSnapshot();
-      const snapshot = decorateWithCachedImages(mergeRoomCatalog(roomSnapshot, remoteCatalog.getSnapshot(), custom), remoteImageCache);
-      roomCache = { key, snapshot: cloneRoomSnapshot(snapshot, true) };
+      const room = mergeRoomCatalog(roomSnapshot, remoteCatalog.getSnapshot(), custom);
+      roomCache = { key, sources: room.gifts, snapshot: publicRoomSnapshot(room, true) };
     }
-    return roomCache.snapshot;
+    return readCachedImages(roomCache);
   }
 
   function getSnapshot() { return structuredClone(readRoomSnapshot()); }
@@ -152,7 +153,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
       roomCache = null;
       globalCache = null;
       artworkCatalog = null;
-      return cloneRoomSnapshot(snapshot, localSnapshot.cached === true);
+      return structuredClone(publicRoomSnapshot(snapshot, localSnapshot.cached === true));
     })().finally(() => {
       if (roomRefreshPending === request) roomRefreshPending = null;
     });
@@ -175,20 +176,31 @@ function createHybridGiftSaleCatalogService(options = {}) {
   }
 
   function readGlobalSnapshot() {
-    const key = [remoteCatalog.getRevision?.(), remoteImageCache?.getRevision?.(), assetsUpdatedAt];
-    const cacheable = remoteCatalog.getRevision && (!remoteImageCache || remoteImageCache.getRevision);
-    if (cacheable && globalCache && key.every((value, index) => value === globalCache.key[index])) {
-      return globalCache.snapshot;
+    const key = [remoteCatalog.getRevision?.(), assetsUpdatedAt];
+    if (!remoteCatalog.getRevision || !globalCache || !key.every((value, index) => value === globalCache.key[index])) {
+      const snapshot = remoteCatalog.getSnapshot();
+      if (!snapshot) return null;
+      const sources = Array.isArray(snapshot.gifts) ? snapshot.gifts : [];
+      const gifts = sources.map((gift) => ({ ...gift, imagePath: '' }));
+      globalCache = { key, sources, snapshot: { ...snapshot, assetsUpdatedAt, count: gifts.length, gifts } };
     }
-    const snapshot = remoteCatalog.getSnapshot();
-    if (!snapshot) return null;
-    const gifts = (Array.isArray(snapshot.gifts) ? snapshot.gifts : []).map((gift) => ({
-      ...gift,
-      imagePath: remoteImageCache ? remoteImageCache.getCachedGiftImagePath(gift) : '',
-    }));
-    const result = { ...snapshot, assetsUpdatedAt, count: gifts.length, gifts };
-    if (cacheable) globalCache = { key, snapshot: result };
-    return result;
+    return readCachedImages(globalCache);
+  }
+
+  function readCachedImages(cache) {
+    const revision = remoteImageCache?.getRevision?.();
+    if (!remoteImageCache || (revision !== undefined && cache.imageRevision === revision)) return cache.snapshot;
+    let changed;
+    for (const [i, source] of cache.sources.entries()) {
+      const imagePath = snapshotImagePath(source, revision);
+      const gift = cache.snapshot.gifts[i];
+      if (gift.imagePath === imagePath) continue;
+      changed ??= [...cache.snapshot.gifts];
+      changed[i] = { ...gift, imagePath };
+    }
+    if (changed) cache.snapshot = { ...cache.snapshot, gifts: changed };
+    cache.imageRevision = revision;
+    return cache.snapshot;
   }
 
   function getGlobalSnapshot({ conditional = false, contentRevision } = {}) {
@@ -226,14 +238,14 @@ function createHybridGiftSaleCatalogService(options = {}) {
     // Image integrity expires independently of the unchanged gift identity index.
     const imageRevision = remoteImageCache?.getRevision?.();
     if (artworkCache?.catalog !== artworkCatalog || artworkCache.imageRevision !== imageRevision ||
-      (remoteImageCache && !remoteImageCache.getRevision)) {
+      (remoteImageCache && imageRevision === undefined)) {
       const { gifts, byGiftId } = artworkCatalog;
       const paths = new Map();
       artworkCache = { catalog: artworkCatalog, imageRevision, resolve(key) {
         if (!paths.has(key)) {
           const entry = gifts.get(key) || byGiftId.get(key);
           if (!entry) return undefined;
-          paths.set(key, remoteImageCache ? remoteImageCache.getCachedGiftImagePath(entry.gift) : entry.imagePath);
+          paths.set(key, remoteImageCache ? snapshotImagePath(entry.gift, imageRevision) : entry.imagePath);
         }
         return paths.get(key);
       } };
@@ -398,22 +410,10 @@ async function decorateRoomSnapshot(roomSnapshot, serverSnapshot, remoteImageCac
   return { ...merged, count: gifts.length, gifts };
 }
 
-function decorateWithCachedImages(snapshot, remoteImageCache) {
-  if (!remoteImageCache) return snapshot;
-  const gifts = snapshot.gifts.map((gift) => ({
-    ...gift,
-    imagePath: remoteImageCache.getCachedGiftImagePath(gift),
-  }));
-  return { ...snapshot, count: gifts.length, gifts };
-}
-
-function cloneRoomSnapshot(snapshot, cached) {
+function publicRoomSnapshot(snapshot, cached) {
   return {
     ...snapshot,
-    gifts: (Array.isArray(snapshot?.gifts) ? snapshot.gifts : []).map((gift) => {
-      const { sourceUrl: _sourceUrl, ...publicGift } = gift;
-      return structuredClone(publicGift);
-    }),
+    gifts: (snapshot.gifts || []).map(({ sourceUrl: _sourceUrl, ...gift }) => gift),
     cached,
   };
 }

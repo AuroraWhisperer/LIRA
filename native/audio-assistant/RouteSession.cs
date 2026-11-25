@@ -209,6 +209,7 @@ internal sealed class RouteSession : IDisposable
       record.Restoring = true;
       Save(path, record);
       bool replied = false;
+      int deferredDelay = 500;
       while (File.Exists(path))
       {
         string? error = RestoreRecord(path, record);
@@ -226,7 +227,12 @@ internal sealed class RouteSession : IDisposable
         // Installers may replace this binary only after the endpoint is safe.
         // Keep deferred player undo information for recovery by the next version.
         if (record.MutedEndpoint == null && installationExit.WaitOne(0)) return;
-        if (pending) Thread.Sleep(500);
+        if (pending && record.MutedEndpoint != null) Thread.Sleep(500);
+        else if (pending)
+        {
+          if (installationExit.WaitOne(deferredDelay)) return;
+          deferredDelay = Math.Min(5000, deferredDelay * 2);
+        }
       }
     }
     finally { endpointOwnership?.Dispose(); }

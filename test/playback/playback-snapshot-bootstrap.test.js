@@ -8,8 +8,9 @@ const { createPlaybackStore } = require('../../src/storage/playback-store');
 const { MUSIC_SCHEMA } = require('../../src/storage/schema');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { listenHttpServer } = require('../helpers/transport-fixtures');
 
-function fixture(t) {
+async function fixture(t) {
   const db = new DatabaseSync(':memory:');
   db.exec(MUSIC_SCHEMA);
   t.after(() => db.close());
@@ -23,43 +24,30 @@ function fixture(t) {
       return store.beginQueueStateSession();
     },
   });
+  const { origin } = await listenHttpServer(t, { servePageOrAsset: transport.servePageOrAsset });
   return {
     store,
     bootCount: () => bootCount,
-    page(pathname, method = 'GET') {
-      return new Promise((resolve) => {
-        let status;
-        let headers = {};
-        transport.servePageOrAsset(
-          { method, headers: { 'if-none-match': 'cached-page', authorization: 'Bearer synthetic-token' } },
-          {
-            setHeader(name, value) {
-              headers[name] = value;
-            },
-            writeHead(code, nextHeaders) {
-              status = code;
-              headers = { ...headers, ...nextHeaders };
-            },
-            end(body) {
-              const html = body?.toString() || '';
-              const version = html.match(/window\.__PLAYBACK_SNAPSHOT_WRITER__=(\{[^;]+\});/);
-              resolve({ status, headers, html, writer: version ? JSON.parse(version[1]) : null });
-            },
-          },
-          new URL(pathname, 'http://127.0.0.1'),
-        );
+    async page(pathname, method = 'GET') {
+      const response = await fetch(new URL(pathname, origin), {
+        method,
+        headers: { 'if-none-match': 'cached-page', authorization: 'Bearer synthetic-token' },
+        redirect: 'manual',
       });
+      const html = await response.text();
+      const version = html.match(/window\.__PLAYBACK_SNAPSHOT_WRITER__=(\{[^;]+\});/);
+      return { status: response.status, headers: response.headers, html, writer: version ? JSON.parse(version[1]) : null };
     },
   };
 }
 
 test('every composed admin alias receives a fresh uncached playback boot generation', async (t) => {
-  const f = fixture(t);
+  const f = await fixture(t);
   let previous;
   for (const alias of ['/', '/admin', '/settings', '/songs', '/admin?section=playback']) {
     const page = await f.page(alias);
     assert.equal(page.status, 200);
-    assert.equal(page.headers['Cache-Control'], 'no-store');
+    assert.equal(page.headers.get('cache-control'), 'no-store');
     assert.ok(page.writer);
     assert.ok(page.html.indexOf('__PLAYBACK_SNAPSHOT_WRITER__') < page.html.indexOf('</head>'));
     assert.equal(page.writer.generation, (previous?.generation || 0) + 1);
@@ -71,8 +59,8 @@ test('every composed admin alias receives a fresh uncached playback boot generat
   assert.notEqual(next.writer.writerId, previous.writerId);
 });
 
-test('HEAD, standalone toolbox fragments and overlay visits do not retire the active player', async (t) => {
-  const f = fixture(t);
+test('HEAD, static scripts, standalone fragments and overlay visits do not retire the active player', async (t) => {
+  const f = await fixture(t);
   const active = await f.page('/');
   const version = { ...active.writer, senderGeneration: 1, sequence: 1 };
   f.store.saveQueueState({ currentTime: 37, snapshotVersion: version });
@@ -92,6 +80,7 @@ test('HEAD, standalone toolbox fragments and overlay visits do not retire the ac
     const page = await f.page(pathname);
     assert.equal(page.status, 200, pathname);
     assert.equal(page.writer, null, pathname);
+    if (pathname.endsWith('.js')) assert.match(page.headers.get('content-type'), /javascript/);
   }
   assert.equal(f.bootCount(), 1);
   assert.equal(
@@ -106,7 +95,7 @@ test('HEAD, standalone toolbox fragments and overlay visits do not retire the ac
 
 for (const savedBeforeNextPage of [false, true]) {
   test(`an unexecuted admin HTML response preserves the ${savedBeforeNextPage ? 'active' : 'not-yet-saved'} sender`, async (t) => {
-    const f = fixture(t);
+    const f = await fixture(t);
     const active = await f.page('/');
     const version = { ...active.writer, senderGeneration: 1, sequence: 1 };
     if (savedBeforeNextPage) {

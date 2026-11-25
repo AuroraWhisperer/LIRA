@@ -19,9 +19,6 @@
 .danmaku-fixed-reply-section .switch-control input:checked + .switch-track::after {
   transform: translateX(14px);
 }
-.danmaku-song-reply-examples {
-  margin: 16px 0;
-}
 .danmaku-song-reply-examples > div {
   display: grid;
   grid-template-columns: minmax(100px, 1fr) minmax(0, 3fr);

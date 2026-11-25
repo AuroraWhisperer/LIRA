@@ -51,6 +51,24 @@ function fixture(t, patch = {}) {
   };
 }
 
+for (const entry of ['manual', 'random']) {
+  test(`${entry} selection of an artistless song charges only that version's cooldown`, (t) => {
+    const f = fixture(t, { onlyFromLibrary: 'true' });
+    const instrumental = f.saveSong({ name: '回声', categoryName: '器乐', tags: '无词' });
+    t.mock.timers.tick(1);
+    const vocal = f.saveSong({ name: '回声', artist: '独唱歌手', categoryName: '声乐' });
+    assert.equal(f.context.findSong('回声').id, vocal.id);
+    const item = entry === 'manual'
+      ? f.add({ songName: instrumental.name, artist: instrumental.artist, categoryName: '器乐' })
+      : f.message('随机点歌 无词').queueItem;
+    assert.equal(item.song_id, instrumental.id);
+    assert.equal(item.artist, '');
+    queue.handleQueueAction(f.context, 'delete', item.id);
+    assert.throws(() => f.add({ songName: instrumental.name, artist: '' }), { code: 'SONG_COOLDOWN' });
+    assert.equal(f.add({ songName: vocal.name, artist: vocal.artist }).song_id, vocal.id);
+  });
+}
+
 test('cooldown starts at acceptance, is shared by viewers, and rejects without extending it', (t) => {
   const f = fixture(t);
   f.add({ messageTimestamp: '2020-01-01T00:00:00Z' });
@@ -67,6 +85,17 @@ test('cooldown starts at acceptance, is shared by viewers, and rejects without e
   assert.throws(() => f.add(), { code: 'SONG_COOLDOWN' });
   t.mock.timers.tick(1);
   assert.equal(f.message('点歌晴天').accepted, true);
+});
+
+test('the transaction rejects a cooling song before requester limits without a second lookup', t => {
+  const f = fixture(t, { userQueueLimit: '1' });
+  const input = { viewerRequest: true, requesterUid: '123', requesterIdentityType: 'uid' };
+  const outside = t.mock.method(f.context.store, 'getSongCooldown');
+  f.add(input);
+  assert.throws(() => f.add(input), { code: 'SONG_COOLDOWN' });
+  assert.throws(() => f.add({ ...input, songName: '另一首歌' }), { code: 'USER_QUEUE_FULL' });
+  assert.equal(outside.mock.callCount(), 0);
+  assert.equal(f.context.store.countActive(), 1);
 });
 
 test('cooldown reads existing script variants, keeps stored keys and applies to random candidates', (t) => {

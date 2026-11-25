@@ -8,6 +8,13 @@ const NO_FOLLOW = fs.constants.O_NOFOLLOW || 0;
 const TRUNCATION_MARKER = '...[truncated]';
 const NORMAL_LOG_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const ERROR_LOG_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const NORMAL_ENTRY_BYTES = 2 * 1024;
+const ERROR_ENTRY_BYTES = 16 * 1024;
+const NORMAL_FILE_BYTES = 1024 * 1024;
+const ERROR_FILE_MULTIPLIER = 3;
+const ERROR_FILE_BYTES = NORMAL_FILE_BYTES * ERROR_FILE_MULTIPLIER;
+const RUNTIME_LOG_DIRECTORY = 'runtime';
+const ERROR_LOG_DIRECTORY = 'errors';
 const maintenanceTimes = new Map();
 const LEGACY_TEXT_ERROR = /\[(?:terminal:(?:warn|error)|desktop:[^\]]*(?:warn|warning|error|failed|failure|fatal))\]/i;
 
@@ -48,6 +55,12 @@ function appendBoundedFileSync(filePath, line, options) {
   return { written: count === 1, reason, bytes };
 }
 
+function markLogMaintenanceComplete(filePath, now) {
+  maintenanceTimes.delete(filePath);
+  if (maintenanceTimes.size >= 64) maintenanceTimes.delete(maintenanceTimes.keys().next().value);
+  maintenanceTimes.set(filePath, now);
+}
+
 function appendBoundedLinesSync(filePath, lines, options = {}) {
   const maxFileBytes = Math.max(1, Math.floor(Number(options.maxFileBytes) || Number(options.maxEntryBytes) || 1));
   const maxEntryBytes = Math.min(maxFileBytes, Math.max(1, Number(options.maxEntryBytes) || 1));
@@ -56,23 +69,25 @@ function appendBoundedLinesSync(filePath, lines, options = {}) {
   if (!lines.length) return { count, reason: '', bytes };
 
   try {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     const now = options.now ?? Date.now();
     const lastMaintenance = maintenanceTimes.get(filePath);
     if (lastMaintenance === undefined || now < lastMaintenance || now - lastMaintenance >= 60 * 60 * 1000) {
       const maintained = maintainBoundedFilesSync(filePath, { ...options, now, maxFileBytes });
       if (!maintained.written) return { count, reason: maintained.reason, bytes };
-      if (maintenanceTimes.size >= 64) maintenanceTimes.delete(maintenanceTimes.keys().next().value);
-      maintenanceTimes.set(filePath, now);
+      markLogMaintenanceComplete(filePath, now);
     }
     const entries = lines.map((line) => Buffer.from(boundedEntry(line, maxEntryBytes)));
     while (count < entries.length) {
       const files = regularLogFiles(filePath);
       if (!files) return { count, reason: 'unsafe-target', bytes };
+      let currentBytes = files[0].stat?.size || 0;
       for (const { file, stat } of files) {
-        if (stat?.size > maxFileBytes) trimFileTailSync(file, maxFileBytes);
+        if (stat?.size > maxFileBytes) {
+          const trimmedSize = trimFileTailSync(file, maxFileBytes);
+          if (file === filePath) currentBytes = trimmedSize;
+        }
       }
-      let currentBytes = files[0].stat ? fs.statSync(filePath).size : 0;
+      if (!files[0].stat) fs.mkdirSync(path.dirname(filePath), { recursive: true });
       if (currentBytes + entries[count].length > maxFileBytes) {
         if (files[1].stat) {
           // A same-path rename detects a Windows deny-delete handle before retiring either archive.
@@ -198,6 +213,7 @@ function trimFileTailSync(filePath, maxBytes) {
     const complete = start > 0 ? tail.subarray(newline < 0 ? tail.length : newline + 1) : tail;
     fs.writeSync(descriptor, complete, 0, complete.length, 0);
     fs.ftruncateSync(descriptor, complete.length);
+    return complete.length;
   } finally {
     fs.closeSync(descriptor);
   }
@@ -229,8 +245,16 @@ module.exports = {
   appendBoundedLinesSync,
   LEGACY_TEXT_ERROR,
   maintainBoundedFilesSync,
+  markLogMaintenanceComplete,
   logTimestamp,
   NORMAL_LOG_AGE_MS,
   ERROR_LOG_AGE_MS,
+  NORMAL_ENTRY_BYTES,
+  ERROR_ENTRY_BYTES,
+  NORMAL_FILE_BYTES,
+  ERROR_FILE_BYTES,
+  ERROR_FILE_MULTIPLIER,
+  RUNTIME_LOG_DIRECTORY,
+  ERROR_LOG_DIRECTORY,
   truncateUtf8,
 };

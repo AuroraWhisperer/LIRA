@@ -1,8 +1,9 @@
 import { createOverlaySocket } from './socket-client.js';
 import { createInteractionClient } from '../shared/interaction-client.js';
-import { renderPollRows, interactionStatus } from '../shared/interaction-view.js';
+import { createPollCountdown, renderPollRows, interactionStatus } from '../shared/interaction-view.js';
 import { readInteractionAppearance, applyInteractionAppearance } from '../shared/interaction-appearance.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
+import { createVisibleCountdown } from './visible-countdown.js';
 
 const byId = (id) => document.getElementById(id);
 let session = null;
@@ -11,7 +12,15 @@ let disposed = false;
 let appearance = readInteractionAppearance();
 let componentKind = 'poll';
 let componentData = null;
+const countdown = createPollCountdown();
+const clock = createVisibleCountdown(() => {
+  if (session?.kind !== 'poll' || session.phase !== 'collecting' || !session.connected || byId('interactionStatus').hidden) return;
+  const remainingMs = countdown.remainingMs();
+  byId('interactionStatus').textContent = interactionStatus(session, remainingMs);
+  return remainingMs;
+});
 const client = createInteractionClient({
+  countdown,
   onState: render,
   async fetchState() {
     const token = window.__API_TOKEN__;
@@ -58,15 +67,16 @@ function render(state) {
   }
   session = next;
   byId('interactionStage').hidden = !session;
-  if (!session) return;
+  if (!session) { clock.sync(); return; }
   byId('interactionStage').dataset.kind = session.kind;
   const title = appearance.interactionOverlayTitle;
   byId('interactionTitle').textContent = title;
   byId('interactionTitle').hidden = !title;
   byId('interactionTitle').classList.toggle('is-long', Array.from(title).length > 35);
   byId('interactionHint').textContent = appearance.interactionOverlayHint;
-  byId('interactionStatus').textContent = interactionStatus(session);
+  byId('interactionStatus').textContent = interactionStatus(session, countdown.remainingMs());
   byId('interactionStatus').hidden = appearance.interactionShowStatus !== 'true';
+  clock.sync();
   byId('interactionTitle').parentElement.hidden = !title && byId('interactionStatus').hidden;
   byId('interactionWarning').textContent = session.receptionInterrupted ? '接收曾中断，结果可能不完整' : '';
   byId('interactionRows').hidden = session.kind !== 'poll';
@@ -92,9 +102,6 @@ function render(state) {
     byId('interactionParticipants').hidden && !byId('interactionWarning').textContent;
 }
 
-const clock = setInterval(() => {
-  if (session) byId('interactionStatus').textContent = interactionStatus(session);
-}, 250);
 const component = mountSceneExtraClient('interactions', {
   onConfig(config) {
     componentKind = config.kind;
@@ -102,18 +109,20 @@ const component = mountSceneExtraClient('interactions', {
     renderComponent();
   },
   onData(data) { componentData = data; renderComponent(); },
-  onDispose() { clearInterval(clock); },
+  onDispose() { clock.dispose(); },
 });
 function renderComponent() {
   const next = componentData?.sessions?.[componentKind] || componentData?.session;
-  render({ session: next?.kind === componentKind ? next : null });
+  const selected = next?.kind === componentKind ? next : null;
+  countdown.sync(selected);
+  render({ session: selected });
 }
 if (!component) { refresh(); socket.start(); }
 window.addEventListener(
   'beforeunload',
   () => {
     disposed = true;
-    clearInterval(clock);
+    clock.dispose();
     clearTimeout(retry);
     client.dispose();
     socket.dispose();

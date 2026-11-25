@@ -19,9 +19,16 @@ function response() {
 }
 
 test('wishes API rejects client source selection and maps stale and invalid writes', async () => {
+  const read = routes['GET /api/gifts/wishes'];
+  const context = { giftWishes: { getSnapshot: ({ includeSession = true } = {}) => ({ session: includeSession ? { state: 'live' } : null }) } };
+  for (const [query, state] of [['', 'live'], ['includeSession=0', null]]) {
+    const res = response();
+    await read(context, { query: new URLSearchParams(query) }, res);
+    assert.equal(res.payload.data.session?.state ?? null, state);
+  }
   for (const key of ['sourceId', 'source_id']) {
     const res = response();
-    await routes['GET /api/gifts/wishes']({}, { query: new URLSearchParams(`${key}=1`) }, res);
+    await read({}, { query: new URLSearchParams(`includeSession=0&${key}=1`) }, res);
     assert.equal(res.status, 400);
   }
   for (const [code, status] of [

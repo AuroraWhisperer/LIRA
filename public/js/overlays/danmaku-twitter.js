@@ -1,7 +1,8 @@
+import { createTextElement as node } from '../shared/dom-element.js';
 import { TWITTER_COLOR_DEFAULTS } from '../shared/danmaku-style-options.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const GUARD_NAMES = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+import { GUARD_LABELS as GUARD_NAMES } from '../shared/bilibili-guard-labels.js';
 const GUARD_HANDLES = Object.freeze({ 1: 'Governor', 2: 'Admiral', 3: 'Captain' });
 const GUARD_COLORS = Object.freeze({
   1: '--guard-governor',
@@ -221,13 +222,6 @@ function svgRoot(document, className) {
 function svgNode(document, tag, attributes) {
   const element = document.createElementNS(SVG_NS, tag);
   for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
-  return element;
-}
-
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = text;
   return element;
 }
 

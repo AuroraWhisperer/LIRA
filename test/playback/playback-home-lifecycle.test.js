@@ -200,6 +200,47 @@ test('track menus release their outside listener on button, keyboard and drawer 
   assert.equal(listeners.size, baseline, 'closing before listener installation cancels it');
 });
 
+test('reopening a cold liked drawer shares pagination and can retry after a shared page fails', async () => {
+  const offsets = [];
+  let gate;
+  let failPage = true;
+  const [{ HomeService }, { ContentLoader }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/playback/services/home-service.js'),
+    path.join(ROOT_DIR, 'public/js/playback/content/loader.js'),
+  ], {
+    async fetch(_url, options) {
+      const { offset } = JSON.parse(options.body);
+      offsets.push(offset);
+      await gate.promise;
+      if (failPage && offset === 100) throw new Error('page unavailable');
+      const tracks = Array.from({ length: Math.min(100, 250 - offset) }, (_, i) => ({ id: `${offset + i}` }));
+      return response({ ok: true, data: { tracks } });
+    },
+  });
+  const cache = new Map();
+  const state = { selectedSource: 'qq' };
+  const contentLoader = new ContentLoader({ state, cacheManager: cache, readJsonResponse: r => r.payload });
+  const service = new HomeService({ state, contentLoader });
+  async function reopen() {
+    gate = Promise.withResolvers();
+    const closed = service.loadContent('liked');
+    service.clearHomeState();
+    const reopened = service.loadContent('liked');
+    gate.resolve();
+    assert.equal((await closed).stale, true);
+    return reopened;
+  }
+  await assert.rejects(reopen(), /page unavailable/);
+  assert.equal(cache.size, 0);
+  assert.deepEqual(offsets, [0, 100]);
+
+  failPage = false;
+  offsets.length = 0;
+  assert.equal((await reopen()).items.length, 250);
+  assert.equal(cache.get('qq:liked').items[249].id, '249');
+  assert.deepEqual(offsets, [0, 100, 200]);
+});
+
 test('account invalidation stops liked pagination after the outstanding page', async () => {
   let resolvePage;
   let requests = 0;
@@ -258,6 +299,157 @@ test('playlist refresh bypasses old backend entries and caches an empty result a
   assert.equal(cache.get('qq:playlist-tracks:synthetic').items.length, 0);
   assert.equal((await service.getMusicHomeContent(registry, request)).tracks.length, 0);
 });
+
+test('a committed playlist removal keeps its receipt after drawer closure or refresh failure', async () => {
+  const dir = path.join(ROOT_DIR, 'public/js/playback');
+  const [{ HomeService }, { ContentLoader }] = await loadModuleExports([
+    path.join(dir, 'services/home-service.js'), path.join(dir, 'content/loader.js'),
+  ], { fetch: async () => {
+    reads++;
+    if (failRead) throw new Error('playlist offline');
+    return response({ ok: true, data: { tracks: [...tracks] } });
+  } });
+  const tracks = [{ id: 'a' }, { id: 'b' }];
+  const notices = [], renders = [], errors = [];
+  const cache = new Map([['netease:liked', { items: [] }]]);
+  const state = { selectedSource: 'qq' };
+  let reads = 0, writes = 0, failRead = false;
+  const contentLoader = new ContentLoader({ state, readJsonResponse: r => r.payload, cacheManager: {
+    get: key => cache.get(key), set: (key, value) => cache.set(key, value), remove: key => cache.delete(key),
+  } });
+  const homeService = new HomeService({ state, contentLoader, onError: error => errors.push(error.message) });
+  const receipt = Promise.withResolvers();
+  const { createPlaylistOperations } = await loadModuleExports(path.join(dir, 'operations/playlist-operations.js'), {
+    async fetch(_url, { body }) {
+      writes++;
+      assert.equal(JSON.parse(body).tracks[0].id, tracks.shift().id);
+      await receipt.promise;
+      return response({ ok: true });
+    },
+  }, { moduleFixtures: new Map([[path.join(dir, 'ui/components.js'), { showConfirmDialog: async () => true }]]) });
+  const operations = createPlaylistOperations({ playbackState: state, homeService, readJsonResponse: r => r.payload,
+    toast: (_message, notice) => notices.push(notice), renderPlaybackHomeResults: action => renders.push(action) });
+
+  await homeService.loadContent('liked');
+  const removal = operations.removeTrackFromPlaylist(tracks[0], 'liked');
+  await flushAsyncWork();
+  homeService.clearHomeState();
+  receipt.resolve();
+  await removal;
+  assert.equal(writes, 1);
+  assert.equal(reads, 1);
+  assert.equal(notices.at(-1).type, 'success');
+  assert.deepEqual([...cache.keys()], ['netease:liked']);
+  assert.deepEqual(errors, []);
+  assert.deepEqual(renders, []);
+
+  assert.deepEqual(Array.from((await homeService.loadContent('liked')).items, item => item.id), ['b']);
+  failRead = true;
+  await operations.removeTrackFromPlaylist(tracks[0], 'liked');
+  assert.equal(writes, 2);
+  assert.equal(notices.at(-1).type, 'success');
+  assert.deepEqual(errors, ['playlist offline']);
+  assert.deepEqual(renders, ['liked']);
+  assert.equal(homeService.getHomeState().items.length, 0);
+});
+
+test('playlist removal during navigation refreshes only its own detail after opening', async () => {
+  const { HomeService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/home-service.js'));
+  const state = { selectedSource: 'netease' };
+  const read = Promise.withResolvers();
+  const requests = [];
+  const invalidated = [];
+  const service = new HomeService({ state, contentLoader: {
+    getPlatformGeneration: () => 0,
+    invalidateCachedContent(_platform, action, playlistId) { invalidated.push([action, playlistId]); },
+    async loadHomeContent(action, { playlistId, forceRefresh }) {
+      if (action === 'created-playlists') {
+        return { action, itemType: 'playlist', items: [{ id: 'a', title: '喜欢的翻唱' }, { id: 'b' }] };
+      }
+      requests.push(playlistId);
+      if (playlistId === 'b' && !forceRefresh) await read.promise;
+      return { action, itemType: 'track', items: forceRefresh ? [] : [{ id: 'old' }] };
+    },
+  } });
+  await service.loadContent('created-playlists');
+  await service.loadPlaylistTracks(0);
+  const target = service.getPlaylistRemovalTarget('playlist-tracks');
+  const removed = service.getItemByIndex(0);
+  service.goBack();
+  const opening = service.loadPlaylistTracks(1);
+  assert.equal((await service.refreshAfterPlaylistRemoval(target, removed)).stale, true);
+  const second = { ...target, playlist: { id: 'b' } };
+  assert.equal((await service.refreshAfterPlaylistRemoval({ ...second, platform: 'qq' }, removed)).stale, true);
+  const refresh = service.refreshAfterPlaylistRemoval(second, removed);
+  read.resolve();
+  await opening;
+  assert.equal((await refresh).items.length, 0);
+  assert.equal(service.getCurrentPlaylist().id, 'b');
+  assert.deepEqual(requests, ['a', 'b', 'b']);
+
+  await service.loadContent('liked');
+  const readsBeforeReceipt = requests.length;
+  invalidated.length = 0;
+  const ordinary = await service.refreshAfterPlaylistRemoval(target, removed, { playlistId: 'a', isLikedPlaylist: false });
+  assert.equal(ordinary.stale, true);
+  assert.deepEqual(invalidated, [['playlist-tracks', 'a']]);
+  assert.equal(requests.length, readsBeforeReceipt);
+  assert.equal(service.getItemByIndex(0).id, 'old');
+});
+
+for (const fromLiked of [true, false]) {
+  test(`NetEase removal reconciles a cold read through the other favorite-playlist entry (from liked: ${fromLiked})`, async () => {
+    const state = { selectedSource: 'netease' };
+    const cache = new Map(), errors = [];
+    const reads = [];
+    const oldRead = Promise.withResolvers();
+    const tracks = [{ id: 'a' }, { id: 'b' }];
+    let delayRead = false;
+    const [{ HomeService }, { ContentLoader }] = await loadModuleExports([
+      path.join(ROOT_DIR, 'public/js/playback/services/home-service.js'), path.join(ROOT_DIR, 'public/js/playback/content/loader.js'),
+    ], { async fetch(_url, { body }) {
+      const { action } = JSON.parse(body);
+      if (action === 'created-playlists') return response({ ok: true, data: { playlists: [{ id: '77', title: '我喜欢的音乐' }] } });
+      const snapshot = [...tracks];
+      reads.push(action);
+      if (delayRead) await oldRead.promise;
+      else if (!fromLiked && tracks.length === 1) throw new Error('refresh offline');
+      return response({ ok: true, data: { tracks: snapshot } });
+    } });
+    const contentLoader = new ContentLoader({ state, readJsonResponse: r => r.payload, cacheManager: {
+      get: key => cache.get(key), set: (key, value) => cache.set(key, value), remove: key => cache.delete(key),
+    } });
+    const service = new HomeService({ state, contentLoader, onError: error => errors.push(error.message) });
+    const open = async liked => {
+      if (liked) return service.loadContent('liked');
+      await service.loadContent('created-playlists');
+      return service.loadPlaylistTracks(0);
+    };
+    await open(fromLiked);
+    const target = service.getPlaylistRemovalTarget(service.getHomeState().action);
+    service.clearHomeState();
+    service.clearHistory();
+    delayRead = true;
+    const opening = open(!fromLiked);
+    await flushAsyncWork();
+    const refresh = service.refreshAfterPlaylistRemoval(target, tracks.shift(), { playlistId: '77', isLikedPlaylist: true });
+    delayRead = false;
+    oldRead.resolve();
+    assert.equal((await opening).stale, true);
+    const result = await refresh;
+    assert.deepEqual(Array.from(result.items, item => item.id), ['b']);
+    const destination = fromLiked ? 'playlist-tracks' : 'liked';
+    assert.deepEqual(reads, [fromLiked ? 'liked' : 'playlist-tracks', destination, destination]);
+    assert.equal(cache.has(fromLiked ? 'netease:liked' : 'netease:playlist-tracks:77'), false);
+    if (fromLiked) {
+      assert.equal(service.getCurrentPlaylist().id, '77');
+      assert.deepEqual(Array.from(cache.get('netease:playlist-tracks:77').items, item => item.id), ['b']);
+    } else {
+      assert.deepEqual(errors, ['refresh offline']);
+      assert.equal(cache.has('netease:liked'), false);
+    }
+  });
+}
 
 test('personalized backend cache follows authorization across account changes and service restarts', async (t) => {
   const apiCacheDir = createScratchDirectory('personalized-account-cache-', t);
@@ -326,7 +518,11 @@ test('cached readers share refresh work without invalidating its cache write', a
     const cache = new Map([['qq:liked', { items: [{ id: 'cached' }], itemType: 'track', action: 'liked' }]]);
     const updates = [];
     const { ContentLoader } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/content/loader.js'), {
-      fetch: () => new Promise((resolve) => pending.push(resolve)),
+      fetch: () => {
+        const page = Promise.withResolvers();
+        pending.push(page);
+        return page.promise;
+      },
     });
     const loader = new ContentLoader({
       state: { selectedSource: 'qq' },
@@ -341,22 +537,28 @@ test('cached readers share refresh work without invalidating its cache write', a
     const explicitRefresh = forceRefresh
       ? loader.loadHomeContent('liked', {
           forceRefresh: true,
+          playlistId: 'previously-opened-playlist',
           requestGeneration: 2,
         })
       : null;
     await loader.loadHomeContent('liked', { requestGeneration: 3 });
     assert.equal(pending.length, forceRefresh ? 2 : 1);
     const fresh = response({ ok: true, data: { tracks: [{ id: 'fresh' }] } });
-    pending.at(-1)(fresh);
+    pending.at(-1).resolve(fresh);
     if (explicitRefresh) {
       assert.equal((await explicitRefresh).stale, true);
-      pending[0](response({ ok: true, data: { tracks: [{ id: 'old-background' }] } }));
+      pending[0].resolve(response({ ok: true, data: { tracks: [{ id: 'old-background' }] } }));
     }
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(cache.get('qq:liked').items[0].id, 'fresh');
     assert.equal(updates.length, 1);
     assert.equal(updates[0].requestGeneration, 3);
-    assert.equal(loader._cacheRequestGenerations.size, 0);
+    await loader.loadHomeContent('liked');
+    assert.equal(pending.length, forceRefresh ? 3 : 2, 'a later visit revalidates after the shared task finishes');
+    pending.at(-1).reject(new Error('offline'));
+    await new Promise(setImmediate);
+    assert.equal(cache.get('qq:liked').items[0].id, 'fresh');
+    assert.equal(updates.length, 1);
   }
 });
 
@@ -396,13 +598,13 @@ test('account invalidation preserves other providers and a replacement refresh k
   assert.equal(pending.length, 2);
   pending[0]({ items: [{ id: 'old-account' }], itemType: 'track', action: 'liked' });
   await new Promise(setImmediate);
-  assert.equal(loader._bgRefreshing.size, 1);
+  await loader.loadHomeContent('liked');
+  assert.equal(pending.length, 2, 'the old completion must not release the new account request');
   assert.equal(cache.get('qq:liked').items[0].id, 'cached');
   loader.invalidatePlatform('netease');
   pending[1]({ items: [{ id: 'new-account' }], itemType: 'track', action: 'liked' });
   await new Promise(setImmediate);
   assert.equal(cache.get('qq:liked').items[0].id, 'new-account');
-  assert.equal(loader._bgRefreshing.size, 0);
 });
 
 test('HomeService keeps the newest home request and ignores stale success or failure', async () => {
@@ -551,7 +753,9 @@ test('ContentLoader keeps the newest result when same-key requests finish out of
     ['new-track'],
   );
 
-  pending[0](response({ ok: true, data: { tracks: [{ id: 'old-track' }] } }));
+  pending[0](response({ ok: true, data: { tracks: Array.from({ length: 100 }, (_, i) => ({ id: `${i}` })) } }));
+  await new Promise(setImmediate);
+  assert.equal(pending.length, 2, 'a superseded refresh must not fetch its next page');
   assert.equal((await staleRequest).stale, true);
   assert.deepEqual(
     Array.from(cache.get('qq:liked').items, (item) => item.id),

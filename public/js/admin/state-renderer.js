@@ -1,6 +1,6 @@
 'use strict';
 
-import { initParameterRanges } from '../shared/parameter-range.js';
+import { refreshParameterRanges } from '../shared/parameter-range.js';
 import { isComponentFieldEditing } from './component-preview-panel.js';
 import { receiveComponentSettings, projectComponentDrafts } from './component-settings-sync.js';
 import { songs } from './songs.js';
@@ -56,16 +56,21 @@ export function createAdminStateRenderer({
 }
 
 export function fillSettings(settings, projected = settings) {
+  const ranges = [];
   for (const [key, inputValue] of Object.entries(projected || {})) {
     const element = document.getElementById(key);
     // These forms own their drafts and hydrate through their component controller.
     if (!element || element.closest('#openingAnimationForm, #displayForm, #themeForm, #guardThanksPanel, #desktopLyricForm')) continue;
     if (element.dataset.preserveDirty === 'true' && element.dataset.dirty === 'true') continue;
     if (!isComponentFieldEditing(element)) {
-      element.value = element.dataset.emptyUnlimited === 'true' && Number(inputValue) === 0 ? '' : inputValue;
+      const next = element.dataset.emptyUnlimited === 'true' && Number(inputValue) === 0 ? '' : inputValue;
+      if (element.value !== String(next)) {
+        element.value = next;
+        if (element.type === 'range') ranges.push(element);
+      }
     }
   }
-  initParameterRanges();
+  refreshParameterRanges(ranges);
   renderSongCooldownControls();
   for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
     const toggle = document.getElementById(key);

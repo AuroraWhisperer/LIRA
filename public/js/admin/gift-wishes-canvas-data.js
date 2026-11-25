@@ -3,6 +3,7 @@ import { createGiftWishFeed } from '../shared/gift-wish-client.js';
 export function startGiftWishesCanvasData(controller, emit) {
   const publish = data => emit({ previewData: { 'gift-wishes': data } });
   const feed = createGiftWishFeed({
+    includeSession: false,
     onData(data) {
       publish({ ...data, preview: true,
         message: data.items.length ? '' : '还没有保存的礼物许愿，请在客户端添加。' });

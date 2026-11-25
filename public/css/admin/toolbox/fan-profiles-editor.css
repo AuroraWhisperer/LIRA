@@ -13,9 +13,6 @@
 .fan-editor {
   width: min(720px, calc(100vw - 48px));
 }
-.fan-editor::backdrop {
-  background: var(--color-bg-overlay-light);
-}
 .fan-editor-heading {
   margin-bottom: 24px;
 }
@@ -388,9 +385,9 @@ label.fan-settings-row,
   position: absolute;
   width: 1px;
   height: 1px;
-  margin: 0;
   overflow: hidden;
   clip-path: inset(50%);
+  margin: 0;
   white-space: nowrap;
 }
 .fan-profile-editor #fanEditorFields {

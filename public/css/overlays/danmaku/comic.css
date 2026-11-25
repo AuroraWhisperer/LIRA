@@ -190,7 +190,7 @@ body[data-style='comic'][data-comic-writing-mode='vertical'] .comic-item:not(.is
 .comic-item[data-live-entry][data-comic-entrance='ink'] .comic-paper { animation: comicPaperIn var(--comic-enter-duration) ease-out backwards; }
 .comic-item[data-live-entry][data-comic-entrance='ink'] .comic-texture { animation: comicTextureIn var(--comic-enter-duration) ease-out backwards; }
 .comic-item[data-live-entry][data-comic-entrance='ink'] .comic-content { animation: comicCopyIn var(--comic-enter-duration) ease-out backwards; }
-.comic-item[data-live-entry][data-comic-entrance='fade'] .comic-surface { animation: comicFadeIn var(--comic-enter-duration) ease-out backwards; }
+.comic-item[data-live-entry][data-comic-entrance='fade'] .comic-surface { animation: danmakuEnterOpacity var(--comic-enter-duration) ease-out backwards; }
 
 @keyframes comicPaperPop {
   0% { opacity: 0; transform: scale(.84) rotate(-2deg); }
@@ -213,11 +213,7 @@ body[data-style='comic'][data-comic-writing-mode='vertical'] .comic-item:not(.is
   0%, 18% { opacity: 0; }
   75%, 100% { opacity: calc(var(--comic-texture, .08) * var(--danmaku-background-opacity, 1)); }
 }
-@keyframes comicFadeIn { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='comic'] .comic-item * { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='comic'] .draw-danmaku-item .comic-copy {

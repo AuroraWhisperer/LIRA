@@ -9,9 +9,11 @@ const { CLIENT_THEMES } = require('../../src/shared/client-theme');
 const css = fs.readFileSync(path.resolve(__dirname, '../../public/css/desktop/palettes.css'), 'utf8');
 const blocks = [...css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]+)\}/g)];
 const declarations = (body) => Object.fromEntries([...body.matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(([, key, value]) => [key, value]));
+const baseCss = fs.readFileSync(path.resolve(__dirname, '../../public/css/styles-base.css'), 'utf8');
+const baseTokens = declarations(baseCss.match(/:root\s*\{([^}]+)\}/)[1]);
 
 function themeTokens(id) {
-  const tokens = {};
+  const tokens = { ...baseTokens };
   for (const [, selector, body] of blocks) {
     if (!selector.trimStart().startsWith('html')) continue;
     const selectors = selector.split(',').map((part) => part.trim());

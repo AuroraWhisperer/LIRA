@@ -32,6 +32,7 @@ async function open(t) {
     createFeatureNavigation({ pageId: 'liveComponentsPage', storagePrefix: 'admin.liveComponents' }).initOtherPage();
     window.wishSaves = [];
     window.wishDeleted = [];
+    window.wishUrls = [];
     window.wishData = {
       viewRevision: 'one',
       partial: false,
@@ -48,7 +49,14 @@ async function open(t) {
     };
     window.fetch = async (url, options) => {
       let data = null;
-      if (url === '/api/gifts/wishes') data = structuredClone(window.wishData);
+      const request = new URL(url, location.href);
+      if (request.pathname === '/api/gifts/wishes') {
+        window.wishUrls.push(url);
+        data = structuredClone(window.wishData);
+        if (request.searchParams.get('includeSession') === '0' && !data.items.some(wish => wish.period === 'session')) {
+          data.session = null;
+        }
+      }
       else if (url.includes('/api/overtime/gifts')) data = { gifts: [window.catalogGift] };
       else if (url === '/api/gifts/wishes/save') {
         const body = JSON.parse(options.body);
@@ -97,18 +105,21 @@ async function loadSharedFont(page) {
   });
 }
 
-async function openOverlay(t, period, missingAbortMethods, display = {}) {
+async function openOverlay(t, period, missingAbortMethods, display = {}, { preview = false, empty = false, state = 'live' } = {}) {
   const page = await fixture(t, 'wish-overlay');
   await page.setContent('<main id="giftWishStage"></main><p id="giftWishOverlayStatus" hidden></p>');
   await page.evaluate(
-    async ({ period, missingAbortMethods, display }) => {
-      history.replaceState(null, '', period ? `/gift-wishes?period=${period}` : '/gift-wishes');
+    async ({ period, missingAbortMethods, display, preview, empty, state }) => {
+      const params = new URLSearchParams();
+      if (period) params.set('period', period);
+      if (preview) params.set('preview', '1');
+      history.replaceState(null, '', `/gift-wishes?${params}`);
       for (const method of missingAbortMethods) delete AbortSignal[method];
       window.wishData = {
         viewRevision: 'one',
         partial: false,
-        session: { state: 'live' },
-        items: ['long', 'day', 'session'].map((period) => ({
+        session: { state },
+        items: (empty ? [] : ['long', 'day', 'session']).map((period) => ({
           id: period,
           period,
           giftName: '小花花',
@@ -121,18 +132,24 @@ async function openOverlay(t, period, missingAbortMethods, display = {}) {
       };
       window.wishRequests = 0;
       window.fetch = async (url) => {
-        if (url !== '/api/gifts/wishes') throw new Error(`Unexpected fetch: ${url}`);
+        const request = new URL(url, location.href);
+        if (request.pathname !== '/api/gifts/wishes') throw new Error(`Unexpected fetch: ${url}`);
         window.wishRequests++;
-        return { ok: true, json: async () => ({ ok: true, data: structuredClone(window.wishData) }) };
+        window.wishUrl = url;
+        const data = structuredClone(window.wishData);
+        if (request.searchParams.get('includeSession') === '0' && !data.items.some(wish => wish.period === 'session')) {
+          data.session = null;
+        }
+        return { ok: true, json: async () => ({ ok: true, data }) };
       };
       await import('/js/overlays/gift-wishes.js');
     },
-    { period, missingAbortMethods, display },
+    { period, missingAbortMethods, display, preview, empty, state },
   );
   await page.waitForFunction(
     () => document.querySelector('.wish-card') || document.getElementById('giftWishOverlayStatus').textContent,
   );
-  assert.equal(await page.locator('#giftWishOverlayStatus').textContent(), '');
+  if (!empty && state === 'live') assert.equal(await page.locator('#giftWishOverlayStatus').textContent(), '');
   return page;
 }
 
@@ -150,19 +167,64 @@ test('period wishes load and update without AbortSignal any or timeout', async (
 
 test('unified wish source displays all periods and refreshes them together', async (t) => {
   const page = await openOverlay(t, null, ['any', 'timeout']);
+  assert.equal(await page.evaluate(() => window.wishUrl), '/api/gifts/wishes?includeSession=0');
   assert.deepEqual(await page.locator('.wish-card').evaluateAll((cards) => cards.map((card) => card.dataset.wishId)),
     ['long', 'day', 'session']);
   await page.evaluate(() => {
     for (const wish of window.wishData.items) Object.assign(wish, { count: 10, progress: 100, completed: true });
-    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'settings', reasons: ['gift:wishes', 'settings'],
+      state: { gifts: { viewRevision: 'one' } } });
   });
   await page.waitForFunction(() => document.querySelectorAll('.wish-card.is-complete').length === 3);
   assert.equal(await page.evaluate(() => window.wishRequests), 2);
   await page.evaluate(() => {
     window.wishData.items = [];
-    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', reasons: ['settings', 'gift:wishes'],
+      state: { gifts: { viewRevision: 'one' } } });
   });
   await page.waitForFunction(() => document.querySelectorAll('.wish-card').length === 0);
+  assert.equal(await page.evaluate(() => window.wishRequests), 3);
+});
+
+test('empty session preview requests live status; unified preview gets it with saved session wishes', async t => {
+  const source = await openOverlay(t, 'session', [], {}, { empty: true });
+  assert.equal(await source.evaluate(() => window.wishUrl), '/api/gifts/wishes?includeSession=0');
+  assert.equal(await source.locator('#giftWishOverlayStatus').isHidden(), true);
+  const session = await openOverlay(t, 'session', [], {}, { preview: true, empty: true, state: 'offline' });
+  assert.equal(await session.evaluate(() => window.wishUrl), '/api/gifts/wishes');
+  assert.match(await session.locator('#giftWishOverlayStatus').innerText(), /还未开播/);
+  const unified = await openOverlay(t, null, [], {}, { preview: true, state: 'offline' });
+  assert.equal(await unified.evaluate(() => window.wishUrl), '/api/gifts/wishes?includeSession=0');
+  assert.match(await unified.locator('#giftWishOverlayStatus').innerText(), /还未开播/);
+});
+
+test('switching the empty editor to session immediately replaces a pending card read', async t => {
+  const page = await open(t);
+  const cardsUrl = '/api/gifts/wishes?includeSession=0';
+  const period = page.locator('#giftWishPeriod');
+  await period.selectOption('day');
+  assert.deepEqual(await page.evaluate(() => window.wishUrls), [cardsUrl]);
+  await page.evaluate(() => {
+    const read = window.fetch;
+    window.wishData.session.state = 'offline';
+    window.fetch = async (url, options) => {
+      const response = await read(url, options);
+      if (url.endsWith('includeSession=0') && !window.late) {
+        window.oldSignal = options.signal;
+        await new Promise(resolve => { window.late = resolve; });
+      }
+      return response;
+    };
+  });
+  await page.locator('#giftWishesRefresh').click();
+  await page.waitForFunction(() => window.late);
+  await period.selectOption('session');
+  await page.waitForFunction(() => document.getElementById('giftWishStatus').textContent.includes('还未开播'));
+  assert.equal(await page.evaluate(() => window.oldSignal.aborted), true);
+  await page.evaluate(async () => { window.late(); await new Promise(resolve => setTimeout(resolve, 0)); });
+  assert.match(await page.locator('#giftWishStatus').innerText(), /还未开播/);
+  await period.selectOption('long');
+  assert.deepEqual(await page.evaluate(() => window.wishUrls), [cardsUrl, cardsUrl, '/api/gifts/wishes', cardsUrl]);
 });
 
 for (const cancellation of ['timeout', 'pagehide']) {
@@ -223,12 +285,21 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   await page.locator('#giftWishSave').click();
   assert.equal(await page.evaluate(() => window.wishSaves.length), 0);
   await page.locator('#giftWishTarget').fill('10');
-  await page.locator('#giftWishLabel').fill('<img src=x>');
+  const label = `<img src=x>🌸🎤${'愿'.repeat(27)}`;
+  const note = page.locator('#giftWishLabel');
+  await note.focus();
+  await page.keyboard.insertText(label + '尾');
+  await page.locator('#giftWishSave').click();
+  assert.equal(await page.evaluate(() => window.wishSaves.length), 0);
+  assert.equal(await note.inputValue(), label + '尾');
+  await note.press('End');
+  await note.press('Backspace');
   await page.locator('#giftWishSave').click();
   await page.locator('#giftWishCards .wish-card').waitFor();
   assert.equal(await page.locator('#giftWishCards .wish-card img').count(), 1);
   assert.equal(await page.evaluate(() => window.wishSaves[0].giftKey), 'flower-v1');
   await page.getByRole('button', { name: '编辑', exact: true }).click();
+  assert.equal(await note.inputValue(), label);
   await page.locator('#giftWishTarget').fill('20');
   await page.locator('#giftWishSave').click();
   await page.waitForFunction(() => document.querySelector('#giftWishCards .wish-card-target').textContent.includes('20'));

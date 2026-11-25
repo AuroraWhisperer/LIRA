@@ -125,13 +125,6 @@ internal static class AudioDevices
     throw new InvalidOperationException("播放器已退出，无法确认原来的输出设备。");
   }
 
-  public static bool IsMuted(string endpointId)
-  {
-    using var enumerator = new MMDeviceEnumerator();
-    using var device = enumerator.GetDevice(endpointId);
-    return device.AudioEndpointVolume.Mute;
-  }
-
   public static string[] SessionEndpoints(int pid)
   {
     var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -184,6 +177,12 @@ internal sealed class AudioDeviceNames : IMMNotificationClient, IDisposable
   {
     try { Marshal.ThrowExceptionForHR(enumerator.RegisterEndpointNotificationCallback(this)); }
     catch { enumerator.Dispose(); throw; }
+  }
+
+  public bool IsMuted(string endpointId)
+  {
+    using var device = enumerator.GetDevice(endpointId);
+    return device.AudioEndpointVolume.Mute;
   }
 
   public string Get(string id, Func<string> readName)

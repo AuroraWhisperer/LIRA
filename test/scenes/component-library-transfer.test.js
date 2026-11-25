@@ -39,15 +39,19 @@ async function fixture(t, withContents = true) {
   const inspected = await library.inspect(Readable.from([archive]), allow, 'gift-wishes');
   const pack = await library.install(inspected.id, allow, 'gift-wishes');
   library.config({ id: pack.styles[0].id, patch: { limit: 4, gap: 20 } });
-  const web = await createComponentWebLibrary(dataDir).add([
-    { path: 'scene.html', stream: Readable.from(['<html><img src="image.png"><script src="empty.js"></script></html>']) },
-    { path: 'image.png', stream: Readable.from([png]) }, { path: 'empty.js', stream: Readable.from([]) },
-  ], { type: 'background', entry: 'scene.html', name: '网页背景' }, allow);
   const text = storeTextImage(dataDir, png, 'image/png');
+  const imageId = path.basename(text.imagePath, '.png');
+  const entry = `${imageId}.html`;
+  const web = await createComponentWebLibrary(dataDir).add([
+    { path: entry, stream: Readable.from(['<html><img src="image.png"><script src="empty.js"></script></html>']) },
+    { path: 'image.png', stream: Readable.from([png]) }, { path: 'empty.js', stream: Readable.from([]) },
+  ], { type: 'background', entry, name: '网页背景' }, allow);
   const created = server.service.create({ title: '备份场景', canvas: { width: 1920, height: 1080 } });
-  const document = { ...created.document, items: [item('gift-wishes', pack.styles[0].config), item('browser', web.styles[0].config),
+  const document = { ...created.document, items: [item('gift-wishes', pack.styles[0].config),
+    item('browser', { ...web.styles[0].config, styleParameters: { [`web:${web.id}`]: { outline: { width: 3 } } } }),
     item('browser', { url: 'https://provider.test/?token=SYNTHETIC_PRIVATE_TOKEN', viewportWidth: 800, viewportHeight: 600 }),
-    item('text-box', { ...createTextBoxDefaults(), nodes: [{ type: 'image', name: '配图', src: text.imagePath }] })] };
+    item('text-box', { ...createTextBoxDefaults(), nodes: [{ type: 'image', name: '配图', src: text.imagePath },
+      { type: 'text', text: `配图编号 ${imageId}，工单 ${randomUUID()}` }] })] };
   const saved = server.service.save({ id: document.id, document, expectedRevision: created.revision });
   server.service.publishCanvas({ id: document.id, expectedRevision: saved.revision, expectedPublishedVersion: 0 });
   return { dataDir, server, library, store, transfer, pack, web, document };
@@ -74,9 +78,16 @@ test('portable backup restores current parameters, media, local HTML and text im
   assert.equal(resource.config.limit, 4); assert.equal(resource.config.gap, 20);
   assert.notEqual(resource.id, source.pack.styles[0].id);
   assert.equal(scenes[0].document.items[0].appearance.config.resourceStyle.id, resource.id);
-  const browser = scenes[0].document.items[1].appearance.config.url;
+  const { url: browser, styleParameters } = scenes[0].document.items[1].appearance.config;
   assert.notEqual(browser, source.web.styles[0].config.url);
+  assert.equal(styleParameters[`web:${browser.split('/')[2]}`].outline.width, 3);
   assert.equal((await fetch(`${destination.server.origin}${browser}`)).status, 200);
+  const original = source.document.items.at(-1).appearance.config.nodes;
+  for (const scene of scenes) {
+    const nodes = scene.document.items[2].appearance.config.nodes;
+    assert.equal(nodes[1].text, original[1].text);
+    assert.notEqual(nodes[0].src, original[0].src);
+  }
   const image = scenes[0].document.items[2].appearance.config.nodes[0].src;
   assert.deepEqual(Buffer.from(await (await fetch(`${destination.server.origin}${image}`)).arrayBuffer()), png);
   const again = await destination.transfer.inspect(Readable.from([archive]), allow);
@@ -88,6 +99,79 @@ test('portable backup restores current parameters, media, local HTML and text im
   assert.equal(roundPreview.packages, 2);
   await final.transfer.restore(roundPreview.id, allow);
   assert.equal(final.store.list().flatMap(pack => pack.styles).find(style => style.type === 'gift-wishes').config.limit, 4);
+});
+
+test('switched web styles survive backup after the previous package is reclaimed', async t => {
+  const source = await fixture(t, false);
+  const web = createComponentWebLibrary(source.dataDir);
+  const add = name => web.add([{ path: `${name}.html`, stream: Readable.from([`<p>${name}</p>`]) }],
+    { type: 'background', name, entry: `${name}.html` }, allow);
+  const a = await add('A'); const b = await add('B');
+  const created = source.server.service.create({ title: '更换网页样式', canvas: { width: 1280, height: 720 } });
+  const browser = item('browser', { ...a.styles[0].config, styleParameters: { [`web:${a.id}`]: { outline: { width: 3 } } } });
+  const document = { ...created.document, items: [browser] };
+  const saved = source.server.service.save({ id: document.id, document, expectedRevision: created.revision });
+  browser.appearance.config = { ...b.styles[0].config,
+    styleParameters: { ...browser.appearance.config.styleParameters, [`web:${b.id}`]: { outline: { width: 5 } } } };
+  const switched = source.server.service.save({ id: document.id, document, expectedRevision: saved.revision });
+  source.server.service.publishCanvas({ id: document.id, expectedRevision: switched.revision, expectedPublishedVersion: 0 });
+  const both = await bytes(source.transfer.backup(allow));
+  source.store.removePack(a.id);
+  const cleanup = await fetch(`${source.server.origin}/api/component-styles/cleanup`, { method: 'POST',
+    headers: { Authorization: `Bearer ${source.server.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [a.id] }) });
+  assert.equal(cleanup.status, 200);
+  assert.equal(fs.existsSync(source.store.directory(a.id)), false);
+
+  const onlyB = await bytes(source.transfer.backup(allow));
+  for (const [archive, count] of [[both, 2], [onlyB, 1]]) {
+    const destination = await fixture(t, false);
+    const inspected = await destination.transfer.inspect(Readable.from([archive]), allow);
+    assert.equal(inspected.packages, count);
+    assert.equal((await destination.transfer.restore(inspected.id, allow)).created, 2);
+    const packs = destination.store.list();
+    const restoredB = packs.find(pack => pack.styles[0].config.url.endsWith('/B.html'));
+    const historyId = count === 2 ? packs.find(pack => pack.id !== restoredB.id).id : a.id;
+    assert.notEqual(restoredB.id, b.id);
+    for (const { document: copy } of destination.server.service.list()) {
+      const config = copy.items[0].appearance.config;
+      assert.equal(config.url, restoredB.styles[0].config.url);
+      assert.equal(config.styleParameters[`web:${historyId}`].outline.width, 3);
+      assert.equal(config.styleParameters[`web:${restoredB.id}`].outline.width, 5);
+    }
+  }
+});
+
+test('literal upload and style paths require no files, while actual attachment fields do', async t => {
+  const source = await fixture(t, false);
+  const existing = storeTextImage(source.dataDir, png, 'image/png').imagePath;
+  const missing = `/scene-text-images/${randomUUID()}.png`;
+  const hidden = await createComponentWebLibrary(source.dataDir).add([
+    { path: 'ink.css', stream: Readable.from(['body { color: navy }']) },
+  ], { type: 'text-box', entry: 'ink.css' }, allow);
+  source.store.removePack(hidden.id);
+  const { cssStyle } = hidden.styles[0].config;
+  const created = source.server.service.create({ title: '素材路径备忘', canvas: { width: 1280, height: 720 } });
+  const config = { ...createTextBoxDefaults(), nodes: [missing, existing, cssStyle.src].map(text => ({ type: 'text', text })) };
+  const document = { ...created.document, items: [item('text-box', config)] };
+  let saved = source.server.service.save({ id: document.id, document, expectedRevision: created.revision });
+  const preview = await source.transfer.inspect(Readable.from([await bytes(source.transfer.backup(allow))]), allow);
+  assert.equal(preview.bytes, 0);
+  await source.transfer.restore(preview.id, allow);
+  const copy = source.server.service.list().find(scene => scene.document.id !== document.id);
+  assert.deepEqual(copy.document.items[0].appearance.config.nodes, config.nodes);
+  config.cssStyle = cssStyle;
+  saved = source.server.service.save({ id: document.id, document, expectedRevision: saved.revision });
+  const destination = await fixture(t, false);
+  const styled = await destination.transfer.inspect(Readable.from([await bytes(source.transfer.backup(allow))]), allow);
+  assert.equal(styled.packages, 1);
+  await destination.transfer.restore(styled.id, allow);
+  const restored = destination.server.service.list().map(scene => scene.document.items[0].appearance.config).find(config => config.cssStyle);
+  assert.equal(restored.nodes[2].text, cssStyle.src);
+  assert.notEqual(restored.cssStyle.id, cssStyle.id);
+  assert.equal((await fetch(`${destination.server.origin}${restored.cssStyle.src}`)).status, 200);
+  config.nodes = [{ type: 'image', name: '配图', src: missing }];
+  source.server.service.save({ id: document.id, document, expectedRevision: saved.revision });
+  await assert.rejects(bytes(source.transfer.backup(allow)));
 });
 
 test('an image-only backup retains its files after scene edits until the stream is cancelled', async t => {

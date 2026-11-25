@@ -83,10 +83,10 @@ function createBilibiliRuntime(options) {
     ]),
     getLiveStatus: () => liveStatus,
     getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
-    getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
-    getCheckinBotEnabled: () => settingsStore.getSettings().enableCheckinBot === 'true',
-    getFortuneBotEnabled: () => settingsStore.getSettings().enableFortuneBot === 'true',
-    getCustomReplyBotEnabled: () => settingsStore.getSettings().enableCustomReplyBot === 'true',
+    getAutoReplyEnabled: () => settingsStore.getSettings(['enableRandomTagReply']).enableRandomTagReply === 'true',
+    getCheckinBotEnabled: () => settingsStore.getSettings(['enableCheckinBot']).enableCheckinBot === 'true',
+    getFortuneBotEnabled: () => settingsStore.getSettings(['enableFortuneBot']).enableFortuneBot === 'true',
+    getCustomReplyBotEnabled: () => settingsStore.getSettings(['enableCustomReplyBot']).enableCustomReplyBot === 'true',
     createClient(roomId, auth) {
       if (client && client.roomId === roomId) {
         client.apiClient.updateAuth(auth.cookieHeader, auth.uid);
@@ -97,7 +97,7 @@ function createBilibiliRuntime(options) {
   });
 
   function getConfiguredRoomId() {
-    return normalizeRoomInput(settingsStore.getSettings().roomId);
+    return normalizeRoomInput(settingsStore.getSettings(['roomId']).roomId);
   }
 
   function getGameApiClient() {

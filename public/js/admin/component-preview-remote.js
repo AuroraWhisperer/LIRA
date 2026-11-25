@@ -1,3 +1,4 @@
+import { readApiResponse } from '../shared/json-response.js';
 import { requestTextBoxMedia } from './text-box-media.js';
 import { requestComponentStyles } from './component-style-api.js';
 import { requestOpeningSettings } from './opening-settings-api.js';
@@ -118,12 +119,13 @@ export function createBrowserPreviewConnection({ id, token, component, pollBatch
       body: JSON.stringify({ attachmentId, ...command, id }), keepalive,
       signal: keepalive ? AbortSignal.timeout(5000)
         : AbortSignal.any([requests.signal, AbortSignal.timeout((command.waitMs || 0) + 5000)]) });
-    let payload;
-    try { payload = await response.json(); }
-    catch (error) { if (!response.ok) error.status = response.status; throw error; }
-    if (!response.ok || !payload.ok) throw Object.assign(new Error(payload.error || '预览连接失败，请从客户端重新打开。'),
-      { status: response.ok ? 400 : response.status });
-    return payload.data;
+    try {
+      return (await readApiResponse(response, '预览连接失败，请从客户端重新打开。')).data;
+    } catch (error) {
+      if (response.ok && error.code === 'INVALID_RESPONSE' && error.payload === undefined) delete error.status;
+      else if (response.ok && error.payload) error.status = 400;
+      throw error;
+    }
   }
 
   function stop(error) {
@@ -247,8 +249,7 @@ export function createBrowserPreviewConnection({ id, token, component, pollBatch
       const response = await fetch(url, { method: 'POST', credentials: 'omit', cache: 'no-store',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body), signal: AbortSignal.any([requests.signal, ...(signal ? [signal] : []), AbortSignal.timeout(10000)]) });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '共享参数暂时不可用，请重试。');
+      const payload = await readApiResponse(response, '共享参数暂时不可用，请重试。');
       return payload.data;
     },
     requestOpeningSettings(kind, options) {

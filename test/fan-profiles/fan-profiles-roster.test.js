@@ -150,6 +150,9 @@ test('automatic roster requires its opt-in setting, an open window and a configu
   ]) {
     const f = fixture(t, { now: () => Date.parse('2026-09-20T14:00:00+08:00'), ...options });
     assert.equal((await f.invoke({ action: 'auto-update-status' })).data, null);
+    const reads = f.calls.execute.length;
+    await f.invoke({ action: 'auto-update-status' });
+    assert.equal(f.calls.execute.length, reads, 'idle notification checks leave storage alone');
     assert.equal(f.calls.roster.length, 0);
   }
 });

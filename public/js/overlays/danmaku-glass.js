@@ -1,6 +1,7 @@
+import { createTextElement } from '../shared/dom-element.js';
 import { setGiftArtwork } from '../shared/gift-image.js';
 
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const ICONS = {
   star: 'M12 2.5 15 8.6l6.7 1-4.9 4.7 1.2 6.7-6-3.2-6 3.2 1.2-6.7-4.9-4.7 6.7-1Z',
   tip: 'M17 5.5c-1.1-1-2.7-1.5-5-1.5-3 0-5 1.5-5 4s2.5 3.5 5 4 5 1.5 5 4-2 4-5 4c-2.3 0-4.3-.8-5.5-2M12 1v22',
@@ -11,12 +12,7 @@ const ICONS = {
 
 // The core keeps ownership of safe text/emotes; Glass only composes the notification.
 export function createGlassMessageRenderer({ document, classNames, resolveGiftImageUrl }, render) {
-  const element = (tag, className, text) => {
-    const node = document.createElement(tag);
-    node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  };
+  const element = createTextElement.bind(null, document);
   const icon = (kind, className, label) => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 24 24');

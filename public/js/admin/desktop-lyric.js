@@ -2,6 +2,7 @@
 // 桌面歌词设置
 'use strict';
 
+import { bindTabNavigation } from '../shared/tab-navigation.js';
 import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import * as sharedUtils from '../shared/utils.js';
@@ -97,18 +98,7 @@ export function createDesktopLyric({
       page?.classList.toggle('is-advanced', advanced);
       preview.setPreviewLayer?.(editorMode);
     };
-    modeTabs.forEach((tab, index) => {
-      const select = () => { editorMode = tab.dataset.lyricEditor; syncEditorMode(); };
-      tab.addEventListener('click', select);
-      tab.addEventListener('keydown', event => {
-        const next = event.key === 'ArrowRight' || event.key === 'ArrowLeft' ? 1 - index
-          : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : -1;
-        if (next < 0) return;
-        event.preventDefault();
-        modeTabs[next].click();
-        modeTabs[next].focus();
-      });
-    });
+    bindTabNavigation(modeTabs, tab => { editorMode = tab.dataset.lyricEditor; syncEditorMode(); });
     const groups = document.getElementById('desktopLyricSettingGroups');
     if (groups) {
       const fields = new Map();
@@ -152,10 +142,12 @@ export function createDesktopLyric({
     const currentSettings = state.getAppState()?.settings;
     let settingsLoaded = Boolean(currentSettings);
     let renderedValues = collectDesktopLyric();
+    const lyricKeys = new Set([...Object.keys(DESKTOP_LYRIC_DEFAULTS), ...Object.keys(renderedValues)]);
+    const project = settings => Object.fromEntries(Object.entries(settings || {}).filter(([key]) => lyricKeys.has(key)));
     const controller = createComponentConfigController({
-      initial: currentSettings || {},
-      persist: (_draft, patch) => saveSettings(patch),
-      confirm: confirmSettings,
+      initial: project(currentSettings),
+      persist: async (_draft, patch) => project(await saveSettings(patch)),
+      confirm: async () => project(await confirmSettings()),
     });
 
     const stopController = controller.subscribe(config => {
@@ -208,8 +200,12 @@ export function createDesktopLyric({
     };
 
     const receiveSettings = event => {
+      const first = !settingsLoaded;
       settingsLoaded = true;
-      controller.receive(event.detail);
+      if (!controller.receive(project(event.detail)) && first) {
+        loadDesktopLyricSettings(controller.getState().draft);
+        renderedValues = collectDesktopLyric();
+      }
       if (pendingInput) {
         pendingInput = false;
         autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
@@ -336,7 +332,7 @@ export function createDesktopLyric({
         setValue(`${key}Number`, String(Number(displayValue.toFixed(6))));
       }
     });
-    forms.refreshParameterRanges?.();
+    forms.refreshParameterRanges?.(document.getElementById('desktopLyricForm'));
     syncDesktopLyricKaraokeColorControls(settings);
     syncParameterLayout();
     preview.applySettings({ ...settings, ...collectDesktopLyric() });

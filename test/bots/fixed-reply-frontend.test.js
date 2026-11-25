@@ -64,7 +64,6 @@ async function editorFixture(t, category = 'replies', library = false) {
         return structuredClone(window.remote);
       },
     };
-    window.queryBridge = bridge;
     const { initDanmakuCloudReplies } = await import('/js/admin/danmaku-cloud-replies.js');
     const { initFixedReplyEditor } = await import('/js/admin/danmaku-fixed-replies.js');
     const { initDanmakuTabs } = await import('/js/admin/danmaku-tabs.js');
@@ -74,7 +73,7 @@ async function editorFixture(t, category = 'replies', library = false) {
     window.fixed = initDanmakuCloudReplies({ bridge });
     initDanmakuQueryReplies();
     const thanks = initDanmakuGiftThanks({ bridge });
-    initGiftInteractionControls({ bridge, surface: 'danmaku', notify: () => {}, onState: thanks.updateState });
+    initGiftInteractionControls({ bridge, notify: () => {}, onState: thanks.updateState });
     initDanmakuTabs();
     initFixedReplyEditor();
   }, { html: readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'), library });
@@ -194,21 +193,15 @@ for (const { name, fail, change, expected } of [
   });
 }
 
-test('query and thanks switches stay in sync with the shared gift-interaction setting', async (t) => {
+test('query and thanks switches each write once through the single interaction settings entry', async (t) => {
   const page = await editorFixture(t);
-  await page.evaluate(async (html) => {
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
-    document.body.append(parsed.getElementById('giftInteractionControls'));
-    const { initGiftInteractionControls } = await import('/js/admin/gifts/interaction-controls.js');
-    initGiftInteractionControls({ bridge: window.queryBridge, notify: () => {} });
-  }, readAdminFragmentHtml('pages/admin/gifts/page.html'));
   await page.locator('#danmakuQueryToggle').check();
   await page.waitForFunction(() => window.queryState.values.giftStatsQueryEnabled);
   assert.deepEqual(await page.evaluate(() => window.queryWrites), [{ key: 'giftStatsQueryEnabled', enabled: true }]);
-  assert.equal(await page.locator('#giftStatsQueryEnabled').isChecked(), true);
+  assert.equal(await page.locator('#danmakuQueryToggle').isChecked(), true);
   assert.equal(await page.evaluate(() => window.queryState.values.giftAutoThanksEnabled), true);
   assert.deepEqual(await page.evaluate(() => window.writes), []);
-  await page.locator('#giftStatsQueryEnabled').uncheck();
+  await page.locator('#danmakuQueryToggle').uncheck();
   await page.waitForFunction(() => !document.getElementById('danmakuQueryToggle').checked);
   assert.deepEqual(await page.evaluate(() => window.queryWrites), [
     { key: 'giftStatsQueryEnabled', enabled: true }, { key: 'giftStatsQueryEnabled', enabled: false },

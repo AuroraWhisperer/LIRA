@@ -93,7 +93,23 @@ test('weekly templates retain real uploaded assets and independent edits across 
   await page.locator('[data-weekly-template-name]').fill('周表主模板');
   await page.locator('[data-weekly-action="rename"]').click();
   await openGroup(page, '一周安排');
+  const preview = page.locator('[data-weekly-preview]');
+  await preview.evaluate(node => {
+    const fits = new WeakMap();
+    const observer = new MutationObserver(records => {
+      for (const { target } of records) fits.set(target, (fits.get(target) || 0) + 1);
+    });
+    observer.observe(node, { subtree: true, attributes: true, attributeFilter: ['data-overflow'] });
+    window.finishFitCount = () => { observer.disconnect(); return fits.get(node.firstElementChild); };
+  });
   await page.locator('[data-weekly-field="days.0.theme"]').fill('第一周歌回');
+  await preview.locator('[data-overflow]').filter({ hasText: '第一周歌回' }).waitFor();
+  const fits = await page.evaluate(async () => {
+    await document.fonts.ready;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return window.finishFitCount();
+  });
+  assert.equal(fits, 1, 'a settled text edit is fitted once');
   await page.locator('[data-weekly-field="days.0.time1"]').fill('20:00–22:00');
   await page.locator('[data-weekly-field="days.0.time2"]').fill('23:00');
   await openGroup(page, '图片素材');
@@ -146,7 +162,12 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
   await page.keyboard.press('ArrowRight');
   assert.equal(await page.getByRole('tab', { name: '排期', exact: true }).getAttribute('aria-selected'), 'true');
   await page.locator('[data-weekly-field="days.0.theme"]').fill('新年歌回');
-  await page.locator('[data-weekly-field="monday"]').fill('2026-12-28');
+  const date = page.locator('[data-weekly-field="monday"]');
+  await date.fill('2026-12-02');
+  assert.equal(await date.inputValue(), '2026-12-02', 'the date field keeps the entered day while focused');
+  await date.fill('2026-12-29');
+  await date.blur();
+  assert.equal(await date.inputValue(), '2026-12-28');
   await page.locator('[data-weekly-action="next-week"]').click();
   assert.equal(await page.locator('[data-weekly-field="monday"]').inputValue(), '2027-01-04');
   assert.equal(await page.locator('[data-weekly-field="days.0.theme"]').inputValue(), '新年歌回');
@@ -234,6 +255,35 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
   assert.equal(appearance.position, '75% 50%');
   assert.equal(appearance.filter, 'blur(8px)');
   assert.deepEqual(errors, []);
+});
+
+test('magazine PNGs fit long program text and a wrapped badge while keeping both starting hours visible', { timeout: 45000 }, async t => {
+  const { app, page, assets, directory } = await fixture(t);
+  await page.locator('[data-weekly-layout="magazine"]').click();
+  await openGroup(page, '一周安排');
+  const field = key => page.locator(`[data-weekly-field="days.0.${key}"]`);
+  await field('theme').fill('周年纪念歌会与嘉宾合唱');
+  await field('note').fill('上半场点歌，下半场合唱');
+  await field('time1').fill('14:00–16:00');
+  await field('time2').fill('20:00–23:00');
+  await field('highlight').check();
+  await field('highlightLabel').fill('周年纪念·全员特别联动直播');
+  async function checkVisibleHour(key, value) {
+    const { filePath } = await exportPng(app, page);
+    const before = path.join(directory, `${key}-before.png`);
+    await fs.copyFile(filePath, before);
+    await field(key).fill(value);
+    await exportPng(app, page);
+    assert.ok(await app.evaluate(({ nativeImage }, files) => {
+      const [a, b] = files.map(file => nativeImage.createFromPath(file).toBitmap());
+      return !a.equals(b);
+    }, [before, filePath]), `${key} must change the exported pixels`);
+  }
+  await checkVisibleHour('time1', '15:00–16:00');
+  await openGroup(page, '图片素材');
+  await uploadAsset(page, 'portrait', assets.png);
+  await openGroup(page, '一周安排');
+  await checkVisibleHour('time2', '21:00–23:00');
 });
 
 test('expanded schedule confirmation stays visible and restores editing after cancel, Escape or approval', { timeout: 45000 }, async t => {

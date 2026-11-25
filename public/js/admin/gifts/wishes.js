@@ -46,6 +46,7 @@ export function createGiftWishes() {
     showSelected();
   });
   const feed = createGiftWishFeed({
+    includeSession: false,
     onData(data) {
       if (feedError) {
         get('giftWishError').textContent = '';
@@ -206,7 +207,7 @@ export function createGiftWishes() {
     const items = snapshot.items.filter((wish) => wish.period === period);
     const status = [];
     if (snapshot.partial) status.push('礼物流水正在同步，进度可能尚未完整。');
-    if (period === 'session') {
+    if (period === 'session' && snapshot.session) {
       const session = snapshot.session;
       if (session.stale) status.push('开播状态暂未确认，已暂停本场计数，稍后自动重试。');
       else if (session.state === 'offline') status.push('还未开播，心愿会在开播后开始计数。');
@@ -266,6 +267,7 @@ export function createGiftWishes() {
     get('giftWishError').textContent = '';
     signature = '';
     render();
+    feed.setIncludeSession(period === 'session');
   }
 
   async function mutate(path, body, message, reset = true) {
@@ -300,6 +302,12 @@ export function createGiftWishes() {
       fail(new Error('目标数量必须是 1–999999999 的整数。'));
       return;
     }
+    const label = get('giftWishLabel').value;
+    if ([...label].length > 40) {
+      fail(new Error('备注最多 40 字，请缩短后再保存。'));
+      get('giftWishLabel').focus();
+      return;
+    }
     if ([...get('giftWishTextTemplate').value].length > 240) {
       fail(new Error('展示文字最多 240 字，请缩短后再保存。'));
       get('giftWishTextEditor').focus();
@@ -310,7 +318,7 @@ export function createGiftWishes() {
       {
         ...(editing ? { id: editing } : { period, giftKey: selected.variantId || String(selected.id) }),
         target,
-        label: get('giftWishLabel').value,
+        label,
         displayStyle: getDisplayStyle(),
         textTemplate: get('giftWishTextTemplate').value,
         textRuns: textEditor.getRuns(),

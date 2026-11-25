@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { identity, identityKey, timestamp, recordData } = require('./validation');
 const { dayOf } = require('./dates');
 const { normalizeGuardAccompany, newerGuardAccompany } = require('./guard-accompany');
@@ -35,7 +37,7 @@ function getLatestGuardRosterObservation(profile, records) {
     .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original || null;
 }
 
-function createGuardRosterImporter({ store, create, observe }) {
+function createGuardRosterImporter({ store, create, observedProfile, saveObservation }) {
   return function importGuardRoster(scope, snapshot, automaticDate, refresh) {
     if (
       !snapshot ||
@@ -46,22 +48,25 @@ function createGuardRosterImporter({ store, create, observe }) {
       !Number.isSafeInteger(snapshot.skipped) ||
       snapshot.skipped < 0
     )
-      throw new Error('大航海名单格式无效。');
+      throw createPublicError('大航海名单格式无效。');
     const observedAt = timestamp(snapshot.observedAt);
     return store.transaction(() => {
-      function saveRoster(profile, records, level, accompanyDays) {
-        const previous = getGuardRoster(profile, records);
-        if (previous && previous.observedAt > observedAt) return;
+      const suppressed = new Set(store.suppressions(scope));
+      function saveRoster(profile, previous, level, accompanyDays, observation) {
+        if (previous && previous.observedAt > observedAt) {
+          if (observation) saveObservation(scope, profile, observation);
+          return;
+        }
         const accompany = normalizeGuardAccompany({
           days: accompanyDays, roomId: snapshot.roomId, observedAt, source: 'guard-roster',
         });
-        if (accompanyDays !== undefined && !accompany) throw new Error('平台陪伴天数无效。');
+        if (accompanyDays !== undefined && !accompany) throw createPublicError('平台陪伴天数无效。');
         const lastAbsentAt = previous && (previous.level === null || previous.roomId !== snapshot.roomId)
           ? previous.observedAt : previous?.lastAbsentAt;
         store.save(
           scope,
           {
-            ...profile,
+            ...(observation ? observedProfile(profile, observation) : profile),
             ...(accompany ? { guardAccompany: newerGuardAccompany(profile.guardAccompany, accompany) } : {}),
             guardRoster: {
               roomId: snapshot.roomId,
@@ -85,27 +90,35 @@ function createGuardRosterImporter({ store, create, observe }) {
         skippedDetails: [...(snapshot.skippedDetails || [])],
       };
       const seen = new Set();
-      for (const member of snapshot.members) {
-        const person = identity({
-          platform: 'bilibili',
-          type: 'uid',
-          value: member.uid,
-        });
-        if (!person) throw new Error('大航海名单缺少可靠 UID。');
+      function* readMembers() {
+        for (let offset = 0; offset < snapshot.members.length; offset += 500) {
+          const batch = snapshot.members.slice(offset, offset + 500).map(member => ({
+            member, person: identity({ platform: 'bilibili', type: 'uid', value: member.uid }),
+          }));
+          const profiles = store.byIdentities(scope, batch.map(({ person }) => identityKey(person)));
+          const histories = store.records.listMembershipForProfiles(scope, [...profiles.values()].map(profile => profile.id));
+          for (const { member, person } of batch) {
+            const profile = profiles.get(identityKey(person));
+            yield { member, person, profile, records: histories.get(profile?.id) || [] };
+          }
+        }
+      }
+      for (const { member, person, profile: existing, records } of readMembers()) {
+        if (!person) throw createPublicError('大航海名单缺少可靠 UID。');
         const key = identityKey(person);
-        if (seen.has(key)) throw new Error('大航海名单存在重复 UID。');
+        if (seen.has(key)) throw createPublicError('大航海名单存在重复 UID。');
         seen.add(key);
         const medalLevel = member.medalLevel ?? null;
         if (medalLevel !== null && (!Number.isSafeInteger(medalLevel) || medalLevel < 0))
-          throw new Error('粉丝灯牌等级无效。');
+          throw createPublicError('粉丝灯牌等级无效。');
         const data = recordData('membership', {
           type: 'observation',
           level: member.level,
           observedAt,
           reason: `${automaticDate ? '自动' : '手动'}同步房间 ${snapshot.roomId} 的大航海名单；仅确认同步时的等级，起止日期待补充。`,
         });
-        let profile = store.byIdentity(scope, key);
-        if (profile?.archived || store.suppressed(scope, key)) {
+        let profile = existing;
+        if (profile?.archived || suppressed.has(key)) {
           result.skipped++;
           result.skippedDetails.push({
             uid: member.uid,
@@ -120,20 +133,9 @@ function createGuardRosterImporter({ store, create, observe }) {
         } else {
           result.updated++;
         }
-        observe(
-          scope,
-          {
-            identity: person,
-            name: member.name,
-            avatar: member.avatar,
-            nameComplete: Boolean(member.name),
-            observedAt,
-          },
-          false,
-          true,
-        );
-        const records = store.records.list(scope, profile.id);
-        saveRoster(store.get(scope, profile.id), records, member.level, member.accompanyDays);
+        saveRoster(profile, getGuardRoster(profile, records), member.level, member.accompanyDays, {
+          name: member.name, avatar: member.avatar, nameComplete: Boolean(member.name), observedAt,
+        });
         const previous = records.find(
           (record) =>
             record.original.evidence === 'guard-roster' &&
@@ -166,20 +168,17 @@ function createGuardRosterImporter({ store, create, observe }) {
       // Hidden identities cannot be matched to existing profiles, so their
       // absence from the visible members does not prove they left the roster.
       if (snapshot.skipped === 0) {
-        for (const profile of store.list(scope)) {
-          const key = identityKey(profile.identity);
-          if (
-            profile.archived ||
-            profile.identity?.platform !== 'bilibili' ||
-            profile.identity.type !== 'uid' ||
-            seen.has(key) ||
-            store.suppressed(scope, key)
-          )
-            continue;
-          const records = store.records.list(scope, profile.id);
-          const previous = getGuardRoster(profile, records);
-          if (previous && previous.roomId !== snapshot.roomId) continue;
-          saveRoster(profile, records, null);
+        const absent = store.list(scope).filter(profile => !profile.archived && profile.identity?.platform === 'bilibili'
+          && profile.identity.type === 'uid' && !seen.has(identityKey(profile.identity)));
+        for (let offset = 0; offset < absent.length; offset += 500) {
+          const batch = absent.slice(offset, offset + 500);
+          const histories = store.records.listMembershipForProfiles(scope, batch.map(profile => profile.id));
+          for (const profile of batch) {
+            const previous = getGuardRoster(profile, histories.get(profile.id) || []);
+            if (previous && (previous.roomId !== snapshot.roomId || previous.level === null &&
+              previous.ownerUid === snapshot.ownerUid && previous.observedAt === observedAt)) continue;
+            saveRoster(profile, previous, null);
+          }
         }
       }
       if (refresh) {
@@ -188,11 +187,11 @@ function createGuardRosterImporter({ store, create, observe }) {
           const profile = store.get(scope, observation.id);
           const key = identityKey(observation.identity);
           // The UID may have been rebound, deleted or archived while the lookup was pending.
-          if (!profile || profile.archived || identityKey(profile.identity) !== key || store.suppressed(scope, key)) {
+          if (!profile || profile.archived || identityKey(profile.identity) !== key || suppressed.has(key)) {
             result.profileRefresh.skipped++;
             continue;
           }
-          const updated = observe(scope, observation, false, true);
+          const updated = saveObservation(scope, profile, observation);
           if (updated.platformObservedAt !== profile.platformObservedAt) result.profileRefresh.updated++;
           else result.profileRefresh.skipped++;
         }

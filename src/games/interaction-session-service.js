@@ -45,6 +45,8 @@ function createInteractionSessionService(options = {}) {
     if (!session) return { runtimeId, revision, session: null };
     const result = { ...session };
     if (session.kind === 'poll') {
+      result.remainingMs = session.phase === 'finished' ? 0 : Math.max(0, Math.ceil(deadlineMs - monotonicNow()));
+      result.serverNowMs = wallNow();
       result.options = counter.result();
       result.participants = counter.count();
     } else {

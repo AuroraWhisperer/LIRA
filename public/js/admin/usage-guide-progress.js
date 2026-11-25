@@ -6,7 +6,6 @@ export function initUsageGuideProgress(panel, sections, navigate, reduceMotionQu
   const location = panel.querySelector('.usage-guide-toc-location');
   const detail = panel.querySelector('.usage-guide-toc-detail');
   const percent = panel.querySelector('.usage-guide-reading-percent');
-  const remaining = panel.querySelector('.usage-guide-reading-remaining');
   const previous = panel.querySelector('.usage-guide-chapter-prev');
   const next = panel.querySelector('.usage-guide-chapter-next');
   const nextLabel = panel.querySelector('.usage-guide-chapter-label');
@@ -71,8 +70,6 @@ export function initUsageGuideProgress(panel, sections, navigate, reduceMotionQu
     }
     if (chapterChanged || value !== lastPercent) {
       percent.textContent = `本章进度 ${value}%`;
-      remaining.textContent = value === 100 ? '已到文档末尾'
-        : `本章还剩 ${100 - value}%`;
       progress.setAttribute('aria-valuenow', String(value));
       progress.setAttribute('aria-valuetext', `${chapter.title}，${value}%`);
       fill.style.transitionDuration = chapterChanged ? '0ms' : '';

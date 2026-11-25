@@ -91,7 +91,7 @@ async function scanWeSingLogs(cachePath) {
     const filePath = path.join(logDir, entry.name);
     try {
       const stat = await fs.promises.stat(filePath);
-      const log = { filePath, modifiedMs: stat.mtimeMs, size: stat.size,
+      const log = { filePath, modifiedMs: stat.mtimeMs, size: stat.size, identity: `${filePath}:${stat.dev}:${stat.ino}:${stat.birthtimeMs}`,
         fingerprint: `${stat.dev}:${stat.ino}:${stat.birthtimeMs}:${stat.ctimeMs}:${stat.mtimeMs}:${stat.size}` };
       if (!latest || log.modifiedMs > latest.modifiedMs) latest = log;
       if (stat.size > 0) hasData = true;
@@ -102,7 +102,7 @@ async function scanWeSingLogs(cachePath) {
 
 async function findLatestSongEntry(cachePath, expectedTitle = '') {
   const latest = await findLatestWeSingLog(cachePath);
-  return matchingSongEntry(await readSongEntry(latest), expectedTitle);
+  return latest?.size ? matchingSongEntry((await scanSongEntry(latest)).entry, expectedTitle) : null;
 }
 
 function matchingSongEntry(entry, expectedTitle) {
@@ -113,6 +113,7 @@ function matchingSongEntry(entry, expectedTitle) {
 function createWeSingCacheReader() {
   const entries = new Map();
   const qrcEntries = new Map();
+  const readyFiles = new Map();
   let qrcBytes = 0;
   let generation = 0;
 
@@ -165,14 +166,24 @@ function createWeSingCacheReader() {
   }
 
   async function read(input, title = '') {
+    const version = generation;
     const cachePath = safeInitialCachePath(input);
     if (!cachePath) return { cacheReady: false, log: null, logEntry: null };
     // Probe metadata every time so rotation and cache moves recover without watcher events.
     const { latest: log, hasData } = await scanWeSingLogs(cachePath);
     let cacheReady = hasData;
+    if (!cacheReady && readyFiles.has(cachePath)) {
+      const stat = await fs.promises.stat(readyFiles.get(cachePath)).catch(() => null);
+      cacheReady = stat?.isFile() && stat.size > 0 && stat.size <= MAX_QRC_BYTES;
+      if (!cacheReady && version === generation) readyFiles.delete(cachePath);
+    }
     if (!cacheReady) {
       for await (const candidates of readQrcFileBatches(path.join(cachePath, 'WeSingDL', 'Res'))) {
-        if (candidates.length) { cacheReady = true; break; }
+        if (candidates.length) {
+          if (version === generation) readyFiles.set(cachePath, candidates[0].filePath);
+          cacheReady = true;
+          break;
+        }
       }
     }
     let logEntry = null;
@@ -180,12 +191,16 @@ function createWeSingCacheReader() {
       const key = `${log.filePath}:${log.fingerprint}`;
       let cached = entries.get(cachePath);
       if (cached?.key !== key) {
-        cached = { key, promise: readSongEntry(log) };
-        entries.set(cachePath, cached);
+        const previous = cached?.scan;
+        cached = { key, promise: scanSongEntry(log, previous) };
+        if (version === generation) entries.set(cachePath, cached);
       }
-      try { logEntry = matchingSongEntry(await cached.promise, title); }
+      try {
+        cached.scan = await cached.promise;
+        logEntry = matchingSongEntry(cached.scan.entry, title);
+      }
       catch (_) { if (entries.get(cachePath) === cached) entries.delete(cachePath); }
-    } else {
+    } else if (version === generation) {
       entries.delete(cachePath);
     }
     return { cacheReady, log, logEntry };
@@ -196,30 +211,61 @@ function createWeSingCacheReader() {
     clear() {
       generation += 1;
       entries.clear();
+      readyFiles.clear();
       qrcEntries.clear();
       qrcBytes = 0;
     },
   };
 }
 
-async function readSongEntry(latest) {
-  if (!latest?.size) return null;
-  const minimumStart = Math.floor(Math.max(0, latest.size - MAX_LOG_SCAN_BYTES) / 2) * 2;
+async function scanSongEntry(latest, previous) {
+  const size = latest.size - latest.size % 2;
+  const limit = Math.max(0, size - MAX_LOG_SCAN_BYTES);
+  let minimumStart = limit;
   let end = latest.size;
   let pendingRow = '';
-
+  const result = { identity: latest.identity, fileSize: latest.size, size, entry: null, entryAt: -1, resumeAt: null, anchor: null };
   const handle = await fs.promises.open(latest.filePath, 'r');
   try {
+    // A truncate-and-regrow can keep the same inode. Verify the old end before using the cursor.
+    if (previous?.anchor && previous.identity === latest.identity && previous.fileSize < latest.size && previous.size >= limit) {
+      const check = Buffer.alloc(previous.anchor.length);
+      const { bytesRead } = await handle.read(check, 0, check.length, previous.size - check.length);
+      if (bytesRead === check.length && check.equals(previous.anchor)) {
+        minimumStart = Math.max(limit, previous.resumeAt);
+        if (previous.entryAt >= limit) {
+          result.entry = previous.entry;
+          result.entryAt = previous.entryAt;
+        }
+      }
+    }
     while (end > minimumStart) {
       const start = Math.max(minimumStart, Math.floor(Math.max(0, end - LOG_TAIL_BYTES) / 2) * 2);
       const buffer = Buffer.alloc(end - start);
       const { bytesRead } = await handle.read(buffer, 0, buffer.length, start);
       if (!bytesRead) break;
-      const rows = (buffer.subarray(0, bytesRead).toString('utf16le') + pendingRow).split(/\r?\n/);
-      // A StartKSong record may straddle two chunks; keep only the unfinished row.
+      const chunk = buffer.subarray(0, bytesRead - bytesRead % 2);
+      if (end === latest.size && bytesRead === buffer.length) {
+        const length = Math.min(size, 64);
+        if (chunk.length >= length) result.anchor = Buffer.from(chunk.subarray(-length));
+        else {
+          const anchor = Buffer.alloc(length);
+          const read = await handle.read(anchor, 0, length, size - length);
+          if (read.bytesRead !== length) throw new Error('WeSing log changed during scan');
+          result.anchor = anchor;
+        }
+      }
+      const text = chunk.toString('utf16le');
+      const newline = text.lastIndexOf('\n');
+      if (result.resumeAt === null && newline >= 0) result.resumeAt = start + (newline + 1) * 2;
+      const rows = (text + pendingRow).split('\n');
+      let rowAt = start + (text.length + pendingRow.length + 1) * 2;
       pendingRow = rows[0].slice(0, LOG_TAIL_BYTES / 2);
-      for (const row of rows.reverse()) {
-        if (!row.includes('"StartKSong"')) continue;
+      for (let i = rows.length - 1; i >= 0; i--) {
+        const row = rows[i];
+        rowAt -= (row.length + 1) * 2;
+        const marker = row.indexOf('"StartKSong"');
+        if (marker < 0) continue;
         const midMatch = row.match(/"mid"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
         const songMatch = row.match(/"songname"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
         const artistMatch = row.match(
@@ -229,15 +275,18 @@ async function readSongEntry(latest) {
         const mid = decodeJsonString(midMatch[1]);
         const songName = songMatch ? decodeJsonString(songMatch[1]).trim() : '';
         const artist = artistMatch ? decodeJsonString(artistMatch[1]).trim() : '';
-        if (!SAFE_SONG_MID.test(mid)) return null;
-        return { mid, songName, ...(artist ? { artist } : {}) };
+        result.entryAt = rowAt + marker * 2;
+        result.entry = SAFE_SONG_MID.test(mid) ? { mid, songName, ...(artist ? { artist } : {}) } : null;
+        result.resumeAt ??= minimumStart;
+        return result;
       }
       end = start;
     }
   } finally {
     await handle.close();
   }
-  return null;
+  result.resumeAt ??= minimumStart;
+  return result;
 }
 
 async function loadWeSingLyrics(options = {}, readQrc = (filePath) => tryReadQrc(filePath)) {

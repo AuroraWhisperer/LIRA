@@ -37,11 +37,13 @@ class QQMusicClient {
   constructor(options = {}) {
     this.source = 'qq';
     this.getAuthState = typeof options.getAuthState === 'function' ? options.getAuthState : () => null;
+    this.getSessionState = typeof options.getSessionState === 'function' ? options.getSessionState : this.getAuthState;
+    this.getRequestSession = typeof options.getRequestSession === 'function' ? options.getRequestSession : null;
     this.getCookieHeader = typeof options.getCookieHeader === 'function' ? options.getCookieHeader : () => '';
   }
 
-  async requestPlaylistWrite(method, target, songInfo) {
-    const cookieHeader = await this.getSafeCookieHeader();
+  async requestPlaylistWrite(method, target, songInfo, cookieHeader) {
+    cookieHeader ??= await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader);
     if (!uin) {
       const cookieNames = cookieHeader
@@ -120,8 +122,8 @@ class QQMusicClient {
     );
   }
 
-  async requestMusicu(modules = {}) {
-    const cookieHeader = await this.getSafeCookieHeader();
+  async requestMusicu(modules = {}, cookieHeader) {
+    cookieHeader ??= await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
     return this.requestJson(QQ_MUSICU_URL, {
       data: JSON.stringify({
@@ -136,9 +138,9 @@ class QQMusicClient {
     }, cookieHeader);
   }
 
-  async requestMusicuPost(modules = {}, comm = {}) {
+  async requestMusicuPost(modules = {}, comm = {}, cookieHeader) {
     const url = new URL(QQ_MUSICU_URL);
-    const headers = await this.buildHeaders();
+    const headers = await this.buildHeaders(cookieHeader);
     headers['Content-Type'] = 'application/json';
     const response = await fetch(url, {
       method: 'POST',
@@ -150,11 +152,13 @@ class QQMusicClient {
     return readQQJsonResponse(response);
   }
 
-  async requestMusicsClient(modules = {}) {
-    const cookieHeader = await this.getSafeCookieHeader();
+  async requestMusicsClient(modules = {}, cookieHeader) {
+    cookieHeader ??= await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader);
     const authst = extractCookieValue(cookieHeader, 'qm_keyst') || extractCookieValue(cookieHeader, 'qqmusic_key');
-    if (!uin || !authst) throw createPublicError('QQ 音乐登录 Cookie 不完整，请重新登录。', 501);
+    if (!uin || !authst) {
+      throw Object.assign(createPublicError('QQ 音乐登录 Cookie 不完整，请重新登录。', 501), { code: 'QQ_CLIENT_AUTH_MISSING' });
+    }
 
     const comm = {
       _channelid: '20',
@@ -196,8 +200,8 @@ class QQMusicClient {
     return readQQJsonResponse(response);
   }
 
-  async requestQQEncryptedVkey(modules = {}, requestGuid = '') {
-    const cookieHeader = await this.getSafeCookieHeader();
+  async requestQQEncryptedVkey(modules = {}, requestGuid = '', cookieHeader) {
+    cookieHeader ??= await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
     const comm = {
       _channelid: '20',
@@ -278,9 +282,9 @@ class QQMusicClient {
     return headers;
   }
 
-  async getSafeAuthState() {
+  async getSafeAuthState(readState = this.getAuthState) {
     try {
-      return await this.getAuthState(this.source);
+      return await readState.call(this, this.source);
     } catch (_) {
       return null;
     }
@@ -294,17 +298,29 @@ class QQMusicClient {
     }
   }
 
-  async requireLogin(message) {
-    const auth = await this.getSafeAuthState();
-    const cookieHeader = await this.getSafeCookieHeader();
-    if ((!auth || !auth.loggedIn) && !hasQQMusicAuthCookie(cookieHeader)) {
-      throw createPublicError(message || '需要先登录 QQ 音乐。', 501);
-    }
-    return auth;
+  async getCookieForUin(uin) {
+    const current = await this.getSafeCookieHeader();
+    if ((extractUin(current) || '0') !== uin) throw createPublicError('QQ 音乐的账号已变化，请重新加载。', 501);
+    return current;
   }
 
-  async requireUin() {
-    const cookieHeader = await this.getSafeCookieHeader();
+  async requireLogin(message, needHeader = false) {
+    const request = needHeader && this.getRequestSession && await this.getSafeAuthState(this.getRequestSession);
+    const auth = request ? request.state : await this.getSafeAuthState(this.getSessionState);
+    if (!needHeader && auth?.loggedIn) return auth;
+    const cookieHeader = request?.cookieHeader ?? await this.getSafeCookieHeader();
+    if (!auth?.loggedIn && !hasQQMusicAuthCookie(cookieHeader)) {
+      throw createPublicError(message || '需要先登录 QQ 音乐。', 501);
+    }
+    return needHeader ? cookieHeader : auth;
+  }
+
+  getLoginCookieHeader(message) {
+    return this.requireLogin(message, true);
+  }
+
+  async requireUin(cookieHeader) {
+    cookieHeader ??= await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader);
     if (!uin) {
       // 诊断信息：显示找到的 Cookie 名称（不包含值）

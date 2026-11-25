@@ -12,7 +12,8 @@ function buildSearchIndex(panel) {
     const sectionTitleLower = sectionTitle.toLowerCase();
     const targets = [
       section,
-      ...section.querySelectorAll(':scope > p, :scope > h4, article, details, .usage-guide-steps > li'),
+      ...Array.from(section.querySelectorAll(':scope > p, :scope > h4, article, details, .usage-guide-steps > li'))
+        .filter(target => !target.parentElement.closest('article, details, .usage-guide-steps > li')),
     ];
     return targets.map((target) => {
       const heading =
@@ -41,7 +42,7 @@ function buildSearchIndex(panel) {
   });
 }
 
-function appendHighlightedText(element, text, terms, markClass = '') {
+function* matchingRanges(text, terms) {
   const lowerText = text.toLowerCase();
   let cursor = 0;
   while (cursor < text.length) {
@@ -49,17 +50,23 @@ function appendHighlightedText(element, text, terms, markClass = '') {
       .map((term) => ({ term, index: lowerText.indexOf(term, cursor) }))
       .filter(({ index }) => index >= 0)
       .sort((a, b) => a.index - b.index || b.term.length - a.term.length)[0];
-    if (!next) {
-      element.append(text.slice(cursor));
-      break;
-    }
-    element.append(text.slice(cursor, next.index));
+    if (!next) return;
+    cursor = next.index + next.term.length;
+    yield [next.index, cursor];
+  }
+}
+
+function appendHighlightedText(element, text, ranges, markClass = '') {
+  let cursor = 0;
+  for (const [start, end] of ranges) {
+    element.append(text.slice(cursor, start));
     const mark = document.createElement('mark');
     if (markClass) mark.className = markClass;
-    mark.textContent = text.slice(next.index, next.index + next.term.length);
+    mark.textContent = text.slice(start, end);
     element.append(mark);
-    cursor = next.index + next.term.length;
+    cursor = end;
   }
+  if (cursor < text.length) element.append(text.slice(cursor));
 }
 
 export function initUsageGuideSearch(panel, navigateToTarget) {
@@ -86,11 +93,26 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
     const walker = document.createTreeWalker(target, window.NodeFilter.SHOW_TEXT);
     const textNodes = [];
     while (walker.nextNode()) textNodes.push(walker.currentNode);
+    // Match the same continuous text as the index, but keep each link or other inline element intact.
+    const ranges = matchingRanges(target.textContent, terms);
+    let match = ranges.next().value;
+    let offset = 0;
     for (const node of textNodes) {
-      if (!terms.some((term) => node.textContent.toLowerCase().includes(term))) continue;
-      const fragment = document.createDocumentFragment();
-      appendHighlightedText(fragment, node.textContent, terms, 'usage-guide-search-match');
-      node.replaceWith(fragment);
+      if (!match) break;
+      if (!node.length) continue;
+      const end = offset + node.length;
+      const segments = [];
+      while (match && match[0] < end) {
+        segments.push([Math.max(0, match[0] - offset), Math.min(end, match[1]) - offset]);
+        if (match[1] > end) break;
+        match = ranges.next().value;
+      }
+      if (segments.length) {
+        const fragment = document.createDocumentFragment();
+        appendHighlightedText(fragment, node.data, segments, 'usage-guide-search-match');
+        node.replaceWith(fragment);
+      }
+      offset = end;
     }
     highlightedTarget = target;
     return target.querySelectorAll('.usage-guide-search-match');
@@ -126,7 +148,7 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
       const heading = document.createElement('span');
       heading.className = 'usage-guide-search-result-heading';
       const title = document.createElement('strong');
-      appendHighlightedText(title, entry.title, terms);
+      appendHighlightedText(title, entry.title, matchingRanges(entry.title, terms));
       heading.append(title);
       if (entry.title !== entry.sectionTitle) {
         const section = document.createElement('span');
@@ -141,7 +163,7 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
         const positions = terms.map((term) => entry.textLower.indexOf(term)).filter((index) => index >= 0);
         const start = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 24);
         const excerpt = `${start ? '…' : ''}${entry.text.slice(start, start + 100)}${entry.text.length > start + 100 ? '…' : ''}`;
-        appendHighlightedText(snippet, excerpt, terms);
+        appendHighlightedText(snippet, excerpt, matchingRanges(excerpt, terms));
         button.append(snippet);
       }
       button.addEventListener('click', () => {

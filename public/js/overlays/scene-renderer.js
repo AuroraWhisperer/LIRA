@@ -4,8 +4,10 @@ import { mergeGameSession } from './games-session.js';
 import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from './browser-source-frame.js';
 import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 import { componentCssRendererUrl } from '../shared/component-css-style.js';
+import { sameDisplayValue } from './same-display-value.js';
 const MAX_PENDING_EVENTS = 200;
 const MAX_APPEARANCE_ATTEMPTS = 3;
+const EMPTY_APPEARANCE = Object.freeze({});
 
 export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 12000 } = {}) {
   let active = null;
@@ -42,7 +44,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       const entry = existing.get(item.id);
       return entry?.item.type === item.type && (entry.external
         ? entry.item.appearance.config.url === item.appearance.config.url
-        : JSON.stringify(entry.item.appearance.config) === JSON.stringify(item.appearance.config));
+        : sameDisplayValue(entry.item.appearance.config, item.appearance.config));
     })) return false;
     // Keep frames in their current DOM parent so live connections and animations survive.
     active.entries = items.map((item, index) => {
@@ -79,22 +81,29 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       if (entry.ready && values[entry.item.type] !== undefined) send(entry, 'data', { data: values[entry.item.type], source: dataSequence });
     }
   }
+  function resolveAppearance(entry, override = EMPTY_APPEARANCE) {
+    // updateLayout retains an internal frame only when its published config is equal.
+    if (!entry.appearance || !sameDisplayValue(entry.appearance.override, override)) {
+      const config = { ...entry.item.appearance.config, ...override };
+      entry.appearance = { override, config, key: JSON.stringify(config) };
+    }
+    return entry.appearance;
+  }
   function appearance(version) {
     if (!version || version.version !== appearanceVersion) return;
     for (const entry of version.entries) {
-      if (entry.external) continue;
-      const config = { ...entry.item.appearance.config, ...latestAppearances[entry.item.id] };
-      const serialized = JSON.stringify(config);
-      if (!entry.ready || serialized === entry.pendingKey
-        || serialized === entry.configKey && !entry.pendingKey && !entry.configError) continue;
-      if (serialized !== entry.desiredKey) entry.configAttempts = 0;
+      if (entry.external || !entry.ready) continue;
+      const next = resolveAppearance(entry, latestAppearances[entry.item.id]);
+      if (next.key === entry.pendingKey
+        || next.key === entry.configKey && !entry.pendingKey && !entry.configError) continue;
+      if (next.key !== entry.desiredKey) entry.configAttempts = 0;
       if (entry.configAttempts >= MAX_APPEARANCE_ATTEMPTS) continue;
-      configure(entry, config);
+      configure(entry, next);
     }
   }
-  function configure(entry, config, type = 'config') {
+  function configure(entry, { config, key }, type = 'config') {
     clearTimeout(entry.configTimer);
-    entry.desiredKey = entry.pendingKey = JSON.stringify(config);
+    entry.desiredKey = entry.pendingKey = key;
     entry.configuration = ++configuration;
     entry.configAttempts = (entry.configAttempts || 0) + 1;
     if (staging?.entries.includes(entry)) entry.prepared = false;
@@ -141,9 +150,8 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       entry.roomGuardKey = undefined;
       if (!staging?.entries.includes(entry)) return;
       entry.ready = true;
-      const config = { ...entry.item.appearance.config,
-        ...(staging.version === appearanceVersion ? latestAppearances[entry.item.id] : {}) };
-      configure(entry, config, 'init');
+      const override = staging.version === appearanceVersion ? latestAppearances[entry.item.id] : undefined;
+      configure(entry, resolveAppearance(entry, override), 'init');
     } else if (!entry.pendingKey || event.data?.configuration !== entry.configuration) {
       return;
     } else if (event.data?.type === 'component-preview:prepared' && entry.ready) {

@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { createHash } = require('node:crypto');
 const { profilePatch, identity, identityKey, timestamp, recordData, entrySnapshot, text } = require('./validation');
 const { DAY_MS, dateValue, dayStart } = require('./dates');
@@ -35,7 +37,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       input.profiles.length > MAX_BACKUP_PROFILES ||
       !Array.isArray(input.suppressions)
     ) {
-      throw new Error('备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。');
+      throw createPublicError('备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。');
     }
     const profileIds = new Set();
     const recordIds = new Set();
@@ -44,17 +46,17 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     const identityKeys = new Set();
     const profiles = [];
     for (const profile of input.profiles) {
-      if (typeof profile.id !== 'string' || profileIds.has(profile.id)) throw new Error('备份中有重复或无效档案。');
+      if (typeof profile.id !== 'string' || profileIds.has(profile.id)) throw createPublicError('备份中有重复或无效档案。');
       profileIds.add(profile.id);
       const patch = profilePatch(profile);
       const lastEntry = entrySnapshot(profile.lastEntry);
       let excludedFormerNames;
       if (profile.excludedFormerNames !== undefined) {
-        if (!Array.isArray(profile.excludedFormerNames)) throw new Error('备份中的曾用名排除记录无效。');
+        if (!Array.isArray(profile.excludedFormerNames)) throw createPublicError('备份中的曾用名排除记录无效。');
         excludedFormerNames = [...new Set(profile.excludedFormerNames.map(name => text(name, '曾用名', 200)).filter(Boolean))];
       }
       if (profile.guardAccompany != null && !normalizeGuardAccompany(profile.guardAccompany))
-        throw new Error('备份中的平台陪伴天数无效。');
+        throw createPublicError('备份中的平台陪伴天数无效。');
       let roster = profile.guardRoster;
       if (roster !== undefined && roster !== null) {
         if (
@@ -67,12 +69,12 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
           !/^[1-9]\d{0,19}$/.test(roster.ownerUid) ||
           ![null, 1, 2, 3].includes(roster.level)
         )
-          throw new Error('备份中的大航海名单状态无效。');
+          throw createPublicError('备份中的大航海名单状态无效。');
         const observedAt = timestamp(roster.observedAt, '大航海名单同步时间');
         roster = { ...roster, observedAt };
         if (roster.lastAbsentAt !== undefined) {
           roster.lastAbsentAt = timestamp(roster.lastAbsentAt, '上次确认缺席时间');
-          if (roster.lastAbsentAt > observedAt) throw new Error('上次确认缺席时间晚于名单同步时间。');
+          if (roster.lastAbsentAt > observedAt) throw createPublicError('上次确认缺席时间晚于名单同步时间。');
         }
       }
       const records = [];
@@ -83,9 +85,9 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         ...(excludedFormerNames ? { excludedFormerNames } : {}),
       });
       const key = identityKey(patch.identity);
-      if (key && identityKeys.has(key)) throw new Error('备份中同一身份重复。');
+      if (key && identityKeys.has(key)) throw createPublicError('备份中同一身份重复。');
       if (key) identityKeys.add(key);
-      if (!Array.isArray(profile.records) || !Array.isArray(profile.reminders)) throw new Error('备份缺少完整记录。');
+      if (!Array.isArray(profile.records) || !Array.isArray(profile.reminders)) throw createPublicError('备份缺少完整记录。');
       for (const record of profile.records) {
         const summary = record.kind === 'song' && input.version === 2;
         const validated = recordData(record.kind, summary ? { ...record.data, note: '' } : record.data);
@@ -93,21 +95,21 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         records.push(record.kind === 'membership' && validated.type === 'interval'
           ? { ...record, data: { ...record.data, startAt: validated.startAt, endAt: validated.endAt } }
           : record);
-        if (summary && typeof record.data.note !== 'string') throw new Error('备份中的点歌说明无效。');
+        if (summary && typeof record.data.note !== 'string') throw createPublicError('备份中的点歌说明无效。');
         if (record.kind === 'song' && input.version === 2) validateSongSummary(record.data);
         if (record.kind === 'song' && input.version === 1 && Object.hasOwn(record.data, 'count'))
-          throw new Error('点歌汇总需要第 2 版备份格式。');
+          throw createPublicError('点歌汇总需要第 2 版备份格式。');
         timestamp(record.occurredAt);
         if (!record.original || !Array.isArray(record.revisions) || typeof record.id !== 'string')
-          throw new Error('备份缺少原始依据或修订。');
+          throw createPublicError('备份缺少原始依据或修订。');
         if (recordIds.has(record.id) || (record.sourceKey && sourceKeys.has(record.sourceKey)))
-          throw new Error('备份中有重复记录。');
+          throw createPublicError('备份中有重复记录。');
         recordIds.add(record.id);
         if (record.sourceKey) sourceKeys.add(record.sourceKey);
       }
       for (const state of profile.reminders) {
         if (typeof state.key !== 'string' || !['pending', 'handled', 'ignored', 'snoozed'].includes(state.status))
-          throw new Error('备份提醒状态无效。');
+          throw createPublicError('备份提醒状态无效。');
       }
     }
     const suppressions = [];
@@ -121,7 +123,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         if (!value) throw new Error();
         suppressions.push(identityKey(value));
       } catch (_) {
-        throw new Error('备份抑制标记无效。');
+        throw createPublicError('备份抑制标记无效。');
       }
     }
     return { ...input, profiles, suppressions };
@@ -160,7 +162,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       input.currentDigest !== plan.currentDigest ||
       !['keep', 'replace'].includes(input.conflicts)
     ) {
-      throw new Error('恢复预览已变化，请重新核对并选择冲突处理方式。');
+      throw createPublicError('恢复预览已变化，请重新核对并选择冲突处理方式。');
     }
     const conflicts = new Set(plan.conflicts.map((item) => item.incomingId));
     const profiles = value.profiles.filter((profile) => input.conflicts === 'replace' || !conflicts.has(profile.id));
@@ -170,7 +172,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       .map((profile) => identityKey(profile.identity)).filter(Boolean));
     for (const profile of profiles) {
       const key = identityKey(profile.identity);
-      if (key && identityKeys.has(key)) throw new Error('恢复后的身份与保留档案冲突，请重新核对备份。');
+      if (key && identityKeys.has(key)) throw createPublicError('恢复后的身份与保留档案冲突，请重新核对备份。');
       if (key) identityKeys.add(key);
     }
     const snapshotId = store.snapshot(scope, backup(scope), now());
@@ -208,10 +210,10 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
 
   function legacyPreview(scope, input) {
     const profile = requireProfile(scope, input.profileId);
-    if (profile.identity?.type !== 'uid') throw new Error('旧点歌补录需要明确的 B 站 UID。');
+    if (profile.identity?.type !== 'uid') throw createPublicError('旧点歌补录需要明确的 B 站 UID。');
     const from = dateValue(input.from, '开始日期', false);
     const to = dateValue(input.to, '结束日期', false);
-    if (from > to) throw new Error('补录开始日期不能晚于结束日期。');
+    if (from > to) throw createPublicError('补录开始日期不能晚于结束日期。');
     const rows = store
       .legacy(
         scope,
@@ -233,7 +235,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
   function legacyImport(scope, input) {
     const plan = legacyPreview(scope, input);
     if (input.confirmOwnership !== true || plan.digest !== input.digest)
-      throw new Error('请先确认旧点歌记录归属和范围。');
+      throw createPublicError('请先确认旧点歌记录归属和范围。');
     for (const row of plan.records) {
       const stableId = store.claimRequest(row.id, scope);
       if (/^random(?::|$)/.test(row.source) || !store.markSongRequest(scope, stableId)) continue;
@@ -265,7 +267,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     const allowed = ['alias', 'platformName', 'uid', 'summary', 'birthday', 'mbti', 'notes'];
     const fields = input.fields || ['alias', 'platformName', 'uid'];
     if (!Array.isArray(fields) || !fields.length || fields.some((field) => !allowed.includes(field)))
-      throw new Error('导出字段无效。');
+      throw createPublicError('导出字段无效。');
     const escape = (value) => {
       const cell = String(value ?? '');
       return `"${(/^[=+\-@\t\r]/.test(cell) ? "'" : '') + cell.replace(/"/g, '""')}"`;
@@ -285,7 +287,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     const value = validateBackup(scope, store.getSnapshot(scope, input.snapshotId));
     const plan = preview(scope, value);
     if (input.confirm !== true || input.digest !== plan.digest || input.currentDigest !== plan.currentDigest) {
-      throw new Error('恢复点预览已变化，请重新确认。');
+      throw createPublicError('恢复点预览已变化，请重新确认。');
     }
     const snapshotId = store.snapshot(scope, { ...backup(scope), reason: '恢复本机恢复点之前' }, now());
     store.removeAll(scope);
@@ -307,15 +309,15 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
   function execute(scope, action, input) {
     if ((action === 'preview-restore' || action === 'restore') && input.backup &&
         Buffer.byteLength(JSON.stringify(input.backup), 'utf8') > MAX_BACKUP_BYTES) {
-      throw new Error('完整档案备份超过 16 MB，无法恢复。');
+      throw createPublicError('完整档案备份超过 16 MB，无法恢复。');
     }
     switch (action) {
       case 'backup': {
         const value = backup(scope);
         if (value.profiles.length > MAX_BACKUP_PROFILES)
-          throw new Error('完整档案备份最多支持 10000 份档案，本次未导出。');
+          throw createPublicError('完整档案备份最多支持 10000 份档案，本次未导出。');
         if (Buffer.byteLength(JSON.stringify(value, null, 2), 'utf8') > MAX_BACKUP_BYTES)
-          throw new Error('完整档案备份超过 16 MB，本次未导出，以免生成无法恢复的文件。');
+          throw createPublicError('完整档案备份超过 16 MB，本次未导出，以免生成无法恢复的文件。');
         return value;
       }
       case 'preview-restore':
@@ -335,7 +337,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       case 'import-legacy':
         return legacyImport(scope, input);
       default:
-        throw new Error('不支持的档案操作。');
+        throw createPublicError('不支持的档案操作。');
     }
   }
   return { execute };

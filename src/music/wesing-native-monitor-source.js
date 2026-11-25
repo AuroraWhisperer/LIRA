@@ -137,35 +137,41 @@ public static class WeSingNativeMonitor
         try { childCount = accessible.accChildCount; } catch { return false; }
         if (childCount <= 0 || childCount > 10000) return false;
         var children = new object[childCount];
-        int obtained;
         try
         {
+            int obtained;
             if (AccessibleChildren(accessible, 0, childCount, children, out obtained) < 0) return false;
+            for (int index = 0; index < obtained && visitedNodes < MaximumAccessibleNodes; index += 1)
+            {
+                var childAccessible = children[index] as IAccessible;
+                if (childAccessible != null)
+                {
+                    if (ReadAccessibleTree(childAccessible, depth + 1, result, ref visitedNodes)) return true;
+                }
+                else
+                {
+                    visitedNodes += 1;
+                    if (ReadAccessibleNode(accessible, children[index], result)) return true;
+                }
+            }
+            return false;
         }
         catch
         {
             return false;
         }
-
-        for (int index = 0; index < obtained && visitedNodes < MaximumAccessibleNodes; index += 1)
+        finally
         {
-            var childAccessible = children[index] as IAccessible;
-            if (childAccessible != null)
-            {
-                try
-                {
-                    if (ReadAccessibleTree(childAccessible, depth + 1, result, ref visitedNodes)) return true;
-                }
-                finally
-                {
-                    ReleaseComObject(childAccessible);
-                }
-                continue;
-            }
-            visitedNodes += 1;
-            if (ReadAccessibleNode(accessible, children[index], result)) return true;
+            ReleaseAccessibleChildren(children);
         }
-        return false;
+    }
+
+    private static void ReleaseAccessibleChildren(object[] children)
+    {
+        foreach (object child in children) {
+            try { if (child != null && Marshal.IsComObject(child)) Marshal.ReleaseComObject(child); }
+            catch (Exception) { continue; }
+        }
     }
 
     private static bool ReadAccessibleNode(

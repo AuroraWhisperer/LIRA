@@ -7,7 +7,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { createFixture: createCloudFixture } = require('../helpers/cloud-sync-controller-fixture');
 
-function controller(auth, login) {
+function controller(auth, login, music = {}) {
   const filename = require.resolve('../../src/electron/desktop-auth-controller');
   const localRequire = createRequire(filename);
   const module = { exports: {} };
@@ -20,7 +20,8 @@ function controller(auth, login) {
       require(request) {
         if (request === './bilibili-auth') return { getBilibiliSessionState: auth.getBilibiliAuthState, ...auth };
         if (request === './bilibili-login-window' && login) return { openBilibiliLoginWindow: login };
-        if (request === './music-auth-manager' || request === './music-login-window') return {};
+        if (request === './music-auth-manager') return music;
+        if (request === './music-login-window') return {};
         return localRequire(request);
       },
     },
@@ -32,6 +33,50 @@ function controller(auth, login) {
     writeLog() {},
   });
 }
+
+test('desktop and embedded music providers use the partition session while the UI reads backup state', async (t) => {
+  const { buildMusicRuntime } = require('../../src/server/music-runtime');
+  const reads = [];
+  const auth = controller({}, undefined, {
+    getMusicSessionState(platform) {
+      reads.push(['session', platform]);
+      return { loggedIn: true };
+    },
+    getMusicRequestSession(platform, directory) {
+      reads.push(['request', platform, directory]);
+      const state = { loggedIn: true };
+      if (directory) Object.assign(state, { encryptedSnapshotExists: true, lastSavedAt: 'fixture-time' });
+      return { state, cookieHeader: 'fixture-secret' };
+    },
+    getMusicAuthState(platform, directory) {
+      reads.push(['full', platform, directory]);
+      return { loggedIn: true, lastSavedAt: 'fixture-time' };
+    },
+  });
+  const runtime = buildMusicRuntime({ dataDir: {}, settingsStore: { getSettings: () => ({}) } });
+  t.after(() => { runtime.stop(); auth.dispose(); });
+  runtime.setMusicRegistry(auth.musicProviderAuth);
+  await auth.getMusicProviderRegistry().get('qq').requireLogin();
+  await runtime.getMusicRegistry().get('netease').requireLogin();
+  assert.deepEqual(reads.splice(0), [['session', 'qq'], ['session', 'netease']]);
+  const search = t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    assert.equal(options.headers.Cookie, 'fixture-secret');
+    return Response.json({ code: 200, result: { songCount: 0 } });
+  });
+  for (const source of ['qq', 'netease']) {
+    const provider = runtime.getMusicRegistry().get(source);
+    assert.equal(await provider.getLoginCookieHeader(), 'fixture-secret');
+    const result = await provider.healthCheck();
+    assert.equal(result.ok, true);
+    assert.equal(result.auth.encryptedSnapshotExists, true);
+    assert.equal(result.auth.lastSavedAt, 'fixture-time');
+    assert.doesNotMatch(JSON.stringify(result), /fixture-secret/);
+    assert.deepEqual(reads.splice(0), [['request', source, undefined], ['request', source, 'synthetic-data']]);
+  }
+  assert.equal(search.mock.callCount(), 2);
+  assert.equal((await auth.getMusicAuthState('qq')).lastSavedAt, 'fixture-time');
+  assert.deepEqual(reads, [['full', 'qq', 'synthetic-data']]);
+});
 
 test('a cloud credential read started before logout cannot restore or re-upload the old Cookie', async (t) => {
   let state = { loggedIn: true, uid: 42 };

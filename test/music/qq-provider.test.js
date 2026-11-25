@@ -56,6 +56,19 @@ function createProvider() {
   });
 }
 
+test('QQ membership checks raw numeric IDs and mids and retries the client after a fallback', async () => {
+  const provider = createProvider();
+  let clientCalls = 0, publicCalls = 0;
+  provider.requestMusicsClient = async (modules) => {
+    if (++clientCalls === 1) throw new Error('temporary failure');
+    return { code: 0, [Object.keys(modules)[0]]: { code: 0, data: { songlist: [{ SongMid: 'client-mid' }] } } };
+  };
+  provider.requestJson = async () => { publicCalls++; return { cdlist: [{ songlist: [{ songid: 123 }] }] }; };
+  assert.equal(await provider.playlistContainsTrack('1', { sourceSongId: 123 }), true);
+  assert.equal(await provider.playlistContainsTrack('2', { sourceTrackId: 'client-mid' }), true);
+  assert.deepEqual([clientCalls, publicCalls], [2, 1]);
+});
+
 test('QQ requests keep their signed identity and Cookie on one credential snapshot', async (t) => {
   let captured;
   t.mock.method(global, 'fetch', async (url, options) => {
@@ -79,6 +92,7 @@ test('QQ requests keep their signed identity and Cookie on one credential snapsh
     const body = captured.options.body || captured.url.searchParams.get('data');
     assert.equal(JSON.parse(body).comm.uin, '123456');
     assert.equal(captured.options.headers.Cookie, COOKIE);
+    assert.equal(reads, 1);
     if (captured.url.searchParams.has('sign')) assert.equal(captured.url.searchParams.get('sign'), zzcSign(body));
   }
 });
@@ -96,7 +110,7 @@ test('QQ liked removal resolves the UI alias through the current account playlis
   provider.requestPlaylistWrite = async (...args) => { writes.push(args); return { ok: true }; };
   const payload = { platform: 'qq', playlist: { id: 'liked' }, tracks: [{ sourceSongId: 123 }] };
   await writeMusicPlaylistTracks({ get: () => provider }, payload, 'remove');
-  assert.deepEqual(writes[0], ['DelSonglist', { dirId: 201, tid: 987654, dirName: '我喜欢' }, [{ songId: 123, songType: 0 }]]);
+  assert.deepEqual(writes[0], ['DelSonglist', { dirId: 201, tid: 987654, dirName: '我喜欢' }, [{ songId: 123, songType: 0 }], COOKIE]);
   await provider.removeTracksFromPlaylist({ id: '42', tid: '42', dirId: '2', title: '自建' }, payload.tracks);
   assert.equal(reads, 1, 'ordinary playlist targets do not read the liked list');
   assert.equal(writes[1][1].tid, 42);
@@ -107,6 +121,31 @@ test('QQ liked removal resolves the UI alias through the current account playlis
   provider.getCreatedPlaylists = async () => [];
   await assert.rejects(provider.removeTracksFromPlaylist({ id: 'liked' }, payload.tracks), /没有.*我喜欢/);
   assert.equal(writes.length, 2);
+});
+
+test('QQ stops a liked detail read or write if the account switches during playlist lookup', async (t) => {
+  let cookie, loginReads = 0, identityChecks = 0;
+  const provider = new QQMusicProvider({
+    getRequestSession() { loginReads++; return { state: { loggedIn: true }, cookieHeader: cookie }; },
+    getCookieHeader() { identityChecks++; return cookie; },
+  });
+  const key = 'music.musicasset.PlaylistBaseRead.GetPlaylistByUin';
+  const lookup = t.mock.method(globalThis, 'fetch', async (_url, { headers, body }) => {
+    assert.equal(headers.Cookie, COOKIE);
+    assert.equal(JSON.parse(body)[key].param.uin, '123456');
+    cookie = COOKIE.replace('123456', '654321');
+    return Response.json({ code: 0, [key]: { code: 0, data: { v_playlist: [{ tid: 123, dirId: 201, dirName: '我喜欢' }] } } });
+  });
+  for (const operation of [
+    () => provider.getLikedTracks({ loadingSession: 'first-page' }),
+    () => provider.removeTracksFromPlaylist({ id: 'liked' }, [{ sourceSongId: 42 }]),
+  ]) {
+    cookie = COOKIE;
+    await assert.rejects(operation(), { statusCode: 501 });
+  }
+  assert.equal(lookup.mock.callCount(), 2);
+  assert.equal(loginReads, 2);
+  assert.equal(identityChecks, 2);
 });
 
 test('QQ provider signs AddSonglist requests and preserves QQ numeric ids', async () => {
@@ -260,12 +299,19 @@ test('QQ provider reads collected playlists from the desktop client API', async 
   }
 });
 
-test('QQ created playlists fall back to the web API when client auth is unavailable', async () => {
-  const originalFetch = global.fetch;
+test('QQ created playlists fall back with the refreshed credentials of the same account', async (t) => {
+  let cookie = COOKIE;
+  let reads = 0;
+  const provider = new QQMusicProvider({
+    getSessionState: () => ({ loggedIn: true }),
+    getCookieHeader() { reads++; return cookie; },
+  });
   let call = 0;
-  global.fetch = async () => {
+  t.mock.method(global, 'fetch', async (url, options) => {
     call += 1;
     if (call === 1) {
+      assert.equal(options.headers.Cookie, COOKIE);
+      cookie = COOKIE.replace('test-key', 'refreshed-key');
       return new Response(
         JSON.stringify({
           code: 2000,
@@ -274,6 +320,8 @@ test('QQ created playlists fall back to the web API when client auth is unavaila
         { status: 200 },
       );
     }
+    assert.equal(options.headers.Cookie, cookie);
+    assert.equal(url.searchParams.get('loginUin'), '123456');
     return new Response(
       JSON.stringify({
         code: 0,
@@ -290,18 +338,35 @@ test('QQ created playlists fall back to the web API when client auth is unavaila
       }),
       { status: 200 },
     );
-  };
+  });
 
-  try {
-    const playlists = await createProvider().getCreatedPlaylists({
-      limit: 50,
-      includeLiked: false,
-    });
-    assert.equal(call, 2);
-    assert.equal(playlists[0].title, '网页回退歌单');
-  } finally {
-    global.fetch = originalFetch;
-  }
+  const playlists = await provider.getCreatedPlaylists({ limit: 50, includeLiked: false });
+  assert.equal(call, 2);
+  assert.equal(reads, 2);
+  assert.equal(playlists[0].title, '网页回退歌单');
+});
+
+test('QQ stops a pending playlist fallback after a switch and the next request uses the new account', async (t) => {
+  let cookie = COOKIE;
+  const provider = new QQMusicProvider({
+    getSessionState: () => ({ loggedIn: true }),
+    getCookieHeader: () => cookie,
+  });
+  const callKey = 'music.musicasset.PlaylistBaseRead.GetPlaylistByUin';
+  const sent = [];
+  t.mock.method(global, 'fetch', async (_url, { headers, body }) => {
+    const request = JSON.parse(body);
+    sent.push([headers.Cookie, request.comm.uin, request[callKey].param.uin]);
+    if (sent.length === 1) {
+      cookie = COOKIE.replace('123456', '654321');
+      return new Response('', { status: 503 });
+    }
+    return Response.json({ code: 0, [callKey]: { code: 0, data: { v_playlist: [] } } });
+  });
+  await assert.rejects(provider.getCreatedPlaylists(), { statusCode: 501 });
+  assert.equal(sent.length, 1);
+  await provider.getCreatedPlaylists();
+  assert.deepEqual(sent, [[COOKIE, '123456', '123456'], [cookie, '654321', '654321']]);
 });
 
 test('QQ liked tracks uses the client playlist and slices the requested page', async () => {

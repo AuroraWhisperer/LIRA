@@ -22,9 +22,7 @@ class LiveStatusMonitor {
     this.stop();
     this.stopped = false;
 
-    if (roomInfo && roomInfo.ownerName) {
-      this.ownerName = roomInfo.ownerName;
-    }
+    this.ownerName = roomInfo?.ownerName || '';
 
     this.isLive = roomInfo ? Number(roomInfo.liveStatus) === 1 : null;
     if (!roomInfo) return;
@@ -69,7 +67,7 @@ class LiveStatusMonitor {
     this.checkInFlight = true;
     const localGeneration = this.localGeneration;
     try {
-      const roomInfo = await this.apiClient.resolveRoomInfo();
+      const roomInfo = await this.apiClient.resolveRoomInfo({ includeOwner: !this.ownerName });
       if (this.stopped || localGeneration !== this.localGeneration) return;
       if (roomInfo.ownerName) {
         this.ownerName = roomInfo.ownerName;

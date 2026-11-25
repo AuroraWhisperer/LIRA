@@ -162,6 +162,35 @@ test('scene drawing retains painted history until its revision, session, round o
   assert.equal(nodes.get('drawGuessView').hidden, false);
 });
 
+test('drawing updates retain the lists and revealing chat renders the latest snapshot once', async () => {
+  const { nodes, context, evaluate, receive } = await createGameOverlayFixture();
+  const chats = [];
+  context.showChat = items => chats.push(items.map(item => item.message).join(','));
+  evaluate(`componentConfig = { game: 'draw-guess', showDanmaku: false };
+    drawController = { scheduleDrawDanmakuRender: showChat, resetDanmakuRenderScheduler() {},
+      setDrawingClock() {}, setToolsEnabled() {}, redrawCanvas() {} }`);
+  const state = { phase: 'round-result', round: 1, totalRounds: 2,
+    scores: [{ name: 'A', score: 5 }], correct: [{ name: 'A', rank: 1, points: 5 }] };
+  const snapshot = message => receive('draw-guess', state, { danmaku: [{ message }] });
+  snapshot('first');
+  const score = nodes.get('drawScoreboard').children[0];
+  const correct = nodes.get('drawCorrectFeed').children[0];
+  snapshot('latest');
+  assert.equal(chats.length, 0);
+  assert.equal(nodes.get('drawScoreboard').children[0], score);
+  assert.equal(nodes.get('drawCorrectFeed').children[0], correct);
+
+  evaluate('componentConfig.showDanmaku = true; renderGame(session)');
+  snapshot('latest');
+  assert.deepEqual(chats, ['latest']);
+  state.scores[0].score++;
+  context.patch = { type: 'game:patch', eventRevision: 4, state, item: { message: 'answer' } };
+  evaluate('applyGameDelta(patch)');
+  assert.deepEqual(chats, ['latest', 'latest,answer']);
+  assert.notEqual(nodes.get('drawScoreboard').children[0], score);
+  assert.equal(nodes.get('drawCorrectFeed').children[0], correct);
+});
+
 test('result actions and late winner profiles follow the current game session', async () => {
   const profiles = [];
   const actions = [];
@@ -183,15 +212,15 @@ test('result actions and late winner profiles follow the current game session', 
 
   receive('number-bomb', { ...state, winner: 'host' });
   receive('number-bomb', { ...state, winner: 'viewer' });
-  profiles[0].resolve({ avatarUrl: 'https://example.test/old.png' });
+  profiles[0].resolve({ avatarUrl: 'https://i0.hdslb.com/bfs/face/old.png' });
   await flush();
   assert.equal(avatar().hidden, true, 'a previous winner cannot supply the current avatar');
-  profiles[1].resolve({ avatarUrl: 'https://example.test/current.png' });
+  profiles[1].resolve({ avatarUrl: 'https://i0.hdslb.com/bfs/face/current.png' });
   await flush();
   assert.equal(avatar().hidden, false);
   const avatarUrl = new URL(avatar().src, 'http://127.0.0.1');
   assert.equal(avatarUrl.pathname, '/api/bilibili/avatar');
-  assert.equal(avatarUrl.searchParams.get('url'), 'https://example.test/current.png');
+  assert.equal(avatarUrl.searchParams.get('url'), 'https://i0.hdslb.com/bfs/face/current.png');
   assert.equal(avatarUrl.searchParams.get('token'), 'result-test-token');
   assert.equal(profiles[1].options.headers.Authorization, 'Bearer result-test-token');
 
@@ -224,7 +253,7 @@ test('result actions and late winner profiles follow the current game session', 
   assert.equal(result().hidden, true);
 
   receive('number-bomb', { ...state, winner: 'host' });
-  profiles[3].resolve({ avatarUrl: 'https://example.test/next.png' });
+  profiles[3].resolve({ avatarUrl: 'https://i0.hdslb.com/bfs/face/next.png' });
   await flush();
   const currentAvatar = avatar().src;
   profiles[2].reject(new TypeError('Obsolete profile request failed'));
@@ -239,10 +268,22 @@ test('result actions and late winner profiles follow the current game session', 
   await stale;
   assert.equal(snapshots.length, 1, 'a superseded action cannot recover over a newer snapshot');
   assert.equal(nodes.get('gameResultActionStatus').hidden, true);
-  profiles.slice(2).forEach(request => request.resolve({ avatarUrl: 'https://example.test/late.png' }));
+  profiles.slice(2).forEach(request => request.resolve({ avatarUrl: 'https://i0.hdslb.com/bfs/face/late.png' }));
   await flush();
   assert.equal(avatar().hidden, true);
   evaluate('gameResult.dispose()');
   assert.equal(nodes.get('gameResultNext').handlers.get('click').length, 0);
   assert.equal(context.window.handlers.get('resize').length, 0);
+});
+
+test('a rejected winner avatar stays hidden without assigning an empty image source', async () => {
+  const { nodes, receive } = await createGameOverlayFixture(async () => ({
+    json: async () => ({ ok: true, data: { avatarUrl: 'https://example.test/untrusted.png' } }),
+  }));
+  const { createNumberBombState, publicNumberBombState } = require('../../src/games/number-bomb');
+  receive('number-bomb', { ...publicNumberBombState(createNumberBombState(() => 0.5)), winner: 'host' });
+  await new Promise(setImmediate);
+  const avatar = nodes.get('gameResultAvatar');
+  assert.equal(avatar.hidden, true);
+  assert.equal(Object.hasOwn(avatar, 'src'), false);
 });

@@ -1,6 +1,6 @@
 body[data-style='horizontal-charm'] {
   --charm-font: 'Spooky Nunito', 'Lira Maiyuan', var(--danmaku-ui-font);
-  --danmaku-enter-animation: charmEntry 650ms linear;
+  --danmaku-enter-animation: danmakuEntryClock 650ms linear;
   --danmaku-enter-offset: 0;
   --danmaku-move-base-ms: 350;
   --danmaku-move-max-ms: 650;
@@ -95,13 +95,9 @@ body[data-style='horizontal-charm'] .draw-danmaku-empty { width: 100%; padding: 
 .charm-item[data-live-entry] .charm-badge { animation: charmBadgeIn 480ms cubic-bezier(.16, 1, .3, 1) both; }
 .charm-item[data-live-entry] .charm-identity { animation: charmNameIn 550ms cubic-bezier(.16, 1, .3, 1) both; }
 .charm-item[data-live-entry] .charm-content { animation: charmBubbleIn 650ms cubic-bezier(.16, 1, .3, 1) both; }
-@keyframes charmEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
 @keyframes charmBadgeIn { from { opacity: 0; transform: scale(.45); } to { opacity: 1; transform: scale(1); } }
 @keyframes charmNameIn { from { --danmaku-enter-opacity: 0; --danmaku-enter-x: 12px; } to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; } }
 @keyframes charmBubbleIn { from { --danmaku-enter-opacity: 0; --danmaku-enter-x: 24px; clip-path: inset(0 85% 0 0); } 24% { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; clip-path: inset(-8px -8px -8px -16px); } }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='horizontal-charm'] :is(.charm-badge, .charm-identity, .charm-content) { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='horizontal-charm'] .draw-danmaku-item .charm-copy {

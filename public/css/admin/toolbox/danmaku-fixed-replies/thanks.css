@@ -71,12 +71,10 @@
   align-items: center;
   gap: 8px 12px;
   flex-wrap: wrap;
-  padding: 12px;
   border-radius: var(--radius-control);
   background: var(--surface-2);
 }
 .danmaku-thanks-preview output {
-  flex-basis: 100%;
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -118,15 +116,7 @@
 }
 .danmaku-thanks-reply {
   display: grid;
-  gap: 10px;
-  padding-block: 16px;
   border-top: 1px solid var(--border);
-}
-.danmaku-thanks-reply-heading > strong {
-  margin-right: auto;
-}
-.danmaku-thanks-library-actions {
-  padding-block: 16px;
 }
 .danmaku-thanks-enabled input {
   width: auto;

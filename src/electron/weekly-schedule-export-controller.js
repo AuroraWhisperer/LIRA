@@ -1,8 +1,13 @@
 'use strict';
 
+const IMAGE_BYTES_ERROR = '单张周表素材不能超过 12 MB（12,582,912 字节），请缩小图片后重试。';
+const IMAGE_READ_ERROR = '周表素材无法读取，请重新上传。';
+const IMAGE_SIZE_ERROR = '请缩小图片。长边最多 8192 像素，总像素最多 33,554,432（约 3355 万）。';
+
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { hasPngHeader, pngHasSize, encodeExportPng } = require('./png-size');
 
 const WIDTH = 1920;
 const HEIGHT = 1080;
@@ -12,7 +17,6 @@ const MAX_TEMPLATE_BYTES = 68 * 1024 * 1024;
 const ASSET_KEYS = new Set(['portrait', 'chibi', 'logo', 'background', 'qrcode', 'rank1', 'rank2', 'rank3', 'icon']);
 const LAYOUTS = new Set(['scrapbook', 'celestial', 'broadcast', 'week-grid', 'magazine', 'scroll',
   'editorial', 'letterpress', 'nocturne', 'gallery']);
-const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function invalid(message = '周表内容无效，请重新打开周表生成器。') {
   const error = new Error(message);
@@ -45,7 +49,7 @@ function webpSize(bytes) {
   invalid('周表 WebP 素材无法读取，请重新上传。');
 }
 
-function validateWeeklyScheduleExportTemplate(input, nativeImage) {
+function prepareWeeklyScheduleExport(input, nativeImage) {
   if (!record(input)) invalid();
   let serialized;
   try { serialized = JSON.stringify(input); } catch { invalid(); }
@@ -123,19 +127,19 @@ function validateWeeklyScheduleExportTemplate(input, nativeImage) {
   for (const [key, value] of Object.entries(template.assets)) {
     if (!ASSET_KEYS.has(key) || typeof value !== 'string') invalid();
     if (!value) continue;
-    if (value.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 64) invalid('单张周表素材不能超过 12 MB（12,582,912 字节），请缩小图片后重试。');
+    if (value.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 64) invalid(IMAGE_BYTES_ERROR);
     const match = /^data:image\/(png|jpeg|webp);base64,([a-z\d+/]+={0,2})$/i.exec(value);
     if (!match) invalid('周表素材必须是本机 PNG、JPEG 或 WebP 图片。');
     const bytes = Buffer.from(match[2], 'base64');
     totalBytes += bytes.length;
-    if (!bytes.length) invalid('周表素材无法读取，请重新上传。');
-    if (bytes.length > MAX_IMAGE_BYTES) invalid('单张周表素材不能超过 12 MB（12,582,912 字节），请缩小图片后重试。');
+    if (!bytes.length) invalid(IMAGE_READ_ERROR);
+    if (bytes.length > MAX_IMAGE_BYTES) invalid(IMAGE_BYTES_ERROR);
     if (totalBytes > MAX_TOTAL_IMAGE_BYTES) invalid('每份周表的素材总量不能超过 48 MB（50,331,648 字节），请移除或缩小部分图片。');
     // Reject a declared oversized PNG before asking the native decoder to allocate its bitmap.
-    if (bytes.length >= 24 && bytes.subarray(0, 8).equals(PNG_SIGNATURE)
+    if (hasPngHeader(bytes)
       && (bytes.readUInt32BE(16) > 8192 || bytes.readUInt32BE(20) > 8192
         || bytes.readUInt32BE(16) * bytes.readUInt32BE(20) > 32 * 1024 * 1024)) {
-      invalid('请缩小图片。长边最多 8192 像素，总像素最多 33,554,432（约 3355 万）。');
+      invalid(IMAGE_SIZE_ERROR);
     }
     let size;
     if (match[1].toLowerCase() === 'webp') {
@@ -144,16 +148,20 @@ function validateWeeklyScheduleExportTemplate(input, nativeImage) {
       size = webpSize(bytes);
     } else {
       let image;
-      try { image = nativeImage.createFromBuffer(bytes); } catch { invalid('周表素材无法读取，请重新上传。'); }
-      if (image.isEmpty()) invalid('周表素材无法读取，请重新上传。');
+      try { image = nativeImage.createFromBuffer(bytes); } catch { invalid(IMAGE_READ_ERROR); }
+      if (image.isEmpty()) invalid(IMAGE_READ_ERROR);
       size = image.getSize();
     }
-    if (!size.width || !size.height) invalid('周表素材无法读取，请重新上传。');
+    if (!size.width || !size.height) invalid(IMAGE_READ_ERROR);
     if (size.width > 8192 || size.height > 8192 || size.width * size.height > 32 * 1024 * 1024) {
-      invalid('请缩小图片。长边最多 8192 像素，总像素最多 33,554,432（约 3355 万）。');
+      invalid(IMAGE_SIZE_ERROR);
     }
   }
-  return template;
+  return { template, serialized };
+}
+
+function validateWeeklyScheduleExportTemplate(input, nativeImage) {
+  return prepareWeeklyScheduleExport(input, nativeImage).template;
 }
 
 function fileNameFor(template) {
@@ -161,11 +169,6 @@ function fileNameFor(template) {
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '').replace(/[. ]+$/g, '').slice(0, 60) || '直播周表';
   const date = /^\d{4}-\d{2}-\d{2}$/.test(template.monday) ? template.monday : '本周';
   return `${title}_${date}.png`;
-}
-
-function pngHasSize(png, width, height) {
-  return Buffer.isBuffer(png) && png.length >= 24 && png.subarray(0, 8).equals(PNG_SIGNATURE)
-    && png.readUInt32BE(16) === width && png.readUInt32BE(20) === height;
 }
 
 function createWeeklyScheduleExportController({ app, BrowserWindow, dialog, nativeImage, session,
@@ -208,7 +211,7 @@ function createWeeklyScheduleExportController({ app, BrowserWindow, dialog, nati
     current.cancelledSignal = new Promise(resolve => { current.resolveCancellation = resolve; });
     active = current;
     try {
-      const template = validateWeeklyScheduleExportTemplate(input, nativeImage);
+      const { template, serialized } = prepareWeeklyScheduleExport(input, nativeImage);
       const directory = path.join(path.dirname(app.getPath('exe')), '周表');
       await fileSystem.mkdir(directory, { recursive: true });
       assertCurrent(current);
@@ -258,7 +261,7 @@ function createWeeklyScheduleExportController({ app, BrowserWindow, dialog, nati
       // The display can constrain initial window bounds before the page has loaded.
       win.setContentSize(WIDTH, HEIGHT);
       const rendered = await bounded(win.webContents.executeJavaScript(
-        `window.renderWeeklyScheduleExport(${JSON.stringify(template)})`,
+        `window.renderWeeklyScheduleExport(${serialized})`,
       ), current);
       assertCurrent(current);
       const fullViewport = rendered?.viewportWidth >= WIDTH && rendered?.viewportHeight >= HEIGHT;
@@ -281,8 +284,7 @@ function createWeeklyScheduleExportController({ app, BrowserWindow, dialog, nati
         assertCurrent(current);
         image = await capture();
       }
-      let png = image.toPNG();
-      if (!pngHasSize(png, WIDTH, HEIGHT)) png = image.resize({ width: WIDTH, height: HEIGHT, quality: 'best' }).toPNG();
+      const png = encodeExportPng(image, WIDTH, HEIGHT, nativeImage);
       if (!pngHasSize(png, WIDTH, HEIGHT)) invalid('周表图片尺寸验证失败，请重试。');
       assertCurrent(current);
       current.temporaryPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${randomUUID()}.tmp`);

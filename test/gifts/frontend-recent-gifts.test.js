@@ -7,6 +7,49 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('recent gifts build six visible rows and recover the latest records across grid and visibility changes', async () => {
+  let columns = 3;
+  let resize;
+  const renders = [];
+  const requests = [];
+  const list = {
+    classList: { toggle() {} }, querySelectorAll: () => [],
+    set innerHTML(value) { renders.push([...value.matchAll(/class="gift-name" title="([^"]+)"/g)].map(match => match[1])); },
+  };
+  const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), {
+    AbortController,
+    window: {
+      async fetch(url) {
+        requests.push(url);
+        return { ok: true, json: async () => ({ ok: true, data: { gifts: [] } }) };
+      },
+      getComputedStyle: () => ({ gridTemplateColumns: Array(columns).fill('270px').join(' ') }),
+      ResizeObserver: class { constructor(callback) { resize = callback; } observe() {} disconnect() {} },
+    },
+    document: { getElementById: () => list },
+  });
+  const records = batch => Array.from({ length: 30 }, (_, i) => ({ gift_name: `${batch}-${i}` }));
+  for (let i = 0; i < 20; i++) giftRecent.renderGiftRecentList(records(i));
+  assert.equal(renders.flat().length, 360);
+  await new Promise(setImmediate);
+  resize();
+  assert.equal(renders.length, 20, 'a height-only resize keeps the current cards');
+  columns = 5;
+  resize();
+  assert.equal(renders.at(-1).at(-1), '19-29');
+  columns = 1;
+  resize();
+  assert.equal(renders.at(-1).length, 6);
+  giftRecent.setVisible(false);
+  giftRecent.renderGiftRecentList(records(20));
+  columns = 2;
+  resize();
+  assert.equal(renders.length, 22);
+  giftRecent.setVisible(true);
+  assert.equal(renders.at(-1).at(-1), '20-11');
+  assert.deepEqual(requests, ['/api/overtime/gifts/catalog']);
+});
+
 test('recent gift cards render escaped metadata and retain blind-box results', async () => {
   const list = { innerHTML: '', classList: { toggle() {} }, querySelectorAll: () => [] };
   const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), {

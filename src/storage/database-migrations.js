@@ -17,7 +17,7 @@ const { migrateFanProfiles } = require('./fan-profile-migration');
 const { migrateFanSongRetention } = require('./fan-song-migration');
 const { migrateFanRosterObservations } = require('./fan-roster-observation-migration');
 const { migrateSuperChatReceipts } = require('./superchat-receipt-migration');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('./scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion, migrateSceneBodyTokens } = require('./scene-migration');
 const { migrateDanmakuAppearance } = require('./danmaku-appearance-store');
 
 // ── 迁移注册表 ──
@@ -143,6 +143,21 @@ function getMigrationPlan(options = {}) {
           PRIMARY KEY (owner_scope, request_day, identity_type, requester_uid)
         )`);
       },
+      (db) => db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_fan_records_songs ON fan_records(scope, profile_id) WHERE kind = 'song';
+        CREATE INDEX IF NOT EXISTS idx_ai_context_expiry ON ai_viewer_context(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_ai_cache_expiry ON ai_query_cache(expires_at);
+      `),
+      // v21：场景发布正文与账号弹幕外观按行检测变更。
+      migrateSceneBodyTokens,
+      // v22：修复旧 H 界标将「哈」归到 G 的歌曲，保留业务字段及修改时间。
+      (db) => {
+        const candidates = db.prepare("SELECT id, name FROM songs WHERE name_initial = 'G' OR name_pinyin = 'G'");
+        const update = db.prepare("UPDATE songs SET name_initial = 'H', name_pinyin = 'H' WHERE id = ?");
+        for (const song of candidates.all()) {
+          if (getInitial(song.name) === 'H') update.run(song.id);
+        }
+      },
     ] },
 
     // 醒目留言库此前完全没有迁移入口，v1 建立基线以便后续加列
@@ -152,6 +167,7 @@ function getMigrationPlan(options = {}) {
       },
       // v2：移除 SC 历史正文，只保留阻止旧消息重现的平台标识。
       migrateSuperChatReceipts,
+      (db) => db.exec('CREATE INDEX IF NOT EXISTS idx_super_chats_platform ON super_chats(platform_id)'),
     ] },
 
     { name: 'giftDb', key: 'gift_db', steps: [
@@ -400,6 +416,11 @@ function getMigrationPlan(options = {}) {
             WHERE source_id IS NOT NULL AND total_price > 0 AND detection_status = 'final';
         `);
       },
+      (db) => db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_gift_events_overtime_final ON gift_events(overtime_epoch, id)
+          WHERE overtime_epoch > 0 AND detection_status = 'final';
+        CREATE INDEX IF NOT EXISTS idx_gift_events_raw_age ON gift_events(created_at) WHERE raw_json != '';
+      `),
     ] },
 
     { name: 'musicDb', key: 'music_db', steps: [

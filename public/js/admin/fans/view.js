@@ -4,7 +4,8 @@ import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';
 
 export const html = escapeHtml;
 export const attr = escapeAttr;
-export const levels = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as levels } from '../../shared/bilibili-guard-labels.js';
+export { levels };
 export function rosterSkippedMessage(result) {
   if (!result.skipped) return '';
   const reasons = {
@@ -41,12 +42,11 @@ export function rosterUpdateNotices(result, prefix = '') {
   return notices;
 }
 
+const beijingDate = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai' });
 export function dateLabel(value) {
-  return value
-    ? new Date(value.length === 10 ? `${value}T00:00:00+08:00` : value).toLocaleDateString('zh-CN', {
-        timeZone: 'Asia/Shanghai',
-      })
-    : '待补充';
+  if (!value) return '待补充';
+  const date = new Date(value.length === 10 ? `${value}T00:00:00+08:00` : value);
+  return Number.isNaN(date.getTime()) ? date.toString() : beijingDate.format(date);
 }
 export function memberLabel(membership, guardRoster) {
   if (guardRoster) return guardRoster.level ? `在舰 · ${levels[guardRoster.level]}` : '最近同步时未在舰';
@@ -73,12 +73,13 @@ export function renderPeople(profiles, selected, filtered, archived = false, exp
     return `<div class="fan-empty lira-content-state"><h3 class="lira-content-state-title">${filtered ? '没有符合条件的档案' : '暂无粉丝档案'}</h3>
     ${button(filtered ? 'clear-filter' : 'new', filtered ? '清除筛选' : '新建档案')}</div>`;
   const badges = new Map(expiry.badges.map((badge) => [badge.profileId, badge]));
+  const observed = badges.size ? new Date(expiry.observedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '';
   return profiles
     .map((p) => {
       const name = p.alias || p.platformName || '未命名档案';
       const platformName = p.alias && p.platformName && p.alias !== p.platformName ? p.platformName : '';
       const badge = !p.archived && badges.get(p.id)?.level === p.currentGuardLevel ? badges.get(p.id) : null;
-      const expiryTitle = badge ? `${levels[badge.level]}到期：${badge.days === 0 ? '今日到期' : `剩余${badge.days}天`}。来源：B 站，更新于${new Date(expiry.observedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}（北京时间）。` : '';
+      const expiryTitle = badge ? `${levels[badge.level]}到期：${badge.days === 0 ? '今日到期' : `剩余${badge.days}天`}。来源：B 站，更新于${observed}（北京时间）。` : '';
       return `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
     <span class="fan-person-copy"><span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(name + (platformName ? `（${platformName}）` : ''))}">${html(name)}${platformName ? `<wbr><span class="fan-person-platform-name">（${html(platformName)}）</span>` : ''}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span></span>
     ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
@@ -198,7 +199,7 @@ function membership(profile) {
     <div><dt>累计在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.totalDays ?? '未知'}${summary.totalDays !== null ? ` 天 · 截至 ${html(summary.totalAsOf)}` : ''}</dd></div>
     <div><dt>连续在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.continuousDays ?? '未知'}${summary.continuousDays !== null ? ` 天 · 截至 ${html(summary.continuousAsOf)}` : ''}</dd></div>
     <div><dt>首次上舰</dt><dd>${html(summary.firstDate || '待确认')}</dd></div></dl>
-    ${profile.guardRoster ? `<p class="fan-muted">名单更新于 ${html(dateLabel(profile.guardRoster.observedAt))}</p>` : summary.observedAt ? `<p class="fan-muted">上次上舰记录：${html(dateLabel(summary.observedAt))}，当前是否在舰还需确认。</p>` : ''}</section>
+    ${profile.guardRoster ? `<p class="fan-muted">名单更新于 ${html(dateLabel(profile.guardRoster.observedAt))}</p>` : summary.observedLevel ? `<p class="fan-muted">上次上舰记录：${html(dateLabel(summary.observedAt))}，当前是否在舰还需确认。</p>` : ''}</section>
     ${records
       .filter((r) => r.data.decision === 'pending')
       .map((r) => membershipRecord(r, profile))

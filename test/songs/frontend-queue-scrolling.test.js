@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
+const { FakeNode } = require('../helpers/fake-dom');
 const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -55,36 +56,17 @@ test('queue resize preserves real rows while removing stale loop copies', async 
   };
   const evaluate = await loadModuleScope(path.join(ROOT_DIR, 'public/js/overlays/queue.js'), sandbox);
 
-  const removed = [];
-  const realRow = {
-    outerHTML: '<div>original row</div>',
-    remove() {
-      assert.fail('real queue rows must remain mounted');
-    },
-  };
-  const cloneRows = [
-    {
-      remove() {
-        removed.push('first');
-        list.children = list.children.filter((node) => node !== this);
-      },
-    },
-    {
-      remove() {
-        removed.push('second');
-        list.children = list.children.filter((node) => node !== this);
-      },
-    },
-  ];
-  const list = {
-    scrollHeight: 240,
-    classList: { add() {}, remove() {} },
-    querySelectorAll(selector) {
-      assert.equal(selector, '[data-loop-clone="true"]');
-      return list.children.filter((node) => node !== realRow);
-    },
-    children: [realRow, ...cloneRows],
-  };
+  const realRow = new FakeNode('div');
+  realRow.outerHTML = '<div>original row</div>';
+  const list = new FakeNode('div');
+  list.append(realRow);
+  for (const clone of [new FakeNode('div'), new FakeNode('div')]) {
+    clone.dataset.loopClone = 'true';
+    list.append(clone);
+  }
+  list.scrollHeight = 240;
+  list.querySelectorAll = (selector) => selector === '[data-loop-clone="true"]'
+    ? list.children.filter((row) => row.dataset.loopClone === 'true') : [];
   const viewport = { clientHeight: 300, querySelector: () => list };
   const content = {
     querySelector: () => viewport,
@@ -94,38 +76,26 @@ test('queue resize preserves real rows while removing stale loop copies', async 
 
   evaluate("state = { settings: { overlayQueueStyle: 'classic' } };");
   evaluate('handleQueueViewportResize()');
-  assert.equal(typeof scheduledResize, 'function');
   scheduledResize();
-  assert.deepEqual(removed, ['first', 'second']);
   assert.deepEqual(list.children, [realRow]);
 });
 
-test('identity queue scrolls only when its rows overflow', async () => {
-  const { configureIdentityVerticalScroll } = await loadQueueModule('queue-scroll.js', {
-    document: {
-      getElementById: () => ({ textContent: '' }),
-      documentElement: { style: { setProperty() {} } },
-    },
+test('classic and identity queues append one loop copy only when the rows overflow', async () => {
+  const { configureClassicVerticalScroll, configureIdentityVerticalScroll } = await loadQueueModule('queue-scroll.js', {
+    document: { documentElement: { style: { setProperty() {} } } },
   });
-  const createList = (scrollHeight) => {
-    const list = {
-      scrollHeight,
-      duplicatedHtml: '',
-      classList: { add() {}, remove() {} },
-      insertAdjacentHTML(_position, html) {
-        list.duplicatedHtml += html;
-      },
-    };
-    return list;
-  };
-
-  const overflowing = createList(500);
-  assert.equal(
-    configureIdentityVerticalScroll({ clientHeight: 300 }, overflowing, { queueScrollMode: 'loop' }, '<div>rows</div>', 4),
-    true,
-  );
-  const fitting = createList(280);
-  const fittingViewport = { clientHeight: 300, style: {}, parentElement: null, getBoundingClientRect: () => ({ top: 40 }) };
-  assert.equal(configureIdentityVerticalScroll(fittingViewport, fitting, {}, '<div>rows</div>', 4), false);
-  assert.equal(fitting.duplicatedHtml, '', 'fitting content must not be duplicated');
+  const viewport = { clientHeight: 300 };
+  const settings = { queueScrollMode: 'loop' };
+  const rows = '<div>歌曲</div>';
+  for (const configure of [configureClassicVerticalScroll, configureIdentityVerticalScroll]) {
+    const copies = [];
+    const list = new FakeNode('div');
+    list.insertAdjacentHTML = (_position, html) => copies.push(html);
+    list.scrollHeight = 280;
+    configure(viewport, list, settings, rows);
+    assert.deepEqual(copies, [], configure.name);
+    list.scrollHeight = 500;
+    configure(viewport, list, settings, rows);
+    assert.deepEqual(copies, [rows], configure.name);
+  }
 });

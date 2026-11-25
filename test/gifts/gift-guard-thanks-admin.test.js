@@ -124,7 +124,7 @@ test('previews never save the settings draft and restored values are no longer d
     }
     const { setComponentPreviewPreparation } = await import('/js/admin/component-preview-registry.js');
     const { setActiveComponentPreview } = await import('/js/admin/component-preview-session.js');
-    const draft = { document: { canvas: { width: 1920, height: 1080 }, items: [] } };
+    const draft = { document: { schemaVersion: 1, id: '11111111-1111-4111-8111-111111111111', title: '预览场景', canvas: { width: 1920, height: 1080 }, items: [] } };
     setComponentPreviewPreparation(() => ({ id: 'canvas', controller: { getState: () => ({ loaded: true, draft }),
       edit(next) { Object.assign(draft, next); } } }));
     window.previewRequests = [];

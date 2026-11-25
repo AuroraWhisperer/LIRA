@@ -1,11 +1,23 @@
+const timeFormat = new Intl.DateTimeFormat('zh-CN', {
+  hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
+});
+const dateTimeFormat = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
+});
+
+function formatDate(formatter, value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? date.toString() : formatter.format(date);
+}
+
 export function formatTime(v) {
   if (!v) return '';
-  return new Date(v).toLocaleTimeString('zh-CN', { hour12: false });
+  return formatDate(timeFormat, v);
 }
 
 export function formatDateTime(v) {
   if (!v) return '--';
-  return new Date(v).toLocaleString('zh-CN', { hour12: false });
+  return formatDate(dateTimeFormat, v);
 }
 
 function scaleBytes(bytes) {
@@ -59,4 +71,9 @@ export function formatCompactNumber(v) {
   if (number >= 100000000) return `${(number / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
   if (number >= 10000) return `${(number / 10000).toFixed(1).replace(/\.0$/, '')}万`;
   return String(Math.round(number));
+}
+
+export function formatDanmakuAmount(value, minimumFractionDigits = 0) {
+  return Number.isFinite(value) && value >= 0
+    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits, maximumFractionDigits: 2 })}` : '—';
 }

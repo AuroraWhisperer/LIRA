@@ -122,7 +122,7 @@ function prepareMembership(records) {
     return {
       status,
       level: status === 'active' ? Math.min(...active.map((r) => r.record.data.level)) : null,
-      observedLevel: observations[0]?.data.level || null,
+      observedLevel: observations[0]?.data.status === 'inactive' ? null : observations[0]?.data.level || null,
       observedAt: observations[0]?.data.observedAt || null,
       firstDate: first?.data.date || '',
       totalDays,
@@ -134,11 +134,14 @@ function prepareMembership(records) {
       cycleId,
       expiry: expiry ? { ...expiry.expiry } : null,
       pending: [...pendingIds],
-      hasHistory: all.length > 0,
+      hasHistory: Boolean(latest || (first && first.data.date <= today) ||
+        bases.some(({ record }) => record.data.totalDays > 0 || record.data.continuousDays > 0) ||
+        observations.some(r => r.data.status !== 'inactive')),
       datePrecision,
     };
   }
-  summarizeAt.milestoneDates = (earliest, latest, now) => membershipMilestoneDates(merged, baselines, earliest, latest, now);
+  summarizeAt.milestoneDates = (earliest, latest, now, snoozedRules) =>
+    membershipMilestoneDates(merged, baselines, earliest, latest, now, snoozedRules);
   return summarizeAt;
 }
 

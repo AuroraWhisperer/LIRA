@@ -7,7 +7,7 @@ const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID } = require('node:crypto');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+const { migrateTestSongDb } = require('../helpers/song-database');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { createSceneOutputEvents } = require('../../src/server/scene-output-events');
@@ -41,9 +41,7 @@ function secretCodec() {
 
 async function fixture(t) {
   const db = new DatabaseSync(':memory:');
-  migrateScenes(db);
-  migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db); migrateSceneDeletion(db);
+  migrateTestSongDb(db);
   const state = { owner: { scope: 'https://server.test/streamer-a', epoch: 1 }, licensed: true, phase: 'ready' };
   const display = {
     settings: { clockLabel: 'HTTP clock', aiApiKey: PRIVATE },

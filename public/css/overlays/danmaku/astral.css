@@ -87,7 +87,7 @@ body[data-style='astral'] .astral-item:not([data-astral-kind='chat']) .astral-co
 .astral-item[data-live-entry] .astral-heading { animation: astralInk 350ms 150ms ease-out backwards; }
 .astral-item[data-live-entry] .astral-copy { animation: astralInk 400ms 300ms ease-out backwards; }
 .astral-item[data-live-entry] :is(.astral-side,.astral-dots,.astral-role) { opacity: var(--astral-opacity); animation: astralInk 350ms 650ms ease-out backwards; }
-.astral-item[data-live-entry] .astral-rail { animation: astralDrop 450ms 550ms cubic-bezier(.16,1,.3,1) backwards; }
+.astral-item[data-live-entry] .astral-rail { animation: astralTrace 450ms 550ms cubic-bezier(.16,1,.3,1) backwards; }
 body[data-style='astral']:not([data-ambient-motion='off']) .astral-star path { animation: astralTwinkle 4.8s ease-in-out infinite; }
 body[data-style='astral']:not([data-ambient-motion='off']) .astral-side--right path { animation-delay: -2.4s; }
 body[data-style='astral'][data-astral-entrance='none'] .astral-item[data-live-entry] { animation: astralEntry 1ms linear; }
@@ -95,11 +95,7 @@ body[data-style='astral'][data-astral-entrance='none'] .astral-item[data-live-en
 @keyframes astralEntry { from,to { --danmaku-enter-opacity: 1; } }
 @keyframes astralTrace { from { --astral-reveal: 100%; } to { --astral-reveal: 0%; } }
 @keyframes astralInk { from { --astral-opacity: 0; } to { --astral-opacity: 1; } }
-@keyframes astralDrop { from { --astral-reveal: 100%; } to { --astral-reveal: 0%; } }
 @keyframes astralTwinkle { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='astral'] .astral-item, body[data-style='astral'] .astral-item * { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='astral'] .draw-danmaku-item .astral-copy {

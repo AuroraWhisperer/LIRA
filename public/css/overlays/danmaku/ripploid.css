@@ -21,7 +21,7 @@
   initial-value: 1;
 }
 
-/* RIPPLOID：白色擦除揭示正文，身份与细线随后分层落位；稳定帧是所有节点的默认状态。 */
+/* 先锋票根（ripploid）：白色擦除揭示正文，身份与细线随后分层落位；稳定帧是所有节点的默认状态。 */
 body[data-style='ripploid'] {
   --ripploid-enter-duration: 700ms;
   --danmaku-enter-animation: ripploidMessageIn var(--ripploid-enter-duration) linear both;
@@ -1470,12 +1470,6 @@ body[data-style='ripploid'] .ripploid-superchat[data-live-entry] .ripploid-sc-se
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body[data-style='ripploid'] .draw-danmaku-item,
-  body[data-style='ripploid'] .draw-danmaku-item *,
-  body[data-style='ripploid'] .draw-danmaku-item *::before,
-  body[data-style='ripploid'] .draw-danmaku-item *::after {
-    animation: none !important;
-  }
   body[data-style='ripploid'] :is(.ripploid-wipe, .ripploid-sweep-rule, .ripploid-event-wipe, .ripploid-sc-transition, .ripploid-sc-sender-wipe) { display: none; }
 }
 

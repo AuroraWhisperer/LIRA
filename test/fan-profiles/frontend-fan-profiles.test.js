@@ -191,7 +191,18 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function archiveUi(t, storage = new Map()) {
+function holdReply(ui, action) {
+  const gate = deferred();
+  ui.handlers.set(action, async input => {
+    ui.handlers.delete(action);
+    const reply = ui.respond(input);
+    await gate.promise;
+    return reply;
+  });
+  return gate.resolve;
+}
+
+async function archiveUi(t, storage = new Map(), moduleFixtures = new Map()) {
   const f = fanFixture(t);
   const a = f.create({ alias: '当前观众A', birthday: { monthDay: '09-18' }, notes: '保留私人资料' });
   const note = f.record(a.id, 'note', { body: '保留这份手记' });
@@ -238,7 +249,9 @@ async function archiveUi(t, storage = new Map()) {
   };
   const listeners = new Map();
   documentRef.addEventListener = (event, callback) => listeners.set(event, callback);
+  documentRef.removeEventListener = (event, callback) => { if (listeners.get(event) === callback) listeners.delete(event); };
   const observers = [];
+  let poll;
   const ui = {
     f,
     a,
@@ -280,11 +293,8 @@ async function archiveUi(t, storage = new Map()) {
     window: windowRef,
     setTimeout: clock.setTimeout,
     clearTimeout: clock.clearTimeout,
-    setInterval: (callback) => {
-      ui.poll = callback;
-      return 1;
-    },
-    clearInterval() {},
+    setInterval: (callback) => { poll = callback; return 1; },
+    clearInterval() { poll = null; },
     MutationObserver: class {
       constructor(callback) {
         observers.push(callback);
@@ -296,7 +306,9 @@ async function archiveUi(t, storage = new Map()) {
       observe() {}
       disconnect() {}
     },
-  });
+  }, { moduleFixtures });
+  ui.poll = () => poll?.();
+  ui.setDocumentHidden = (value) => { documentRef.hidden = value; listeners.get('visibilitychange')?.(); };
   mod.initFanProfiles();
   ui.flush = () => new Promise(setImmediate);
   ui.click = async (dataset) => {
@@ -410,11 +422,143 @@ test('fan polling pauses outside its main page and refreshes immediately on retu
   await ui.flush();
   assert.equal(ui.listCalls().length, 1);
   ui.calls.length = 0;
+  ui.setDocumentHidden(true);
+  ui.poll();
+  await ui.flush();
+  assert.equal(ui.calls.length, 0);
+  ui.setDocumentHidden(false);
+  await ui.flush();
+  assert.equal(ui.listCalls().length, 1);
+  ui.calls.length = 0;
   ui.nodes.get('otherFanProfilesFeature').hidden = true;
   ui.visibilityChanged();
   ui.poll();
   await ui.flush();
   assert.equal(ui.calls.length, 0);
+});
+
+test('reminder polls maintain the header without reading or rendering hidden profiles, then catch up on return', async t => {
+  const file = path.join(ROOT, 'public/js/admin/fans/view.js');
+  const view = await loadModuleExports(file);
+  const renders = { list: 0, detail: 0 };
+  const ui = await archiveUi(t, new Map(), new Map([[file, { ...view,
+    renderPeople(...args) { renders.list++; return view.renderPeople(...args); },
+    renderDetail(...args) { renders.detail++; return view.renderDetail(...args); },
+  }]]));
+  await ui.click({ fanId: ui.a.id });
+  const oldRead = deferred();
+  ui.handlers.set('detail', async input => {
+    const oldProfile = ui.respond(input);
+    await oldRead.promise;
+    return oldProfile;
+  });
+  ui.poll();
+  await ui.flush();
+  await ui.click({ fanPage: 'reminders' });
+  ui.calls.length = 0;
+  renders.list = renders.detail = 0;
+  for (let i = 0; i < 3; i++) { ui.poll(); await ui.flush(); }
+  const count = action => ui.calls.filter(call => call.action === action).length;
+  assert.deepEqual([count('detail'), renders.detail, renders.list], [0, 0, 0]);
+  assert.deepEqual([count('open'), count('guard-expiry'), count('reminders')], [3, 3, 3]);
+  const profile = ui.f.detail(ui.a.id);
+  ui.f.run('save', { id: profile.id, revision: profile.revision, notes: '离开档案时更新' });
+  ui.handlers.delete('detail');
+  await ui.click({ fanPage: 'profiles' });
+  assert.equal(count('detail'), 1);
+  oldRead.resolve();
+  await ui.flush();
+  assert.match(ui.detail(), /离开档案时更新/);
+  ui.calls.length = 0;
+  await ui.click({ fanPage: 'settings' });
+  ui.poll();
+  await ui.flush();
+  assert.deepEqual([count('detail'), count('reminders')], [0, 0]);
+  await ui.click({ fanPage: 'reminders' });
+  assert.equal(count('reminders'), 1);
+});
+
+test('returning from a reminder action immediately shows the next upcoming item in the profile list', async t => {
+  const ui = await archiveUi(t);
+  for (const day of [19, 20, 21])
+    ui.f.record(ui.a.id, 'anniversary', { name: `见面日 ${day}`, date: `2026-09-${day}` });
+  await ui.click({ fanAction: 'refresh' });
+  ui.calls.length = 0;
+  for (const status of ['handled', 'ignored', 'snoozed']) {
+    const next = () => ui.f.run('list').profiles[0].nextReminder;
+    const previous = next();
+    assert.ok(ui.people().includes(previous.title));
+    await ui.click({ fanPage: 'reminders' });
+    await ui.click({ fanAction: `reminder-${status}`, profileId: ui.a.id, reminderKey: previous.key });
+    await ui.click({ fanPage: 'profiles' });
+    assert.ok(ui.people().includes(next().title));
+    assert.ok(!ui.people().includes(previous.title));
+  }
+  assert.equal(ui.calls.filter(call => call.action === 'guard-expiry').length, 0);
+});
+
+test('handling a reminder preserves a cross-scope selection and the newer list summary', async t => {
+  const ui = await archiveUi(t);
+  const other = ui.f.create({ alias: '另一位观众', identity: null });
+  ui.f.record(other.id, 'anniversary', { name: '见面日', date: '2026-09-18' });
+  await ui.click({ fanAction: 'archived' });
+  await ui.click({ fanPage: 'reminders' });
+  const releaseDetail = holdReply(ui, 'detail');
+  const releaseList = holdReply(ui, 'list');
+  const save = deferred();
+  ui.handlers.set('reminder-state', async input => { await save.promise; return ui.respond(input); });
+  await ui.click({ fanAction: 'open-reminder', profileId: other.id });
+  await ui.click({ fanAction: 'reminder-handled', profileId: ui.a.id, reminderKey: 'birthday:2026' });
+  releaseDetail();
+  await ui.flush();
+  save.resolve();
+  await ui.flush();
+  releaseList();
+  await ui.flush();
+  assert.match(ui.detail(), /另一位观众/);
+  assert.doesNotMatch(ui.people(), /生日/);
+});
+
+test('a failed list refresh leaves a saved reminder in history and the list can be retried', async t => {
+  const ui = await archiveUi(t);
+  await ui.click({ fanPage: 'reminders' });
+  ui.handlers.set('list', () => { throw new Error('列表读取失败'); });
+  await ui.click({ fanAction: 'reminder-handled', profileId: ui.a.id, reminderKey: 'birthday:2026' });
+  const reminders = ui.nodes.get('fanRemindersPage').innerHTML;
+  assert.match(reminders, /data-reminder-group="history"/);
+  assert.doesNotMatch(reminders, /data-fan-action="reminder-handled"/);
+  assert.equal(ui.nodes.get('fanPageError').hidden, false);
+  ui.handlers.delete('list');
+  await ui.click({ fanPage: 'profiles' });
+  await ui.click({ fanAction: 'refresh' });
+  assert.match(ui.people(), /当前观众A/);
+  assert.doesNotMatch(ui.people(), /生日/);
+});
+
+test('a reminder write preserves the expiry read of a poll still waiting for open', async t => {
+  const ui = await archiveUi(t);
+  ui.f.record(ui.a.id, 'membership', interval('2026-09-01', '2026-09-30'));
+  let days = 2;
+  ui.handlers.set('guard-expiry', input => ({ ...ui.respond(input), data: {
+    state: 'ready', observedAt: new Date(Date.now() - 300000).toISOString(), badges: [{ profileId: ui.a.id, level: 3, days }],
+  } }));
+  await ui.click({ fanAction: 'refresh' });
+  assert.match(ui.people(), /剩2天/);
+  await ui.click({ fanPage: 'reminders' });
+  ui.calls.length = 0;
+  const releaseSave = holdReply(ui, 'reminder-state');
+  await ui.click({ fanAction: 'reminder-handled', profileId: ui.a.id, reminderKey: 'birthday:2026' });
+  const releaseOpen = holdReply(ui, 'open');
+  ui.poll();
+  await ui.flush();
+  releaseSave();
+  await ui.flush();
+  days = 1;
+  releaseOpen();
+  await ui.flush();
+  await ui.click({ fanPage: 'profiles' });
+  assert.equal(ui.calls.filter(call => call.action === 'guard-expiry').length, 1);
+  assert.match(ui.people(), /剩1天/);
 });
 
 test('hiding the local reminder banner persists without changing reminders or notifying the calendar', async (t) => {
@@ -423,7 +567,10 @@ test('hiding the local reminder banner persists without changing reminders or no
   const summary = ui.nodes.get('fanReminderSummary');
   assert.equal(summary.hidden, false);
   const reminders = ui.f.run('reminders');
+  await ui.click({ fanPage: 'reminders' });
   const reminderMarkup = ui.nodes.get('fanRemindersPage').innerHTML;
+  assert.ok(reminderMarkup);
+  await ui.click({ fanPage: 'profiles' });
   const events = ui.events.slice();
   await ui.click({ fanAction: 'hide-reminder-summary' });
   assert.equal(summary.hidden, true);
@@ -442,14 +589,13 @@ test('expiry loads after local profiles, clears renewed warnings, and ignores la
   const ui = await archiveUi(t);
   const pending = deferred();
   ui.handlers.set('guard-expiry', () => pending.promise);
-  ui.handlers.set('open', (input) => {
-    const response = ui.respond(input);
-    response.data.profiles = response.data.profiles.map((item) => item.id === ui.a.id ? { ...item, currentGuardLevel: 3 } : item);
-    return response;
-  });
+  ui.f.record(ui.a.id, 'membership', interval('2026-09-01', '2026-09-30'));
   await ui.click({ fanAction: 'refresh' });
   assert.match(ui.people(), /当前观众A/);
   assert.doesNotMatch(ui.people(), /fan-expiry-badge/);
+  await ui.click({ fanPage: 'reminders' });
+  await ui.click({ fanAction: 'reminder-handled', profileId: ui.a.id, reminderKey: 'birthday:2026' });
+  await ui.click({ fanPage: 'profiles' });
   const response = { ok: true, contextId: ui.contextId, roomId: '42', data: {
     state: 'ready', observedAt: new Date().toISOString(), badges: [{ profileId: ui.a.id, level: 3, days: 0 }],
   } };

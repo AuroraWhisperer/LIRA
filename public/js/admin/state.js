@@ -71,10 +71,13 @@ export class StateService {
         }
         this.applySnapshot(payload.type === 'snapshot:patch' ? { ...this.appState, ...payload.state } : payload.state,
           Infinity, payload.type === 'snapshot' && payload.reason === 'connect');
-        if (isGiftSnapshotReason(payload.reason)) {
-          eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
+        const reasons = Array.isArray(payload.reasons) ? payload.reasons : [payload.reason];
+        const giftReason = reasons.findLast(isGiftSnapshotReason);
+        if (giftReason) {
+          eventBus.emit(Events.GIFT_RECEIVED, { reason: giftReason });
         }
-        if (isSongsSnapshotReason(payload.reason)) {
+        if (reasons.includes('component:styles')) window.dispatchEvent(new Event('component-styles:changed'));
+        if (reasons.some(isSongsSnapshotReason)) {
           this.scheduleSongReload();
         }
       } else if (payload.type === 'overtime:update') {
@@ -222,7 +225,7 @@ export class StateService {
     ]) {
       if (changedKeys.includes(key)) dispatchRealtimeState(eventName, next[key]);
     }
-    if (!changedKeys.length) return;
+    if (!changedKeys.length && !isConnectionSnapshot) return;
     eventBus.emit(Events.STATE_LOADED, {
       state: this.appState,
       songs: this.songs,

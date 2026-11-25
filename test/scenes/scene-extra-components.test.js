@@ -9,7 +9,7 @@ const { normalizeSceneConfig, createSceneComponentPorts } = require('../../src/s
 const { normalizeSceneExtraConfig } = require('../../src/server/scene-extra-config');
 const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
 const { createSceneStore } = require('../../src/storage/scene-store');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+const { migrateTestSongDb } = require('../helpers/song-database');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
 const { createSongStore } = require('../../src/storage/song-store');
@@ -458,7 +458,8 @@ test('extra component schemas reject private configuration, unowned shared modes
 
 test('asynchronous output rejects account changes and source revocation before releasing any display data', async (t) => {
   const db = new DatabaseSync(':memory:');
-  t.after(() => db.close()); migrateScenes(db); migrateComponentOutputSizes(db); migrateCanvasPresets(db); migrateSceneDeletion(db);
+  t.after(() => db.close());
+  migrateTestSongDb(db);
   const owner = { scope: 'synthetic-owner', epoch: 1 };
   let release;
   const service = createSceneService({ store: createSceneStore(db), getOwner: () => owner,
@@ -504,7 +505,11 @@ test('extra display projection excludes game secrets, keeps lyrics separate from
     games: { getSession: () => ({ game: 'number-bomb', state: { min: 1, max: 100, secret: 32 }, token: 'hidden' }) },
     gifts: { getViewRevision: () => revision },
     settings: { get: () => ({ openingEnabled: 'true', openingStyle: 'pixel-cassette', openingTitle: '即将开播', secret: 'hidden' }) },
-    giftWishes: { getSnapshot: async () => { reads++; return { items: [], guards: [{ name: 'private' }], sourceId: 1 }; } },
+    giftWishes: { getSnapshot: async ({ includeSession }) => {
+      assert.equal(includeSession, false);
+      reads++;
+      return { items: [], guards: [{ name: 'private' }], sourceId: 1 };
+    } },
   };
   const display = createSceneExtraDisplay({ displayPorts, getOwner: () => owner });
   assert.equal(display('opening').style, 'pixel-cassette');

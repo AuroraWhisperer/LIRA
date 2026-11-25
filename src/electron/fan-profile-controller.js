@@ -1,20 +1,20 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomUUID } = require('node:crypto');
 const { setTimeout: pause } = require('node:timers/promises');
 const { dayOf } = require('../fans/dates');
 const { projectGuardExpiry } = require('../fans/guard-expiry');
 const { identity } = require('../fans/validation');
 const { fetchBilibiliFormerNames } = require('../shared/bilibili-former-names');
+const { readAuthorizedIdentity } = require('./authorized-identity');
 
 const AUTOMATIC_UPDATE_TIME = '00:10:00+08:00';
 
 function fanScopeFor(licenseManager) {
-  if (!licenseManager?.isAuthorized()) return null;
-  const identity = licenseManager.getCloudSyncIdentity();
-  const origin = licenseManager.getRemoteBaseUrl();
-  if (!identity?.streamerId || !origin) return null;
-  return JSON.stringify([new URL(origin).origin, String(identity.streamerId)]);
+  const identity = readAuthorizedIdentity(licenseManager);
+  return identity ? JSON.stringify([identity.origin, String(identity.streamerId)]) : null;
 }
 
 function createFanProfileController({
@@ -35,6 +35,7 @@ function createFanProfileController({
   let rosterOperation = null;
   let operation = Promise.resolve();
   let current = null;
+  let lastFactsContext = null;
   let syncStatus = 'offline';
   let delay = 15000;
   const startedAt = now();
@@ -59,6 +60,7 @@ function createFanProfileController({
       expiryJob?.controller.abort();
       identityPreviewJob?.controller.abort();
       abortFormerNames();
+      clearAutomaticTimer();
       current = null;
       syncStatus = 'offline';
       return null;
@@ -70,6 +72,7 @@ function createFanProfileController({
       expiryJob?.controller.abort();
       identityPreviewJob?.controller.abort();
       abortFormerNames();
+      clearAutomaticTimer();
       current = { scope, generation, id: randomUUID() };
       syncStatus = 'pending';
     }
@@ -83,10 +86,13 @@ function createFanProfileController({
 
   async function sync() {
     const captured = context();
+    lastFactsContext = captured;
     if (!captured) return;
     try {
       const service = getService();
-      let settings = service?.execute(captured.scope, 'settings');
+      if (!service) return;
+      let settings = service.execute(captured.scope, 'settings');
+      captured.rosterEnabled = settings?.autoSyncGuardRoster === true;
       if (!settings?.initialized) return;
       abortController = new AbortController();
       syncStatus = 'syncing';
@@ -106,10 +112,12 @@ function createFanProfileController({
       }
       syncStatus = hasMore ? 'syncing' : 'ready';
       delay = 15000;
+      return true;
     } catch (error) {
       if (!same(captured)) return;
       syncStatus = error.status === 404 ? 'unsupported' : 'offline';
       delay = Math.min(Math.max(delay * 2, error.retryAfterMs || 0), 300000);
+      return syncStatus !== 'unsupported';
     }
   }
 
@@ -124,13 +132,14 @@ function createFanProfileController({
 
   function run() {
     timers.clearTimeout(timer);
-    operation = operation.then(sync).finally(schedule);
+    operation = operation.then(sync).then((retry) => { if (retry) schedule(); });
     return operation;
   }
 
   const unsubscribe = licenseManager.onStateChanged(() => {
-    context();
+    if (context() === lastFactsContext) return;
     void run();
+    void runAutomaticUpdate().catch(() => {});
   });
 
   function response(captured, data) {
@@ -144,9 +153,9 @@ function createFanProfileController({
   }
 
   function previewIdentity(captured, payload) {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('账号预览请求无效。');
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw createPublicError('账号预览请求无效。');
     const selected = identity({ platform: 'bilibili', type: 'uid', value: payload.uid });
-    if (!selected) throw new Error('请填写 B 站 UID。');
+    if (!selected) throw createPublicError('请填写 B 站 UID。');
     const uid = selected.value;
     if (identityPreviewJob?.captured === captured && identityPreviewJob.uid === uid && !identityPreviewJob.controller.signal.aborted)
       return identityPreviewJob.promise;
@@ -154,7 +163,7 @@ function createFanProfileController({
     const controller = new AbortController();
     const job = { captured, uid, controller };
     job.promise = fetchUserProfile(uid, { signal: controller.signal }).then((profile) => {
-      if (!same(captured) || controller.signal.aborted) throw new Error('账号或输入已变化，请重新读取头像。');
+      if (!same(captured) || controller.signal.aborted) throw createPublicError('账号或输入已变化，请重新读取头像。');
       return response(captured, { uid, name: profile?.name || '', avatarUrl: profile?.avatarUrl || '' });
     }).finally(() => {
       identityPreviewOperations.delete(job.promise);
@@ -166,16 +175,16 @@ function createFanProfileController({
   }
 
   async function readFormerNames(captured, service, payload, supplement) {
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('曾用名请求无效。');
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw createPublicError('曾用名请求无效。');
     let profile;
     let selected;
     if (supplement) {
       profile = service.execute(captured.scope, 'detail', { id: payload.id });
-      if (profile.archived || profile.identity?.type !== 'uid') throw new Error('请先为当前档案绑定 B 站 UID。');
+      if (profile.archived || profile.identity?.type !== 'uid') throw createPublicError('请先为当前档案绑定 B 站 UID。');
       selected = profile.identity;
     } else {
       selected = identity({ platform: 'bilibili', type: 'uid', value: payload.uid });
-      if (!selected) throw new Error('请填写 B 站 UID。');
+      if (!selected) throw createPublicError('请填写 B 站 UID。');
     }
     const key = JSON.stringify([captured.id, captured.generation, selected.value]);
     let job = formerNameJobs.get(key);
@@ -188,7 +197,7 @@ function createFanProfileController({
     }
     const names = await job.promise;
     if (!same(captured) || job.controller.signal.aborted) {
-      throw new Error(supplement ? '登录状态已变化，本次未补充曾用名。' : '登录状态已变化，请重新查询曾用名。');
+      throw createPublicError(supplement ? '登录状态已变化，本次未补充曾用名。' : '登录状态已变化，请重新查询曾用名。');
     }
     const data = supplement
       ? service.supplementFormerNames(captured.scope, { id: profile.id, identity: selected, names })
@@ -214,10 +223,10 @@ function createFanProfileController({
     let snapshot;
     try { snapshot = await expiryJob.promise; }
     catch (error) {
-      if (!same(captured)) throw new Error('登录状态已变化，请重新打开粉丝档案。');
+      if (!same(captured)) throw createPublicError('登录状态已变化，请重新打开粉丝档案。');
       return response(captured, { state: error.code === 'GUARD_EXPIRY_UNSUPPORTED' ? 'unsupported' : 'unavailable', observedAt: null, badges: [] });
     }
-    if (!same(captured)) throw new Error('登录状态已变化，请重新打开粉丝档案。');
+    if (!same(captured)) throw createPublicError('登录状态已变化，请重新打开粉丝档案。');
     if (String(getRoomId() || '') !== roomId)
       return response(captured, { state: 'sourceChanged', observedAt: null, badges: [] });
     const { profiles } = service.execute(captured.scope, 'list', payload);
@@ -226,13 +235,13 @@ function createFanProfileController({
 
   async function syncGuardRoster(captured, service, automaticDate) {
     const roomId = String(getRoomId() || '');
-    if (!/^[1-9]\d{0,19}$/.test(roomId)) throw new Error('请先在连接设置中填写直播间号。');
+    if (!/^[1-9]\d{0,19}$/.test(roomId)) throw createPublicError('请先在连接设置中填写直播间号。');
     const controller = new AbortController();
     rosterAbortController = controller;
     function canImport() {
       if (!same(captured) || controller.signal.aborted)
-        throw new Error('登录状态已变化，本次名单没有导入，请重新打开档案。');
-      if (String(getRoomId() || '') !== roomId) throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
+        throw createPublicError('登录状态已变化，本次名单没有导入，请重新打开档案。');
+      if (String(getRoomId() || '') !== roomId) throw createPublicError('直播间已变化，本次名单没有导入，请重新同步。');
       return !automaticDate || service.execute(captured.scope, 'settings').autoSyncGuardRoster === true;
     }
     try {
@@ -250,7 +259,7 @@ function createFanProfileController({
         const observedAt = new Date(now()).toISOString();
         try {
           const profile = await fetchUserProfile(target.identity.value, { signal: controller.signal });
-          if (!profile.name) throw new Error('B 站用户资料读取失败。');
+          if (!profile.name) throw createPublicError('B 站用户资料读取失败。');
           refresh.observations.push({
             ...target, name: profile.name, avatar: profile.avatarUrl, nameComplete: true, observedAt,
           });
@@ -263,8 +272,8 @@ function createFanProfileController({
       if (!canImport()) return null;
       return response(captured, service.importGuardRoster(captured.scope, snapshot, automaticDate, refresh));
     } catch (error) {
-      if (/[\u4e00-\u9fff]/.test(error.message || '')) throw error;
-      throw new Error('大航海名单读取失败，本次没有导入，请检查网络后重试。');
+      if (typeof error.publicMessage === 'string' && error.publicMessage) throw error;
+      throw createPublicError('大航海名单读取失败，本次没有导入，请检查网络后重试。');
     } finally {
       rosterAbortController = null;
     }
@@ -274,20 +283,24 @@ function createFanProfileController({
     const captured = context();
     if (!captured || !isWindowOpen() || rosterAbortController) return;
     const service = getService();
-    const settings = service?.execute(captured.scope, 'settings');
-    if (settings?.autoSyncGuardRoster !== true) return;
+    if (!service || captured.rosterEnabled === false) return;
+    let settings;
+    if (captured.rosterEnabled === undefined) {
+      settings = service.execute(captured.scope, 'settings');
+      captured.rosterEnabled = settings?.autoSyncGuardRoster === true;
+      if (!captured.rosterEnabled) return;
+    }
     const date = dayOf(now());
     const scheduledAt = Date.parse(`${date}T${AUTOMATIC_UPDATE_TIME}`);
     if (now() < scheduledAt) return;
     const roomId = String(getRoomId() || '');
     if (!/^[1-9]\d{0,19}$/.test(roomId)) return;
     const key = `${date}:${roomId}`;
-    if (
-      captured.automaticAttempt === key ||
-      (settings.lastGuardRosterAutoUpdate?.date === date && settings.lastGuardRosterAutoUpdate.roomId === roomId)
-    )
-      return;
+    if (captured.automaticAttempt === key) return;
+    settings ??= service.execute(captured.scope, 'settings');
+    if (!settings.autoSyncGuardRoster) return;
     captured.automaticAttempt = key;
+    if (settings.lastGuardRosterAutoUpdate?.date === date && settings.lastGuardRosterAutoUpdate.roomId === roomId) return;
     const reason = startedAt >= scheduledAt ? 'startup' : 'scheduled';
     try {
       rosterOperation = syncGuardRoster(captured, service, date);
@@ -304,34 +317,37 @@ function createFanProfileController({
     if (!automaticOperation)
       automaticOperation = updateAutomatically().finally(() => {
         automaticOperation = null;
+        scheduleAutomaticUpdate();
       });
     return automaticOperation;
   }
 
-  function scheduleAutomaticUpdate() {
-    if (disposed || !isWindowOpen()) return;
+  function clearAutomaticTimer() {
     timers.clearTimeout(automaticTimer);
+    automaticTimer = null;
+  }
+
+  function scheduleAutomaticUpdate() {
+    if (disposed || automaticTimer || !current?.rosterEnabled || !isWindowOpen()) return;
     const at = now();
     const scheduledAt = Date.parse(`${dayOf(at)}T${AUTOMATIC_UPDATE_TIME}`);
-    const wait = at < scheduledAt ? Math.min(30000, scheduledAt - at) : 30000;
+    const wait = (at < scheduledAt ? scheduledAt : scheduledAt + 86400000) - at;
     automaticTimer = timers.setTimeout(() => {
       automaticTimer = null;
-      void runAutomaticUpdate()
-        .catch(() => null)
-        .finally(scheduleAutomaticUpdate);
+      void runAutomaticUpdate().catch(() => null);
     }, wait);
     automaticTimer?.unref?.();
   }
 
   function invoke(request) {
     const captured = context();
-    if (!captured) throw new Error('请先登录主播账号。');
-    if (!request || typeof request !== 'object') throw new Error('档案请求无效。');
+    if (!captured) throw createPublicError('请先登录主播账号。');
+    if (!request || typeof request !== 'object') throw createPublicError('档案请求无效。');
     const { action, payload = {}, contextId } = request;
     if (!['open', 'calendar', 'auto-update-status'].includes(action) && contextId !== captured.id)
-      throw new Error('登录状态已变化，请重新打开粉丝档案。');
+      throw createPublicError('登录状态已变化，请重新打开粉丝档案。');
     const service = getService();
-    if (!service) throw new Error('档案存储尚未就绪。');
+    if (!service) throw createPublicError('档案存储尚未就绪。');
     if (action === 'preview-identity') return previewIdentity(captured, payload);
     if (action === 'lookup-former-names' || action === 'supplement-former-names') {
       const operation = readFormerNames(captured, service, payload, action === 'supplement-former-names')
@@ -341,7 +357,6 @@ function createFanProfileController({
     }
     if (action === 'guard-expiry') return readGuardExpiry(captured, service, payload);
     if (action === 'auto-update-status') {
-      if (!automaticTimer) scheduleAutomaticUpdate();
       return runAutomaticUpdate().then(() => {
         if (!same(captured)) return response(captured, null);
         const notification = current.notification || null;
@@ -350,19 +365,22 @@ function createFanProfileController({
       });
     }
     if (action === 'sync-guard-roster') {
-      if (rosterAbortController) throw new Error('大航海名单正在同步，请稍候。');
+      if (rosterAbortController) throw createPublicError('大航海名单正在同步，请稍候。');
       if (payload.expectedRoomId !== undefined && payload.expectedRoomId !== String(getRoomId() || ''))
-        throw new Error('直播间已变化，请重新打开同步窗口。');
+        throw createPublicError('直播间已变化，请重新打开同步窗口。');
       rosterOperation = syncGuardRoster(captured, service);
       return rosterOperation;
     }
     const data = service.execute(captured.scope, action === 'open' ? 'list' : action, payload);
-    if (action === 'configure') {
-      if (data.autoSyncGuardRoster !== true) {
+    if (['configure', 'restore', 'restore-snapshot'].includes(action)) {
+      clearAutomaticTimer();
+      captured.rosterEnabled = action === 'configure' ? data.autoSyncGuardRoster === true : undefined;
+      if (!captured.rosterEnabled) {
         captured.automaticAttempt = null;
         captured.notification = null;
       }
       void run();
+      void runAutomaticUpdate().catch(() => {});
     }
     return response(captured, data);
   }
@@ -370,7 +388,7 @@ function createFanProfileController({
   return {
     invoke,
     start() {
-      scheduleAutomaticUpdate();
+      clearAutomaticTimer();
       return Promise.all([run(), runAutomaticUpdate().catch(() => null)]);
     },
     whenIdle: () => Promise.allSettled([operation, rosterOperation, automaticOperation, ...expiryOperations, ...identityPreviewOperations,

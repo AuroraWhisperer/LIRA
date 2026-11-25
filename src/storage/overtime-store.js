@@ -235,15 +235,14 @@ function createOvertimeStore(giftDb) {
   }
 
   function listRecoverableFinal(enableEpoch, nowMs, afterId = 0) {
-    // The detection index scans and sorts final history instead of seeking by id.
     return giftDb
       .prepare(
         `
       SELECT g.id
-      FROM gift_events g NOT INDEXED
+      FROM gift_events g
       LEFT JOIN overtime_settlements s ON s.gift_event_id = g.id
       WHERE g.id > ? AND g.detection_status = 'final'
-        AND g.overtime_epoch = ?
+        AND g.overtime_epoch > 0 AND g.overtime_epoch = ?
         AND (s.id IS NULL OR (s.status = 'pending' AND s.settle_after_ms <= ?))
       ORDER BY g.id ASC
       LIMIT 100
@@ -261,7 +260,7 @@ function createOvertimeStore(giftDb) {
           `
       SELECT 1 FROM gift_events g
       LEFT JOIN overtime_settlements s ON g.id = s.gift_event_id
-      WHERE g.overtime_epoch = ? AND g.detection_status = 'final' AND s.id IS NULL
+      WHERE g.overtime_epoch > 0 AND g.overtime_epoch = ? AND g.detection_status = 'final' AND s.id IS NULL
       LIMIT 1
     `,
         )

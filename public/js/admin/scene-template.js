@@ -3,6 +3,8 @@ import { isSceneItemGeometryValid } from '../shared/scene-geometry.js';
 import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 import { normalizeTextBoxConfig } from '../shared/text-box-config.js';
 
+export const MAX_NON_TEXT_BOX_SCENE_ITEMS = 32;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const FORBIDDEN = new Set(['__proto__', 'prototype', 'constructor', 'queue', 'superchats', 'gifts',
   'giftrecords', 'events', 'livesessionid', 'streamerid', 'roomid', 'owner', 'ownerscope', 'data',
@@ -64,7 +66,7 @@ export function validateSceneDocument(input) {
   name(document.title);
   exactKeys(document.canvas, ['width', 'height']);
   if (!Object.values(document.canvas).every((size) => Number.isInteger(size) && size >= 320 && size <= 7680)) throw invalid();
-  if (!Array.isArray(document.items) || document.items.filter(item => item?.type !== 'text-box').length > 32) throw invalid();
+  if (!Array.isArray(document.items) || document.items.filter(item => item?.type !== 'text-box').length > MAX_NON_TEXT_BOX_SCENE_ITEMS) throw invalid();
   const ids = new Set();
   for (const item of document.items) {
     exactKeys(item, ['id', 'type', 'name', 'x', 'y', 'width', 'height', 'visible', 'locked', 'appearance']);

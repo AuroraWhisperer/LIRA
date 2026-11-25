@@ -20,7 +20,7 @@
   background: transparent;
 }
 
-.danmaku-parameter-sections > .danmaku-parameter-section + .danmaku-parameter-section { border-top: 1px solid var(--parameter-line); }
+.danmaku-parameter-sections > .danmaku-parameter-section:not([hidden]) ~ .danmaku-parameter-section:not([hidden]) { border-top: 1px solid var(--parameter-line); }
 
 .danmaku-parameter-sections > .danmaku-parameter-section > summary {
   display: flex;
@@ -47,7 +47,7 @@
 .danmaku-parameter-chevron svg { width: 16px; height: 16px; }
 .danmaku-parameter-section[open] > summary .danmaku-parameter-chevron { transform: rotate(90deg); }
 .danmaku-parameter-sections > .danmaku-parameter-section[open] > summary { border-bottom-color: var(--parameter-line); }
-.danmaku-parameter-section:first-child > summary { border-radius: 5px 5px 0 0; }
+.danmaku-parameter-section:nth-child(1 of :not([hidden])) > summary { border-radius: 5px 5px 0 0; }
 .danmaku-parameter-section:last-child:not([open]) > summary { border-radius: 0 0 5px 5px; }
 
 .danmaku-parameter-section-body { display: grid; gap: 12px; padding: 12px; min-width: 0; }
@@ -96,15 +96,6 @@
 .danmaku-appearance-scope { font-size: 11px; font-weight: 500; color: var(--parameter-muted); line-height: 1.4; margin-bottom: 3px; overflow-wrap: anywhere; }
 .danmaku-text-number { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px; }
 .danmaku-text-cell .danmaku-parameter-field { --color-control-height: 34px; display: grid; grid-column: auto; gap: 0; margin: 0; padding: 0; min-width: 0; font-size: 13px; }
-.danmaku-text-cell .danmaku-parameter-field > .danmaku-text-field-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
 .danmaku-text-cell :is(input:not([type='color'], [type='range']), select, .lira-select-trigger) { width: 100%; min-width: 0; height: 34px; min-height: 34px; margin: 0; padding-block: 5px; font-size: 13px; }
 .danmaku-text-cell .danmaku-font-size-field { gap: 2px; padding: 6px 10px; border: 1px solid var(--parameter-line); border-radius: 4px; background: color-mix(in srgb, var(--parameter-ink) 2%, transparent); }
 .danmaku-font-size-scope { color: var(--parameter-ink); font-size: 12px; font-weight: 600; line-height: 1.4; }

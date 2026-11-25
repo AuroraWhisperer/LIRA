@@ -54,8 +54,21 @@ export function createMediaDecoration() {
   let source;
   let content;
   let loading;
+  let playRevision = 0;
+  function syncVideo() {
+    const revision = ++playRevision;
+    const video = art;
+    if (document.hidden) { video.pause(); return; }
+    void video.play().catch(() => {
+      if (revision !== playRevision) return;
+      video.muted = true;
+      void video.play().catch(() => { if (revision === playRevision) video.dataset.playbackFailed = 'true'; });
+    });
+  }
   function clear() {
     if (!art) return;
+    ++playRevision;
+    document.removeEventListener('visibilitychange', syncVideo);
     loading?.abort();
     if (art?.tagName === 'VIDEO') { art.pause(); art.removeAttribute('src'); art.load(); }
     art?.remove(); art = null; source = null;
@@ -78,12 +91,8 @@ export function createMediaDecoration() {
         loading = new AbortController();
         document.body.prepend(art);
         if (style.kind === 'video') {
-          const playing = art;
-          void playing.play().catch(() => {
-            if (art !== playing) return;
-            playing.muted = true;
-            void playing.play().catch(() => { if (art === playing) playing.dataset.playbackFailed = 'true'; });
-          });
+          document.addEventListener('visibilitychange', syncVideo);
+          syncVideo();
         }
       }
       if (art.tagName === 'VIDEO') { art.volume = style.volume; art.muted = style.volume === 0; }

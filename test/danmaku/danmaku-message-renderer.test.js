@@ -14,6 +14,198 @@ async function createRenderer(options) {
   return createDanmakuMessageRenderer({ document: createFakeDocument(), classNames: DEFAULT_DANMAKU_CLASSES, ...options });
 }
 
+test('astral preserves room roles, safe emotes, settled gifts and complete SC', async () => {
+  const render = await createRenderer({ style: 'astral',
+    resolveEmoteUrl: () => '/approved-emote.png' });
+  const original = '  第一行\n<b>完整留言</b>  ';
+  const [chat, captain, gift, member, sc] = [
+    { id: 'chat', name: '<b>观众</b>', guardLevel: 1, roomGuardLevel: 0, message: '[妙]',
+      emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+    { id: 'captain', name: '舰长', roomGuardLevel: 3, message: '你好' },
+    { id: 'gift', kind: 'gift', name: '送礼者', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+    { id: 'member', kind: 'gift', name: '续订者', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 },
+    { id: 'sc', kind: 'superchat', name: '留言者', price: 0, message: original },
+  ].map(render);
+  assert.equal(findByClass(chat, 'astral-name').textContent, '<b>观众</b>');
+  assert.equal(findByClass(chat, 'astral-role'), undefined);
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+  assert.equal(findByClass(captain, 'astral-role').textContent, '舰长');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<b>星愿</b>');
+  assert.equal(findByClass(gift, 'astral-amount').textContent, '¥12.50');
+  assert.equal(findByClass(member, 'astral-event-label').textContent, '续费提督');
+  assert.equal(findByClass(member, 'astral-amount').textContent, '—');
+  assert.equal(findByClass(sc, 'astral-copy').textContent, original);
+  assert.equal(findByClass(sc, 'astral-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'astral-amount').textContent, '¥0.00');
+});
+
+test('glass bubbles keep safe graphemes, emotes and settled event content', async () => {
+  const render = await createRenderer({ style: 'glass-bubble', fullscreen: true,
+    resolveEmoteUrl: () => '/approved-emote.png' });
+  const message = '  第一行👨‍👩‍👧‍👦\n<b>完整留言</b>  ';
+  const [chat, gift, member, sc] = [
+    { id: 'chat', name: '<img onerror=bad>', message: '你好[妙]',
+      emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+    { id: 'gift', kind: 'gift', name: '观众', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+    { id: 'member', kind: 'gift', name: '观众', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 },
+    { id: 'sc', kind: 'superchat', name: '来信', price: 0, message },
+  ].map(render);
+  const text = node => findAllByClass(node, 'glass-bubble-glyph').map(glyph => glyph.textContent).join('');
+  assert.equal(findByClass(chat, 'glass-bubble-name').textContent, '<img onerror=bad>');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+  assert.equal(findByClass(gift, 'glass-bubble-amount').textContent, '¥12.5', 'settled total is not multiplied again');
+  assert.match(text(gift), /<b>星愿<\/b>/);
+  assert.match(text(member), /提督.*续费/);
+  assert.equal(findByClass(member, 'glass-bubble-amount').textContent, '—');
+  assert.equal(findByClass(sc, 'glass-bubble-amount').textContent, '¥0');
+  assert.equal(text(sc), message);
+  assert.ok(findAllByClass(sc, 'glass-bubble-glyph').some(glyph => glyph.textContent === '👨‍👩‍👧‍👦'));
+});
+
+test('celestial horizontal preserves safe chat, settled gifts, membership actions and full SC', async () => {
+  const render = await createRenderer({ style: 'celestial-horizontal',
+    resolveEmoteUrl: () => '/approved-emote.png' });
+  const original = '  第一行\n<b>完整留言</b>  ';
+  const [chat, gift, member, sc] = [
+    { id: 'chat', name: '<b>观众</b>', message: '[妙]',
+      emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+    { id: 'gift', kind: 'gift', name: '送礼者', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+    { id: 'member', kind: 'gift', name: '续订者', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 },
+    { id: 'sc', kind: 'superchat', name: '留言者', price: 0, message: original },
+  ].map(render);
+  assert.equal(findByClass(chat, 'celestial-name').textContent, '<b>观众</b>');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+  assert.equal(findByClass(gift, 'celestial-copy').textContent, '送出 <b>星愿</b> ×10 · ¥12.50');
+  assert.equal(findByClass(member, 'celestial-copy').textContent, '续费 提督 ×1 · —');
+  assert.equal(findByClass(sc, 'sc-copy').textContent, original);
+  assert.equal(findByClass(sc, 'sc-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'celestial-amount').textContent, '¥0.00');
+});
+
+test('animated gradient keeps safe chat, room roles and settled event details with complete SC', async () => {
+  const render = await createRenderer({ style: 'animated-gradient',
+    resolveEmoteUrl: () => '/approved-emote.png' });
+  const message = '  第一行\n<b>完整留言</b>  ';
+  const [chat, captain, gift, member, sc] = [
+    { id: 'chat', name: '<b>观众</b>', roomGuardLevel: 0, guardLevel: 1, medalName: '外房间',
+      message: '[妙]', emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+    { id: 'captain', name: '舰长', roomGuardLevel: 3, roomMedal: { name: '星旅', level: 12 }, message: '你好' },
+    { id: 'gift', kind: 'gift', name: '送礼者', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+    { id: 'member', kind: 'gift', name: '续订者', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 },
+    { id: 'sc', kind: 'superchat', name: '留言者', price: 0, message },
+  ].map(render);
+  assert.equal(findByClass(chat, 'gradient-role'), undefined, 'other-room identity is not displayed');
+  assert.equal(findByClass(chat, 'gradient-name').textContent, '<b>观众</b>');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+  assert.equal(findByClass(captain, 'gradient-role').textContent, '舰长 · 星旅 12');
+  assert.equal(findByClass(gift, 'gradient-gift-name').textContent, '<b>星愿</b>');
+  assert.equal(findByClass(gift, 'gradient-gift-count').textContent, '×10');
+  assert.equal(findByClass(gift, 'gradient-amount').textContent, ' · ¥12.5', 'the settled total is not multiplied again');
+  assert.equal(findByClass(member, 'gradient-event-action').textContent, '续费 ');
+  assert.equal(findByClass(member, 'gradient-gift-name').textContent, '提督');
+  assert.equal(findByClass(member, 'gradient-amount').textContent, ' · —');
+  assert.equal(findByClass(sc, 'gradient-amount').textContent, ' · ¥0');
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message);
+  assert.equal(findByClass(sc, 'sc-copy').children.length, 0, 'SC remains literal original text');
+});
+
+test('wireframe keeps room roles, safe emotes, settled prices and full SC in its separate layouts', async () => {
+  const render = await createRenderer({ style: 'wireframe',
+    resolveEmoteUrl: () => '/approved-emote.png' });
+  const message = '  第一行\n<b>完整留言</b>  ';
+  const [chat, captain, gift, member, sc] = [
+    { id: 'chat', name: '<b>观众</b>', roomGuardLevel: 0, guardLevel: 1, medalLevel: 99,
+      message: '[妙]', emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+    { id: 'captain', name: '舰长', roomGuardLevel: 3, message: '你好' },
+    { id: 'gift', kind: 'gift', name: '观众', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+    { id: 'member', kind: 'gift', name: '续订者', roomGuardLevel: 3, giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 },
+    { id: 'sc', kind: 'superchat', name: '留言者', price: 0, message },
+  ].map(render);
+  assert.equal(findByClass(chat, 'wireframe-guard'), undefined, 'other-room guard status is not displayed');
+  assert.equal(findByClass(chat, 'wireframe-medal'), undefined, 'other-room medals are not displayed');
+  assert.equal(findByClass(chat, 'wireframe-name').textContent, '<b>观众</b>');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+  assert.equal(findByClass(captain, 'wireframe-guard').alt, '舰长');
+  assert.equal(findByClass(gift, 'wireframe-copy').textContent, '投喂 <b>星愿</b>x10');
+  assert.equal(findByClass(gift, 'wireframe-amount').textContent, 'CN¥12.5', 'settled total is not multiplied again');
+  assert.equal(member.dataset.role, 'admiral', 'purchased tier wins over a stale room tier');
+  assert.match(member.getAttribute('aria-label'), /续费提督/);
+  assert.equal(findByClass(member, 'wireframe-member-label').textContent, '提督已入列');
+  assert.equal(sc.classList.contains('is-superchat'), true);
+  assert.equal(findByClass(sc, 'wireframe-amount').textContent, 'CN¥0.0', 'zero is a known amount');
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message);
+  assert.equal(findByClass(sc, 'sc-copy').children.length, 0, 'SC is literal original text');
+  const unknown = render({ id: 'unknown', kind: 'gift', name: '观众', giftName: '礼物', giftCount: 1 });
+  assert.equal(findByClass(unknown, 'wireframe-amount').textContent, '—');
+});
+
+for (const style of ['christmas', 'christmas-letter']) {
+  test(`${style} preserves room identity, emotes, full SC and settled gift amounts`, async () => {
+    const prefix = style === 'christmas' ? 'christmas' : 'xletter';
+    const giftAmount = style === 'christmas' ? 'christmas-amount' : 'xletter-gift-amount';
+    const render = await createRenderer({ style,
+      resolveEmoteUrl: () => '/approved-emote.png' });
+    const [chat, gift, member, sc] = [
+      { id: 'chat', name: '<b>冬日来信</b>', roomGuardLevel: 0, guardLevel: 1, message: '[妙]',
+        emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+      { id: 'gift', kind: 'gift', name: '观众', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+      { id: 'member', kind: 'gift', name: '舰长', giftGuardLevel: 3, giftCount: 1 },
+      { id: 'sc', kind: 'superchat', name: '来信', price: 50, message: '第一行\n<b>完整留言</b>' },
+    ].map(render);
+    assert.equal(findByClass(chat, style === 'christmas' ? 'christmas-role' : 'xletter-role-label'), undefined, 'other-room guard status is not shown');
+    assert.equal(findByClass(chat, `${prefix}-name`).textContent, '<b>冬日来信</b>');
+    assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+    assert.equal(findByClass(gift, `${prefix}-gift-name`).textContent, '<b>星愿</b>');
+    assert.equal(findByClass(gift, giftAmount).textContent, '¥12.50', 'the settled total is not multiplied again');
+    assert.equal(findByClass(member, `${prefix}-gift-action`).textContent, '支持 ');
+    assert.equal(findByClass(member, `${prefix}-gift-name`).textContent, '舰长');
+    assert.equal(findByClass(member, `${prefix}-amount`).textContent, '—', 'unknown prices are not invented');
+    const copy = findByClass(sc, `${prefix}-copy`);
+    assert.equal(findByClass(sc, `${prefix}-amount`).textContent, '¥50.00');
+    assert.equal(copy.textContent, '第一行\n<b>完整留言</b>');
+    assert.equal(copy.children.length, 0, 'SC remains literal text');
+    const renewed = render({ id: 'renew', kind: 'gift', name: '续订者', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1, giftTotalPrice: 1998 });
+    assert.equal(findByClass(renewed, `${prefix}-gift-action`).textContent, '续费 ');
+    assert.equal(findByClass(renewed, `${prefix}-gift-name`).textContent, '提督');
+  });
+}
+
+test('christmas letter applies room medal levels to every guard tier and uses the shared SC path', async () => {
+  const render = await createRenderer({ style: 'christmas-letter' });
+  const message = '  普通文字也可以写 SC ¥50\n但类型由事件决定。  ';
+  const tiers = [
+    { guard: 3, role: 'captain', label: '舰长', level: 28 },
+    { guard: 2, role: 'admiral', label: '提督', level: 38 },
+    { guard: 1, role: 'governor', label: '总督', level: 50 },
+  ];
+  const cards = [
+    { id: 'viewer', name: '普通观众', message, price: 50, medalLevel: 99, medalName: '其他房间' },
+    { id: 'fan', name: '团员', message, roomMedal: { name: '小铃铛', level: 12 } },
+    ...tiers.map(tier => ({ id: tier.role, name: '本房间成员', message,
+      roomGuardLevel: tier.guard, roomMedal: { name: '小铃铛', level: tier.level } })),
+    ...tiers.map(tier => ({ id: `join-${tier.role}`, kind: 'gift', name: '新成员',
+      roomGuardLevel: 3, giftGuardLevel: tier.guard, guardAction: 'open', giftCount: 1,
+      roomMedal: { name: '小铃铛', level: tier.level } })),
+    { id: 'sc', kind: 'superchat', name: '留言者', message, price: 50 },
+  ].map(render);
+  const [viewer, fan] = cards;
+  const sc = cards.at(-1);
+  assert.equal(viewer.dataset.letterKind, 'chat');
+  assert.equal(findByClass(viewer, 'xletter-medal'), undefined, 'other-room medals are not presented as this fan club');
+  assert.equal(findByClass(viewer, 'xletter-amount'), undefined, 'text and price alone never turn chat into SC');
+  assert.match(findByClass(fan, 'xletter-medal').textContent, /12$/);
+  assert.match(findByClass(fan, 'xletter-medal').title, /小铃铛/);
+  tiers.forEach((tier, index) => {
+    const chat = cards[index + 2];
+    const joined = cards[index + 5];
+    assert.equal(findByClass(chat, 'xletter-guard-label').textContent, `${tier.label} ${tier.level}`);
+    assert.equal(findByClass(joined, 'xletter-guard-label').textContent, `${tier.label} ${tier.level}`);
+    assert.equal(joined.dataset.letterTier, tier.role, 'purchased tier selects the scene even when room identity is stale');
+  });
+  assert.equal(sc.classList.contains('is-superchat'), true);
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message, 'the SC module retains the complete original text');
+});
+
 test('neon glass keeps safe inline content and actual paid-event semantics without discarded images', async () => {
   const images = [];
   const render = await createRenderer({ style: 'neon-glass', showAvatar: true,
@@ -68,6 +260,22 @@ test('glowy keeps safe content and uses current-room or purchased guard icons', 
   assert.equal(findByClass(sc, 'sc-copy').children.length, 0);
   assert.equal(findByClass(sc, 'glowy-amount').textContent, '¥100.5');
   assert.deepEqual(avatarSources, []);
+});
+
+test('charm thread uses this room’s identity and keeps inline emotes and paid messages intact', async () => {
+  const render = await createRenderer({ style: 'charm-thread', resolveEmoteUrl: value => `/emote${value}` });
+  const visitor = render({ name: '<小鱼>', message: '好听[星]', guardLevel: 1, roomGuardLevel: 0,
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] });
+  assert.equal(visitor.dataset.threadRole, 'viewer');
+  assert.equal(findByClass(visitor, 'draw-danmaku-emote').src, '/emote/star.png');
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 3, giftTotalPrice: 5994 });
+  assert.equal(member.dataset.threadRole, 'guard');
+  assert.equal(findByClass(member, 'thread-copy').textContent, '续费提督 × 3');
+  assert.equal(findByClass(member, 'thread-amount').textContent, '¥5,994');
+  const message = '  第一行\n<留给你的歌>  ';
+  const sc = render({ kind: 'superchat', name: '山月', message, price: 30.5 });
+  assert.equal(findByClass(sc, 'thread-copy').textContent, message);
+  assert.equal(findByClass(sc, 'thread-amount').textContent, '¥30.5');
 });
 
 test('horizontal charm keeps safe emotes, room identity and complete settled event content', async () => {
@@ -387,12 +595,6 @@ test('flower-letter keeps gift and SC content literal with settled amounts', asy
   assert.equal(findByClass(sc, 'flower-price').textContent, 'CN¥1,000');
 });
 
-test('spooky keeps viewer names literal', async () => {
-  const render = await createRenderer({ style: 'spooky' });
-  const item = { name: '<b>访客</b>', message: '晚安' };
-  assert.equal(findByClass(render(item), 'spooky-name').textContent, item.name);
-});
-
 test('spooky gifts keep the gift name literal and resolve avatars', async () => {
   const render = await createRenderer({ style: 'spooky', showGiftTotal: true, resolveAvatarUrl: value => `/resolved${value}` });
   const gift = render({ kind: 'gift', name: '礼物观众', avatarUrl: '/avatar.png', giftName: '<img>小花花', giftCount: 10, giftTotalPrice: 50 });
@@ -472,11 +674,14 @@ test('snowfox gift and membership cards keep the settled amount and purchaser na
   assert.equal(findByClass(render({ ...item, giftGuardLevel: 3 }), 'snowfox-member-name').textContent, item.name);
 });
 
-test('RIPPLOID keeps chat usernames literal', async () => {
-  const render = await createRenderer({ style: 'ripploid' });
-  const root = render({ ...EMOTE_CHAT, roomMedal: { name: 'BCBCB', level: 22 }, roomGuardLevel: 1 });
-  assert.equal(findByClass(root, 'ripploid-username-base').textContent, EMOTE_CHAT.name);
-  assert.equal(findByClass(root, 'ripploid-username-base').children.length, 0);
+test('custom chat headers keep viewer names literal', async () => {
+  for (const [style, nameClass] of [['spooky', 'spooky-name'], ['ripploid', 'ripploid-username-base'], ['twitter', 'twitter-name']]) {
+    const render = await createRenderer({ style });
+    const root = render({ ...EMOTE_CHAT, roomMedal: { name: 'BCBCB', level: 22 }, roomGuardLevel: 1 });
+    const name = findByClass(root, nameClass);
+    assert.equal(name?.textContent, EMOTE_CHAT.name, style);
+    assert.equal(name.children.length, 0, style);
+  }
 });
 
 test('RIPPLOID gift tickets keep sender and gift literal with the settled total', async () => {
@@ -510,23 +715,6 @@ test('RIPPLOID memberships keep the member name literal and resolve the avatar',
   const image = findByClass(root, 'ripploid-member-avatar').children[0];
   assert.equal(image.src, '/resolved/avatar.png');
   assert.equal(image.referrerPolicy, 'no-referrer');
-});
-
-test('RIPPLOID SC keeps the exact original, sender and amount', async () => {
-  const render = await createRenderer({ style: 'ripploid' });
-  const message = '  <img src=x>\n完整留言\n  ';
-  const root = render({ kind: 'superchat', name: '<b>留言人</b>', message, price: 100.5 });
-  assert.equal(findByClass(root, 'sc-copy').textContent, message);
-  assert.equal(findByClass(root, 'sc-copy').children.length, 0);
-  assert.equal(findByClass(root, 'sc-name').textContent, '<b>留言人</b>');
-  assert.equal(findByClass(root, 'sc-value').textContent, '100.5');
-});
-
-test('Twitter chat keeps viewer names literal', async () => {
-  const render = await createRenderer({ style: 'twitter' });
-  const root = render({ ...EMOTE_CHAT, roomGuardLevel: 1 });
-  assert.equal(findByClass(root, 'twitter-name').textContent, EMOTE_CHAT.name);
-  assert.equal(findByClass(root, 'twitter-name').children.length, 0);
 });
 
 test('Twitter gifts keep the gift name literal and the settled total', async () => {
@@ -577,20 +765,32 @@ test('SC accepts only six-digit upstream color overrides', async () => {
   }
 });
 
-test('every SC design preserves full original plain text, sender and amount', async () => {
+test('shared SC cards preserve full original plain text, sender and amount', async () => {
   const message = '  <img src=x onerror=alert(1)>\n' + '完整留言，不要截断。'.repeat(70) + '\n  ';
-  for (const [style, value] of [
+  for (const [style, value, price = 2] of [
     ['ranked', '2'], ['bubble', '2'], ['signal', '2'], ['minimal', '2'], ['transparent', '2'],
     ['identity', '2'], ['starlight', '2.00'], ['sketch', '2.00'], ['moonlit', '2'],
+    ['ripploid', '100.5', 100.5],
   ]) {
     const render = await createRenderer({ style, showAvatar: false, resolveAvatarUrl: (url) => url });
-    const root = render({ kind: 'superchat', name: '<b>原名字</b>', message, price: 2 });
+    const root = render({ kind: 'superchat', name: '<b>原名字</b>', message, price });
     const named = (className) => findAllByClass(root, className);
-    assert.equal(named('sc-copy')[0].textContent, message, style);
+    assert.equal(named('sc-copy')[0]?.textContent, message, style);
     assert.equal(named('sc-copy')[0].children.length, 0, style);
     assert.deepEqual(named('sc-name').map((node) => node.textContent), ['<b>原名字</b>'], style);
-    assert.equal(named('sc-value')[0].textContent, value, style);
+    assert.equal(named('sc-value')[0]?.textContent, value, style);
   }
+});
+
+test('gift images load only resolver-approved URLs without a referrer', async () => {
+  const url = 'https://i0.hdslb.com/bfs/live/synthetic.webp';
+  const render = await createRenderer({ showAvatar: false, resolveGiftImageUrl: value => value === url ? value : '' });
+  const gift = { kind: 'gift', giftName: '原图', giftCount: 2, giftImageUrl: url };
+  const image = findByClass(render(gift), 'draw-danmaku-gift-art').children[0];
+  assert.equal(image.src, url);
+  assert.equal(image.referrerPolicy, 'no-referrer');
+  const rejected = render({ ...gift, giftImageUrl: 'https://evil.test/x' });
+  assert.equal(findByClass(rejected, 'draw-danmaku-gift-art').children.length, 0);
 });
 
 test('avatars load only resolver-approved URLs without a referrer', async () => {
@@ -617,12 +817,29 @@ test('chat keeps viewer text as text and renders inline emotes', async () => {
   }
 });
 
+test('adjacent emotes use resolved images and a failed image restores its original token in place', async () => {
+  const render = await createRenderer({ resolveEmoteUrl: url => `/proxy${url}` });
+  const card = render({ message: '你好[妙][打call]', emotes: [
+    { text: '[妙]', url: '/miao.png' }, { text: '[打call]', url: '/call.gif' },
+  ] });
+  const [first, second] = findAllByClass(card, 'draw-danmaku-emote');
+  const message = first.parent;
+  assert.deepEqual(message.children.map(node => node.alt || node.textContent), ['你好', '[妙]', '[打call]']);
+  assert.deepEqual([first, second].map(node => [node.tagName, node.src]), [['IMG', '/proxy/miao.png'], ['IMG', '/proxy/call.gif']]);
+  second.listeners.error();
+  assert.equal(message.children[1], first);
+  assert.equal(message.children[2].textContent, '[打call]');
+  assert.equal(second.parent, null);
+});
+
 test('gift notices keep name and count separate from the settled total in each style format', async () => {
   for (const [style, giftCount, countText, giftTotalPrice, expected] of [
     ['sketch', 3, '× 3', 138.5, '138.50¥'],
     ['starlight', 10, 'x10', 12450.5, '¥12,450.5'],
     ['whiteframe', 10, '× 10', 13.25, '13.25¥'],
     ['moonlit', 3, '× 3', 1.2, '¥1.2'],
+    ['transparent', 10, '× 10', 0, '¥0'],
+    ['transparent', 10, '× 10', undefined, '—'],
   ]) {
     const render = await createRenderer({ style, showAvatar: false, showGiftTotal: true, fullscreen: style === 'whiteframe' });
     const gift = render({ kind: 'gift', name: '<img onerror=alert(1)>', giftName: '<b>礼物</b>', giftCount, giftTotalPrice });

@@ -6,11 +6,11 @@ const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
+const { createSceneRoomProfile } = require('../../src/server/scene-room-profile');
 const { createBilibiliRuntime } = require('../../src/server/bilibili-runtime');
 const { BilibiliApiClient } = require('../../src/bilibili/danmaku/api-client');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+const { migrateTestSongDb } = require('../helpers/song-database');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
-const { migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 const { createGiftService } = require('../../src/bilibili/gift');
 const { createFixture: createGiftFixture } = require('../helpers/gift-query-fixture');
@@ -18,9 +18,7 @@ const { createScratchDirectory, removeScratchDirectory } = require('../helpers/s
 
 function fixture(t, ports = {}, getState = () => ({ settings: DEFAULT_SETTINGS })) {
   const db = new DatabaseSync(':memory:');
-  migrateScenes(db);
-  migrateComponentOutputSizes(db); migrateCanvasPresets(db); migrateSceneDeletion(db);
-  migrateDanmakuAppearance(db);
+  migrateTestSongDb(db);
   const state = { owner: { scope: 'synthetic-owner', epoch: 1 } };
   const runtime = createSceneRuntime({ songDb: db, displayPorts: { settings: { get: () => DEFAULT_SETTINGS }, system: { getState }, ...ports },
     runtimeOptions: { getSceneOwner: () => state.owner,
@@ -127,6 +125,46 @@ test('scene danmaku resolves configured and cloud room aliases through the Bilib
     }
   }
   assert.equal(resolveRoom.mock.callCount(), 4, 'repeated scene reads share each room lookup and cached result');
+});
+
+test('room profile refresh retains a matched profile across failure and clears an authoritative mismatch', async t => {
+  let at = 0, updates = 0, calls = 0, offline = false, matched = true;
+  t.mock.method(Date, 'now', () => at);
+  const profile = { roomId: '1234', uid: 'owner', name: '房主' };
+  const rooms = createSceneRoomProfile({
+    getOwner: () => ({ scope: 'a', epoch: 1 }), getRoomId: () => '1234',
+    loadProfile: () => {
+      calls++;
+      if (offline) throw new Error('offline');
+      return matched ? { ...profile } : null;
+    }, onUpdate: () => updates++,
+  });
+  t.after(() => rooms.dispose());
+  assert.equal(rooms.getSnapshot('1234'), null);
+  await new Promise(setImmediate);
+  for (at = 30000; at < 600000; at += 30000) {
+    assert.equal(rooms.getSnapshot('1234').name, '房主');
+    await new Promise(setImmediate);
+  }
+  assert.equal(calls, 1);
+  offline = true;
+  rooms.getSnapshot('1234');
+  await new Promise(setImmediate);
+  assert.equal(rooms.getSnapshot('1234').name, '房主');
+  assert.equal(updates, 1);
+  assert.equal(calls, 2);
+  offline = false;
+  at += 30000;
+  rooms.getSnapshot('1234');
+  await new Promise(setImmediate);
+  assert.equal(calls, 3);
+  assert.equal(updates, 1, 'an unchanged profile does not wake the scene');
+  matched = false;
+  at += 600000;
+  rooms.getSnapshot('1234');
+  await new Promise(setImmediate);
+  assert.equal(rooms.getSnapshot('1234'), null);
+  assert.equal(updates, 2);
 });
 
 test('scene danmaku projects room profiles only within their owner and room generation', async t => {

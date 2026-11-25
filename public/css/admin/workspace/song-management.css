@@ -60,26 +60,6 @@
   gap: 4px 12px;
 }
 
-#songForm .song-form-price-preview {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: baseline;
-  gap: var(--spacing-sm);
-}
-
-#songForm .song-form-price-preview:has(#songPricePreview:empty) {
-  display: none;
-}
-
-#songPricePreview {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--type-size-body);
-  line-height: var(--type-leading-body);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
 #songForm .song-form-actions {
   display: flex;
   justify-content: flex-end;

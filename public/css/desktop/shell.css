@@ -216,8 +216,14 @@ body.desktop-shell .primary-nav-slot {
 }
 
 body.desktop-shell .main-page-tab {
-  min-height: 32px;
+  min-height: 30px;
   padding-block: 4px;
+  font-size: var(--type-size-caption);
+}
+
+body.desktop-shell .main-page-tab .tab-icon {
+  width: 18px;
+  height: 18px;
 }
 
 body.desktop-shell .status-strip {
@@ -226,9 +232,26 @@ body.desktop-shell .status-strip {
 
 body.desktop-shell .status-strip .topbar-icon-button,
 body.desktop-shell .status-strip .topbar-live-status {
-  min-height: 28px;
-  height: 28px;
+  min-height: 26px;
+  height: 26px;
   padding-block: 2px;
+  font-size: var(--type-size-micro);
+}
+
+body.desktop-shell .status-strip .topbar-icon-button {
+  width: 30px;
+  flex-basis: 30px;
+}
+
+body.desktop-shell .topbar-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+body.desktop-shell .topbar-live-status::before {
+  width: 5px;
+  height: 5px;
+  flex-basis: 5px;
 }
 
 body.desktop-shell .main-page-tab.active {

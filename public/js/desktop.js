@@ -8,9 +8,11 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
   const resourceIntegrity = createResourceIntegrity({ toast, describeError: desktopActionErrorMessage });
   let desktopUpdateNoticeKey = '';
   let desktopUpdateAction = '';
+  let initialized = false;
   function initDesktopShell() {
     const desktop = window.songAssistantDesktop;
-    if (!desktop) return;
+    if (!desktop || initialized) return;
+    initialized = true;
     resourceIntegrity.init(desktop);
 
     document.body.classList.add('desktop-shell');
@@ -79,16 +81,24 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
       });
     }
 
-    desktop.onShowUpdatePage(openUpdatePage);
-    desktop.onUpdateState(handleDesktopUpdateState);
-    desktop
-      .getInfo()
-      .then((info) => {
+    function subscribe() {
+      const removeShow = desktop.onShowUpdatePage(openUpdatePage);
+      const removeState = desktop.onUpdateState(handleDesktopUpdateState);
+      let active = true;
+      window.addEventListener('pagehide', event => {
+        active = false;
+        removeShow?.();
+        removeState?.();
+        if (event.persisted) window.addEventListener('pageshow', subscribe, { once: true });
+      }, { once: true });
+      desktop.getInfo().then((info) => {
+        if (!active) return;
         const versionNode = document.getElementById('desktopVersionPill');
         if (versionNode) versionNode.textContent = info.version ? `v${info.version}` : '--';
         handleDesktopUpdateState(info.updateState);
-      })
-      .catch(showError);
+      }).catch(error => { if (active) showError(error); });
+    }
+    subscribe();
   }
 
   function handleDesktopUpdateState(state) {

@@ -9,8 +9,9 @@ import { enhanceColorControls } from './color-control.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from './parameter-range.js';
 
 const GROUPS = {
-  neonGlass: ['NeonGlassOptions', '霓光玻璃'],
-  astral: ['AstralOptions', 'Astral · 星笺'],
+  neonGlass: ['NeonGlassOptions', '晶透胶囊'],
+  astral: ['AstralOptions', '星芒笺'],
+  threadAdvanced: ['ThreadAdvancedOptions', '垂丝挂链动效'],
   twitterColors: ['TwitterColors', '礼物与 SC 配色'],
   spookyColors: ['SpookyColors', '背景与装饰配色'],
   ripploidGift: ['RipploidGiftColors', '礼物配色'],
@@ -21,17 +22,17 @@ const GROUPS = {
   floatingMotion: ['FloatingMotion', '飘窗弹幕通用参数'],
   comic: ['ComicOptions', '漫画造型与入场'],
   window: ['WindowOptions', '散落小窗'],
-  stardust: ['StardustOptions', '星尘 · 画面与互动'],
+  stardust: ['StardustOptions', '落星尘 · 画面与互动'],
   startrail: ['StartrailOptions', '星芒与光尾'],
   aurora: ['AuroraOptions', '极光薄笺'],
   sinking: ['SinkingOptions', '沉笺 · 水下薄片'],
-  stargazer: ['StargazerOptions', 'Stargazer · 星旅'],
+  stargazer: ['StargazerOptions', '星河漫旅'],
   gradient: ['GradientOptions', '渐变与昵称牌'],
   glassBubble: ['GlassBubbleOptions', '玻璃与显字'],
   celestial: ['CelestialOptions', '星云与星标'],
   charm: ['CharmOptions', '昵称签与横栏'],
-  glowy: ['GlowyOptions', 'Glowy 流光玻璃'],
-  glass: ['GlassOptions', '玻璃通知'],
+  glowy: ['GlowyOptions', '暗夜霓光'],
+  glass: ['GlassOptions', '磨砂通知'],
   darkMoon: ['DarkMoonOptions', '月环与星芒'],
   wireframe: ['WireframeOptions', '圈线与描框'],
   seaBreeze: ['SeaBreezeOptions', '海风倒影'],
@@ -73,6 +74,10 @@ export function mountDanmakuParameters(host, controller, {
     host.append(section);
     return { section, body };
   }
+  const threadBasic = parameterSection('ThreadBasicOptions', '普通参数', true);
+  threadBasic.section.hidden = true;
+  const threadGrid = element('div', gridClass);
+  threadBasic.body.append(threadGrid);
   const typography = parameterSection('TextOptions', '文字样式', true);
   const appearance = parameterSection('AppearanceOptions', '配色与外观');
   const motion = parameterSection('MotionOptions', '消息与动效');
@@ -85,7 +90,7 @@ export function mountDanmakuParameters(host, controller, {
   const fixedTitle = element(desktop ? 'h6' : 'h3', '', '位置与变换', 'FixedMotionTitle');
   fixed.setAttribute('aria-labelledby', fixedTitle.id);
   fixed.append(fixedTitle);
-  const groups = new Map();
+  const groups = new Map([['threadBasic', { section: threadBasic.section, grid: threadGrid }]]);
   const table = element('table', 'danmaku-text-table');
   table.setAttribute('aria-label', '文字样式');
   const head = element('thead');
@@ -114,7 +119,7 @@ export function mountDanmakuParameters(host, controller, {
     if (role !== 'body') groups.set(`text:${role}`, { section: row });
   }
   const ripploid = element('section', 'danmaku-advanced-section danmaku-event-palette', '', 'RipploidColors');
-  const ripploidTitle = element(desktop ? 'h6' : 'h3', '', 'RIPPLOID 事件配色', 'RipploidColorsTitle');
+  const ripploidTitle = element(desktop ? 'h6' : 'h3', '', '先锋票根事件配色', 'RipploidColorsTitle');
   ripploid.setAttribute('aria-labelledby', ripploidTitle.id);
   ripploid.append(ripploidTitle);
   appearance.body.append(ripploid);
@@ -177,7 +182,7 @@ export function mountDanmakuParameters(host, controller, {
       } else view.field.title = definition.help;
     }
     if (textRow) {
-      view.heading.classList.add('danmaku-text-field-label');
+      view.heading.classList.add('sr-only');
     }
     let output;
     let bounds;

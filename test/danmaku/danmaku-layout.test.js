@@ -67,34 +67,29 @@ test('new default regions preserve previously saved dimensions and text scaling'
   assert.equal(canvasContentScale(saved, 'dark-moon'), 1, 'saved text keeps its original scale');
 });
 
-// Styles added after the first saved layouts may be absent from older settings.
-const OPTIONAL_REGIONS = ['coffee', 'horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'stargazer', 'wireframe', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
-
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
+  const { DANMAKU_STYLE_OPTIONS } = require('../../src/shared/danmaku-style-options');
+  // These nine regions were required in the first persisted layout.
+  const originalStyles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream', 'glow'];
   const original = layout.createLayout();
-  const oldest = structuredClone(original);
-  for (const style of OPTIONAL_REGIONS) delete oldest.regions[style];
-  oldest.regions.signal.x = 123;
-  oldest.regions.glow.x = 100;
-  oldest.regions.glow.width -= 100;
-  const restored = layout.normalizeLayout(oldest);
-  for (const style of OPTIONAL_REGIONS) {
-    assert.deepEqual(restored.regions[style], layout.defaultRegion(style, original.canvas, original.contentScale), style);
+  for (const canvas of [original.canvas, { width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {
+    const current = layout.resizeCanvas(original, canvas);
+    const regions = Object.fromEntries(originalStyles.map(style => [style, { ...current.regions[style] }]));
+    regions.signal.x = 123;
+    regions.glow.x = 100;
+    regions.glow.width -= 100;
+    const saved = { canvas, contentScale: current.contentScale, regions };
+    const before = structuredClone(saved);
+    const restored = layout.normalizeLayout(saved);
+    assert.deepEqual(saved, before, 'migration must not mutate its input');
+    for (const style of Object.keys(DANMAKU_STYLE_OPTIONS)) {
+      const expected = regions[style] ?? layout.defaultRegion(style, canvas, saved.contentScale);
+      assert.deepEqual(restored.regions[style], expected, style);
+    }
+    assert.deepEqual(restored.regions.floating, { x: 0, y: 0, ...canvas });
+    assert.equal(restored.regions['horizontal-charm'].width, canvas.width);
   }
-  assert.deepEqual(restored.regions.signal, oldest.regions.signal);
-  assert.deepEqual(restored.regions.glow, oldest.regions.glow);
-  assert.ok(OPTIONAL_REGIONS.every(style => !Object.hasOwn(oldest.regions, style)), 'input is not mutated');
-
-  for (const canvas of [{ width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {
-    const legacy = layout.resizeCanvas(original, canvas);
-    OPTIONAL_REGIONS.forEach(style => delete legacy.regions[style]);
-    const upgraded = layout.normalizeLayout(legacy);
-    assert.deepEqual(upgraded.regions.sketch, layout.defaultRegion('sketch', canvas, legacy.contentScale));
-    assert.deepEqual(upgraded.regions.floating, { x: 0, y: 0, ...canvas });
-  }
-  const required = Object.keys(layout.REGION_DEFAULTS).filter((style) => !OPTIONAL_REGIONS.includes(style));
-  assert.ok(required.includes('signal'));
-  for (const style of required) {
+  for (const style of originalStyles) {
     const invalid = layout.createLayout();
     delete invalid.regions[style];
     assert.throws(() => layout.normalizeLayout(invalid), { code: 'INVALID_OVERLAY_LAYOUT' }, style);

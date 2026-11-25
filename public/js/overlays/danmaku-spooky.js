@@ -1,7 +1,8 @@
+import { createTextElement as node } from '../shared/dom-element.js';
 import { mixColor, parseHexColor } from '../shared/color-value.js';
 
 const ART = '/img/overlays/danmaku-spooky/';
-const GUARDS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 
 export function applySpookyColorFallback(document) {
   const view = document.defaultView;
@@ -35,13 +36,6 @@ export function applySpookyColorFallback(document) {
   setColor('message-front', mixColor(message, paper, .9), messageOpacity);
   setColor('event', event, eventOpacity);
   setColor('event-front', mixColor(color('custom-event-color') || color('right'), paper, .85), eventOpacity);
-}
-
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = text;
-  return element;
 }
 
 function ornament(document, name, className) {

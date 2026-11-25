@@ -1,8 +1,7 @@
+import { createRichTextSelection } from '../rich-text-selection.js';
 import { mountRichTextToolbar } from '../rich-text-toolbar.js';
 import { readTextStyle, applyTextStyle, textColorHex } from '../../shared/text-style.js';
 import { WISH_TEXT_DEFAULTS } from '../../shared/gift-wish-text.js';
-
-let selectionId = 0;
 
 const TOKEN_LABELS = {
   '{图片}': '礼物图片',
@@ -85,49 +84,13 @@ function readContent(node) {
 export function createWishTextEditor(editor, input) {
   const lifetime = new AbortController();
   const listen = (type, callback) => editor.addEventListener(type, callback, { signal: lifetime.signal });
-  let savedRange = null;
+  const selectionState = createRichTextSelection(editor, '[data-wish-token]');
+  const { currentRange, select: selectRange, restore: restoreSelection, expand: expandTokens } = selectionState;
   let applying = false;
   let tokenLabels = TOKEN_LABELS;
   const selection = () => window.getSelection();
   const disabled = () => editor.contentEditable !== 'true';
   const getConfig = () => ({ ...WISH_TEXT_DEFAULTS, color: textColorHex(getComputedStyle(editor).color) });
-
-  function currentRange() {
-    const selected = selection();
-    if (!selected.rangeCount) return null;
-    const range = selected.getRangeAt(0);
-    return editor.contains(range.commonAncestorContainer) ? range : null;
-  }
-
-  function selectRange(range) {
-    selection().removeAllRanges();
-    selection().addRange(range);
-    savedRange = range.cloneRange();
-  }
-
-  function restoreSelection() {
-    editor.focus({ preventScroll: true });
-    if (savedRange && editor.contains(savedRange.commonAncestorContainer)) {
-      selectRange(savedRange);
-    } else {
-      const range = document.createRange();
-      range.selectNodeContents(editor);
-      range.collapse(false);
-      selectRange(range);
-    }
-  }
-
-  function expandTokens(range) {
-    for (const edge of ['start', 'end']) {
-      const node = range[`${edge}Container`];
-      const token = (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement)?.closest('[data-wish-token]');
-      if (token && editor.contains(token)) {
-        if (edge === 'start') range.setStartBefore(token);
-        else range.setEndAfter(token);
-      }
-    }
-    return range;
-  }
 
   function sync() {
     input.value = readContent(editor);
@@ -141,7 +104,7 @@ export function createWishTextEditor(editor, input) {
         range.collapse(true);
         selectRange(range);
       }
-      savedRange = range.cloneRange();
+      selectionState.savedRange = range.cloneRange();
     }
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
@@ -150,29 +113,17 @@ export function createWishTextEditor(editor, input) {
     if (disabled()) return;
     applying = true;
     try {
-      restoreSelection();
-      const range = expandTokens(currentRange());
+      const range = expandTokens(restoreSelection());
       if (!range || range.collapsed) return;
       const runs = transform(readRuns(editor, getConfig(), range));
       const content = createContent('', tokenLabels, runs);
-      const span = document.createElement('span');
-      const marker = String(++selectionId);
-      span.dataset.wishFormatSelection = marker;
-      span.append(...content.childNodes);
-      selectRange(range);
-      document.execCommand('insertHTML', false, span.outerHTML);
-      const inserted = editor.querySelector(`[data-wish-format-selection="${marker}"]`);
-      if (inserted) {
-        delete inserted.dataset.wishFormatSelection;
-        range.selectNodeContents(inserted);
-        selectRange(range);
-      }
+      selectionState.replace(range, content);
       sync();
     } finally { applying = false; toolbar.update(); }
   }
 
   const toolbar = mountRichTextToolbar(editor, {
-    getRange() { const range = currentRange(); if (range) savedRange = range.cloneRange(); return range || savedRange; },
+    getRange() { const range = currentRange(); if (range) selectionState.savedRange = range.cloneRange(); return range || selectionState.savedRange; },
     getConfig, readNodes: range => readRuns(editor, getConfig(), range),
     format(property, value) {
       transformSelection(runs => runs.map(run => {
@@ -187,8 +138,7 @@ export function createWishTextEditor(editor, input) {
 
   function insert(value) {
     if (disabled()) return;
-    restoreSelection();
-    const range = expandTokens(currentRange());
+    const range = expandTokens(restoreSelection());
     let source = range.startContainer;
     if (source.nodeType === Node.ELEMENT_NODE) {
       source = source.childNodes[range.startOffset] || source.childNodes[range.startOffset - 1] || source;
@@ -206,7 +156,7 @@ export function createWishTextEditor(editor, input) {
   listen('input', () => { if (!applying) sync(); });
   listen('blur', () => {
     const range = currentRange();
-    if (range) savedRange = range.cloneRange();
+    if (range) selectionState.savedRange = range.cloneRange();
   });
   listen('click', (event) => {
     const token = event.target.closest('[data-wish-token]');
@@ -239,7 +189,7 @@ export function createWishTextEditor(editor, input) {
   listen('paste', (event) => {
     event.preventDefault();
     const range = currentRange();
-    if (range) savedRange = range.cloneRange();
+    if (range) selectionState.savedRange = range.cloneRange();
     insert(event.clipboardData.getData('text/plain'));
   });
   listen('drop', (event) => event.preventDefault());
@@ -261,7 +211,7 @@ export function createWishTextEditor(editor, input) {
     setValue(value, runs = []) {
       editor.replaceChildren(...createContent(value, tokenLabels, runs).childNodes);
       input.value = value;
-      savedRange = null;
+      selectionState.savedRange = null;
       toolbar.update();
     },
     setDisabled(value) {

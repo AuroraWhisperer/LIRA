@@ -283,10 +283,6 @@ body[data-style='window'][data-ambient-motion='off'] .window-frame::after { anim
 @keyframes windowHeadingIn { 0%, 10% { --danmaku-enter-opacity: 0; } 65%, 100% { --danmaku-enter-opacity: 1; } }
 @keyframes windowCopyIn { 0%, 22% { --danmaku-enter-opacity: 0; --danmaku-enter-y: 3px; } 85%, 100% { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0; } }
 @keyframes windowEdgeBreath { 0%, 100% { --window-edge-opacity: .08; } 50% { --window-edge-opacity: .28; } }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='window'] .window-item *,
-  body[data-style='window'] .window-frame::after { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='window'] .draw-danmaku-item .window-copy {

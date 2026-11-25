@@ -28,7 +28,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     wrapper.append(previewElement('span', '', label));
     const input = previewElement('input');
     input.type = type;
-    if (type === 'number') { input.min = ['width', 'height'].includes(property) ? '32' : '0'; input.step = '1'; }
+    if (type === 'number') { input.min = ['width', 'height'].includes(property) ? '32' : '0'; input.step = 'any'; }
     else input.maxLength = 80;
     input.required = true;
     wrapper.append(input);

@@ -1,4 +1,5 @@
 import { toast } from '../../shared/utils.js';
+import { readApiResponse } from '../../shared/json-response.js';
 import { createGiftExportPreview } from './export-preview.js';
 import { createGiftHistorySelection } from './history-selection.js';
 
@@ -156,12 +157,11 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
           body: JSON.stringify(options()),
           signal: selectionController.signal,
         });
-        const result = await response.json();
+        const result = await readApiResponse(response, '选中筛选结果失败');
         if (current !== operation) return;
-        if (!result.ok) throw new Error(result.error);
         state.selected = new Set(result.data.items.map((item) => item.eventId));
         get('giftHistorySelectionNotice').textContent =
-          `已选 ${state.selected.size} 条${result.data.partial ? '已同步记录，仍可能有记录待补齐' : '记录'}`;
+          result.data.partial ? `已选 ${state.selected.size} 条已同步记录，仍可能有记录待补齐` : '';
         update();
       } catch (error) {
         if (current === operation) throw error;

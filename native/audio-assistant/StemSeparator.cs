@@ -5,18 +5,19 @@ using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
 // The separation model consumes 44.1 kHz stereo spectra.
-internal sealed class StemSeparator : ISampleProvider, IDisposable
+internal sealed class StemSeparator : ISampleProvider
 {
   readonly ISampleProvider source;
-  readonly StemModel model = new();
+  readonly StemModel model;
   VocalSource vocals = null!;
   ISampleProvider output = null!;
   public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
   public float InputPeak => vocals.InputPeak;
 
-  public StemSeparator(ISampleProvider source)
+  public StemSeparator(ISampleProvider source, StemModel model)
   {
     this.source = source;
+    this.model = model;
     Reset();
   }
 
@@ -29,7 +30,6 @@ internal sealed class StemSeparator : ISampleProvider, IDisposable
     vocals = new VocalSource(new WdlResamplingSampleProvider(source, StemModel.SampleRate), model) { Strength = strength };
     output = new WdlResamplingSampleProvider(vocals, 48000);
   }
-  public void Dispose() => model.Dispose();
 
   internal sealed class VocalSource(ISampleProvider source, StemModel model) : ISampleProvider
   {

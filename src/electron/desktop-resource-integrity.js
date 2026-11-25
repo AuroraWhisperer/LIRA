@@ -1,5 +1,7 @@
 'use strict';
 
+const { ADMIN_PAGE_PATHS } = require('../shared/admin-page-paths');
+
 const { createResourceIntegrityManager } = require('./resource-integrity-manager');
 const { hasExactOrigin } = require('./local-media-access');
 
@@ -18,7 +20,7 @@ function createDesktopResourceIntegrity({ app, getMainWindow, getDesktopBaseUrl,
       const url = mainWindow.webContents.mainFrame?.url;
       if (
         !hasExactOrigin(url, getDesktopBaseUrl()) ||
-        !['/', '/admin', '/settings', '/songs'].includes(new URL(url).pathname)
+        !ADMIN_PAGE_PATHS.includes(new URL(url).pathname)
       )
         return;
       mainWindow.webContents.send('desktop:resource-integrity-state', state);

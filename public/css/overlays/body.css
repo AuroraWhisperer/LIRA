@@ -1,0 +1,9 @@
+.overlay-body {
+  --overlay-edge: var(--component-edge, clamp(0px, 2vmin, 16px));
+  min-height: var(--component-height, 100vh);
+  overflow: hidden;
+  background: transparent;
+  color: var(--overlay-text, var(--color-text-light));
+  font-family: var(--overlay-font-family, var(--font));
+  font-weight: var(--overlay-font-weight, 800);
+}

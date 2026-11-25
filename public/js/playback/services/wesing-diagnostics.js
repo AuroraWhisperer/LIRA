@@ -1,5 +1,7 @@
 'use strict';
 
+import { formatTimeMs as formatTime } from '../utils.js';
+
 const RESULT_MESSAGES = {
   ready: '采样期间歌词时钟正常推进。若直播画面仍不同步，请导出诊断继续排查。',
   intro: '歌词已加载，播放进度正在推进，当前尚未到第一句歌词。',
@@ -78,9 +80,4 @@ export function createWeSingDiagnostics({ request }) {
   }
 
   return { init, start };
-}
-
-function formatTime(value) {
-  const seconds = Math.max(0, Math.floor(Number(value || 0) / 1000));
-  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }

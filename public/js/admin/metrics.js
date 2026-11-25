@@ -4,6 +4,7 @@
 
 import { formatDateTime, formatBytes, formatDuration } from '../shared/display-format.js';
 import { showError } from '../shared/utils.js';
+import { observePanelVisibility } from './panel-visibility.js';
 
 export const metrics = (() => {
   const METRICS_SAMPLE_SECONDS = 5;
@@ -15,11 +16,8 @@ export const metrics = (() => {
     const button = document.getElementById('metricsRefreshBtn');
     if (!button) return;
 
-    const loadHardware = () => {
-      loadHardwareSummary(false);
-    };
-    document.getElementById('otherPerformanceFeatureTab')?.addEventListener('click', loadHardware);
-    document.querySelector('[data-main-page="otherAssistantPage"]')?.addEventListener('click', loadHardware);
+    const stop = observePanelVisibility(button, visible => { if (visible) void loadHardwareSummary(false); });
+    window.addEventListener('pagehide', stop, { once: true });
 
     button.addEventListener('click', runMetricsSample);
   }

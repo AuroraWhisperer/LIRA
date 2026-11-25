@@ -31,42 +31,45 @@ function intervalAt(intervals, at) {
   return null;
 }
 
-function membershipMilestoneDates(intervals, baselines, earliest, latest, now) {
+function membershipMilestoneDates(intervals, baselines, earliest, latest, now, snoozedRules) {
   const firstTime = dayStart(earliest);
   const firstDay = dayIndex(firstTime);
   const lastDay = dayIndex(dayStart(latest));
   const today = dayIndex(now);
   const days = new Set();
-  function add(day) {
-    if (day === null || day < firstDay || day > lastDay) return;
+  const dateOfDay = day => dayOf(firstTime + (day - firstDay) * DAY_MS);
+  function add(day, includePast) {
+    if (day === null || day > lastDay || (day < firstDay && !includePast)) return;
     days.add(day);
     // Today's evidence is evaluated at now, not at the end of the day. A
     // not-yet-started interval can move today's predicted crossing to tomorrow.
     if (day === today && day < lastDay) days.add(day + 1);
   }
   for (const threshold of MEMBERSHIP_MILESTONES) {
-    add(coveredDay(intervals, -Infinity, threshold));
+    const pastTotal = snoozedRules?.has(`total:${threshold}`);
+    const pastContinuous = snoozedRules?.has(`continuous:${threshold}`);
+    add(coveredDay(intervals, -Infinity, threshold), pastTotal);
     for (const interval of intervals) {
       const day = interval.startDay + threshold - 1;
-      if (day < interval.endDay) add(day);
+      if (day < interval.endDay) add(day, pastContinuous);
     }
     for (const { record, day } of baselines) {
       const { totalDays, continuousDays } = record.data;
       if (totalDays !== null && totalDays <= threshold) {
-        add(totalDays === threshold ? day : coveredDay(intervals, day, threshold - totalDays));
+        add(totalDays === threshold ? day : coveredDay(intervals, day, threshold - totalDays), pastTotal);
       }
       if (continuousDays === null || continuousDays > threshold) continue;
       if (continuousDays === threshold) {
-        add(day);
+        add(day, pastContinuous);
         continue;
       }
       const extensionStart = dayStart(record.data.asOf) + DAY_MS;
       const extension = intervalAt(intervals, extensionStart);
       const candidate = day + threshold - continuousDays;
-      if (extension && candidate < extension.endDay) add(candidate);
+      if (extension && candidate < extension.endDay) add(candidate, pastContinuous);
     }
   }
-  return [...days].sort((a, b) => a - b).map(day => dayOf(firstTime + (day - firstDay) * DAY_MS));
+  return [...days].sort((a, b) => a - b).map(dateOfDay);
 }
 
 module.exports = { MEMBERSHIP_MILESTONES, membershipMilestoneDates };

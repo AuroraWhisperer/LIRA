@@ -58,13 +58,12 @@ function clockContentBounds(card) {
     ? '.clock-content, .clock-period'
     : '.clock-year, .clock-time > *, .clock-date-row > *, .clock-period, .clock-orbit-art use';
   const effect = card.style.getPropertyValue('--component-transform');
-  card.style.setProperty('--component-transform', 'translate(0px, 0px)');
+  if (effect) card.style.setProperty('--component-transform', 'translate(0px, 0px)');
   const origin = card.getBoundingClientRect();
   const scale = Number(card.style.getPropertyValue('--clock-scale')) || 1;
   const rects = [...card.querySelectorAll(selectors)].map((node) => node.getBoundingClientRect())
     .filter((rect) => rect.width > 0 && rect.height > 0);
   if (effect) card.style.setProperty('--component-transform', effect);
-  else card.style.removeProperty('--component-transform');
   const left = Math.min(...rects.map((rect) => rect.left));
   const top = Math.min(...rects.map((rect) => rect.top));
   const unscale = (value) => Math.round(value / scale * 1000) / 1000;
@@ -193,6 +192,7 @@ async function initClock() {
   let stateRevision = 0;
   let disposed = false;
   let clockStarted = false;
+  let configKey;
   let socketController = null;
   let stopOutputSize = null;
   let previewClient = null;
@@ -214,8 +214,11 @@ async function initClock() {
   const dateNode = document.getElementById('clockDate');
   const weekdayNode = document.getElementById('clockWeekday');
   let timer = 0;
+  let nextTickAt = 0;
   let styleTransition = null;
   let flipCells = null;
+  const contentObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(syncCardScale) : null;
+  for (const node of [hoursNode, minutesNode, secondsNode, periodNode, dateNode, weekdayNode, yearNode]) contentObserver?.observe(node);
 
   function syncFlipCells() {
     if (config.style === 'flip' && !flipCells) {
@@ -276,7 +279,9 @@ async function initClock() {
     dateRow.hidden = !config.showDate || config.style === 'minimal';
     card.hidden = false;
     render();
-    effects?.update('clock', config);
+    if (!document.hidden && (!timer || nextTickAt > nextClockTick(Date.now()))) armTimer();
+    if (effects) effects.update('clock', config);
+    else syncCardScale();
     if (styleChanged) {
       styleTransition?.cancel();
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -298,7 +303,7 @@ async function initClock() {
       event.data?.type !== 'lira:clock-preview-config'
     )
       return;
-    applyConfig(normalizeSavedClockConfig(event.data.config));
+    showConfig(normalizeSavedClockConfig(event.data.config));
   };
   window.addEventListener('message', receiveLegacyPreview);
 
@@ -355,23 +360,42 @@ async function initClock() {
     }
     timeNode.dateTime = now.toISOString();
     timeNode.setAttribute('aria-label', `${hours}点${minutes}分${config.showSeconds ? `${seconds}秒` : ''}`);
-    syncCardScale();
+    if (!contentObserver) syncCardScale();
+  }
+
+  function nextClockTick(now) {
+    const unit = config.showSeconds ? 1000 : 60000;
+    let remaining = unit - now % unit;
+    if (config.style === 'moonlit-fan' && config.moonMode === 'auto') {
+      const interval = config.moonIntervalSeconds * 1000;
+      remaining = Math.min(remaining, interval - now % interval);
+    }
+    return now + Math.max(120, remaining + 20);
+  }
+
+  function armTimer() {
+    window.clearTimeout(timer);
+    const now = Date.now();
+    nextTickAt = nextClockTick(now);
+    timer = window.setTimeout(schedule, nextTickAt - now);
   }
 
   function schedule() {
     if (disposed || !clockStarted) return;
     window.clearTimeout(timer);
+    timer = 0;
     render();
-    if (document.hidden) return;
-    const delay = Math.max(120, 1020 - (Date.now() % 1000));
-    timer = window.setTimeout(schedule, delay);
+    if (!document.hidden) armTimer();
   }
 
   document.addEventListener('visibilitychange', schedule);
   function showConfig(nextConfig) {
     if (disposed) return;
+    const key = JSON.stringify(nextConfig);
+    if (key === configKey) return;
+    configKey = key;
+    clockStarted = true;
     applyConfig(nextConfig);
-    if (!clockStarted) { clockStarted = true; schedule(); }
   }
   function dispose() {
     if (disposed) return;
@@ -381,6 +405,7 @@ async function initClock() {
     socketController?.dispose();
     effects?.dispose();
     stopOutputSize?.();
+    contentObserver?.disconnect();
     styleTransition?.cancel();
     flipCells?.forEach((cell) => cell.dispose());
     window.removeEventListener('resize', syncCardScale);

@@ -1,23 +1,15 @@
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { createTextElement } from '../shared/dom-element.js';
+import { formatDanmakuAmount as amount } from '../shared/display-format.js';
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const ROLE_PATHS = {
   streamer: 'M4 6h10v3l6-3v12l-6-3v3H4Z',
   guard: 'm12 2 3 6.2 6.8 1-4.9 4.8 1.2 6.8L12 17.5l-6.1 3.3 1.2-6.8-4.9-4.8 6.8-1Z',
   fan: 'm12 3 9 9-9 9-9-9Z',
 };
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—';
-}
-
 // The shared renderer owns text and emote parsing; this adapter owns their composition.
 export function createAnimatedGradientMessageRenderer({ document, classNames }, render) {
-  const node = (tag, className, text) => {
-    const element = document.createElement(tag);
-    element.className = className;
-    if (text !== undefined) element.textContent = String(text);
-    return element;
-  };
+  const node = createTextElement.bind(null, document);
   const badge = (role, label) => {
     const element = node('span', `gradient-role-icon gradient-role-icon--${role}`);
     element.setAttribute('role', 'img');
@@ -67,6 +59,7 @@ export function createAnimatedGradientMessageRenderer({ document, classNames }, 
         ticket.append(node('span', 'gradient-amount', ` · ${amount(item.price)}`));
         label.textContent = '醒目留言';
       } else label.textContent = item.kind === 'entry' ? '来到直播间' : '消息';
+      label.append(node('span', 'gradient-flow'));
       const shell = node('div', 'gradient-event');
       shell.append(ticket, label);
       body.replaceChildren(shell);
@@ -80,6 +73,7 @@ export function createAnimatedGradientMessageRenderer({ document, classNames }, 
       const role = item.isStreamer === true ? 'streamer' : guard
         ? ({ 1: 'governor', 2: 'admiral', 3: 'captain' })[item.roomGuardLevel] : item.roomMedal?.name ? 'fan' : '';
       root.dataset.gradientRole = role || 'viewer';
+      heading.append(node('span', 'gradient-flow'));
       if (role) heading.append(badge(role, role === 'streamer' ? '主播' : guard || '粉丝'));
       heading.append(sender);
       const medal = item.roomMedal;

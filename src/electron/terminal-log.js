@@ -6,12 +6,10 @@ const util = require('node:util');
 const { createHash } = require('node:crypto');
 const { createLogRateLimit } = require('../shared/log-rate-limit');
 const { redactCredentials } = require('../shared/log-redaction');
-const { appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS } = require('../shared/log-size-limit');
+const { appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS, NORMAL_ENTRY_BYTES, ERROR_ENTRY_BYTES,
+  NORMAL_FILE_BYTES, ERROR_FILE_MULTIPLIER, ERROR_LOG_DIRECTORY } = require('../shared/log-size-limit');
 
 const TERMINAL_LOG_METHODS = ['info', 'warn', 'error'];
-const NORMAL_ENTRY_BYTES = 2 * 1024;
-const ERROR_ENTRY_BYTES = 16 * 1024;
-const MAX_FILE_BYTES = 1024 * 1024;
 
 function installTerminalLog(filePath, options = {}) {
   if (!filePath) return () => {};
@@ -60,7 +58,7 @@ function appendTerminalLine(filePath, message, method, context) {
   try {
     const isError = method === 'error' || method === 'warn';
     appendBoundedFileSync(
-      isError ? path.join(path.dirname(filePath), 'errors', path.basename(filePath)) : filePath,
+      isError ? path.join(path.dirname(filePath), ERROR_LOG_DIRECTORY, path.basename(filePath)) : filePath,
       formatLogLine({
         timestamp: context.now(),
         runId: context.runId,
@@ -72,7 +70,7 @@ function appendTerminalLine(filePath, message, method, context) {
       }),
       {
         maxEntryBytes: method === 'error' ? ERROR_ENTRY_BYTES : NORMAL_ENTRY_BYTES,
-        maxFileBytes: isError ? context.maxFileBytes * 3 : context.maxFileBytes,
+        maxFileBytes: isError ? context.maxFileBytes * ERROR_FILE_MULTIPLIER : context.maxFileBytes,
         maxAgeMs: isError ? ERROR_LOG_AGE_MS : NORMAL_LOG_AGE_MS,
       },
     );
@@ -87,7 +85,7 @@ function normalizeLogContext(options) {
     runId: String(options.runId || 'unknown'),
     pid: Number(options.pid) || process.pid,
     processType: String(options.processType || process.type || 'node'),
-    maxFileBytes: Number(options.maxFileBytes) > 0 ? Number(options.maxFileBytes) : MAX_FILE_BYTES,
+    maxFileBytes: Number(options.maxFileBytes) > 0 ? Number(options.maxFileBytes) : NORMAL_FILE_BYTES,
     now: typeof options.now === 'function' ? options.now : () => new Date().toISOString(),
     nextSequence:
       typeof options.nextSequence === 'function'

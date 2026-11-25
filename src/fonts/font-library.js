@@ -12,6 +12,7 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
   const directory = resolveDataPaths(dataDir).fontsDir;
   const indexPath = path.join(directory, 'index.json');
   const installed = readIndex(indexPath, fonts);
+  const verified = new Map();
   const bundled = new Set(fonts.filter(font => font.bundled.length && font.bundled.every(file =>
     fs.existsSync(path.join(publicDir, 'fonts', file.path)))).map(font => font.id));
   const listeners = new Set();
@@ -31,12 +32,26 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
     return getState();
   }
 
-  async function readCached(entry) {
+  async function readCached(entry, id = entry?.id, includeBytes = false) {
     if (!entry) return null;
+    let file;
     try {
-      const bytes = await fs.promises.readFile(filename(entry));
-      return sha256(bytes) === entry.sha256 && isFont(bytes, entry.format) ? bytes : null;
+      file = await fs.promises.open(filename(entry));
+      const stamp = ({ ino, size, ctimeNs, mtimeNs }) => `${entry.sha256}:${ino}:${size}:${ctimeNs}:${mtimeNs}`;
+      const stat = await file.stat({ bigint: true });
+      const before = stamp(stat);
+      const known = verified.get(id) === before;
+      if (known && !includeBytes) return { size: Number(stat.size) };
+
+      const bytes = await file.readFile();
+      const stable = before === stamp(await file.stat({ bigint: true }));
+      if (!known || !stable) {
+        if (!isFont(bytes, entry.format) || Buffer.from(await crypto.subtle.digest('SHA-256', bytes)).toString('hex') !== entry.sha256) return null;
+        if (stable) verified.set(id, before);
+      }
+      return { size: bytes.length, bytes: includeBytes ? bytes : undefined };
     } catch { return null; }
+    finally { await file?.close(); }
   }
 
   async function hasBundled(font) {
@@ -119,13 +134,13 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
     return pending;
   }
 
-  async function readFont(id) {
+  async function readFont(id, needsBody = () => true) {
     const font = fonts.find(entry => entry.id === id);
-    if (!font) return null;
+    if (!font || !installed[id]) return null;
     const entry = installed[id];
-    const bytes = await readCached(entry);
+    const content = await readCached(entry, id, needsBody(entry.sha256));
     // Existing faces remain available while a replacement downloads.
-    return bytes ? { bytes, format: entry.format, sha256: entry.sha256 } : null;
+    return content ? { ...content, format: entry.format, sha256: entry.sha256 } : null;
   }
 
   function stylesheet() {

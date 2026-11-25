@@ -81,6 +81,7 @@ function createSceneOutputReader({ readOutput, readCapability, decodeDocument, m
         }
         const outputDocument = version === record.publishedVersion ? null
           : structuredClone(decodeDocument(document, owner.scope));
+        displayContext.opening = display?.opening;
         const appearances = getSharedAppearances?.(document.items.filter(item => item.visible), displayContext);
         assertCurrent();
         return {

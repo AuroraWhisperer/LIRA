@@ -5,6 +5,7 @@ const { createPublicError } = require('../../shared/public-error');
 const crypto = require('node:crypto');
 const { parseLyricResult } = require('../lyric-parser');
 const { QQMusicClient } = require('./qq-provider-client');
+const { readProviderHealthSession } = require('../auth-state');
 const {
   buildGuid,
   calcQQGtk,
@@ -55,9 +56,9 @@ class QQMusicStreamProvider extends QQMusicClient {
   }
 
   async healthCheck() {
-    const auth = await this.getSafeAuthState();
+    const { state: auth, cookieHeader } = await readProviderHealthSession(this);
     try {
-      await this.searchTracks('晴天', { limit: 1 });
+      await this.searchTracks('晴天', { limit: 1 }, cookieHeader);
       const loggedIn = Boolean(auth && auth.loggedIn);
       return {
         source: this.source,
@@ -81,7 +82,7 @@ class QQMusicStreamProvider extends QQMusicClient {
     }
   }
 
-  async searchTracks(keyword, options = {}) {
+  async searchTracks(keyword, options = {}, cookieHeader) {
     const query = String(keyword || '').trim();
     if (!query) throw createPublicError('缺少搜索关键词。', 501);
     const limit = clampInteger(options.limit, 1, 30, 20);
@@ -100,7 +101,7 @@ class QQMusicStreamProvider extends QQMusicClient {
       outCharset: 'utf-8',
       platform: 'yqq.json',
       needNewCode: '0',
-    });
+    }, cookieHeader);
     const songs = data && data.data && data.data.song && Array.isArray(data.data.song.list) ? data.data.song.list : [];
     return songs.map(mapQQSong).filter(Boolean);
   }
@@ -197,7 +198,7 @@ class QQMusicStreamProvider extends QQMusicClient {
       notice: '0',
       platform: 'yqq.json',
       needNewCode: '0',
-    });
+    }, cookieHeader);
     return {
       source: this.source,
       sourceTrackId,
@@ -249,7 +250,7 @@ class QQMusicStreamProvider extends QQMusicClient {
           platform: '20',
         },
       },
-    });
+    }, cookieHeader);
     const midUrlInfoList =
       data && data.req_0 && data.req_0.data && Array.isArray(data.req_0.data.midurlinfo)
         ? data.req_0.data.midurlinfo
@@ -282,13 +283,12 @@ class QQMusicStreamProvider extends QQMusicClient {
   }
 
   async resolveEncryptedPlayableUrl(track, requestedQuality) {
-    await this.requireLogin('QQ 音乐臻品音质需要先登录 QQ 音乐。');
+    const cookieHeader = await this.getLoginCookieHeader('QQ 音乐臻品音质需要先登录 QQ 音乐。');
     const sourceTrackId = extractSourceTrackId(track);
     const sourceMediaId = String((track && track.sourceMediaId) || sourceTrackId).trim();
     const sourceSongType = normalizeQQSongType(track && track.sourceSongType);
     const format = QQ_ENCRYPTED_QUALITIES[requestedQuality];
     const filename = `${format.family}${sourceMediaId}.${format.extension}`;
-    const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
     const guid = buildGuid();
     const data = await this.requestQQEncryptedVkey(
@@ -313,6 +313,7 @@ class QQMusicStreamProvider extends QQMusicClient {
         },
       },
       guid,
+      cookieHeader,
     );
     const info =
       data && data.queryvkey && data.queryvkey.data && Array.isArray(data.queryvkey.data.midurlinfo)

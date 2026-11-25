@@ -1,4 +1,4 @@
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const GRAPHEMES = new Intl.Segmenter('zh-CN', { granularity: 'grapheme' });
 const CUP_LINES = [
   ['rim', 'M6 28C8 22 43 22 48 27C49 33 9 35 6 28Z'],

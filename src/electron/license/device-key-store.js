@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { writeAtomicFile } = require('../atomic-file');
 const crypto = require('node:crypto');
 
 function createDeviceKeyStore(options = {}) {
@@ -36,13 +37,7 @@ function createDeviceKeyStore(options = {}) {
 
   function writeEncryptedKey(filePath, encrypted) {
     fs.mkdirSync(keyDir, { recursive: true });
-    const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
-    try {
-      fs.writeFileSync(tempPath, encrypted, { mode: 0o600, flag: 'wx' });
-      fs.renameSync(tempPath, filePath);
-    } finally {
-      fs.rmSync(tempPath, { force: true });
-    }
+    writeAtomicFile(filePath, encrypted);
   }
 
   function prepareKey(keyPair, encrypted) {

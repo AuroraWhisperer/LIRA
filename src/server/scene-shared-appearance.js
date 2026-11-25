@@ -43,7 +43,7 @@ function sharedResourceAppearance(type, config = {}, settings = {}) {
 function createSceneSharedAppearance(context) {
   const settings = { ...DEFAULT_SETTINGS, ...context.settings.get() };
   let readStyle;
-  let opening;
+  let opening = context.opening;
   function resource(config, type) {
     if (!config.resourceStyle || !context.system.dataDir) return null;
     // Removed packages keep their saved appearance and assets for existing scenes.

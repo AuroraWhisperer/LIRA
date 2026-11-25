@@ -520,7 +520,7 @@ test('style text responds to chosen fonts and sizes; representative layouts reta
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const measurements = await page.evaluate(async () => {
-    const { DANMAKU_STYLE_OPTIONS, DANMAKU_TEXT_TARGETS } = await import('/js/shared/danmaku-style-options.js');
+    const { DANMAKU_STYLE_OPTIONS, DANMAKU_TEXT_TARGETS, supportsDanmakuSuperchat } = await import('/js/shared/danmaku-style-options.js');
     const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
     const { createLayout } = await import('/js/shared/danmaku-layout.js');
     const { applyCanvas, canvasContentScale } = await import('/js/overlays/danmaku-canvas.js');
@@ -529,32 +529,26 @@ test('style text responds to chosen fonts and sizes; representative layouts reta
     const results = [];
     for (const [style, limits] of Object.entries(DANMAKU_STYLE_OPTIONS)) {
       document.body.dataset.style = style;
-      const render = createDanmakuMessageRenderer({ document, style, classNames: DEFAULT_DANMAKU_CLASSES });
+      const fullscreen = limits.layout === 'fullscreen-random' || limits.layout === 'floating';
+      const render = createDanmakuMessageRenderer({ document, style, fullscreen, classNames: DEFAULT_DANMAKU_CLASSES });
       const sender = { name: '观众', roomGuardLevel: 3, honorLevel: 20, roomMedal: { name: '粉丝牌', level: 12 } };
       const messages = [
         { ...sender, message: '正文大小' },
-        { ...sender, kind: 'gift', giftName: '礼物', giftCount: 2, giftTotalPrice: 30 },
+        { ...sender, kind: 'gift', giftName: '星愿风铃', giftCount: 2, giftTotalPrice: 30 },
       ];
-      const hasSuperchat = limits.scrollDirection || limits.layout === 'horizontal' || ['mist', 'comic', 'stardust', 'glass-bubble'].includes(style);
-      if (hasSuperchat) messages.push({ ...sender, kind: 'superchat', message: '留言大小', price: 30 });
+      if (supportsDanmakuSuperchat(style)) messages.push({ ...sender, kind: 'superchat', message: '留言大小', price: 30 });
       for (const fontSize of [limits.minFontSize, limits.maxFontSize]) {
         applyStyleOptions(document, style, { [style]: { fontSize, fontFamily: '"Georgia"' } });
         root.replaceChildren(...messages.map(render));
         const cards = Array.from(root.children);
-        const paragraph = (card, text) => Array.from(card.querySelectorAll('p')).find(node => node.textContent === text);
-        const giftSelector = style === 'animated-gradient' ? '.gradient-gift-name'
-          : style === 'celestial-horizontal' ? '.celestial-copy'
-          : ['sea-breeze', 'sea-breeze-random'].includes(style) ? '.sea-breeze-copy'
-          : style === 'dark-moon' ? '.dark-moon-event-label' : style === 'wireframe' ? '.wireframe-copy' : style === 'ripploid' ? '.ripploid-gift-name'
-          : style === 'flower-letter' ? '.flower-gift-name'
-            : style === 'christmas' ? '.christmas-gift-name'
-            : style === 'christmas-letter' ? '.xletter-gift-name'
-            : limits.speed ? 'p' : '.draw-danmaku-gift-name';
-        const content = [
-          ['chat', paragraph(cards[0], '正文大小')],
-          ['gift', cards[1].querySelector(giftSelector)],
-          ...(hasSuperchat ? [['superchat', paragraph(cards[2], '留言大小')]] : []),
-        ];
+        const content = messages.map((item, index) => {
+          const card = cards[index];
+          if (fullscreen) card.style.visibility = 'visible'; // The feed reveals these cards after placement.
+          // Each sample has unique copy. Measure its innermost element, including gift names printed inline with counts.
+          const node = [...card.querySelectorAll('*')].findLast(element => item.kind === 'gift'
+            ? element.textContent.includes(item.giftName) : element.textContent === item.message);
+          return [item.kind || 'chat', node];
+        });
         for (const scale of [1, 0.75]) {
           // The shared canvas covers fixed, horizontal and moving layouts once.
           if (scale !== 1 && !['signal', 'glass', 'celestial-horizontal', 'floating'].includes(style)) continue;

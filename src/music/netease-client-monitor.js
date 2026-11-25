@@ -1,14 +1,14 @@
 'use strict';
 
 const { spawn: spawnProcess } = require('node:child_process');
-const { parseNeteaseWindowTitle, readNeteaseClientTrack } = require('./netease-client-track');
+const { parseNeteaseWindowTitle, createNeteaseTrackReader } = require('./netease-client-track');
 const { NETEASE_NATIVE_PLAYER_SOURCE } = require('./netease-native-player-source');
 
 const SCRIPT_INPUT_COMMAND = '[Console]::InputEncoding = [Text.UTF8Encoding]::new($false); & ([ScriptBlock]::Create([Console]::In.ReadToEnd()))';
 
 function createNeteaseClientMonitor(onSample, {
   spawn = spawnProcess,
-  readTrack = readNeteaseClientTrack,
+  readTrack = createNeteaseTrackReader(),
   now = Date.now,
 } = {}) {
   let child = null;
@@ -16,9 +16,7 @@ function createNeteaseClientMonitor(onSample, {
   let watchdog = null;
   let retry = null;
   let retries = 0;
-  let metadataKey = '';
-  let track = null;
-  let nextTrackReadAt = 0;
+  let metadata;
 
   function clearTimers() {
     clearTimeout(watchdog);
@@ -47,29 +45,35 @@ function createNeteaseClientMonitor(onSample, {
     watchdog.unref?.();
   }
 
-  function enrich(sample) {
-    if (!sample || typeof sample !== 'object') return { error: true };
+  async function enrich(sample) {
+    if (!sample || typeof sample !== 'object') {
+      metadata = null;
+      return { error: true };
+    }
     if (!sample.detected || sample.error) {
-      metadataKey = '';
-      track = null;
+      metadata = null;
       return sample;
     }
     const parsed = sample.windowTitle ? parseNeteaseWindowTitle(sample.windowTitle) : null;
     const result = { ...sample, ...(parsed || {}) };
     const key = JSON.stringify([result.windowTitle, result.title, result.artists, result.artist, result.durationMs, result.sourceTrackId]);
-    if (key !== metadataKey) {
-      metadataKey = key;
-      track = null;
-      nextTrackReadAt = 0;
+    if (key !== metadata?.key) {
+      metadata = { key, track: null, pending: null, nextReadAt: 0, delay: 1000 };
     }
-    if (!track && now() >= nextTrackReadAt && result.title) {
-      nextTrackReadAt = now() + 1000;
-      try { track = readTrack(result); } catch (_) { track = null; }
+    const entry = metadata;
+    const mismatchedId = result.clockSource === 'native' && result.sourceTrackId !== entry.track?.sourceTrackId;
+    if ((!entry.track || mismatchedId) && !entry.pending && now() >= entry.nextReadAt && result.title) {
+      entry.pending = Promise.resolve().then(() => readTrack(result)).catch(() => null).then((track) => {
+        entry.track = track;
+        entry.nextReadAt = now() + entry.delay;
+        entry.delay = Math.min(5000, entry.delay * 2);
+        entry.pending = null;
+      });
     }
+    if (entry.pending) await entry.pending;
+    const track = entry.track;
     if (track) {
       if (result.clockSource === 'native' && result.sourceTrackId !== track.sourceTrackId) {
-        track = null;
-        nextTrackReadAt = 0;
         return { detected: true, playbackStatus: 'Changing', clockSource: 'native' };
       }
       result.title = track.title;
@@ -95,6 +99,8 @@ function createNeteaseClientMonitor(onSample, {
       return;
     }
     child = running;
+    metadata = null;
+    let errorVersion = 0;
     let buffer = '';
     running.stdout.setEncoding('utf8');
     running.stdout.on('data', (chunk) => {
@@ -105,10 +111,15 @@ function createNeteaseClientMonitor(onSample, {
       for (const row of rows) {
         if (!row.trim()) continue;
         let sample;
-        try { sample = JSON.parse(row); } catch (_) { onSample({ error: true }); continue; }
+        try { sample = JSON.parse(row); } catch (_) { errorVersion++; metadata = null; onSample({ error: true }); continue; }
         if (sample && typeof sample.detected === 'boolean' && !sample.error) retries = 0;
         armWatchdog(running);
-        onSample(enrich(sample));
+        const version = errorVersion;
+        const pending = enrich(sample);
+        const entry = metadata;
+        void pending.then((result) => {
+          if (child === running && entry === metadata && version === errorVersion) onSample(result);
+        });
       }
     });
     running.stderr.resume();
@@ -132,8 +143,7 @@ function createNeteaseClientMonitor(onSample, {
     const running = child;
     child = null;
     running?.kill();
-    metadataKey = '';
-    track = null;
+    metadata = null;
   }
 
   return { start, stop };
@@ -239,16 +249,17 @@ public sealed class NeteaseAccessiblePlayer {
   }
   private void Observe(IAccessible owner, int child) {
     string name = owner.get_accName(child) ?? "";
-    var control = new NeteaseAccessibleControl { Owner = owner, Child = child };
-    if (Regex.IsMatch(name, @"^\s*\d{1,3}:\d{2}\s*[/|]\s*\d{1,3}:\d{2}\s*$")) {
-      Progress = control;
+    if (ProgressPattern.IsMatch(name)) {
+      Progress = new NeteaseAccessibleControl { Owner = owner, Child = child };
       retained.Add(owner);
     } else if (Convert.ToInt32(owner.get_accRole(child)) == 43 &&
-      Regex.IsMatch(name, @"^(暂停|播放|Pause|Play)(\s*\([^)]*\))?$", RegexOptions.IgnoreCase)) {
-      buttons.Add(control);
+      StatePattern.IsMatch(name)) {
+      buttons.Add(new NeteaseAccessibleControl { Owner = owner, Child = child });
       retained.Add(owner);
     }
   }
+  static readonly Regex ProgressPattern = new Regex(@"^\s*\d{1,3}:\d{2}\s*[/|]\s*\d{1,3}:\d{2}\s*$", RegexOptions.Compiled);
+  static readonly Regex StatePattern = new Regex(@"^(暂停|播放|Pause|Play)(\s*\([^)]*\))?$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
   private void Walk(IAccessible owner, int depth, ref int visited) {
     try {
       if (depth > 32 || visited++ >= 2000) return;
@@ -291,6 +302,10 @@ try {
 } catch { $manager = $null }
 $lastWindow = ''
 $nextScanAt = 0
+$nextReconcileAt = 0
+$needsScan = $true
+$lastPosition = -1
+$positionChangedAt = 0
 $progressElement = $null
 $stateElement = $null
 $accessiblePlayer = [NeteaseAccessiblePlayer]::new()
@@ -345,18 +360,21 @@ while ($true) {
           $stateElement = $null
           $accessiblePlayer.Reset()
         } else {
-          if ($sampledAt -ge $nextScanAt) {
+          $missingControl = $null -eq $progressElement -and $null -eq $accessiblePlayer.Progress
+          if (($missingControl -or $needsScan -or $sampledAt -ge $nextReconcileAt) -and $sampledAt -ge $nextScanAt) {
             $nextScanAt = $sampledAt + 2000
+            $nextReconcileAt = $sampledAt + 30000
+            $lastPosition = -1
             $progressElement = $null
             $stateElement = $null
             $root = [System.Windows.Automation.AutomationElement]::FromHandle($window.Handle)
             $controls = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $controlCondition)
-            $buttons = @()
+            $buttons = [System.Collections.Generic.List[object]]::new()
             for ($index = 0; $index -lt [Math]::Min($controls.Count, 2000); $index++) {
               $control = $controls.Item($index)
               $name = [string]$control.Current.Name
               if ($name -match '^\s*\d{1,3}:\d{2}\s*[/|]\s*\d{1,3}:\d{2}\s*$') { $progressElement = $control }
-              if ($control.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $name -match '^(暂停|播放|Pause|Play)(\s*\([^)]*\))?$') { $buttons += $control }
+              if ($control.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and $name -match '^(暂停|播放|Pause|Play)(\s*\([^)]*\))?$') { $buttons.Add($control) }
             }
             if ($null -ne $progressElement) {
               $progressY = $progressElement.Current.BoundingRectangle.Top
@@ -379,13 +397,22 @@ while ($true) {
               $sample.timelineUpdatedAt = $sampledAt
             }
           }
+          $hasButton = $null -ne $stateElement -or $null -ne $accessiblePlayer.State
+          $needsScan = !$sample.timelineUpdatedAt -or ($hasButton -and $sample.playbackStatus -eq 'Unknown')
+          if ($sample.positionMs -ne $lastPosition -or $sample.playbackStatus -ne 'Playing') {
+            $positionChangedAt = $sampledAt
+            $lastPosition = $sample.positionMs
+          } elseif ($sampledAt - $positionChangedAt -gt 2500) { $needsScan = $true }
         }
         if ([NeteasePlaybackWindows]::ReadTitle($window.Handle) -ne $window.Title) {
           $sample = @{ detected = $true; playbackStatus = 'Changing'; clockSource = 'uia' }
         }
       } else { $lastWindow = ''; $progressElement = $null; $stateElement = $null; $accessiblePlayer.Reset(); $nativePlayer.Dispose() }
     }
-  } catch { $sample = @{ error = $true } }
+  } catch {
+    $progressElement = $null; $stateElement = $null; $accessiblePlayer.Reset()
+    $sample = @{ error = $true }
+  }
   finally { foreach ($process in $processes) { $process.Dispose() } }
   Write-Output ($sample | ConvertTo-Json -Compress)
   [Console]::Out.Flush()

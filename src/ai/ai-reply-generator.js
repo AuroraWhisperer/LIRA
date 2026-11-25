@@ -172,18 +172,19 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
         const currentTime = getCurrentTime({}, { now: new Date(now()) }).formatted;
         const replyBudget = getReplyLengthBudget(userName, config.replyMaxChars);
         const replyLimit = options.singleMessage ? replyBudget.oneMessage : replyBudget.threeMessages;
+        let availableTools = buildAvailableTools(config, excludedToolNames);
         let response = await modelClient.createResponse({
           config,
           instructions: buildReplyInstructions(
             persona.prompt,
             config.replyMaxChars,
-            buildAvailableTools(config, excludedToolNames),
+            availableTools,
             userName,
             currentTime,
             options.singleMessage,
           ) + (accountChat ? `\n${DOUBAO_CHAT_POLICY}` : ''),
           input,
-          tools: buildAvailableTools(config, excludedToolNames),
+          tools: availableTools,
           maxOutputTokens: getModelOutputTokens(config),
           purpose: 'generation',
           ...(accountChat ? { conversationKey: JSON.stringify([uid, personaScope, conversationSessionId]) } : {}),
@@ -207,18 +208,19 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
             });
             toolCallCount += 1;
           }
+          availableTools = buildAvailableTools(config, excludedToolNames);
           response = await modelClient.createResponse({
             config,
             instructions: buildReplyInstructions(
               persona.prompt,
               config.replyMaxChars,
-              buildAvailableTools(config, excludedToolNames),
+              availableTools,
               userName,
               currentTime,
               options.singleMessage,
             ),
             input: outputs,
-            tools: buildAvailableTools(config, excludedToolNames),
+            tools: availableTools,
             previousResponseId: response.id,
             maxOutputTokens: getModelOutputTokens(config),
             purpose: 'tool_followup',

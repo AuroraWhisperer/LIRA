@@ -2,6 +2,7 @@ import { findLyricLineIndex } from '../shared/lyric-line-index.js';
 
 const COUNTDOWN_WINDOW_MS = 3000;
 const COUNTDOWN_MIN_GAP_MS = 6000;
+const sungEnds = new WeakMap();
 const SPRING_STIFFNESS = 170;
 const SPRING_DAMPING = 26;
 const SPRING_SETTLE_DISTANCE = 0.5;
@@ -43,17 +44,22 @@ export function getLyricCountdown(lines, currentIndex, currentMs) {
   const nextLine = lines[nextIndex];
   if (!nextLine) return null;
   const nextStartMs = finiteNumber(nextLine.startMs, 0);
+  const remainingMs = nextStartMs - Math.max(0, finiteNumber(currentMs, 0));
+  if (remainingMs <= 0 || remainingMs > COUNTDOWN_WINDOW_MS) return null;
   const previousLine = lines[currentIndex];
   const previousStartMs = finiteNumber(previousLine?.startMs, 0);
-  const wordEndMs = Array.isArray(previousLine?.words) ? previousLine.words.reduce((endMs, word) =>
-    String(word.text || '').trim() ? Math.max(endMs, finiteNumber(word.endMs, 0)) : endMs, 0) : 0;
+  const words = previousLine?.words;
+  if (Array.isArray(words) && !sungEnds.has(words)) {
+    sungEnds.set(words, words.reduce((endMs, word) =>
+      String(word.text || '').trim() ? Math.max(endMs, finiteNumber(word.endMs, 0)) : endMs, 0));
+  }
+  const wordEndMs = sungEnds.get(words) || 0;
   // LRC often borrows the next line's start as its end; supplied word timing is more precise.
   const previousEndMs = currentIndex < 0 ? 0
     : wordEndMs > previousStartMs ? wordEndMs : finiteNumber(previousLine?.endMs, previousStartMs);
   if (currentIndex >= 0 && previousEndMs <= previousStartMs) return null;
   const gapMs = nextStartMs - previousEndMs;
-  const remainingMs = nextStartMs - Math.max(0, finiteNumber(currentMs, 0));
-  if (gapMs < COUNTDOWN_MIN_GAP_MS || remainingMs <= 0 || remainingMs > COUNTDOWN_WINDOW_MS) {
+  if (gapMs < COUNTDOWN_MIN_GAP_MS) {
     return null;
   }
   return { nextIndex, seconds: Math.max(1, Math.ceil(remainingMs / 1000)) };

@@ -2,7 +2,7 @@
 // 本文件是风格分发器：classic（金属徽章）与 aurora（辉光柔和）各自独立渲染器。
 import { classicRenderer } from './guard-thanks-classic.js';
 import { auroraRenderer } from './guard-thanks-aurora.js';
-import { AVATAR_WAIT_MS, AURORA_COMPRESSED_HOLD_RATIO, AURORA_EXIT_MS, COMPRESSED_HOLD_RATIO, ENTER_MS, cssColor, element, fitName } from './guard-thanks-stage.js';
+import { MEDALLION_CENTER, PARTICLE_OFFSET_X, AVATAR_WAIT_MS, AURORA_COMPRESSED_HOLD_RATIO, AURORA_EXIT_MS, COMPRESSED_HOLD_RATIO, ENTER_MS, cssColor, element, fitName } from './guard-thanks-stage.js';
 import { createGuardParticles } from './guard-thanks-particles.js';
 
 export const GUARD_THANKS_STAGE = Object.freeze({ width: 1280, height: 1080 });
@@ -54,20 +54,15 @@ export const GUARD_TIERS = Object.freeze({
 const AURORA_TIMINGS = Object.freeze({
   captain: Object.freeze({
     holdMs: 3000,
-    enterMs: 2800,
   }),
   admiral: Object.freeze({
     holdMs: 3400,
-    enterMs: 3000,
   }),
   governor: Object.freeze({
     holdMs: 4000,
-    enterMs: 3200,
   }),
 });
 
-const PARTICLE_OFFSET_X = 320;
-const MEDALLION_CENTER = Object.freeze({ x: 640, y: 500 });
 const SPARK_VARS = Object.freeze(['--gt-spark-a', '--gt-spark-b', '--gt-spark-c']);
 let instanceSequence = 0;
 
@@ -191,7 +186,7 @@ function resolveMotion(renderer, tier, compressed) {
   if (renderer.id === 'aurora') {
     const timing = AURORA_TIMINGS[tier.key];
     const ratio = compressed ? AURORA_COMPRESSED_HOLD_RATIO : 1;
-    return { holdMs: Math.round(timing.holdMs * ratio), enterMs: timing.enterMs, aura: true };
+    return { holdMs: Math.round(timing.holdMs * ratio), enterMs: renderer.enterMs(tier.key), aura: true };
   }
   return {
     holdMs: Math.round(tier.holdMs * (compressed ? COMPRESSED_HOLD_RATIO : 1)),

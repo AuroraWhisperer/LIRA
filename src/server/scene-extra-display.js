@@ -102,12 +102,12 @@ function createSceneExtraDisplay({ displayPorts, getOwner, now = Date.now }) {
         try {
           const owner = getOwner?.();
           const revision = displayPorts.gifts.getBlindBoxChangeToken?.();
-          const boxName = displayPorts.settings.get().blindboxHeartBoxOnly === 'true' ? '心动盲盒' : '';
+          const boxName = displayPorts.settings.get(['blindboxHeartBoxOnly']).blindboxHeartBoxOnly === 'true' ? '心动盲盒' : '';
           const key = JSON.stringify([owner?.scope, owner?.epoch, revision, boxName]);
           let entry = cache.get(type);
           if (revision == null || entry?.key !== key) {
             entry = { key, version: randomUUID(),
-              value: response('/api/gifts/blind-box-stats', displayPorts.gifts.getBlindBoxStats({ boxName })) };
+              value: response('/api/gifts/blind-box-stats', displayPorts.gifts.getBlindBoxStats({ boxName, includeRecords: false })) };
             if (revision != null) cache.set(type, entry);
             else cache.delete(type);
           }
@@ -117,7 +117,7 @@ function createSceneExtraDisplay({ displayPorts, getOwner, now = Date.now }) {
           if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) return null;
           throw error;
         }
-      case 'gift-wishes': return cached(type, async () => response('/api/gifts/wishes', await displayPorts.giftWishes.getSnapshot()));
+      case 'gift-wishes': return cached(type, async () => response('/api/gifts/wishes', await displayPorts.giftWishes.getSnapshot({ includeSession: false })));
       case 'heart-box-collection': return cached(type, () => response('/api/gifts/heart-box-collection', displayPorts.heartBoxCollection.getSnapshot()));
       case 'gift-feed': return Promise.resolve(cached(type, async (key) => {
         const previous = feedSnapshot?.key === key ? feedSnapshot : null;

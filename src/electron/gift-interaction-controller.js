@@ -1,5 +1,7 @@
 'use strict';
 
+const { isDeepStrictEqual } = require('node:util');
+const { normalizeErrorCode } = require('./license/remote-license-error');
 const GIFT_INTERACTION_KEYS = ['giftAutoThanksEnabled', 'giftStatsQueryEnabled'];
 const { normalizeGiftThanksTemplates, normalizeGiftThanksReplies } = require('../../public/js/shared/gift-thanks-templates.js');
 
@@ -28,7 +30,9 @@ function createGiftInteractionController({ prepareWork, enqueue, write, isCurren
   }
 
   function publish(patch) {
-    state = { ...state, ...patch };
+    const next = { ...state, ...patch };
+    if (isDeepStrictEqual(state, next)) return;
+    state = next;
     for (const listener of listeners) listener(getState());
   }
 
@@ -41,7 +45,7 @@ function createGiftInteractionController({ prepareWork, enqueue, write, isCurren
 
   function fail(error) {
     const code = String(error?.code || 'CLOUD_SYNC_FAILED');
-    publish({ status: 'unconfirmed', error: /^[A-Z][A-Z0-9_]{0,63}$/.test(code) ? code : 'CLOUD_SYNC_FAILED' });
+    publish({ status: 'unconfirmed', error: code === code.trim() ? normalizeErrorCode(code, 'CLOUD_SYNC_FAILED') : 'CLOUD_SYNC_FAILED' });
   }
 
   async function set(intent) {

@@ -2,7 +2,7 @@
 
 > 涉及文件:[provider-registry.js](../../../../src/music/provider-registry.js)、[stream-resolver.js](../../../../src/music/stream-resolver.js)、[track-contract.js](../../../../src/music/track-contract.js)、[music-cache.js](../../../../src/music/music-cache.js)、[music-catalog-service.js](../../../../src/music/music-catalog-service.js)、[lyrics-service.js](../../../../src/music/lyrics-service.js)、[song-service.js](../../../../src/music/song-service.js)、[song-store.js](../../../../src/storage/song-store.js)、[queue-service.js](../../../../src/music/queue-service.js)、[song-matcher.js](../../../../src/music/song-matcher.js)、[random-song-filter.js](../../../../src/music/random-song-filter.js)、[tag-aliases.js](../../../../src/music/tag-aliases.js)、[requester-target-store.js](../../../../src/storage/requester-target-store.js)、[song-import-schema.js](../../../../src/music/song-import-schema.js)、[song-file-codec.js](../../../../src/music/song-file-codec.js)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)
 
-本文档是 `src/music/` 下**非 Provider、非 WeSing** 模块的唯一事实源:模块职责、导出签名、关键算法与常量只在此成表。上游 Provider 逆向工程见 [qq-provider.md](qq-provider.md) / [netease-provider.md](netease-provider.md);全民 K 歌采集见 [wesing.md](wesing.md);HTTP 端点见 [api.md](../api.md)(music-routes / song-routes / queue-routes 节);WebSocket 快照字段与消息见 [ws.md](../ws.md);DB 表结构见 [storage.md](../storage.md);领域装配点见 [server-core.md](../server-core.md) §5。
+本文档是 `src/music/` 下**非 Provider、非 WeSing** 模块的单一事实来源，涵盖模块职责、导出签名、关键算法与常量。上游 Provider 逆向实现见 [qq-provider.md](qq-provider.md) / [netease-provider.md](netease-provider.md)；全民 K 歌采集见 [wesing.md](wesing.md)；HTTP 端点见 [api.md](../api.md)（music-routes / song-routes / queue-routes 节）；WebSocket 快照字段与消息见 [ws.md](../ws.md)；DB 表结构见 [storage.md](../storage.md)；领域装配点见 [server-core.md](../server-core.md) §5。
 
 ## 1. 模块地图
 
@@ -28,7 +28,7 @@
 
 ## 2. 领域装配(server-core.md §5 的接线详情)
 
-[music-runtime.js](../../../../src/server/music-runtime.js) 的 `buildMusicRuntime` 拥有音乐组件装配，`server.js` 负责接线和生命周期：
+[music-runtime.js](../../../../src/server/music-runtime.js) 的 `buildMusicRuntime` 负责音乐组件装配，`server.js` 负责接线和生命周期管理：
 
 | 组件 | 创建与注入 |
 | --- | --- |
@@ -51,29 +51,27 @@
 | `normalizeMusicPlatform`               | `(value) => 'qq'\|'netease'`            | 小写 trim 后校验白名单,否则抛"音乐平台只能是 qq 或 netease。"                                                   | [provider-registry.js:13-19](../../../../src/music/provider-registry.js#L13-L19)   |
 | `createMusicProviderRegistry(options)` | 工厂                                    | 见下                                                                                                            | [provider-registry.js:21-57](../../../../src/music/provider-registry.js#L21-L57)   |
 
-`createMusicProviderRegistry({ getAuthState, getCookieHeader })` 返回:
+`createMusicProviderRegistry({ getSessionState, getRequestSession, getAuthState, getCookieHeader })` 返回以下接口。前两个回调可选。
 
 | 方法                                    | 行为                                                                                   |
 | --------------------------------------- | -------------------------------------------------------------------------------------- |
 | `get(platform)`                         | 归一化后取实例(不存在的平台抛错)                                                       |
 | `list()`                                | 两个 Provider 实例数组                                                                 |
-| `getAuthorizationRevision(platform)`    | 后端内部异步版本号：从 `getCookieHeader` 读取当前 Cookie，在内存比较摘要，变化时递增；不调用 `getAuthState`、读取持久化授权文件或自行发起网络请求，不返回 Cookie 或摘要 |
-| `healthCheck(platform?)`                | 传平台只查单个;不传 `Promise.all` 并发查全部                                           |
-| `getHealthyFallback(preferredPlatform)` | 并发健康检查,返回**第一个 ok 且非首选平台**的 Provider(返回原始健康对象);全挂返回 null |
+| `getAuthorizationRevision(platform)`    | 后端内部异步修订号：从 `getCookieHeader` 读取当前 Cookie，在内存比较摘要，变化时递增；不调用 `getAuthState`、读取持久化授权文件或自行发起网络请求，不返回 Cookie 或摘要 |
+| `healthCheck(platform?)`                | 传平台只查单个；不传 `Promise.all` 并发查全部                                           |
+| `getHealthyFallback(preferredPlatform)` | 并发健康检查，返回**第一个 ok 且非首选平台**的 Provider（返回原始健康对象）；全挂返回 `null` |
 
-两个真实 Provider 都注入同一对 `getAuthState` / `getCookieHeader`,Cookie 与登录态来源见 [auth.md](../../desktop/auth.md)。
+桌面 IPC 与内置服务器的注册表使用同一组认证回调。仅判断登录时调用 `getSessionState(platform)`。需要同时验证登录并发送请求时，`getRequestSession(platform)` 用一次分区读取取得 `{ state, cookieHeader }`，仅交给当前 Provider 调用。健康检查传入第二个参数 `true`，在状态中附加备份元数据，同一次分区读取用于搜索请求。对外只返回经过筛选的状态，包括备份标志和保存时间。旧适配器继续分别读取状态和请求头，仅提供 `getAuthState` 时由它判断登录。参见[桌面登录与会话](../../desktop/auth.md)。
 
-授权修订仅在当前 registry 生命周期内有效，不持久化、不经 HTTP/IPC 暴露；读取复用 Provider 的 `getSafeCookieHeader()`，保留 Cookie 会话读取失败时的匿名回退。WeSing 在线匹配用修订号使未命中的短期退避在登录状态变化后立即失效。
+授权修订号仅在当前 registry 生命周期内有效，不落盘、不经 HTTP/IPC 暴露；读取复用 Provider 的 `getSafeCookieHeader()`，并在读取 Cookie 失败时保持匿名回退。WeSing 在线歌词匹配通过该修订号感知登录态变化，及时清除未命中的短期退避。
 
 ### 3.2 健康检查路由
 
-`/api/music/health` 直接调用 `registry.healthCheck(platform)`；平台归一化和单个/全部检查由注册表拥有，无效平台仍返回 HTTP 400。HTTP 返回合同见 [api.md](../api.md) 的 music-routes 节。
+`/api/music/health` 直接调用 `registry.healthCheck(platform)`；平台归一化和单个/全部检查由注册表负责，无效平台仍返回 HTTP 400。HTTP 返回契约见 [api.md](../api.md) 的 music-routes 节。
 
 ## 4. 流解析编排(stream-resolver.js + track-contract.js)
 
-QQ 加密媒体由 `qq-encrypted-stream.js` 通过 Node `pipeline` 解密并写入响应，传递下游背压；客户端中断或响应提前关闭会中止上游 fetch。等待响应头和等待上游下一块数据各有 30 秒期限，期限只包围主动读取，不计入下游背压；超时会取消上游并返回/断开响应。响应头和实际累计字节均受 64 MiB 上限约束，超过实际额度时断开已开始的响应；拒绝、取消和完成路径均释放响应体及 QMC2 实例。
-
-Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义。
+各平台内部的流解析与 QQ 加密流代理（`qq-encrypted-stream.js`）详见 [qq-provider.md §7.2](qq-provider.md#72-播放-url-解析qq-provider-streamsjs) 与 [netease-provider.md §7.2](netease-provider.md#72-播放-url-解析netease-providerjs)；本节只记录跨平台编排层语义。
 
 ### 4.1 normalizeMusicTrackForProvider(track-contract.js)
 
@@ -99,37 +97,37 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 3. return provider.resolvePlayableUrl(normalizedTrack, { forceRefresh, quality })
 ```
 
-- **TTL**：QQ 流由 [qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js) 管理，默认有效期 5 分钟；网易云 [resolvePlayableUrl](../../../../src/music/providers/netease-provider.js) 每次请求原生 player URL 接口，使用返回的 `expi`，缺失时才回退 5 分钟，并保留试听/权限结果。`forceRefresh` 从调用链传入，不应据此推断所有 Provider 都有相同的缓存策略。
-- 本模块自身**不做磁盘缓存**(流 URL 短命,缓存无意义);歌词与首页内容缓存见 §5
+- **编排语义**：`forceRefresh` 与 `quality` 由调用链透传给目标 Provider，各平台 TTL 与缓存行为见各自 §7.2（不应假定各平台缓存策略相同）。
+- 本模块自身**不做磁盘缓存**（流 URL 生命周期短，磁盘缓存无意义）；歌词与首页内容缓存见 §5。
 
 ## 5. 音乐缓存(music-cache.js)
 
-目录账本最多 8 项，文件监听不保活进程，目录删除、统计、清空或淘汰时关闭对应监听。应用写入立即按实际文件大小计账；外部原地覆盖需文件事件到达后在下一次写入复核，或通过统计/容量淘汰的全量扫描收敛，不承诺跨进程同一事件循环内的同步容量一致性。
+目录容量账本最多跟踪 8 个目录，文件监听调用 `unref()` 不阻塞进程退出，并在目录删除、统计、清空或淘汰时关闭对应监听（无法监听时回退逐次扫描）。应用内写入实时按实际文件字节数更新账本；外部进程原地改写文件时，在下一次写入（收到文件变更事件后）或统计/容量裁剪全量扫描时修正，不保证跨进程实时强一致。
 
-磁盘 JSON 缓存,两目录两 TTL([storage.md](../storage.md) §2 有目录布局):
+磁盘 JSON 缓存，两目录两 TTL（[storage.md](../storage.md) §2 有目录布局）：
 
 | 常量                       | 值                                | 用途         | 出处                                                          |
 | -------------------------- | --------------------------------- | ------------ | ------------------------------------------------------------- |
-| `MUSIC_API_CACHE_TTL_MS`   | `5 * 60 * 1000`(5 分钟)           | 首页内容缓存 | [music-cache.js:9](../../../../src/music/music-cache.js#L9)   |
-| `MUSIC_LYRIC_CACHE_TTL_MS` | `30 * 24 * 60 * 60 * 1000`(30 天) | 歌词缓存     | [music-cache.js:10](../../../../src/music/music-cache.js#L10) |
+| `MUSIC_API_CACHE_TTL_MS`   | `5 * 60 * 1000`（5 分钟）           | 首页内容缓存 | [music-cache.js:9](../../../../src/music/music-cache.js#L9)   |
+| `MUSIC_LYRIC_CACHE_TTL_MS` | `30 * 24 * 60 * 60 * 1000`（30 天） | 歌词缓存     | [music-cache.js:10](../../../../src/music/music-cache.js#L10) |
 | API 目录容量上限           | 50 MB                             | 写缓存后裁剪 | [music-cache.js:36](../../../../src/music/music-cache.js#L36) |
 | 歌词目录容量上限           | 300 MB                            | 同上         | 同上                                                          |
 
 | 函数                                   | 行为                                                                                                                                                              |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `musicCacheKey(scope, payload)`        | `sha1(<scope>:<JSON.stringify(payload)>)` 十六进制([music-cache.js:12-16](../../../../src/music/music-cache.js#L12-L16))                                          |
-| `readMusicJsonCache(dir, key, ttlMs)`  | 读 `<key>.json`;`mtimeMs` 超 TTL 视为未命中;文件为 `{savedAt, data}` 信封,返回 `data`([music-cache.js:18-27](../../../../src/music/music-cache.js#L18-L27))       |
-| `writeMusicJsonCache(dir, key, data)`  | 首次扫描目录后按每次写入的实际字节数更新账本；目录变化重建，文件通知复核变动项；超额时全量复核实际 mtime/容量并从旧到新删除。统计、清空会丢弃账本；无法监听时保留逐次扫描。缓存失败不影响播放([music-cache.js](../../../../src/music/music-cache.js)) |
-| `clearMusicCache(apiDir, lyricDir)`    | 删两目录重建,返回 `{clearedBytes, clearedFiles, after}`([music-cache.js:66-77](../../../../src/music/music-cache.js#L66-L77))                                     |
-| `getMusicCacheStats(apiDir, lyricDir)` | `{api, lyrics, totalBytes, totalFiles}`([music-cache.js:79-86](../../../../src/music/music-cache.js#L79-L86))                                                     |
+| `musicCacheKey(scope, payload)`        | `sha1(<scope>:<JSON.stringify(payload)>)` 十六进制（[music-cache.js:12-16](../../../../src/music/music-cache.js#L12-L16)）                                          |
+| `readMusicJsonCache(dir, key, ttlMs)`  | 读 `<key>.json`；`mtimeMs` 超 TTL 视为未命中；文件为 `{savedAt, data}` 外层结构，返回 `data`（[music-cache.js:18-27](../../../../src/music/music-cache.js#L18-L27)）       |
+| `writeMusicJsonCache(dir, key, data)`  | 写入 JSON 并更新目录账本，超额时全量核对 `mtime` / 容量并从旧到新裁剪；缓存失败不影响播放（[music-cache.js](../../../../src/music/music-cache.js)） |
+| `clearMusicCache(apiDir, lyricDir)`    | 删两目录重建，返回 `{clearedBytes, clearedFiles, after}`（[music-cache.js:66-77](../../../../src/music/music-cache.js#L66-L77)）                                     |
+| `getMusicCacheStats(apiDir, lyricDir)` | `{api, lyrics, totalBytes, totalFiles}`（[music-cache.js:79-86](../../../../src/music/music-cache.js#L79-L86)）                                                     |
 
 ## 6. 音乐目录与歌词服务
 
+`music-cache.js` 的 `directoryIndexes` 记录文件路径、大小、修改时间和目录字节总量，用于配额核对与淘汰。歌词内容命中时仍异步读取并解析 JSON。`lyrics-service.js` 按账号合并同一首歌的在途请求，请求结束后释放在途记录。
+
 ### 6.1 工厂与职责
 
-[music-catalog-service.js](../../../../src/music/music-catalog-service.js) 的 `createMusicCatalogService({ apiCacheDir })` 提供搜索、首页和歌单写入；[lyrics-service.js](../../../../src/music/lyrics-service.js) 的 `createLyricsService({ lyricCacheDir })` 只提供歌词获取与解析。两个工厂各自绑定缓存路径，使用 music-cache.js 的既有常量，不共享可变模块级服务实例。
-
-内部 CommonJS 消费者已迁移到所属模块；无消费者的 `initLyricsService` 和兼容单例已移除。运行时使用工厂绑定缓存目录；两模块保留各自操作的具名导出，直接调用 `getMusicHomeContent(registry, body, apiCacheDir = '')` 或 `getMusicTrackLyrics(registry, body, lyricCacheDir = '')` 时可显式传缓存目录，不再重配全局实例。HTTP 路径和返回形状不变。
+[music-catalog-service.js](../../../../src/music/music-catalog-service.js) 的 `createMusicCatalogService({ apiCacheDir })` 提供搜索、首页和歌单写入；[lyrics-service.js](../../../../src/music/lyrics-service.js) 的 `createLyricsService({ lyricCacheDir })` 只提供歌词获取与解析。运行时通过工厂绑定各自缓存目录，不维护全局可变单例；两模块同时保留具名函数导出，直接调用 `getMusicHomeContent(registry, body, apiCacheDir = '')` 或 `getMusicTrackLyrics(registry, body, lyricCacheDir = '')` 时可显式传入缓存目录。
 
 | 所属服务 | 方法 | 行为 |
 | --- | --- | --- |
@@ -159,16 +157,16 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 缓存规则:仅 `personalized` 可缓存;`refresh === true` 或 `page > 1` **绕过缓存**;命中时返回 `{...cached, cached: true}`。`limit` clamp 1-5000 默认 100,`offset` ≥ 0,`page` clamp 1-50。
 
-推荐缓存从 Provider 的 `getSafeCookieHeader()` 读取授权快照，参与既有 `musicCacheKey` 哈希；磁盘文件名和内容不保存原始凭证。账号切换、退出登录和服务重建后按该作用域隔离，同凭证保留五分钟暖缓存。上游请求结束时再次读取凭证，若与开始时不同则跳过此次缓存写入。
+推荐缓存会将 Provider `getSafeCookieHeader()` 返回的当前凭据纳入 `musicCacheKey` 哈希，磁盘文件名与内容均不保存原始凭据。账号切换、退出登录或服务重建后自动隔离缓存，同一凭据下复用 5 分钟缓存。上游请求返回后会再次比对凭据，若期间已变更则跳过写入。
 
-`liked` 可携带一次加载专用的 `loadingSession`（最长 100 字符）。Provider 仅在同一会话中复用喜欢歌单定位；QQ 客户端接口返回完整歌单时复用该次结果分页，公开接口和网易云仍读取实际分页。不同加载使用不同会话，凭证改变或成功写歌单会清除会话；每个 Provider 最多保留 8 个会话、最长 5 分钟，不写磁盘，也不作为下一次刷新缓存。
+`liked` 可携带一次加载专用的 `loadingSession`（最长 100 字符）。Provider 仅在同一会话中复用喜欢歌单定位。QQ 客户端接口返回完整歌单时复用该次结果分页，公开接口和网易云仍读取实际分页。加载会话用当前完整 Cookie 的 SHA-256 摘要识别账号或凭证变化。凭证改变或成功写歌单会清除会话。每个 Provider 在内存中最多保留 8 个会话、最长 5 分钟，每次刷新使用新的会话。
 
 ### 6.3 歌词(`getMusicTrackLyrics`,[lyrics-service.js](../../../../src/music/lyrics-service.js))
 
 - 入参先过 `normalizeMusicTrackForProvider`(强制完整契约)
 - 缓存 key:`musicCacheKey(version, { source, sourceTrackId })`；网易云使用 `lyrics-v6`，QQ 保持 `lyrics-v5`。版本前缀参与 hash，旧网易云无逐字缓存不会压制新解析结果。
-- TTL 30 天(§5);命中返回 `{...cached, cached: true}`
-- 未命中 → `provider.getLyrics(normalizedTrack)` → 仅有效歌词行非空时写缓存，空结果允许下次重试
+- 30 天内命中时异步读取磁盘并返回 `{...cached, cached: true}`。未命中时调用 `provider.getLyrics(normalizedTrack)`。同一服务实例按 registry、授权修订、曲目 ID 及影响匹配或逐字时间的输入合并在途请求。
+- 有效歌词行非空且授权修订仍匹配时，异步暂存结果，随后原子替换缓存文件并更新 §5 的容量账本。空结果与失败均允许下次重试。
 
 ### 6.4 歌单写入([music-catalog-service.js](../../../../src/music/music-catalog-service.js))
 
@@ -178,7 +176,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 ### 6.5 成员标注([music-catalog-service.js](../../../../src/music/music-catalog-service.js))
 
-`annotatePlaylistMembership(provider, platform, playlists, track)`:**并发 6** 逐个歌单调用 `provider.playlistContainsTrack`(网易云用轻量 trackIds;QQ 无此方法则回退拉 5000 首线性比对,见 [qq-provider.md](qq-provider.md) §8),失败标 `containsTrack: null`。`getProviderTrackId` 对 QQ 优先数值 `sourceSongId`(写入用),否则 mid;网易云恒用数字 id。
+`annotatePlaylistMembership` 以最多 6 个并发调用 `provider.playlistContainsTrack`，读取失败标 `containsTrack: null`。网易云使用完整曲目 ID 索引。QQ 在详情的原始行中检查最多 5000 首，优先比较数值 `sourceSongId`，仅有 mid 时比较 mid。接口和回退见 [QQ 歌单详情](qq-provider.md#710-歌单详情qq-providerjs)。
 
 ## 7. 曲库服务(song-service.js)
 
@@ -205,21 +203,24 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 ### 7.3 导入(importSongs,[song-service.js](../../../../src/music/song-service.js))
 
-旧 JSON/XLSX 导入现在也遵守最终完整歌库容量约束，去重与超限原子拒绝由 [SongStore](../storage.md) 拥有；失败不广播或请求云同步。旧入口没有额外限制重复原始行数量，显式更新导入的输入行限制仍按其独立契约执行。
+JSON / XLSX 批量导入同样受完整歌库 5000 首容量上限约束，去重与超限原子拒绝由 [SongStore](../storage.md) 执行；失败时不广播也不触发云同步。旧入口不额外限制重复原始行数量，显式更新导入的输入行限制仍按其独立契约执行。
 
-- `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 在单个事务中写入有效歌曲和新曲风，失败 `ROLLBACK`，不新增 `import_batches` 记录
-- 逐行:价格别名冲突或名空计 failed，`failures` 返回数据行序号与原因 → `(name, artist)` 重复计 duplicate 跳过（不更新已有价格/歌切） → 新曲风计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
-- 返回 `{total, inserted, duplicate, failed, createdCategories, failures}`；导入计数只通过当次响应返回，不在结束时写入批次记录
+- `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责（§11）；`store.importRows` 在单事务内写入有效歌曲和新曲风，失败 `ROLLBACK`，不写入 `import_batches` 记录
+- 逐行：价格别名冲突或名空计 `failed`（`failures` 返回数据行序号与原因）→ `(name, artist)` 重复计 `duplicate` 跳过（不更新已有价格/歌切）→ 新曲风计数 → `INSERT`；`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
+- 返回 `{total, inserted, duplicate, failed, createdCategories, failures}`；导入计数仅通过当次响应返回
 
-云端快照与表格导入是不同契约：上传边界 [mapSongForSync](../../../../src/shared/cloud-song-snapshot.js) 将本地 `name`/`is_enabled` 等字段映射为唯一的网络 `title`/`enabled` 等 camelCase 字段；下载由 `replaceCloudSongs` 将 canonical 字段映射回本地模型。同账号拉取相同歌曲内容时保留 SQLite 歌曲 ID 及队列、点歌历史关联。切换账号拉取云端歌库时，即使歌曲内容相同，也按新账号快照重建。网络不发送重复别名，本地 SQLite 列名、CRUD 输入及 §11 的表格导入别名继续使用各自契约。跨端字段与配套升级要求见 [歌曲同步规格](../../../../specs/cloud-authoritative-streamer-sync_design.md)。
+云端快照与表格导入分属不同契约：上传边界 [mapSongForSync](../../../../src/shared/cloud-song-snapshot.js) 将本地 `name`/`is_enabled` 等字段映射为唯一的网络 `title`/`enabled` 等 camelCase 字段；下载时由 `replaceCloudSongs` 将规范字段映射回本地模型。同账号拉取相同歌曲内容时保留 SQLite 歌曲 ID 及队列、点歌历史关联；切换账号拉取云端歌库时按新账号快照重建。网络不发送重复别名，本地 SQLite 列名、CRUD 输入及 §11 表格导入别名继续使用各自契约（跨端字段与升级要求见 [歌曲同步规格](../../../../specs/cloud-authoritative-streamer-sync_design.md)）。
 
-表格预览和应用由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store,input)` / `applySongImport(store,input)` 拥有。按清洗后的歌名加歌手精确匹配，包含停用歌曲。管理页固定传 `replaceAll: true`，完整覆盖匹配歌曲的所有导入字段并删除表格中未列出的旧歌曲；文本空白/缺列清空、曲风默认为「默认」、是否可点默认为是。不传替换选项的旧调用仅新增和更新，不删除无关记录。兼容更新的缺列保留、空默认保留；显式 `allowEmptyClear` 仅清空存在列的文本，曲风空变默认，启用空保留。非空启用值必须明确，价格新值超过 1000 UTF-16 code unit 无效。
+表格预览与应用由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store, input)` 和 `applySongImport(store, input)` 负责，按清洗后的「歌名 + 歌手」精确匹配（含停用歌曲）：
 
-预览给新增/更新/未改变/冲突/无效计数，替换时额外给删除计数和删除明细（row 为 null）；同身份同指定内容重复折叠，不同内容的全组冲突，任何冲突或无效禁止整批提交。预览 token 绑定完整歌曲（含更新时间）、全部曲风与输入/空值/替换选项；提交委托 `store.applyImportUpdate(buildPlan)` 在事务内重算并检查，避免预览后歌曲/曲风变化时覆盖编辑。通过后一次事务写入，失败全部回滚，匹配歌曲保持原 song id；删除仅解除队列和历史的歌曲关联，保留其文本快照。替换以最终表格计容量，允许将超限旧库缩减至 5000 首以内；空表仍拒绝。详细 API 和错误见 [API 歌库域](../api.md)。
+- **整库替换（`replaceAll: true`，管理页固定模式）**：覆盖匹配歌曲的全部导入字段，并删除表格未列出的旧歌曲；空值或缺列清空文本，曲风默认「默认」，可点默认「是」。容量按最终表格检查（允许将超限旧库缩减至 5000 首以内，但拒绝空表）。
+- **兼容更新（未传 `replaceAll`）**：仅新增和更新，不删除旧记录；缺列和空值默认保留原值，显式传入 `allowEmptyClear` 时清空存在列的文本（曲风置为「默认」，可点状态保持不变）。
+- **校验与冲突**：非空「是否可点」值必须明确可识别，新增价格文本不超过 1000 个 UTF-16 码元；同身份且内容一致的重复行自动折叠，内容不一致则整组标为冲突；存在任何冲突或无效行均禁止整批应用。
+- **并发一致性**：预览结果返回新增/更新/未改变/冲突/无效（替换模式另附删除）计数及 `previewToken`（绑定当前全部歌曲/曲风与导入选项）；提交时经 `store.applyImportUpdate(buildPlan)` 在单事务内重算校验后落库，匹配歌曲保留原 `song_id`，删除仅解除队列/历史关联并保留文本快照。存储事务细节见 [storage.md](../storage.md#歌库显式更新事务)，HTTP 契约见 [api.md](../api.md#7-歌库域songs)。
 
 ### 7.4 随机选歌(pickRandomSong,[song-service.js](../../../../src/music/song-service.js))
 
-1. store 只取 `is_enabled=1` 的全量行 + 曲风启用标记,组合筛选交给纯模块 `filterRandomSongCandidates`(§10)
+1. 每个 store 按变更令牌复用 `is_enabled=1` 的歌曲及曲风启用标记，首次用到相应筛选项时准备匹配字段。令牌改变后重新取数。§10 的组合筛选向调用方返回独立行，个人范围、冷却与随机历史仍按本次请求计算。
 2. `song-store.listRecentRandomSongNames()` 从 `random_request_history` 读取最近 10 次随机点歌的歌名，领域层排除它们；历史与入队同事务更新，保留规则见 [存储合同](../storage.md) §3.1。
 3. 排除后为空则回退全池;`randomSourceValue(scopeText)` 生成 `source = 'random'` 或 `random:<scope>`(弹幕机器人据此定位请求者,见 §12)
 
@@ -243,34 +244,32 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 `current` 是历史遗留态,`ensureUnifiedQueue`([queue-service.js](../../../../src/music/queue-service.js))在启动/清库修复时把它归位为 `waiting`。
 
-`recordQueueRequestResult(context, {accepted, requesterName, songName, reason})` 在当前队列 context 中保留临时点歌结果，不写入数据库。单条形状为 `{id, accepted, requesterName, songName, reason?, expiresAt}`：`id` 为每次尝试独立生成的 UUID。成功使用已匹配歌名，拒绝使用请求歌名，随机失败没有实际歌名时使用「随机歌曲」。仅失败且有非空说明时附带 `reason`，内容复用已有业务拒绝的用户可读原因，包括个人冷却剩余秒数、歌曲冷却剩余时长或恢复时间，以及其他点歌规则。不包含 UID、意外异常或其他私有元数据；旧结果省略 `reason` 仍可显示失败。
+`recordQueueRequestResult(context, {accepted, requesterName, songName, reason})` 在当前队列 context 中保留临时点歌结果，不写入数据库。单条结构为 `{id, accepted, requesterName, songName, reason?, expiresAt}`，其中 `id` 为每次尝试独立生成的 UUID。成功使用已匹配歌名，拒绝使用请求歌名，随机失败没有实际歌名时使用「随机歌曲」。仅失败且有非空说明时附带 `reason`，内容复用已有业务拒绝的用户可读原因，包括个人冷却剩余秒数、歌曲冷却剩余时长或恢复时间，以及其他点歌规则。不包含 UID、意外异常或其他私有元数据；旧结果省略 `reason` 仍可显示失败。
 
-快照的可选 `requestResults` 按发生顺序提供最近一分钟、最多 200 条仍有效的结果，`expiresAt` 是接收期限，不是前端显示时长。该窗口补足同一 microtask 合并的广播与短暂场景补读；读取返回独立副本，过期不投影。兼容字段 `requestResult` 继续只保留最后一条和原四秒期限。新展示端在首次快照建立基线，之后按 ID 接收并逐条播放；已经收到并排队的结果不因接收期限到达而取消，实际阅读时间由[点歌板](../../frontend/overlays.md#2-队列叠加层queue)拥有。该缓冲不是持久日志，页面重开不追播旧结果，长时间离线不补发。
+快照的可选 `requestResults` 按发生顺序提供最近 1 分钟、最多 200 条仍有效的结果，`expiresAt` 是接收期限而非前端显示时长。该窗口用于兜底同一微任务合并广播和短时场景补拉；读取时返回副本，已过期条目不再下发。兼容字段 `requestResult` 仍只保留最新一条及原 4 秒有效期。新版展示端以首次快照建立基线，后续按 `id` 顺序接收并逐条播报；已进入前端播放队列的条目不会因 `expiresAt` 到期而中途取消，实际停留时长由[点歌板](../../frontend/overlays.md#2-队列叠加层queue)控制。该缓冲不是持久日志，页面重开不追播旧结果，长时间离线不补发。
 
 观众弹幕、SC 和已登录账号的随机点歌由 `message-application.js` 在消息入口记录结果及已有拒绝原因；普通聊天、取消点歌及关闭 SC 点歌后的 SC 不产生结果。手动添加由 `queue-routes.js` 在领域服务成功或预期拒绝后记录，拒绝说明取已知业务错误的 message。失败不新增队列项、请求历史或冷却；通知沿现有快照与场景链路发送，前端展示与去重规则见[点歌板](../../frontend/overlays.md#2-队列叠加层queue)。
 
 ### 8.2 addQueueItem(context, input)([queue-service.js](../../../../src/music/queue-service.js))
 
-校验链(顺序即语义):
+校验链（顺序即语义）：
 
 1. `songName` 必填
 2. **观众资格**：仅内部入口标记 `viewerRequest: true` 时由 [song-request-policy.js](../../../../src/music/song-request-policy.js) 检查有效 UID 黑名单、配额所需身份、大航海与粉丝牌门槛。默认均不限，已过期名单忽略；名单启用但无法核验 UID 时拒绝，不能把 `open_id` 当 UID。粉丝牌与大航海分别依赖当前房间已核验证据；免牌只豁免粉丝牌，不豁免大航海门槛。
-3. **队列上限**:`queueLimit` 设置(defaults 兜底),统计 `status IN ('current','waiting')` 的活跃数,满则抛"点歌队列已达到上限。"
-4. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
+3. **队列上限**：`queueLimit` 设置（defaults 兜底），统计 `status IN ('current','waiting')` 的活跃数，满则抛「点歌队列已达到上限。」
+4. **曲库校验**：显式给出歌手时先按歌名和歌手匹配，`artist: ''` 可选中空歌手的版本。省略歌手时按歌名匹配。`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛「歌库里没有这首歌。」
 5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与请求归属检查最近成功入队时间；比较时简繁等价，历史 `song_key` 格式和原值不变，同一作用域的等价记录取最近接受时间。事务内复查及随机候选过滤沿用相同规则。小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
-6. **重复检查**：沿用 `allowDuplicate`（默认 `'true'`），界面以「禁止同名点歌」呈现，默认关闭；开启时保存 `'false'`。`allowDuplicate !== 'true'` 时，活跃队列内歌名文本相同（仅比较 `song_name`，不区分歌手）即抛 `SONG_ALREADY_QUEUED`。普通点歌、随机抽中的歌曲、SC 和手动入队均经过此检查；拒绝沿用点歌板红色失败提示，随机点歌不会另抽一首规避拒绝。完成、跳过、删除或清空后不再占用同名名额，歌曲冷却仍独立生效；开启规则不会移除已有重复项。
+6. **重复检查**：沿用 `allowDuplicate`（默认 `'true'`），界面以「禁止同名点歌」呈现，默认关闭；开启时保存 `'false'`。`allowDuplicate !== 'true'` 时，活跃队列内歌名文本相同（仅比较 `song_name`、不区分歌手，简繁歌名视为相同歌曲）即抛 `SONG_ALREADY_QUEUED`。普通点歌、随机抽中的歌曲、SC 和手动入队均经过此检查；拒绝沿用点歌板红色失败提示，随机点歌不会另抽一首规避拒绝。完成、跳过、删除或清空后不再占用同名名额，歌曲冷却仍独立生效；开启规则不会移除已有重复项。
 
-每人同时排队上限在 `queue-store.insertRequest` 的 `BEGIN IMMEDIATE` 事务内检查，以 `requests.identity_type` 与 `queue.requester_uid` 统计活跃队列，包含 LIVE；改昵称不释放配额，完成、删除、跳过与清空后释放，重启仍从已存队列统计。超限抛 `USER_QUEUE_FULL`，不写入流水、歌曲冷却或队列。资格与配额同样约束普通弹幕、随机点歌（含桌面随机按钮）及 SC；SC 置顶不豁免，歌库手动入队保留管理员能力。保存新规则不删除已有队列。
+**并发配额、每日上限与冷却通用规则：**
 
-每日上限由同一 policy 按本直播间已核验身份选取 `userDailyLimit` 或对应大航海上限，空串及 0 均不限，各身份互不继承。监听器把捕获的 LIRA 账号传给随机候选过滤、单曲预查和入队事务。捕获账号与当前账号一致时，事务以账号、北京时间日期、身份类型和稳定 UID 检查并递增成功次数。切号后到达的旧请求仍受共享队列规则约束，跳过每日次数、歌曲冷却和粉丝归档。正常无账号运行使用既有本地账目。普通、随机和 SC 共用当日次数，切换身份不重置，手动入队不计入。超限抛 `USER_DAILY_LIMIT` 并给出次日零点提示；失败回滚不扣次数，唱完、取消、删除、清空队列及重启不返还。日期使用实际接纳时间。关闭上限期间仍记录有稳定身份的成功点歌；升级前不回填历史，计数不跨设备同步。
+- **每人同时排队上限**：在 `queue-store.insertRequest` 的 `BEGIN IMMEDIATE` 事务内检查，按 `requests.identity_type` 与 `queue.requester_uid` 统计活跃队列（含 LIVE）；改昵称不释放配额，完成、删除、跳过或清空后释放，重启仍从已存队列统计。超限抛 `USER_QUEUE_FULL`，不写入流水、歌曲冷却或队列。资格与配额约束普通弹幕、随机点歌（含桌面随机按钮）及 SC（SC 置顶不豁免，歌库手动入队保留管理员能力）；保存新规则不删已有队列。
+- **每日上限**：由同一 policy 按本直播间已核验身份选取 `userDailyLimit` 或对应大航海上限，空串及 0 均不限、各身份互不继承。监听器将捕获的 LIRA 账号传给随机候选过滤、单曲预查和入队事务：捕获账号与当前账号一致时，事务内按账号、北京时间日期、身份类型和稳定 UID 检查并递增成功次数（切号后到达的旧请求跳过每日次数、歌曲冷却与粉丝归档；无账号运行使用既有本地账目）。普通、随机和 SC 共用当日次数，切换身份不重置，手动入队不计入；超限抛 `USER_DAILY_LIMIT` 并提示次日零点。
+- **计时与持久一致性**　歌曲冷却与每日上限均使用实际入队时刻，在存储事务内执行已启用的检查，与队列和流水一起提交或回滚。关闭歌曲冷却时仍记录成功接受时间。开启后，遇到同名重复或已配置请求者配额时先预查，以维持冷却拒绝的优先级。已有接受记录在规则变更、完成、取消、删除、清空及重启后继续有效。账号作用域取自组合根。升级前历史不回填，记录仅保存在本机。观众分身份冷却间隔由弹幕桥接层在入队前检查并持久化。[弹幕处理链](../bilibili/danmaku.md#53-handledanmakumessage-处理链)
 
-分身份用户间隔由同一 policy 根据本直播间已核验的大航海身份选择；空串及 0 均不限制，不继承非大航海间隔。弹幕桥在入队前检查、成功后记录既有冷却 store；普通 UID 与 `open_id` 使用独立键，开启间隔却缺稳定身份时拒绝。
+空歌名、队列已满、仅限歌库、重复点歌与冷却等业务拒绝统一由队列服务标记稳定错误码 `code`（见 [HTTP 队列契约](../api.md)）；弹幕桥接层按 `enableRandomTagReply` 开关决定是否生成 `@` 原请求者的回复。
 
-冷却使用实际入队时刻，不能使用上游消息时间。存储事务内再次检查，并将最近成功入队时间与队列、流水原子写入；失败或冷却拦截不更新时间。关闭规则期间也记录成功时间，改规则据此重新计算。完成、跳过、删除、清空队列及重启保留记录；升级前流水不回填冷却。账号 scope 来自组合根，客户端输入不能选择冷却归属。
-
-空歌名、队列满、仅歌库拒绝、重复与冷却由队列 owner 标记稳定业务 code（见 [HTTP 队列契约](../api.md)）。手动与随机入口统一映射为 400；弹幕桥返回 `accepted:false`、`code`、`reason`，仅在既有 `enableRandomTagReply` 开启时生成 @ 原请求者的提示，不更新成功点歌冷却、不写入请求。
-
-入队(与 `requests` 流水、`song_cooldowns` 及 `song_request_daily_counts` **同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned` / `is_live`、归一 guard/medal)。
+入队（与 `requests` 流水、`song_cooldowns` 及 `song_request_daily_counts` **同事务**）：`song_id` / `song_name` / `artist` / `category_name` 在命中曲库时用曲库规范值；`requester_name` 缺省「观众」；`source` 缺省 `admin`；`status = 'waiting'`；`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`（布尔化 `is_pinned` / `is_live`、归一 guard/medal）。
 
 ### 8.3 handleQueueAction(context, action, rawId)([queue-service.js](../../../../src/music/queue-service.js))
 
@@ -294,7 +293,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ### 8.5 cancelQueueItem(context, input)
 
-取消时歌名按简繁等价比较；仍严格使用请求人的稳定身份归属，不按昵称判断。禁止重复歌曲时，活跃队列中的简繁歌名也视为相同歌曲。
+取消点歌时，歌名按简繁等价匹配，但归属仍严格核对请求人的稳定身份，不按昵称判定。
 
 观众取消点歌复用 [song-request-policy.js](../../../../src/music/song-request-policy.js) 的稳定身份校验，同时匹配队列的 `requester_uid` 与 `requester_identity_type`；UID 与 `open_id` 分开，昵称不能证明归属，缺少可识别身份或未找到本人活跃项时返回 `null`。只处理 `current` / `waiting`，包含本人置顶和 LIVE 项。
 
@@ -306,7 +305,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 `matchMusicTrackCandidates(body)` 负责匹配请求输入：`songName/title` 截 120 字符且必填、`artist` 截 80 字符、`durationMs` 非负、`candidates` 最多 50 项；调用 `rankTrackCandidates`，返回 `{request, threshold: AUTO_ACCEPT_SCORE, results}`。HTTP `/api/music/match-track` 直接使用该入口。
 
-**打分模型**，用于点歌导入播放器及匹配诊断。WeSing 在线兜底使用独立的版本/时长匹配规则(见 [wesing.md](wesing.md) §7)。
+**打分模型**，用于点歌导入播放器及匹配诊断。WeSing 在线兜底使用独立的版本/时长匹配规则（见 [wesing.md](wesing.md#8-在线兜底wesing-online-lyricsjs)）。
 
 | 常数                | 值  | 出处                                                          |
 | ------------------- | --- | ------------------------------------------------------------- |
@@ -367,7 +366,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ### 10.3 标签别名(tag-aliases.js)
 
-`LIBRARY_TAG_ALIASES`([tag-aliases.js](../../../../src/music/tag-aliases.js)):观众叫法 → 歌库标准标签单向映射(抒情/治愈/怀旧/国风/小甜歌/影视OST/K-Pop)。`matchesLibraryTag(libraryTag, viewerTerm)` 与批量筛选使用的 `createLibraryTagMatcher(viewerTerm)` 共用比较规则：归一化后相等，或歌库标签等于 `LIBRARY_TAG_BY_VIEWER_ALIAS` 对应的标准标签(构建时把每个别名归一化映射到标准标签)；**不反向展开**——歌库里的非标准标签不会因观众输入标准词而被扩展命中。归一化 = 压缩空白 + 简繁字形等价 + `toLocaleLowerCase('zh-Hans-CN')`。
+`LIBRARY_TAG_ALIASES` 将观众叫法单向映射到歌库标准标签（抒情、治愈、怀旧、国风、小甜歌、影视OST、K-Pop）。`matchesLibraryTag` 接受原文，批量筛选的 `createNormalizedTagMatcher` 接受已归一化的歌库标签。两者都比较标签与观众用词或其对应标准标签。歌库中的非标准标签只参与自身匹配。归一化包括压缩空白、简繁字形等价和 `toLocaleLowerCase('zh-Hans-CN')`。[标签实现](../../../../src/music/tag-aliases.js)
 
 ## 11. 导入导出契约(song-import-schema.js + song-file-codec.js)
 
@@ -390,9 +389,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析：有工作簿元数据时按 `workbook.xml` 首个 sheet 与对应关系读取工作表，不依赖 ZIP 条目顺序；拒绝外部、越界或缺失引用。无元数据的兼容输入沿用首个 `xl/worksheets/sheet\d+.xml`。读取该表与 `sharedStrings.xml` 后执行 `parseWorksheetXml`；优先按歌名列及其别名识别表头，完整十列的无表头歌单中第五列的“可点”“启用”按歌曲数据读取，默认新增模式无表头按导出列序解析并丢弃空歌名行；`preserveMissing:true` 保留无歌名的非空行供预览报错、保留缺列语义，无表头要求完整十列。 |
 | `buildSongsCsv(rows, options?)` | 表头 + `csvCell` 转义逐行；`template:true` 使用模板表头，下载模板传入空 rows |
 | `buildSongsWorkbook(rows, options?)` | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)；`template:true` 使用模板表头及标签列宽，下载模板传入空 rows |
-| `songToExportRow(song)`      | 行映射(曲风缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
-
-`parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于替换及兼容更新预览：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。
+| `songToExportRow(song)`      | 行映射（曲风缺省「默认」、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切、`source_platform` → 导出保存的核对平台值） |
 
 前端 [song-import-parser.js](../../../../public/js/admin/song-import-parser.js) 按首条有内容的逻辑记录中引号外的 Tab 识别 TSV，否则按 CSV 解析；引号内的 Tab、换行和转义双引号不改变格式判断，支持本程序导出的价格与歌切文本重新导入。
 
@@ -406,9 +403,9 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 `music-runtime` 分别保存内置播放器、外部 QQ、外部网易云和全民 K 歌的候选状态与完整时间轴。`selection` 是跟随偏好（`auto / internal / qq-client / netease-client / wesing`），`source` 是当前实际输出来源（不含 auto）。候选的 `playing` 取实际播放状态，不以歌词已加载为前提；未选中的播放器仍持续更新候选。只有实际输出来源向歌词窗口、预览与浏览器源广播，切换时立即发布该来源已缓存的完整时间轴和状态。
 
-时间轴入口归一化并整体替换候选对象；运行时记住最近已比较的引用，单纯时钟/播放状态更新不重复序列化整首歌词。同内容的新对象仍经内容比较并记入缓存，实际歌词变化正常发布；切换来源强制发布时间轴并推进广播代际，即使两端歌词内容相同也不省略。采集和状态广播频率保持原样。
+时间轴入口归一化并整体替换候选对象；运行时记住最近已比较的引用，单纯时钟/播放状态更新不重复序列化整首歌词。同内容的新对象仍经内容比较并记入缓存，实际歌词变化正常发布；切换来源强制发布时间轴并推进广播代次，即使两端歌词内容相同也不省略。采集和状态广播频率保持原样。
 
-[lyric-source-selection.js](../../../../src/music/lyric-source-selection.js) 拥有智能播放的选择规则：
+[lyric-source-selection.js](../../../../src/music/lyric-source-selection.js) 负责智能播放的选择规则：
 
 - 只有一个来源正在播放时，跟随该来源，包括用户此前选了其他来源的情况。
 - 多个来源同时播放时，优先使用正在播放的手动所选来源；否则保持仍在播放的当前来源；再按 `internal → qq-client → netease-client → wesing` 选择。
@@ -416,9 +413,15 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 偏好不持久化，服务重启默认 `selection: 'auto'`，初始 `source: 'internal'`。`selectLyricSource` 只修改偏好，不启停采集或控制音频。Electron 主进程显式传入 `nativeMusicCapture: true`，`server.js` 在音乐注册表就绪后调用 `musicRuntime.start()`，独立启动所有受支持的采集器；独立 server / 测试默认不启动原生采集，可显式启用。服务退出统一停止采集。旧 WeSing active 接口的 true 会确保 WeSing 已启用并设置 wesing 偏好；false 仅在当前偏好为 wesing 时恢复 auto，持续检测保留。
 
-内置 HTTP 的输入 `generation/sequence` 门槛与广播的全局版本分别维护。内置时间轴变化推进输入代际，并立即缓存新曲的加载状态，清空进度和歌词，防止旧曲状态继续输出；匹配的新状态到达前保留候选最后的实际播放标志，空曲目则明确清除该标志。过时状态不覆盖候选，响应返回最后接受的内置状态及 `nextGeneration = max(内置门槛, 广播代际) + 1`，只供发送端恢复。当前输出的时间轴改变或来源切换时，广播代际递增并重置 sequence；当前状态广播递增 sequence。外部来源输出期间仍接受有效内置候选，输入版本不会被其他播放器的状态误判为旧包；`nextGeneration` 不进入快照或 WS 广播。
+内置播放器的 HTTP 上报版本（`generation` / `sequence`）与全局广播版本分开维护：
+
+- 内置时间轴更新时会推进输入代次，并立即缓存新曲的加载态（清空进度与歌词，防止旧曲继续输出）；在新曲状态到达前暂留候选最后的实际播放标志，空曲目则明确清零。
+- 过时状态不会覆盖候选，接口返回最后一次接受的内置状态及 `nextGeneration = max(输入门槛, 广播代次) + 1` 供发送端对齐（`nextGeneration` 不进入快照或 WS 广播）。
+- 仅当当前输出来源的时间轴变化或切换来源时递增广播代次并归零 `sequence`；普通状态广播只递增 `sequence`。因此外部来源输出期间，内置播放器上报的新状态不会被误判为旧包。
 
 管理状态 `lyricSource` 为 `{source, selection, playingSources, qqClient, neteaseClient, weSing}`；`playingSources` 使用上述来源顺序，仅列实际正在播放的来源。`qqClient` / `neteaseClient` 共有字段为 `active / supported / detected / status / message / trackTitle / artists / currentMs / durationMs / playing / lyricSource`；其中 `lyricSource` 表示实际歌词平台（qq、netease 或空），区别于顶层输出来源。WeSing 字段由 [wesing.md](wesing.md) 维护。完整采集诊断仅向 Admin 提供。
+
+来源、偏好、播放集合或采集元数据变化时，`lyric-source` 发布含当前时钟的完整快照。单纯的播放推进与拖动通过 `lyric-state` 更新，全民 K 歌也更新 `wesing-state`。主动读取来源快照可以取得各采集器的最新进度。
 
 ### 正在播放展示数据
 
@@ -426,18 +429,18 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 内置歌词状态/时间轴发布可携带可选 `coverUrl`，运行时保存为曲目元数据，不改变既有歌词快照/增量字段。QQ / 网易云采集复用当前平台匹配结果中已存在的封面；没有匹配封面、精确 ID 路径没有封面或读取失败时留空，不新增封面搜索/下载轮询。切歌先清空旧封面，迟到的旧解析结果不得覆盖当前曲目。图片地址只接受受支持的 HTTP(S) 地址，不下发本地路径或采集诊断。
 
-展示消费为 `/now-playing` 与场景类型 `now-playing`；后者通过现有场景数据显示接口收到 `{nowPlaying}`。外观保存由[配置接口](../api.md#26-正在播放配置now-playing)拥有，与歌曲数据分开。
+展示入口为 `/now-playing` 与场景类型 `now-playing`；后者通过现有场景数据显示接口收到 `{nowPlaying}`。外观保存见[配置接口](../api.md#26-正在播放配置now-playing)，与歌曲数据分开。
 
 ### 13.1 归一化规则(共同)
 
-两个模块是 WS `lyric-state` / `lyric-timeline` 载荷的唯一**归一化**入口,上游原始输入一律先过这里再进快照(WS 契约见 [ws.md](../ws.md) §2/§3):
+两个模块是 WS `lyric-state` / `lyric-timeline` 载荷的唯一**归一化**入口，上游原始输入一律先经此处再进快照（WS 契约见 [ws.md](../ws.md) §2/§3）：
 
-- 状态枚举 **`idle` / `loading` / `ready` / `empty`**,非法值落 `idle`([lyric-state.js:7-9](../../../../src/music/lyric-state.js#L7-L9)、[lyric-timeline.js:9-11](../../../../src/music/lyric-timeline.js#L9-L11))
-- 控制字符(0x00-0x1F、0x7F)替换为空格;`trackTitle` 截 120、`artists` 每项截 80 且最多 8 个、`lineText`/`translation` 截 240
-- 时间一律 `clampNumber` 到 `[0, MAX_TIME_MS = 24h]`;`progress` clamp 到 `[0, 1]`
-- 逐字词:当前句状态与时间轴每行共用 `lyric-normalization.js` 的 `normalizeLyricWords`，最多 120 个，`text` 截 40 且保留有意义的空格，`endMs` 下限取 `startMs`。
+- 状态枚举 **`idle` / `loading` / `ready` / `empty`**，非法值落 `idle`（[lyric-state.js:7-9](../../../../src/music/lyric-state.js#L7-L9)、[lyric-timeline.js:9-11](../../../../src/music/lyric-timeline.js#L9-L11)）
+- 控制字符（0x00–0x1F、0x7F）替换为空格；`trackTitle` 截 120、`artists` 每项截 80 且最多 8 个、`lineText`/`translation` 截 240
+- 时间一律 `clampNumber` 到 `[0, MAX_TIME_MS = 24h]`；`progress` clamp 到 `[0, 1]`
+- 逐字词：当前句状态与时间轴每行共用 `lyric-normalization.js` 的 `normalizeLyricWords`，最多 120 个，`text` 截 40 且保留有意义的空格，`endMs` 下限取 `startMs`。
 
-上述文本上限按 UTF-16 码元计算；截断恰好落在代理对中间时退回一个码元，避免发布半个字符。完整时间轴中的文本、翻译与罗马音沿用相同规则，长度预算不改为字素数量。
+上述长度上限均按 UTF-16 码元计算（不按字素簇计数）；若截断位置恰好落在代理对中间，则退回一个码元以免产生半个字符。完整时间轴中的正文、翻译与罗马音沿用相同规则。
 
 ### 13.2 差异
 
@@ -461,7 +464,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 [qq-client-monitor.js](../../../../src/music/qq-client-monitor.js) 在 Windows 上以隐藏的 PowerShell 子进程只读采样系统媒体会话，每 500 ms 检查 QQMusic 会话的歌名、歌手、播放状态、速率及时间轴；不控制客户端、不读取客户端凭据。辅助进程启动失败、error 或退出时按 500 / 1000 / 2000 ms 最多自动重试三次，有效样本重置重试预算；停用或服务退出取消重试并关闭进程，旧进程及已缓冲回调失效。
 
-[qq-client-capture.js](../../../../src/music/qq-client-capture.js) 负责曲目及解析代际：新歌名至少经过连续两次样本；连续的旧曲时钟须等待超过切换边界的新时间戳，已随新歌名更新且时长变化或进度明显回跳的时钟可在歌名稳定后接受。无效或倒退的时间戳保持 loading。SMTC 的 Position 是 LastUpdatedTime 时刻的位置；播放中按经过时间及 PlaybackRate 外推并限制在曲目时长内，同一有效速率随歌词状态的 `playbackRate` 输出；暂停不外推，不能仅因锚点超过 3 秒未更新而判定失效。有效时钟下短暂无会话容忍 1.5 秒，持续失联、明确 Stopped/Closed 或采集错误清除旧曲。
+[qq-client-capture.js](../../../../src/music/qq-client-capture.js) 管理曲目切换与解析代次：新歌名须连续采样 2 次确认；切歌后，沿用旧曲的时钟需等到时间戳越过切换时刻后才生效，但若时钟已随新歌名同步更新且伴随总时长变化或进度明显回跳，则在歌名稳定后即可采信。遇到无效或倒退时间戳时维持 `loading`。系统媒体传输控件（SMTC）的 `Position` 对应 `LastUpdatedTime` 时刻的位置：播放时按经过时间与 `PlaybackRate` 线性外推（并同步输出到歌词状态的 `playbackRate`，上限为曲目时长）；暂停时停止外推，不因锚点超过 3 秒未更新就判定失效。时钟有效期间允许短暂丢失会话 1.5 秒；持续失联、状态明确变为 `Stopped` / `Closed` 或发生采集错误时清空旧曲。
 
 QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimeline()` 快照。采集状态区分 inactive、waiting、loading、ready、empty、error；只有有效时钟和非空歌词同时就绪才 ready。管理状态 `playing` 保留实际播放状态，即使歌词缺失或加载中；歌词状态的 `playing` 只在 ready 时为真。歌词读取错误映射为 overlay idle，清除旧内容；无歌词为 empty。异步歌词结果不能覆盖新曲或停用后的状态；暂停、继续及同曲 seek 不重复解析歌词。手动重新检测会重建该采集器与当前曲目解析，不修改跟随偏好。
 
@@ -471,13 +474,15 @@ QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimelin
 
 引擎读取不可用时，通过 UI Automation 只读获取 `MM:SS / MM:SS` 或 `MM:SS | MM:SS` 进度及附近的播放/暂停按钮。托管 UIA 读不到进度时，回退到 Windows MSAA（`AccessibleObjectFromWindow` / `AccessibleChildren`）读取 Chromium 的无障碍树，兼容网易云 3.x 的空 UIA 容器和小写 `play/pause` 按钮。MSAA 扫描最多 2000 个节点、32 层，只保留进度与附近状态控件，重扫/切歌释放旧 COM 引用，不调用控件或修改客户端。
 
-切换窗口或标题后等待 1.5 秒再扫描 UI 控件，每 2 秒刷新控件引用；读取前后标题不一致时丢弃该次混合样本。引擎发布 `clockSource: 'native'` 的毫秒样本；MSAA 与 UIA 都发布整数秒的 `clockSource: 'uia'` 样本。辅助进程通过固定命令从 stdin 读取 UTF-8 源码，避免 Windows 命令行长度限制，不落地临时脚本。连续 15 秒无输出会被回收；启动、输入管道失败或退出按 500 / 1000 / 2000 ms 最多重试三次，停用取消全部计时器并结束辅助进程，原生进程句柄随之释放。目标播放窗口消失时也主动释放句柄。
+切换窗口或标题后等待 1.5 秒再扫描 UI 控件。回退采样复用已有引用，每 30 秒重新核对。仅有进度条时继续采样并用进度推断播放，迟到的按钮会在下次核对时生效。进度不可用、已有按钮读不到有效状态、明确处于播放但进度停滞时，最短 2 秒后重新定位。读取前后标题不一致时丢弃混合样本。引擎发布 `clockSource: 'native'` 的毫秒样本，MSAA 与 UIA 发布整数秒的 `clockSource: 'uia'` 样本。辅助进程通过固定命令从 stdin 读取 UTF-8 源码。连续 15 秒无输出会被回收，启动、输入管道失败或退出按 500 / 1000 / 2000 ms 最多重试三次。停用取消计时器并结束辅助进程。目标播放窗口消失时也主动释放句柄。
 
 [netease-client-track.js](../../../../src/music/netease-client-track.js) 只读 `%LOCALAPPDATA%/NetEase/CloudMusic/Library/webdb.dat` 的最新 `historyTracks` 记录；数据库缺失或读取失败时尝试旧版 `webdata/file/history`，旧格式文件限 8 MiB。记录的歌名、歌手必须与当前窗口或媒体元数据一致，两边都提供时长时相差不超过 2 秒，才补充数值 `sourceTrackId`；不能把历史记录中的另一首歌当作当前曲目。引擎 ID 与匹配记录的 ID 不一致时，丢弃混合样本并重读，不能用历史 ID 覆盖当前引擎 ID。未找到可信记录时保留窗口/媒体元数据及引擎 ID，稍后重读，不读取客户端凭据。
 
+文件探测和旧 JSON 读取为异步操作。监视器按主库和 WAL 的身份、大小与时间复用最近一行，读锁失败后仍会重开。未匹配时按 1、2、4、5 秒（上限）重试。切歌或辅助进程退出后丢弃旧读取的迟到结果。
+
 [netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待稳定歌名与有效时钟后获取歌词。SMTC 使用时间戳锚点；新标题到达时，若总时长变化或进度回跳超过 1 秒，可确认随标题到达的新曲锚点，不要求客户端再次更新时间戳。SMTC 同源样本仍拒绝倒退时间戳；切换时钟来源时不比较不同来源的时间戳。引擎采样按真实毫秒位置及采样时间外推，暂停与 seek 直接采用读数；与 UIA 一样要求样本不超过 2.5 秒，新标题稳定至少 1.5 秒，播放中连续 2.5 秒无进度变化时等待有效读数，不无限外推。
 
-UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点。UIA 按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA/MSAA 回退仍依赖可访问的控件；客户端改版后若引擎特征与 UI 都不可读，则显示等待/错误，不沿用上一首歌词。其他版本兼容性及托盘模式需分别验收，不能从普通页面通过推断所有模式均已通过。
+UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点。UIA 按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA/MSAA 回退仍依赖可访问的控件；客户端改版后若引擎特征与 UI 都不可读，则显示等待/错误，不沿用上一首歌词。不同客户端版本及托盘最小化模式的兼容性存在差异，需分别实测确认。
 
 ### 13.6 外部播放器歌词解析
 
@@ -489,7 +494,7 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 
 `lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 `parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine` 及仅由网易云调用的 `estimateWordTimings`([lyric-parser.js](../../../../src/music/lyric-parser.js))。
 
-解析器在多时间戳展开、逐字行提取和四路文本组合时检查资源预算：每份结果最多 4096 行，累计文本最多 524,288 个 UTF-16 代码单元（组合结果包含正文、翻译、罗马音及词文本）。超预算抛出 `LYRIC_EXPANSION_LIMIT`（`statusCode:400`），不返回截断结果；检查在逐字估算和 HTTP 序列化之前执行。正常同行多时间戳语义不变。歌词与手动解析 HTTP 将该错误映射为 400、`code:LYRIC_EXPANSION_LIMIT` 及固定错误提示；QQ 保留新版到旧版的正常回退，最终失败不丢失该错误类型。
+解析器在多时间戳展开、逐字行提取和四路文本组合时检查资源预算：每份结果最多 4096 行，累计文本最多 524,288 个 UTF-16 代码单元（组合结果包含正文、翻译、罗马音及词文本）。超预算抛出 `LYRIC_EXPANSION_LIMIT`（`statusCode:400`），不返回截断结果；检查在逐字估算和 HTTP 序列化之前执行。正常同行多时间戳语义不变。HTTP 层将该错误映射为 400（`code: 'LYRIC_EXPANSION_LIMIT'`）并返回统一固定错误提示；QQ 仍保留新版失败回退旧版的逻辑，双路均失败时不丢失该错误码。
 
 ### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)([lyric-parser.js:45-75](../../../../src/music/lyric-parser.js#L45-L75))
 
@@ -549,11 +554,11 @@ CJK 判定三范围：`0x4E00-0x9FFF`（基本汉字）、`0x3400-0x4DBF`（扩�
 
 仅网易云 Provider 在解析后调用：已有 `words` 的行原样保留；LRC 行按 Unicode 字素切分，连续拉丁字母/数字合为词，标点和空白附到相邻字词以保留原文。每个字权重为 1，拉丁词按长度 / 3 计算且至少为 1，在行的起止时间间按权重连续分配毫秒。末句缺少结束时间时使用曲目时长；曲目时长也缺失时按每权重 300 ms 估算，限制在 1–8 秒。没有正时长或有效字词的行不生成时间。
 
-这是显示用的估算，不分析音频或承诺演唱级对齐；长间奏、拖腔可能有偏差。真实 YRC 不经过重分配。内置音频和外部真实采样仍各自拥有播放时钟，估算只补行内 `words`。
+该算法仅用于展示层估算，不分析音频内容，长间奏或拖腔处可能存在偏差；真实 YRC 不经过重分配。内置音频和外部真实采样仍各自维护播放时钟，估算只补行内 `words`。
 
-## 15. 跨 Provider 的规范形状(Track / Playlist)
+## 15. 跨 Provider 的规范结构(Track / Playlist)
 
-两个 Provider 的映射函数(`mapQQSong` / `mapNeteaseSong`,详情见各自文档 §8)产出**同一形状**,是歌词服务、播放器、歌单写入门面与 WS 载荷的公共契约:
+两个 Provider 的映射函数（`mapQQSong` / `mapNeteaseSong`，详情见各自文档 §8）产出**同一结构**，是歌词服务、播放器、歌单写入门面与 WS 载荷的公共契约：
 
 | 字段                            | 说明                                                                                                                 |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -569,4 +574,4 @@ CJK 判定三范围：`0x4E00-0x9FFF`（基本汉字）、`0x3400-0x4DBF`（扩�
 | `coverUrl`                      | 直链或构造 URL(QQ 见 [qq-provider.md](qq-provider.md) §8.4,网易云见 [netease-provider.md](netease-provider.md) §8.1) |
 | `playable` / `vip`              | 平台可用性/付费标记(QQ 恒 `playable: true`)                                                                          |
 
-Playlist 形状:`{ id, source, title, description, coverUrl, trackCount, playCount, creatorUserId, dirId?, tid? }`——`dirId`/`tid` 仅 QQ 有(写入目标与"我喜欢"识别,见 [qq-provider.md](qq-provider.md) §7.12);推荐卡片(`mapRecommendCard`)无 dirId/tid,不可直接写入。
+Playlist 结构：`{ id, source, title, description, coverUrl, trackCount, playCount, creatorUserId, dirId?, tid? }`——`dirId` / `tid` 仅 QQ 有（写入目标与「我喜欢」识别，见 [qq-provider.md](qq-provider.md) §7.12）；推荐卡片（`mapRecommendCard`）无 `dirId` / `tid`，不可直接写入。

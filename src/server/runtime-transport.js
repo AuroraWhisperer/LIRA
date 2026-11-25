@@ -67,12 +67,20 @@ function createRuntimeTransport({
   function publishGiftFlushed(item) {
     const startedAt = Date.now();
     const message = getDanmakuFeedBuffer().pushGift(item);
-    broadcastSnapshot('bilibili:gift');
+    try {
+      broadcastSnapshot('bilibili:gift');
+      publishGiftDisplayEvents(item, startedAt);
+    } finally {
+      publishDanmakuItem(message);
+    }
+  }
+
+  function publishGiftDisplayEvents(item, startedAt) {
     const settings = getSettings();
     const frameEvent = buildGiftFrameEvent(item, settings);
     if (frameEvent) { getWebSocketHub()?.broadcast(frameEvent); publishSceneGift?.(frameEvent); }
     // Imported styles exist only as scene layers; the legacy overlay page would replay them as woodland.
-    const styleEvent = buildGiftFrameStyleEvent(item, settings, readGiftFrameStyleIds());
+    const styleEvent = buildGiftFrameStyleEvent(item, settings, readGiftFrameStyleIds);
     if (styleEvent) publishSceneGift?.(styleEvent);
     const motionEvents = buildGiftMotionEvents(item, settings, { startedAt });
     if (motionEvents.length) {
@@ -88,7 +96,6 @@ function createRuntimeTransport({
     }
     const nauticalEvent = buildNauticalGuardThanksEvent(item, settings);
     if (nauticalEvent) publishSceneGift?.(nauticalEvent);
-    publishDanmakuItem(message);
   }
 
   function publishGiftCatalogUpdate(snapshot) {
@@ -141,7 +148,7 @@ function createRuntimeTransport({
   async function servePageOrAsset(req, res, requestUrl) {
     if (await serveResourceAsset(getResourceLibrary?.(), req, res, requestUrl)) return;
     if (await serveFontAsset(getFontLibrary?.(), req, res, requestUrl)) return;
-    pageAssets.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme, Boolean(getFontLibrary?.()));
+    return pageAssets.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme, Boolean(getFontLibrary?.()));
   }
 
   return {

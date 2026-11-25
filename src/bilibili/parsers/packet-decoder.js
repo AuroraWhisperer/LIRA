@@ -100,6 +100,15 @@ function decodePackets(buffer, messages, budget, depth, onDiscard) {
         }
       } else {
         const text = body.toString('utf8').trim();
+        if (text.startsWith('{') && text.endsWith('}')) {
+          try {
+            messages.push(JSON.parse(text));
+            offset += packetLength;
+            continue;
+          } catch (error) {
+            if (!(error instanceof SyntaxError)) throw error;
+          }
+        }
         for (const chunk of splitJsonObjects(text, MAX_MESSAGES - messages.length, onDiscard)) {
           if (messages.length >= MAX_MESSAGES) return false;
           try {

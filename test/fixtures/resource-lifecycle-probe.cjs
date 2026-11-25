@@ -30,6 +30,7 @@ async function run(mediaOnly = false) {
   const windows = new Set();
   const sockets = new Set();
   const upgrades = [];
+  const answeredHeartbeat = new WeakSet();
   const token = 'synthetic-resource-audit-token';
   const settings = { giftEffectDanmakuEnabled: 'true' };
   const state = { settings, gifts: { recent: [] }, lyricState: {}, lyricTimeline: { lines: [] } };
@@ -67,7 +68,26 @@ async function run(mediaOnly = false) {
   });
   server.on('upgrade', (_req, socket) => {
     upgrades.push(socket);
+    // The hub registers the socket before Chromium receives the handshake. These
+    // read-only overlays send a masked pong as their first frame once connected.
+    socket.once('data', (frame) => {
+      if (frame[0] === 0x8a) answeredHeartbeat.add(socket);
+    });
   });
+  function waitForConnection(message) {
+    return waitFor(() => {
+      const [socket] = sockets;
+      return sockets.size === 1 && answeredHeartbeat.has(socket);
+    }, `${message} (Chromium pong)`, 10000);
+  }
+  async function verifyPageRelease(action, message) {
+    const [socket] = sockets;
+    const before = upgrades.length;
+    await action();
+    await waitFor(() => socket.closed && sockets.size === 0, `${message} releases socket`);
+    await pause(2100);
+    assert.equal(upgrades.length, before, `${message} old page must not reconnect`);
+  }
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${server.address().port}`;
   let currentMain;
@@ -103,13 +123,12 @@ async function run(mediaOnly = false) {
       const response = await fetch(origin + route);
       assert.equal(response.status, 200, route);
       await win.loadURL(origin + route);
-      await waitFor(() => sockets.size === 1, `${route} initial connection`);
+      await waitForConnection(`${route} initial connection`);
       assert.equal(
         await win.webContents.executeJavaScript("fetch('/api/state').then(response => response.status)"),
         200,
         `${route} normal scoped recovery read`,
       );
-      await pause(100);
       win.webContents.debugger.attach('1.3');
       const measureDom = async () => {
         await win.webContents.debugger.sendCommand('HeapProfiler.collectGarbage');
@@ -120,9 +139,7 @@ async function run(mediaOnly = false) {
       for (let cycle = 0; cycle < 5; cycle++) {
         for (const socket of [...sockets]) socket.destroy();
         await waitFor(() => sockets.size === 0, `${route} closes old connection`);
-        await waitFor(() => sockets.size === 1, `${route} reconnects`);
-        await pause(60);
-        assert.equal(sockets.size, 1, `${route} must have exactly one connection`);
+        await waitForConnection(`${route} reconnects`);
         connectionCounts.push(sockets.size);
       }
       const reconnectedDom = await measureDom();
@@ -133,10 +150,20 @@ async function run(mediaOnly = false) {
       );
       win.webContents.debugger.detach();
       // Navigation destroys the old page while keeping the owning window alive.
-      await win.loadURL(origin + '/audit-empty');
-      await waitFor(() => sockets.size === 0, `${route} navigation releases socket`);
-      await pause(2100);
-      assert.equal(sockets.size, 0, `${route} old page must not reconnect`);
+      const emptyPage = origin + '/audit-empty';
+      await verifyPageRelease(() => win.loadURL(emptyPage), `${route} navigation`);
+      assert.equal(win.webContents.getURL(), emptyPage);
+      if (route === '/danmaku') {
+        const contents = win.webContents;
+        await contents.executeJavaScript(`document.body.innerHTML = '<iframe src="/danmaku"></iframe>'`);
+        await waitForConnection('/danmaku iframe connection');
+        await verifyPageRelease(
+          () => contents.executeJavaScript("document.querySelector('iframe').remove()"),
+          '/danmaku iframe removal',
+        );
+        assert.equal(contents.mainFrame.frames.length, 0, '/danmaku iframe detached');
+        report.danmakuIframeReleased = true;
+      }
       const ownedContents = win.webContents;
       win.destroy();
       await waitFor(() => ownedContents.isDestroyed(), `${route} WebContents destruction completes`);
@@ -157,15 +184,14 @@ async function run(mediaOnly = false) {
     for (let cycle = 0; cycle < (mediaOnly ? 0 : 8); cycle++) {
       const win = makeWindow();
       await win.loadURL(origin + '/gift-effects?preview=1');
-      await waitFor(() => sockets.size === 1, 'recreated browser source connection');
-      await pause(120);
+      await waitForConnection('recreated browser source connection');
       win.destroy();
       await waitFor(() => sockets.size === 0, 'destroyed browser source releases connection');
     }
     report.sourceRecreations = mediaOnly ? 0 : 8;
     const mediaWindow = makeWindow();
     await mediaWindow.loadURL(origin + '/gift-effects');
-    await waitFor(() => sockets.size === 1, 'media page connection');
+    await waitForConnection('media page connection');
     report.media = await require('./gift-effect-media-probe.cjs')(mediaWindow);
     assert.equal(report.media.allVideosPaused, true);
     assert.equal(report.media.allSourcesRemoved, true);

@@ -31,7 +31,7 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
   let receiveState;
   const calls = [];
   const { initAudioAssistantControls } = await loadModuleExports(entry, {
-    document: { getElementById },
+    document: Object.assign(new EventTarget(), { getElementById }),
     ...(outputSwitch ? { navigator: { mediaDevices: { async enumerateDevices() { return []; } } } } : {}),
     Option: function (name, id) { this.textContent = name; this.value = id; },
     clearTimeout,
@@ -93,7 +93,7 @@ test('stopping while the player output is switching cancels the waiting assistan
 });
 
 test('device source rendering maps each source to its setting without losing missing selections', async (t) => {
-  const fixture = await createControlsFixture();
+  const fixture = await createControlsFixture({ selected: true, visible: true });
   t.after(() => fixture.controls.dispose());
   const state = {
     ready: true, source: 'input', status: '设置已保存。',
@@ -105,8 +105,14 @@ test('device source rendering maps each source to its setting without losing mis
   assert.equal(fixture.node('audioAssistantInput').dataset.audioSetting, 'inputId');
   assert.equal(fixture.node('audioAssistantInput').value, 'mic');
   assert.equal(fixture.node('audioAssistantInputChannels').value, 'mono:2');
+  const options = fixture.node('audioAssistantInput').children;
+  fixture.receive({ ...state, level: 0.5, position: 3, revision: 2 });
+  assert.equal(fixture.node('audioAssistantInput').children, options);
+  fixture.show(false);
   fixture.receive({ ...state, source: 'loopback', inputDevice: null, inputError: '输入设备不可用',
     settings: { loopbackId: 'unplugged', inputChannels: 'auto' } });
+  assert.equal(fixture.node('audioAssistantInput').value, 'mic');
+  fixture.show(true);
   assert.equal(fixture.node('audioAssistantInput').dataset.audioSetting, 'loopbackId');
   assert.equal(fixture.node('audioAssistantInput').value, 'unplugged');
 });

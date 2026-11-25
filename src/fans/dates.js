@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const DAY_MS = 86_400_000;
 const OFFSET_MS = 8 * 3_600_000;
 
@@ -9,7 +11,7 @@ function dayIndex(time) {
 
 function dayOf(value = Date.now()) {
   const time = typeof value === 'number' ? value : Date.parse(value);
-  if (!Number.isFinite(time)) throw new Error('日期无效。');
+  if (!Number.isFinite(time)) throw createPublicError('日期无效。');
   return new Date(time + OFFSET_MS).toISOString().slice(0, 10);
 }
 
@@ -22,7 +24,7 @@ function dateValue(value, label = '日期', optional = true) {
     value > '2200-12-31' ||
     new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value
   ) {
-    throw new Error(`${label}无效。`);
+    throw createPublicError(`${label}无效。`);
   }
   return value;
 }

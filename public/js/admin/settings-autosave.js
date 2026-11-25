@@ -1,11 +1,11 @@
 import { renderSaveStatus } from '../shared/save-status.js';
 
-export function createAutosave({ save, canSave = () => true, root, windowRef = globalThis }) {
+export function createAutosave({ save, canSave = () => true, root, windowRef = globalThis, delay = 600 }) {
   let timer = null, pending = null, wanted = false, composing = false, disposed = false, generation = 0;
   const clear = () => { windowRef.clearTimeout(timer); timer = null; };
   function resume() {
     if (disposed || composing || pending || !wanted || timer !== null) return;
-    timer = windowRef.setTimeout(() => { timer = null; void flush(); }, 600);
+    timer = windowRef.setTimeout(() => { timer = null; void flush(); }, delay);
   }
   function schedule() { wanted = true; clear(); resume(); }
   async function flush() {

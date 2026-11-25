@@ -43,7 +43,3 @@ body[data-style] .draw-danmaku-item[data-entrance-animation='none'] {
   }
   100% { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style] .draw-danmaku-item[data-live-entry][data-entrance-animation],
-  .draw-danmaku-item[data-live-entry][data-entrance-animation='rise'] .draw-danmaku-enter-content { animation: none; }
-}

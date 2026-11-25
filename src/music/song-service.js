@@ -8,6 +8,7 @@ const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { SONG_EXPORT_HEADERS, SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('./song-import-schema');
 const songInitialCollator = new Intl.Collator('zh-Hans-CN');
 const songNameCollator = new Intl.Collator('zh-Hans-CN-u-co-pinyin');
+const randomLibraries = new WeakMap();
 const { filterRandomSongCandidates, randomLanguageAliases } = require('./random-song-filter');
 const {
   splitSongLanguages,
@@ -91,7 +92,7 @@ function findSong(store, songName, artist) {
   const cleanName = cleanText(songName);
   const cleanArtist = cleanText(artist);
   if (!cleanName) return null;
-  if (cleanArtist) {
+  if (cleanArtist || artist === '') {
     const exact = store.findByNameArtist(cleanName, cleanArtist);
     if (exact) return exact;
   }
@@ -221,7 +222,15 @@ function pickRandomSong(store, scopeText, filterCandidates = (songs) => songs) {
 }
 
 function listRandomSongCandidates(store, scopeText) {
-  return filterRandomSongCandidates(store.listRandomRows(), normalizeRandomScopeText(scopeText));
+  const scope = normalizeRandomScopeText(scopeText);
+  if (!store.getChangeToken) return filterRandomSongCandidates(store.listRandomRows(), scope);
+  const token = store.getChangeToken();
+  let library = randomLibraries.get(store);
+  if (!library || library.token !== token) {
+    library = { token, songs: store.listRandomRows(), prepared: new WeakMap() };
+    randomLibraries.set(store, library);
+  }
+  return filterRandomSongCandidates(library.songs, scope, library.prepared).map((song) => ({ ...song }));
 }
 
 module.exports = {

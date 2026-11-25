@@ -113,6 +113,7 @@ export function createOvertimeRuleEffectEditor({
     const fieldset = documentRef.createElement('fieldset');
     fieldset.className = 'overtime-operation-control';
     const legend = documentRef.createElement('legend');
+    legend.className = 'sr-only';
     legend.textContent = '选择时间操作';
     fieldset.append(legend);
     const name = nextControlId('operation');
@@ -179,6 +180,7 @@ export function createOvertimeRuleEffectEditor({
     const fieldset = documentRef.createElement('fieldset');
     fieldset.className = 'overtime-duration-control';
     const legend = documentRef.createElement('legend');
+    legend.className = 'sr-only';
     legend.textContent = '填写时长';
     fieldset.append(legend);
     fieldset.append(

@@ -2,6 +2,7 @@
 // 缓存管理操作模块
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 /**
  * 创建缓存管理操作模块
  * @param {Object} deps - 依赖对象
@@ -19,7 +20,7 @@ export function createCacheOperations(deps) {
     try {
       const response = await fetch('/api/music/cache');
       const payload = await readJsonResponse(response, '读取音乐缓存失败');
-      if (!payload.ok) throw new Error(payload.error || '读取音乐缓存失败');
+      assertApiResponse(response, payload, '读取音乐缓存失败');
       status.textContent = `缓存大小：${formatBytes(payload.data.totalBytes || 0)} · ${payload.data.totalFiles || 0} 个文件`;
     } catch (error) {
       status.textContent = error.message || String(error);
@@ -39,7 +40,7 @@ export function createCacheOperations(deps) {
         body: JSON.stringify({ confirm: true }),
       });
       const payload = await readJsonResponse(response, '清理音乐缓存失败');
-      if (!payload.ok) throw new Error(payload.error || '清理音乐缓存失败');
+      assertApiResponse(response, payload, '清理音乐缓存失败');
       toast(`已清理 ${formatBytes(payload.data.clearedBytes || 0)} 音乐缓存`);
       await refreshPlaybackMusicCacheStats();
     } catch (error) {

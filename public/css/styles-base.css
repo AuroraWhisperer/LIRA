@@ -1,5 +1,6 @@
 /* 编写人：Aurora */
 @import url('./shared/display-fonts.css');
+@import url('./shared/visually-hidden.css');
 
 :root {
   color-scheme: light;
@@ -9,14 +10,18 @@
   --scrollbar-inset: 4px;
   --scrollbar-interactive-inset: 2px;
 
+  /* Light status colors used by the neutral desktop palette and the login window. */
+  --neutral-success-text: #17734a;
+  --neutral-danger-text: #bd3027;
+
   /* ===== 主色调 ===== */
   --color-primary: #ff6f91;
   --color-primary-strong: #d94b70;
   --color-primary-light: #fff6fa;
   --color-accent: #21b6a8;
   --color-accent-light: #f0faf8;
-  --color-control-accent: #21b6a8;
-  --color-control-accent-light: #f0faf8;
+  --color-control-accent: var(--color-accent);
+  --color-control-accent-light: var(--color-accent-light);
   --color-control-focus: rgba(33, 182, 168, 0.32);
   --color-primary-fill: var(--color-primary);
   --color-primary-fill-hover: var(--color-primary-strong);
@@ -194,6 +199,7 @@ body {
 }
 
 button,
+:where(a.secondary),
 input,
 select,
 textarea {
@@ -232,7 +238,8 @@ select:disabled {
   opacity: 0.58;
 }
 
-button {
+button,
+:where(a.secondary) {
   min-height: 36px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
@@ -267,13 +274,15 @@ button.danger:hover {
   background: var(--color-danger-light);
 }
 
-button.secondary {
+button.secondary,
+:where(a.secondary) {
   border-color: var(--border);
   color: var(--text);
   background: transparent;
 }
 
-button.secondary:hover {
+button.secondary:hover,
+:where(a.secondary:hover) {
   border-color: var(--color-border-strong);
   background: var(--color-bg-tertiary);
 }
@@ -307,11 +316,13 @@ textarea {
 
 /* Client controls distinguish necessary boundaries from decorative panel lines.
    Unmarked output and login pages retain the base defaults above. */
-:where(html.desktop-shell, html[data-client-theme]) button {
+:where(html.desktop-shell, html[data-client-theme]) button,
+:where(html.desktop-shell, html[data-client-theme]) :where(a.secondary) {
   border-color: var(--color-button-border);
 }
 
-:where(html.desktop-shell, html[data-client-theme]) :where(button:not(.primary, .danger)):hover:not(:disabled) {
+:where(html.desktop-shell, html[data-client-theme]) :where(button:not(.primary, .danger)):hover:not(:disabled),
+:where(html.desktop-shell, html[data-client-theme]) :where(a.secondary:hover) {
   border-color: var(--color-button-border-hover);
 }
 
@@ -324,7 +335,8 @@ textarea {
   border-color: var(--color-control-border-hover);
 }
 
-:where(html.desktop-shell, html[data-client-theme]) button:focus-visible {
+:where(html.desktop-shell, html[data-client-theme]) button:focus-visible,
+:where(html.desktop-shell, html[data-client-theme]) :where(a.secondary:focus-visible) {
   outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
@@ -342,7 +354,8 @@ textarea {
   background: var(--color-danger-active);
 }
 
-:where(html.desktop-shell, html[data-client-theme]) button:not(.primary, .danger, .ghost):active:not(:disabled) {
+:where(html.desktop-shell, html[data-client-theme]) button:not(.primary, .danger, .ghost):active:not(:disabled),
+:where(html.desktop-shell, html[data-client-theme]) :where(a.secondary:active) {
   background-color: var(--color-bg-secondary);
 }
 
@@ -422,4 +435,22 @@ label {
 
 :where(html.desktop-shell, html[data-client-theme]) :is(input, select, textarea)[aria-invalid='true']:focus-visible {
   outline: 2px solid var(--color-control-focus);
+}
+
+/* Visually hidden content remains available to assistive technology. */
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ui-menu-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

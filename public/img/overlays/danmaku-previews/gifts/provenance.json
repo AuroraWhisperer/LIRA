@@ -1,18 +1,18 @@
 [
   {
-    "file": "flower.webp",
+    "file": "../../gift-feed/flower.webp",
     "giftId": 31036,
     "name": "小花花",
     "sourceUrl": "https://i0.hdslb.com/bfs/live/28357ba4cd566418730ca29da2c552efa7e4a390.webp"
   },
   {
-    "file": "cheer.webp",
+    "file": "../../gift-feed/cheer.webp",
     "giftId": 31039,
     "name": "牛哇牛哇",
     "sourceUrl": "https://i0.hdslb.com/bfs/live/7571c8bdfcb65f9b00ab1307b2c86630f0d00859.webp"
   },
   {
-    "file": "call.webp",
+    "file": "../../gift-feed/call.webp",
     "giftId": 31212,
     "name": "打call",
     "sourceUrl": "https://i0.hdslb.com/bfs/live/196a1122f2eda36a36b5f85f2630ce2f0c35a119.webp"

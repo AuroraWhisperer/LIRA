@@ -1,13 +1,9 @@
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { createTextElement } from '../shared/dom-element.js';
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 
 // Recompose the shared safe content; the feed still owns placement and lifetime.
 export function createStardustMessageRenderer({ document, classNames }, render) {
-  function element(tag, className, text) {
-    const node = document.createElement(tag);
-    node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  }
+  function element(tag, className, text) { return createTextElement(document, tag, className, text); }
   return (item = {}, index = 0) => {
     const settings = document.body?.dataset || {};
     const sc = item.kind === 'superchat';

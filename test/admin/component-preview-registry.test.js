@@ -295,24 +295,23 @@ test('danmaku registers its shared controller and keeps account reset and single
   assert.equal(fixture.registry.getComponentPreviews()[0].controller, controller);
 });
 
-test('danmaku added from older layouts uses missing style defaults and preserves saved regions', async () => {
+test('danmaku preview uses saved bounds and falls back to the draft canvas for a missing region', async () => {
   const fixture = await loadOwner('danmaku-overlay-settings.js');
   const elements = Object.fromEntries(['overlayUrl', 'styleChip', 'styleSaveState', 'copyOverlayUrlButton',
     'openOverlayButton', 'previewOverlayButton'].map((name) => [name, createNode()]));
   elements.styleButtons = [];
   const controller = fixture.owner.initDanmakuOverlaySettings(elements, () => {});
   const [preview] = fixture.registry.getComponentPreviews();
-  const { createLayout, defaultRegion } = require('../../src/shared/danmaku-layout');
-  const layout = createLayout();
-  const savedRegion = { x: 123, y: 234, width: 400, height: 500 };
-  layout.regions = Object.fromEntries(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream', 'glow']
-    .map(style => [style, style === 'signal' ? savedRegion : layout.regions[style]]));
-  const savedRegions = structuredClone(layout.regions);
+  const { createLayout, defaultRegion, resizeCanvas } = require('../../src/shared/danmaku-layout');
+  const layout = resizeCanvas(createLayout(), { width: 1280, height: 720 });
+  const savedRegion = { x: 123, y: 84, width: 400, height: 500 };
+  layout.regions.signal = savedRegion;
+  delete layout.regions.sketch;
   controller.receive({ style: 'signal', fullscreenDurationSeconds: 6, layout });
   const draft = controller.getState().draft;
-  for (const style of Object.keys(createLayout().regions)) {
-    assert.deepEqual(plain(preview.bounds({ ...draft, style }) ?? null),
-      savedRegions[style] || defaultRegion(style, layout.canvas, layout.contentScale), style);
-  }
-  assert.deepEqual(plain(controller.getState().draft.layout.regions), savedRegions);
+  assert.deepEqual(plain(preview.bounds(draft)), savedRegion);
+  assert.deepEqual(plain(preview.bounds({ ...draft, style: 'sketch' })),
+    defaultRegion('sketch', layout.canvas, layout.contentScale));
+  assert.equal(Object.hasOwn(draft.layout.regions, 'sketch'), false);
+  assert.equal(controller.getState().dirty, false);
 });

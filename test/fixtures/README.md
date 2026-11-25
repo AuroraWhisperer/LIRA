@@ -15,4 +15,4 @@ Keep this input fixed: recording at test runtime intermittently returned a
 WebGL renderer, natural completion, context loss and disposal paths. Test
 fixtures are not served as product assets or included in application packages.
 
-`danmaku-canvas-editor.cjs` 使用独立临时目录/端口，加载真实管理页、preload、桌面请求认证与overlay IPC，只初始化弹幕设置。合成license manager保留测试草稿，不读取实际账号、数据目录或启动正式main。由 `test/desktop/danmaku-canvas-electron.test.js` 拥有进程与清理。
+`danmaku-canvas-editor.cjs` 和 `daily-bot-editor.cjs` 在独立临时目录和端口提供 `/admin`，通过正式 HTML 鉴权加载验收所需的管理页片段和样式。两者都使用真实 preload、桌面请求认证和对应业务 IPC。画布夹具用合成 license manager 保存测试草稿。各验收用例负责关闭进程和清理目录。

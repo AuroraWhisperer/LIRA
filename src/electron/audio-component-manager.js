@@ -79,6 +79,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     if (failure && !retry) return Promise.reject(failure);
     failure = null;
     task = prepare().then(filename => {
+      controller.signal.throwIfAborted();
       executable = filename;
       publish({ status: 'ready', error: '' });
       return filename;
@@ -92,6 +93,8 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
   }
 
   async function getExecutable() {
+    // A new worker can start long after background preparation finished.
+    if (!task) executable = '';
     try { return await initialize(); }
     catch (cause) {
       throw new Error(preparationErrorMessage(cause), { cause });

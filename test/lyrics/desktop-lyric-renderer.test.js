@@ -48,7 +48,7 @@ async function createLiveRenderer({ advanced = false, layer, reducedMotion = fal
     };
     return element;
   };
-  const elements = new Map(['Stage', 'Playback', 'Timeline', 'Viewport'].map((name) => [
+  const elements = new Map(['Stage', 'Playback', 'Timeline', 'Viewport', 'Status'].map((name) => [
     `desktopLyricPreview${name}`, createElement(),
   ]));
   elements.set('desktopLyricSurface', createElement());
@@ -292,6 +292,21 @@ test('a playing song without lyrics stops frame work until lyric content arrives
   assert.equal(frames.size, 1);
   renderer.updateLyricTimeline({ status: 'loading', lines: [] });
   assert.equal(frames.size, 0);
+  renderer.dispose();
+});
+
+test('empty lyric preview status follows layer changes without waiting for another lyric event', async () => {
+  const { renderer, elements, state } = await createLiveRenderer({ advanced: true });
+  const status = elements.get('desktopLyricPreviewStatus');
+  renderer.updateLyricTimeline({ status: 'empty', lines: [] });
+  renderer.updateLyricState({ ...state, status: 'empty', lineText: '', words: [] });
+  assert.equal(status.hidden, true);
+  renderer.setPreviewLayer('advanced');
+  assert.equal(status.hidden, false);
+  renderer.setPreviewLayer('both');
+  assert.equal(status.hidden, true);
+  renderer.applySettings({ desktopLyricEnabled: 'false' });
+  assert.equal(status.hidden, false);
   renderer.dispose();
 });
 

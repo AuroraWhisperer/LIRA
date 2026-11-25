@@ -1,15 +1,16 @@
+import { readApiResponse } from '../../shared/json-response.js';
 import { localOverlayOrigin, toast } from '../../shared/utils.js';
 import { bindCopyUrl } from '../../shared/copy-url.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
 import { createComponentConfigController } from '../component-config-controller.js';
 import { bindComponentAutosave } from '../settings-autosave.js';
 import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } from '../../shared/gift-banner-styles.js';
+import { GIFT_PLACEHOLDER } from '../../shared/gift-image.js';
 import {
+  applyGiftBannerAppearance,
   createGiftBanner,
-  createGiftArtworkResolver,
   fitGiftBannerNames,
   GIFT_PALETTE,
-  loadGiftArtworkCatalog,
 } from '../../shared/gift-banner.js';
 
 export function createGiftDisplaySettings() {
@@ -29,9 +30,9 @@ export function createGiftDisplaySettings() {
   });
   const sample = {
     eventId: 'sample',
+    artworkPath: GIFT_PLACEHOLDER,
     gift: { giftId: '', giftName: '礼物', userName: '礼物样式预览', unitPrice: 1000, num: 1, guardLevel: null },
   };
-  let artwork = createGiftArtworkResolver([]);
   let previewVisible = false;
   function updatePreviewPlayback() {
     previewRoot.classList.toggle('is-playing', previewVisible && !document.hidden);
@@ -68,8 +69,7 @@ export function createGiftDisplaySettings() {
       ...(draft ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) } : {}),
       signal: AbortSignal.timeout(10000),
     });
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || '礼物显示设置读取或保存失败。');
+    const result = await readApiResponse(response, '礼物显示设置读取或保存失败。');
     return { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...result.data };
   }
 
@@ -86,20 +86,19 @@ export function createGiftDisplaySettings() {
     };
   }
 
-  function preview() {
-    const draft = values();
-    const thresholds = draft.thresholds.map((n) => Math.round(n));
-    if (thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) {
-      previewRoot.replaceChildren(
-        ...GIFT_PALETTE.map(([start, end]) => {
-          const banner = createGiftBanner(sample, { ...draft, thresholds }, artwork);
-          banner.style.setProperty('--gift-start', start);
-          banner.style.setProperty('--gift-end', end);
-          return banner;
-        }),
-      );
-      fitGiftBannerNames(previewRoot);
+  function preview(draft) {
+    if (previewRoot.childElementCount) {
+      for (const banner of previewRoot.children) applyGiftBannerAppearance(banner, draft);
+      return;
     }
+    if (!draft.thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) return;
+    for (const [start, end] of GIFT_PALETTE) {
+      const banner = createGiftBanner(sample, draft);
+      banner.style.setProperty('--gift-start', start);
+      banner.style.setProperty('--gift-end', end);
+      previewRoot.append(banner);
+    }
+    fitGiftBannerNames(previewRoot);
   }
 
   function updateCancelVisibility() {
@@ -118,7 +117,7 @@ export function createGiftDisplaySettings() {
     get('giftFeedRows').value = value.visibleRows;
     get('giftFeedSpeed').value = value.scrollSpeed;
     get('giftFeedMinAmount').value = (value.minGiftAmountCents ?? 0) / 100;
-    preview();
+    preview(value);
     updateCancelVisibility();
   }
 
@@ -139,14 +138,16 @@ export function createGiftDisplaySettings() {
         if (input !== event.target && input.dataset.giftBoundary === boundary) input.value = event.target.value;
       }
     }
-    controller.edit(values());
-    preview();
+    const draft = values();
+    controller.edit(draft);
+    if (event.target.id === 'giftSheen') preview(draft);
     updateCancelVisibility();
   });
   get('giftDisplayForm')?.addEventListener('change', (event) => {
     if (event.target.tagName !== 'SELECT') return;
-    controller.edit(values());
-    preview();
+    const draft = values();
+    controller.edit(draft);
+    preview(draft);
     updateCancelVisibility();
   });
   get('giftDisplayForm')?.addEventListener('submit', (event) => {
@@ -178,8 +179,7 @@ export function createGiftDisplaySettings() {
     if (!controller.getStatus().loaded || !event.detail?.giftDisplayConfig) return;
     let next;
     try { next = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...JSON.parse(event.detail.giftDisplayConfig) }; } catch { return; }
-    controller.receive(next);
-    fill(controller.getState().draft);
+    if (controller.receive(next)) fill(controller.getState().draft);
   };
   window.addEventListener('app:settings-state', receiveSettings);
   let wasSaving = false;
@@ -199,8 +199,6 @@ export function createGiftDisplaySettings() {
         if (controller.getStatus().error) throw new Error(controller.getStatus().error);
         return;
       }
-      const nextCatalog = await loadGiftArtworkCatalog(AbortSignal.timeout(5000)).catch(() => []);
-      artwork = createGiftArtworkResolver(nextCatalog);
       const url = `${localOverlayOrigin(location)}/gift-feed`;
       get('giftFeedUrl').textContent = url;
       get('giftDisplayError').textContent = '';

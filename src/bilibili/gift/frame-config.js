@@ -125,6 +125,7 @@ function buildGiftFrameEvent(item, settings = {}) {
 function buildGiftFrameStyleEvent(item, settings = {}, styleIds = []) {
   const base = buildFrameBase(item);
   if (!base) return null;
+  if (typeof styleIds === 'function') styleIds = styleIds();
   const triggers = parseGiftFrameStyleTriggers(settings[GIFT_FRAME_STYLE_TRIGGERS_KEY]);
   const matched = [...new Set(styleIds)].filter((id) => {
     const trigger = readGiftFrameStyleTrigger(settings, id, triggers);

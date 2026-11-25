@@ -6,6 +6,7 @@ const REGION_DEFAULTS = Object.freeze({
   'neon-glass': [480, 700],
   'horizontal-charm': [1920, 120],
   astral: [640, 720],
+  'charm-thread': [480, 700],
   'celestial-horizontal': [1920, 80],
   'sea-breeze': [480, 700],
   'sea-breeze-random': null,
@@ -22,6 +23,7 @@ const REGION_DEFAULTS = Object.freeze({
   'flower-letter': [480, 700],
   spooky: [480, 700],
   notebook: [480, 700],
+  'pastel-scrapbook': [480, 608],
   glowy: [480, 700],
   glass: [480, 700],
   'animated-gradient': [480, 700],
@@ -78,7 +80,7 @@ function normalizeLayout(value) {
     || !Number.isFinite(contentScale) || contentScale < 0.1 || contentScale > 8
     || !regions || typeof regions !== 'object' || Array.isArray(regions)
     || Object.keys(regions).some((style) => !Object.hasOwn(REGION_DEFAULTS, style))
-    || Object.keys(REGION_DEFAULTS).some((style) => !['coffee', 'horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter', 'stargazer', 'wireframe'].includes(style) && !Object.hasOwn(regions, style))) fail();
+    || Object.keys(REGION_DEFAULTS).some((style) => !['charm-thread', 'pastel-scrapbook', 'coffee', 'horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter', 'stargazer', 'wireframe'].includes(style) && !Object.hasOwn(regions, style))) fail();
   const normalized = {};
   for (const style of Object.keys(REGION_DEFAULTS)) {
     const region = !Object.hasOwn(regions, style)

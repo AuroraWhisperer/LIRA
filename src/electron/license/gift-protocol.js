@@ -44,7 +44,7 @@ function createGiftEndpoints({ request, readEventStream }) {
         const rawSyncEpoch = response.headers?.get?.('x-lira-gift-sync-epoch');
         const syncEpoch = normalizeSyncEpochHeader(rawSyncEpoch);
         if (rawSyncEpoch !== null && syncEpoch === null) {
-          throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+          throw new RemoteLicenseError('INVALID_RESPONSE', undefined, {
             status: response.status,
             retryable: true,
           });
@@ -151,7 +151,7 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
         try {
           return normalizeProcessedGiftPage(result);
         } catch {
-          throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', { retryable: true });
+          throw new RemoteLicenseError('INVALID_RESPONSE', undefined, { retryable: true });
         }
       },
       { sanitize: false, signal: input.signal },
@@ -171,7 +171,7 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
         try {
           return normalizeProcessedGiftHistoryPage(result);
         } catch {
-          throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', { retryable: true });
+          throw new RemoteLicenseError('INVALID_RESPONSE', undefined, { retryable: true });
         }
       },
       { sanitize: false, signal: input.signal },
@@ -209,7 +209,7 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
           !syncEpoch ||
           syncEpoch.length > 128
         ) {
-          throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', { retryable: true });
+          throw new RemoteLicenseError('INVALID_RESPONSE', undefined, { retryable: true });
         }
         return {
           ok: true,

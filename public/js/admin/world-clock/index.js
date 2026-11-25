@@ -1,6 +1,6 @@
 'use strict';
 
-import { CITIES, DEFAULT_IDS, matchesCity } from './cities.js';
+import { baseCities, DEFAULT_IDS, cityFilter } from './base-cities.js';
 import { clockAt, dayDifference, isDaylight, sunDirection } from './time.js';
 import { createGlobe } from './globe.js';
 import { createTemperatureController } from './temperature.js';
@@ -8,8 +8,17 @@ import { mountCityDrag } from './city-drag.js';
 import { createCityPicker } from './city-picker.js';
 
 const STORAGE_KEY = 'admin.worldClock';
-const CITY_BY_ID = new Map(CITIES.map(city => [city.id, city]));
+let cities = baseCities;
+let cityById = new Map(cities.map(city => [city.id, city]));
+let directoryRequest;
 let initialized = false;
+
+function loadDirectory() {
+  return directoryRequest ||= import('./cities.js').then(({ CITIES }) => {
+    cities = CITIES;
+    cityById = new Map(cities.map(city => [city.id, city]));
+  }).catch(error => { directoryRequest = null; throw error; });
+}
 
 function icon(name, className = '') {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -48,11 +57,13 @@ export function initWorldClock() {
   const listen = (node, name, listener) => node.addEventListener(name, listener, { signal: events.signal });
   let saved;
   try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { saved = null; }
-  let ids = Array.isArray(saved?.ids) ? [...new Set(saved.ids)].filter(id => CITY_BY_ID.has(id)) : [...DEFAULT_IDS];
+  let ids = Array.isArray(saved?.ids) ? [...new Set(saved.ids)] : [...DEFAULT_IDS];
+  const selectedCities = () => ids.map(id => cityById.get(id)).filter(Boolean);
   let format = saved?.format === '12' ? '12' : '24';
   let selectedId = ids.includes(saved?.selectedId) ? saved.selectedId : (ids[0] || null);
   let customOrder = saved?.customOrder === true;
   let rows = [];
+  const weatherRows = new Map();
   let globe;
   let globeStarted = false;
   let globeReady = false;
@@ -60,18 +71,23 @@ export function initWorldClock() {
   let timer;
   let active = false;
   let disposed = false;
+  let directoryTask;
   let lastSunMinute = -1;
   let menuCityId = null;
   let menuAnchor = null;
   const temperatures = createTemperatureController({
-    getCities: () => ids.map(id => CITY_BY_ID.get(id)),
-    onChange: renderTemperatures,
+    getCities: selectedCities,
+    onChange(id) {
+      const row = weatherRows.get(id);
+      if (active && row) renderTemperatures([row]);
+    },
   });
   const cityDrag = mountCityDrag(get('list'), { beforeDrag: closeCityMenu, commit: reorderCities });
   const cityPicker = createCityPicker({
     dialog: get('dialog'), search: get('search'), results: get('results'),
     footer: get('catalog-footer'), summary: get('catalog-summary'), more: get('more'), closeButton: get('close'),
     getSelectedIds: () => ids,
+    getCities: () => cities,
     getFormat: () => format,
     createAddIcon: () => icon('plus'),
     onAdd(city) {
@@ -85,8 +101,8 @@ export function initWorldClock() {
     onOpenChange() { syncGlobeActivity(); tick(); },
   });
 
-  function renderTemperatures() {
-    for (const row of rows) {
+  function renderTemperatures(changed = rows) {
+    for (const row of changed) {
       const state = temperatures.get(row.city.id);
       const value = state?.data ? `${Math.round(state.data.temperature)}°C` : '—°C';
       const condition = state?.data?.condition || (state?.loading ? '天气更新中' : '暂无天气');
@@ -109,8 +125,8 @@ export function initWorldClock() {
   }
 
   function syncMarkers(focus = false) {
-    globe?.setCities(ids.map(id => CITY_BY_ID.get(id)), selectedId);
-    if (focus && selectedId) globe?.focus(CITY_BY_ID.get(selectedId));
+    globe?.setCities(selectedCities(), selectedId);
+    if (focus && cityById.has(selectedId)) globe?.focus(cityById.get(selectedId));
   }
 
   function selectCity(id, showDetails = false) {
@@ -180,7 +196,7 @@ export function initWorldClock() {
     const list = get('list');
     list.replaceChildren();
     rows = [];
-    const visible = ids.map(id => CITY_BY_ID.get(id)).filter(city => matchesCity(city, get('filter').value));
+    const visible = selectedCities().filter(cityFilter(get('filter').value));
     for (const city of visible) {
       const card = document.createElement('article');
       card.className = `world-clock-city${city.id === selectedId ? ' is-selected' : ''}`;
@@ -237,6 +253,8 @@ export function initWorldClock() {
       }
       list.append(empty);
     }
+    weatherRows.clear();
+    for (const row of rows) weatherRows.set(row.city.id, row);
     renderTemperatures();
     tick();
   }
@@ -247,8 +265,10 @@ export function initWorldClock() {
     let index = 0;
     if (!customOrder) {
       const now = new Date();
-      const offsets = new Map(ids.map(id => [id, clockAt(CITY_BY_ID.get(id).zone, now).offsetMinutes]));
-      ids.sort((a, b) => offsets.get(a) - offsets.get(b));
+      const offsets = new Map(selectedCities().map(city => [city.id, clockAt(city.zone, now).offsetMinutes]));
+      const sorted = ids.filter(id => offsets.has(id)).sort((a, b) => offsets.get(a) - offsets.get(b));
+      let slot = 0;
+      ids = ids.map(id => offsets.has(id) ? sorted[slot++] : id);
     }
     // A filtered reorder only replaces the visible slots; hidden cities keep their positions.
     ids = ids.map(id => visible.has(id) ? order[index++] : id);
@@ -259,7 +279,7 @@ export function initWorldClock() {
       if (list.children[position] !== row.card) list.moveBefore(row.card, list.children[position]);
     });
     save();
-    get('order-status').textContent = `${CITY_BY_ID.get(movedId).name}已移至第 ${ids.indexOf(movedId) + 1} 位，共 ${ids.length} 座城市`;
+    get('order-status').textContent = `${cityById.get(movedId).name}已移至第 ${ids.indexOf(movedId) + 1} 位，共 ${ids.length} 座城市`;
   }
 
   function tick() {
@@ -272,7 +292,7 @@ export function initWorldClock() {
     }
     const reference = clockAt('Asia/Shanghai', now, format);
     const sun = sunDirection(now);
-    const clocks = new Map(ids.map(id => [id, clockAt(CITY_BY_ID.get(id).zone, now, format)]));
+    const clocks = new Map(selectedCities().map(city => [city.id, clockAt(city.zone, now, format)]));
     if (!customOrder && !cityDrag.dragging) {
       rows.sort((a, b) => clocks.get(a.city.id).offsetMinutes - clocks.get(b.city.id).offsetMinutes
         || ids.indexOf(a.city.id) - ids.indexOf(b.city.id));
@@ -300,8 +320,8 @@ export function initWorldClock() {
         row.lightIcon.setAttribute('aria-label', daylight ? '白昼' : '黑夜');
       }
     }
-    if (selectedId && !get('details').hidden) {
-      const city = CITY_BY_ID.get(selectedId);
+    if (clocks.has(selectedId) && !get('details').hidden) {
+      const city = cityById.get(selectedId);
       const clock = clocks.get(selectedId);
       setText(get('name'), city.name);
       setText(get('country'), city.name === city.country ? '' : city.country);
@@ -313,7 +333,7 @@ export function initWorldClock() {
       setText(get('period'), clock.period);
       setText(get('date'), `${clock.fullDate} · ${clock.weekday}`);
     }
-    const focusDisabled = !selectedId || !globeReady;
+    const focusDisabled = !cityById.has(selectedId) || !globeReady;
     if (get('focus').disabled !== focusDisabled) get('focus').disabled = focusDisabled;
     if (globe && minute !== lastSunMinute) {
       globe.setSun(now);
@@ -325,6 +345,26 @@ export function initWorldClock() {
     cityDrag.cancel();
     closeCityMenu();
     cityPicker.open();
+    ensureDirectory();
+  }
+
+  function ensureDirectory() {
+    if (cities !== baseCities || directoryTask) return;
+    const missing = ids.filter(id => !cityById.has(id));
+    directoryTask = loadDirectory().then(async () => {
+      if (disposed) return;
+      ids = ids.filter(id => cityById.has(id));
+      if (!ids.includes(selectedId)) selectedId = ids[0] || null;
+      if (active) { renderCards(); syncMarkers(); }
+      if (get('dialog').open) cityPicker.render();
+      if (missing.length) {
+        await initialWeather;
+        if (!disposed) await temperatures.refreshCities(missing.map(id => cityById.get(id)).filter(Boolean));
+      }
+    }, error => {
+      if (disposed) return;
+      console.warn('扩展城市目录加载失败，已保留已选城市。', error);
+    }).finally(() => { directoryTask = null; });
   }
 
   function syncGlobeActivity() {
@@ -334,12 +374,16 @@ export function initWorldClock() {
   }
 
   function syncVisibility() {
+    if (disposed) return;
     const visible = !document.hidden && !root.hidden && mainPage.classList.contains('active');
     if (visible === active) return;
     active = visible;
     syncGlobeActivity();
     clearInterval(timer);
     if (active) {
+      ensureDirectory();
+      if (get('list').childElementCount) renderTemperatures();
+      else renderCards();
       loadGlobe();
       tick();
       timer = setInterval(tick, 1000);
@@ -427,7 +471,7 @@ export function initWorldClock() {
   listen(get('zoom-in'), 'click', () => globe?.zoom(0.12));
   listen(get('zoom-out'), 'click', () => globe?.zoom(-0.12));
   listen(get('rotate'), 'click', () => globe?.toggleRotation());
-  listen(get('focus'), 'click', () => { if (selectedId) globe?.focus(CITY_BY_ID.get(selectedId)); });
+  listen(get('focus'), 'click', () => { if (selectedId) globe?.focus(cityById.get(selectedId)); });
   listen(window, 'focus', syncGlobeActivity);
   listen(window, 'blur', syncGlobeActivity);
   listen(document, 'visibilitychange', syncVisibility);
@@ -452,8 +496,8 @@ export function initWorldClock() {
     closeCityMenu();
     cityPicker.dispose();
   });
-  renderCards();
   for (const button of root.querySelectorAll('.world-clock-globe-controls button')) button.disabled = true;
-  temperatures.start();
+  const initialWeather = temperatures.start();
+  if (ids.some(id => !cityById.has(id))) ensureDirectory();
   syncVisibility();
 }

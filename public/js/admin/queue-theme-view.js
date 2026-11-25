@@ -80,7 +80,7 @@ export function bindQueueTheme(root, controller) {
     setOverlayStyle(draft.overlayQueueStyle, root, draft.resourceStyle?.preset);
     initParameterRanges(root);
     const save = node('queueThemeSave');
-    if (save) { save.disabled = !state.dirty || state.saving; save.textContent = state.saving ? '正在保存…' : '保存点歌板主题'; }
+    if (save) save.disabled = !state.dirty || state.saving;
     const discard = node('queueThemeDiscard');
     if (discard) discard.disabled = !state.dirty || state.saving;
     const status = node('queueThemeSaveState');

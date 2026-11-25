@@ -3,10 +3,11 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { writeAtomicFile } = require('./atomic-file');
 const { normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
 
 const API_URL = 'https://api.bilibili.com/';
-const KEY_COOKIES = ['DedeUserID', 'SESSDATA', 'bili_jct'];
+const { BILIBILI_AUTH_COOKIES: KEY_COOKIES } = require('../shared/bilibili-auth-cookies');
 
 function authError(code) {
   return Object.assign(new Error(code), { code });
@@ -78,19 +79,14 @@ function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId, ser
     return (await getCookies()).map(({ name, value }) => `${name}=${value}`).join('; ');
   }
 
-  async function persist() {
+  async function persist(assertCurrent) {
     if (!safeStorage.isEncryptionAvailable()) throw authError('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
     const cookies = await getCookies();
+    assertCurrent?.();
     const payload = JSON.stringify({ version: 2, serverOrigin, streamerId, cookies });
     const encrypted = safeStorage.encryptString(payload);
     fs.mkdirSync(directory, { recursive: true });
-    const temporaryPath = `${snapshotPath}.tmp`;
-    try {
-      fs.writeFileSync(temporaryPath, encrypted, { mode: 0o600 });
-      fs.renameSync(temporaryPath, snapshotPath);
-    } finally {
-      fs.rmSync(temporaryPath, { force: true });
-    }
+    writeAtomicFile(snapshotPath, encrypted);
     await loginSession.cookies.flushStore();
   }
 

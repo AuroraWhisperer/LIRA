@@ -16,7 +16,7 @@
 归档：  D:/Work/Live/archive/moonlit-suite/files/tmp/opening-moon-fan/source/landscape-v2.png
 ```
 
-归档当时采用复制，未移动、删除或修改原来的 `tmp/`、聊天附件与 `public/` 引用。之后正式目录的资源清理见[来源与版本决策](../../docs/guides/overlay-suites/sources-and-history.md#正式源码与资源的-owner)；归档文件与散列仍保持采集时的快照。
+归档当时采用复制，未移动、删除或修改原来的 `tmp/`、聊天附件与 `public/` 引用。之后正式目录的资源清理见[来源与版本决策](../../docs/guides/overlay-suites/sources-and-history.md#正式源码与资源归属)；归档文件与散列仍保持采集时的快照。
 
 ## 当前成品选用规则
 

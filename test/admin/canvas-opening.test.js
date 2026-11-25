@@ -7,10 +7,8 @@ const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 
 test('opening settings preview reuses a canvas layer and published output follows opening configuration', { timeout: 60000 }, async t => {
-  let settings;
-  const fixture = await startCanvasOutputFixture({ extraContext: { settings: { get: () => settings } } });
-  settings = fixture.runtime.settings;
-  Object.assign(settings, { openingEnabled: 'true', openingTitle: '开播准备中', openingName: 'LIRA' });
+  const fixture = await startCanvasOutputFixture();
+  Object.assign(fixture.runtime.settings, { openingEnabled: 'true', openingTitle: '开播准备中', openingName: 'LIRA' });
   const browser = await chromium.launch({ headless: true });
   t.after(async () => { await browser.close(); await fixture.close(); });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
@@ -26,16 +24,21 @@ test('opening settings preview reuses a canvas layer and published output follow
     if (request.url().includes('/api/') && request.frame().parentFrame()) childRequests.push(request.url());
   });
   await openCanvasDesktop(desktop, fixture);
-  await desktop.route('**/api/settings', async route => {
-    Object.assign(settings, route.request().postDataJSON());
-    await route.fulfill({ json: { ok: true } });
-  });
-  await desktop.evaluate(async html => {
+  const updateSettings = async patch => {
+    const response = await context.request.post(`${fixture.origin}/api/settings`, {
+      headers: { Authorization: `Bearer ${fixture.token}` }, data: patch,
+    });
+    assert.equal(response.status(), 200);
+  };
+  await desktop.evaluate(async ({ html, token }) => {
+    window.__API_TOKEN__ = token;
+    const { stateService } = await import('/js/admin/state.js');
+    stateService.connectSocket();
     document.body.append(new DOMParser().parseFromString(html, 'text/html').body.firstElementChild);
     document.querySelector('#openingAnimationForm').closest('section').hidden = false;
     const { initStartAnimation } = await import('/js/admin/start-animation.js');
     initStartAnimation();
-  }, fs.readFileSync('public/pages/admin/toolbox/start-animation.html', 'utf8'));
+  }, { html: fs.readFileSync('public/pages/admin/toolbox/start-animation.html', 'utf8'), token: fixture.token });
   const open = async () => {
     await desktop.evaluate(() => { window.externalPreviewUrl = ''; });
     const focus = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/component-preview'
@@ -56,9 +59,10 @@ test('opening settings preview reuses a canvas layer and published output follow
   assert.equal(await page.locator('.scene-editor-item').count(), 1);
   await desktop.locator('#openingTitle').fill('新的开播标题');
   await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
+  const disabled = desktop.waitForResponse(response => response.url().endsWith('/api/settings')
+    && response.request().postDataJSON()?.openingEnabled === 'false' && response.ok());
   await desktop.locator('#openingEnabled').uncheck();
-  await desktop.waitForResponse(response => response.url().endsWith('/api/settings')
-    && response.request().postDataJSON()?.openingEnabled === 'false');
+  await disabled;
   await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').check();
   await desktop.getByRole('button', { name: '像素卡带', exact: true }).click();
@@ -83,22 +87,21 @@ test('opening settings preview reuses a canvas layer and published output follow
   await output.goto(outputUrl);
   const published = output.frameLocator('.scene-version:not(.is-staging) iframe');
   await published.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
-  settings.openingEnabled = 'false';
+  await updateSettings({ openingEnabled: 'false' });
   await published.locator('#openingStage.is-disabled').waitFor({ state: 'attached' });
-  settings.openingEnabled = 'true';
-  settings.openingStyle = 'pixel-cassette';
+  await updateSettings({ openingEnabled: 'true', openingStyle: 'pixel-cassette' });
   await published.locator('#openingPixel').waitFor({ state: 'visible' });
-  settings.openingStyle = 'classic';
-  settings.openingTitle = '唱一首，在一首，给你的歌';
-  await published.getByText(settings.openingTitle, { exact: true }).waitFor({ state: 'visible' });
+  const updatedTitle = '另一端保存的开播标题';
+  await updateSettings({ openingStyle: 'classic', openingTitle: updatedTitle });
+  await published.getByText(updatedTitle, { exact: true }).waitFor({ state: 'visible' });
   await page.bringToFront();
-  await opening.getByText(settings.openingTitle, { exact: true }).waitFor({ state: 'visible' });
+  await opening.getByText(updatedTitle, { exact: true }).waitFor({ state: 'visible' });
   assert.equal(await published.locator('body').evaluate(() => window.__API_TOKEN__), undefined);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await page.locator('[data-category="opening"]').click();
   await page.getByRole('button', { name: '添加经典舞台', exact: true }).click();
   await opening.locator('#openingStage[data-style="classic"]').waitFor({ state: 'visible' });
-  settings.openingStyle = 'pixel-cassette';
+  await updateSettings({ openingStyle: 'pixel-cassette' });
   const following = page.locator('.scene-editor-item').first().frameLocator('iframe');
   await following.locator('#openingPixel').waitFor({ state: 'visible' });
   assert.equal(await opening.locator('#openingStage').getAttribute('data-style'), 'classic');
@@ -106,7 +109,7 @@ test('opening settings preview reuses a canvas layer and published output follow
   await page.locator('[data-category="opening"]').click();
   await page.getByRole('button', { name: '添加像素卡带', exact: true }).click();
   await opening.locator('#openingPixel').waitFor({ state: 'visible' });
-  settings.openingStyle = 'classic';
+  await updateSettings({ openingStyle: 'classic' });
   await following.locator('#openingStage[data-style="classic"]').waitFor({ state: 'visible' });
   assert.equal(await opening.locator('#openingStage').getAttribute('data-style'), 'pixel-cassette');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();

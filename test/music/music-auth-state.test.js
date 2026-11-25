@@ -3,8 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { sanitizeAuthState } = require('../../src/music/auth-state');
-const { QQMusicProvider } = require('../../src/music/providers/qq-provider');
-const { NeteaseMusicProvider } = require('../../src/music/providers/netease-provider');
+const { createMusicProviderRegistry } = require('../../src/music/provider-registry');
 
 test('music auth projection retains status fields and excludes credentials', () => {
   assert.deepEqual(sanitizeAuthState(null), {
@@ -36,18 +35,27 @@ test('music auth projection retains status fields and excludes credentials', () 
   assert.deepEqual(sanitizeAuthState({ keyCookieNames: 'invalid' }).keyCookieNames, []);
 });
 
-test('provider health results retain login status without exposing credentials on success or failure', async (t) => {
+test('provider login checks read the session and health reports include sanitized backup metadata', async (t) => {
   let available = true;
   t.mock.method(globalThis, 'fetch', async () => Response.json({ code: 200, result: { songCount: 0 } }, {
     status: available ? 200 : 503,
   }));
-  for (const [source, Provider] of [['qq', QQMusicProvider], ['netease', NeteaseMusicProvider]]) {
-    const provider = new Provider({
-      getAuthState(platform) {
-        assert.equal(platform, source);
-        return { loggedIn: true, cookie: 'synthetic-secret', accessToken: 'synthetic-token' };
+  for (const source of ['qq', 'netease']) {
+    const reads = [];
+    const provider = createMusicProviderRegistry({
+      getSessionState(platform) {
+        reads.push(['session', platform]);
+        return { loggedIn: true };
       },
-    });
+      getAuthState(platform) {
+        reads.push(['full', platform]);
+        return { loggedIn: true, encryptedSnapshotExists: true, lastSavedAt: 'fixture-time',
+          cookie: 'synthetic-secret', accessToken: 'synthetic-token' };
+      },
+      getCookieHeader(platform) { reads.push(['header', platform]); return ''; },
+    }).get(source);
+    await provider.requireLogin();
+    assert.deepEqual(reads.splice(0), [['session', source]]);
     for (const reachable of [true, false]) {
       available = reachable;
       const result = await provider.healthCheck();
@@ -55,9 +63,22 @@ test('provider health results retain login status without exposing credentials o
       assert.equal(result.ok, reachable);
       assert.equal(result.status, reachable ? 'logged-in' : 'api-error');
       assert.equal(result.auth.loggedIn, true);
+      assert.equal(result.auth.encryptedSnapshotExists, true);
+      assert.equal(result.auth.lastSavedAt, 'fixture-time');
+      assert.deepEqual(reads.splice(0), [['full', source], ['header', source]]);
       assert.equal('cookie' in result.auth, false);
       assert.equal('accessToken' in result.auth, false);
       assert.doesNotMatch(JSON.stringify(result), /synthetic-secret|synthetic-token/);
     }
   }
+});
+
+test('only QQ accepts a compatible web credential when the session check fails', async () => {
+  const registry = createMusicProviderRegistry({
+    getSessionState() { throw new Error('session unavailable'); },
+    getAuthState: () => ({ loggedIn: true }),
+    getCookieHeader: source => source === 'qq' ? 'p_skey=fixture' : 'MUSIC_U=fixture',
+  });
+  await registry.get('qq').requireLogin();
+  await assert.rejects(registry.get('netease').requireLogin(), { statusCode: 501 });
 });

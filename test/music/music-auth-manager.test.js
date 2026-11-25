@@ -190,16 +190,27 @@ test('music cookie snapshots are encrypted, restore only allowed cookies and rep
   const stored = fs.readFileSync(snapshotPath('qq'), 'utf8');
   assert.doesNotMatch(stored, /synthetic-music-secret|foreign-secret|qqmusic_key/);
 
+  const partition = session.partitions.get('persist:music-qq');
+  await authManager.restoreMusicCookieSnapshot('qq', dataDir);
+  assert.equal(partition.set.length, 0, 'the matching persistent cookie needs no write');
+  const liveCookies = partition.cookieList;
+  partition.cookieList = [];
   const restored = await authManager.restoreMusicCookieSnapshot('qq', dataDir);
   assert.deepEqual(restored, { savedAt: saved.savedAt, cookieCount: 1 });
-  const partition = session.partitions.get('persist:music-qq');
   assert.equal(partition.set.length, 1);
   assert.equal(partition.set[0].value, 'synthetic-music-secret');
   assert.equal(partition.set[0].domain, '.qq.com');
 
   const decryptions = t.mock.method(safeStorage, 'decryptString');
+  partition.cookieList = liveCookies;
   assert.equal((await authManager.getMusicSessionState('qq')).loggedIn, true);
+  const partitionReads = t.mock.method(partition.cookies, 'get');
+  const request = await authManager.getMusicRequestSession('qq');
+  assert.equal(request.state.loggedIn, true);
+  assert.equal(request.cookieHeader, 'qqmusic_key=synthetic-music-secret');
+  assert.equal(partitionReads.mock.calls.length, 1);
   partition.cookieList = [];
+  assert.equal((await authManager.getMusicRequestSession('qq')).cookieHeader, '');
   assert.equal((await authManager.getMusicSessionState('qq')).loggedIn, false, 'session reads stay fresh after Cookie changes');
   assert.equal(decryptions.mock.calls.length, 0, 'session checks never decrypt the stored snapshot');
 
@@ -207,7 +218,16 @@ test('music cookie snapshots are encrypted, restore only allowed cookies and rep
   assert.equal(state.encryptedSnapshotExists, true);
   assert.equal(state.lastSavedAt, saved.savedAt);
   assert.equal(JSON.stringify(state).includes('synthetic-music-secret'), false);
-  assert.equal(decryptions.mock.calls.length, 1, 'full public state still reads the snapshot metadata');
+  assert.equal((await authManager.getMusicAuthState('qq', dataDir)).lastSavedAt, saved.savedAt);
+  const beforeHealth = partitionReads.mock.callCount();
+  const health = await authManager.getMusicRequestSession('qq', dataDir);
+  assert.equal(health.state.encryptedSnapshotExists, true);
+  assert.equal(health.state.lastSavedAt, saved.savedAt);
+  assert.equal(health.cookieHeader, '', 'use the live partition even when its backup contains a Cookie');
+  assert.equal(partitionReads.mock.callCount() - beforeHealth, 1);
+  assert.equal(decryptions.mock.calls.length, 1, 'repeated metadata reads share the same successful decryption');
+  fs.writeFileSync(snapshotPath('qq'), 'damaged');
+  assert.equal((await authManager.getMusicAuthState('qq', dataDir)).lastSavedAt, '');
 
   safeStorage.available = false;
   assert.equal(await authManager.restoreMusicCookieSnapshot('qq', dataDir), null);

@@ -4,6 +4,7 @@ import { decorateTwitterMessage } from './danmaku-twitter.js';
 import { bindGiftImage, resolveGiftImageSource } from '../shared/gift-image.js';
 import { createSpookyMessageRenderer } from './danmaku-spooky.js';
 import { createNotebookMessageRenderer } from './danmaku-notebook.js';
+import { createScrapbookMessageRenderer } from './danmaku-pastel-scrapbook.js';
 import { createFlowerLetterMessageRenderer } from './danmaku-flower-letter.js';
 import { createChristmasMessageRenderer } from './danmaku-christmas.js';
 import { createChristmasLetterMessageRenderer } from './danmaku-christmas-letter.js';
@@ -27,6 +28,7 @@ import { createCelestialHorizontalMessageRenderer } from './danmaku-celestial-ho
 import { createNeonGlassMessageRenderer } from './danmaku-neon-glass.js';
 import { createHorizontalCharmMessageRenderer } from './danmaku-horizontal-charm.js';
 import { createAstralMessageRenderer } from './danmaku-astral.js';
+import { createCharmThreadMessageRenderer } from './danmaku-charm-thread.js';
 import { createCoffeeMessageRenderer } from './danmaku-coffee.js';
 import { getSuperChatTier } from './danmaku-superchat-renderer.js';
 import { isHarborGiftVisible } from './danmaku-harbor.js';
@@ -57,7 +59,7 @@ function createStyleRenderer(options) {
   const seaBreeze = ['sea-breeze', 'sea-breeze-random'].includes(options.style);
   if (seaBreeze || ['celestial-horizontal', 'horizontal-charm'].includes(options.style)) options = { ...options, showAvatar: false };
   const render = createDanmakuRenderer({ bindGiftImage, showGiftTotal: options.style === 'aurora', ...options,
-    ...(['dark-moon', 'glass', 'animated-gradient', 'glass-bubble', 'astral'].includes(options.style) ? { showAvatar: false } : {}),
+    ...(['dark-moon', 'glass', 'animated-gradient', 'glass-bubble', 'astral', 'charm-thread', 'pastel-scrapbook'].includes(options.style) ? { showAvatar: false } : {}),
   }, {
     decorateSystemMessages: false,
     entranceDelay: (index) => Math.min(index, 8) * 24,
@@ -70,10 +72,12 @@ function createStyleRenderer(options) {
   if (options.style === 'neon-glass') return createNeonGlassMessageRenderer(options, render);
   if (options.style === 'horizontal-charm') return createHorizontalCharmMessageRenderer(options, render);
   if (options.style === 'astral') return createAstralMessageRenderer(options, render);
+  if (options.style === 'charm-thread') return createCharmThreadMessageRenderer(options, render);
   if (options.style === 'coffee') return createCoffeeMessageRenderer(options, render);
   if (options.style === 'aurora') return createAuroraMessageRenderer(options, render);
   if (options.style === 'stargazer') return createStargazerMessageRenderer(options, render);
   if (options.style === 'notebook') return createNotebookMessageRenderer(options, render);
+  if (options.style === 'pastel-scrapbook') return createScrapbookMessageRenderer(options, render);
   if (options.style === 'spooky') return createSpookyMessageRenderer(options, render);
   if (options.style === 'flower-letter') return createFlowerLetterMessageRenderer(options, render);
   if (options.style === 'christmas') return createChristmasMessageRenderer(options, render);

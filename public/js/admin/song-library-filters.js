@@ -207,18 +207,7 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
   }
 
   function renderLanguageFilter(songLanguages) {
-    if (!optionsChanged('languages', songLanguages)) return;
-    const select = document.getElementById('languageFilter');
-    const selected = select.value;
-    const languages = new Set();
-    for (const language of songLanguages) {
-      for (const name of splitSongLanguages(language)) languages.add(name);
-    }
-    const sorted = Array.from(languages).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
-    select.innerHTML =
-      '<option value="">全部语言</option>' +
-      sorted.map((lang) => `<option value="${escapeAttr(lang)}">${escapeHtml(lang)}</option>`).join('');
-    select.value = selected;
+    renderSelectFilter('languages', 'languageFilter', '全部语言', songLanguages, splitSongLanguages);
   }
 
   function splitSongLanguages(value) {
@@ -229,17 +218,20 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
   }
 
   function renderArtistFilter(songArtists) {
-    if (!optionsChanged('artists', songArtists)) return;
-    const select = document.getElementById('artistFilter');
+    renderSelectFilter('artists', 'artistFilter', '全部歌手', songArtists, splitSongArtists);
+  }
+
+  function renderSelectFilter(key, id, label, values, split) {
+    if (!optionsChanged(key, values)) return;
+    const select = document.getElementById(id);
     const selected = select.value;
-    const artists = new Set();
-    for (const artist of songArtists) {
-      for (const name of splitSongArtists(artist)) artists.add(name);
+    const names = new Set();
+    for (const value of values) {
+      for (const name of split(value)) names.add(name);
     }
-    const sorted = Array.from(artists).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
-    select.innerHTML =
-      '<option value="">全部歌手</option>' +
-      sorted.map((artist) => `<option value="${escapeAttr(artist)}">${escapeHtml(artist)}</option>`).join('');
+    const sorted = Array.from(names).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+    select.innerHTML = `<option value="">${label}</option>` +
+      sorted.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join('');
     select.value = selected;
   }
 

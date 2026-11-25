@@ -81,16 +81,20 @@ export function getAudioSourceOptions(apps = [], selected = 'auto') {
     if (!name) return app.id === selected ? [{ id: app.id, name: '其他应用（建议使用自动识别）' }] : [];
     return [{ id: app.id, name: title && !/^PID \d+$/.test(title) && title !== name && title !== process ? `${name} · ${title}` : name }];
   });
+  const counts = new Map();
+  const seen = new Map();
+  for (const { name } of sources) counts.set(name, (counts.get(name) || 0) + 1);
   return [
     { id: 'auto', name: '自动识别当前音乐（推荐）' },
     { id: 'file', name: '本地文件' },
     { id: 'input', name: '麦克风、线路或声卡回送' },
     { id: 'loopback', name: '播放设备里的声音' },
-    ...sources.map((app, index) => ({
-      ...app,
-      name: sources.filter((other) => other.name === app.name).length > 1 ? `${app.name}（音频 ${sources.slice(0, index + 1).filter((other) => other.name === app.name).length}）` : app.name,
-      group: '手动指定播放音乐的应用',
-    })),
+    ...sources.map(app => {
+      const index = (seen.get(app.name) || 0) + 1;
+      seen.set(app.name, index);
+      return { ...app, name: counts.get(app.name) > 1 ? `${app.name}（音频 ${index}）` : app.name,
+        group: '手动指定播放音乐的应用' };
+    }),
   ];
 }
 
@@ -171,9 +175,22 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
   let loading = null;
   let refreshing = null;
   let disposed = false;
+  let renderedConfig;
+  const meters = page.querySelectorAll('[data-audio-level]');
+  const pageVisible = () => !document.hidden && !page.hidden && mainPage.classList.contains('active');
+  const panelVisible = () => !document.hidden && panel.matches(':popover-open');
 
-  function render() {
+  function render(meterUpdate = false) {
     if (disposed) return;
+    const fullPage = pageVisible();
+    const quickPanel = panelVisible();
+    if (!fullPage && !quickPanel) return;
+    // Native IPC includes the inventories in level/position samples as well as configuration changes.
+    const { revision, inputLevel, level, position, duration, ...config } = state;
+    const signature = JSON.stringify(config);
+    if (fullPage) renderMeters();
+    if (meterUpdate && renderedConfig === signature) return;
+    renderedConfig = signature;
     const settings = { ...state.settings, ...optimistic };
     const selectedSource = optimistic.source ?? state.source;
     const local = selectedSource === 'file';
@@ -196,30 +213,38 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       routingHints.source = '请先关闭「处理声音」，再切换声音来源。';
       routingHints.outputId = '请先关闭「处理声音」，再切换最终输出。';
     }
-    const outputs = (state.outputs || []).map((device) => ({ ...device, name: formatAudioDeviceName(device.name) }));
-    updateOptions(document.getElementById('audioAssistantSource'), getAudioSourceOptions(state.apps, selectedSource),
-      selectedSource, '未找到之前的来源，请重新选择');
-    updateOptions(document.getElementById('audioAssistantCable'), [{ id: '', name: '请选择独立通道', disabled: true }, ...outputs], settings.cableId || '');
-    const outputChoices = state.outputChoices || outputs;
-    updateOptions(document.getElementById('audioAssistantOutput'), [{ id: '', name: local || deviceSource ? 'Windows 默认输出' : '自动跟随播放器原输出' }, ...outputChoices], settings.outputId || '');
-    const inputSelect = document.getElementById('audioAssistantInput');
-    const inputKey = selectedSource === 'loopback' ? 'loopbackId' : 'inputId';
-    inputSelect.dataset.audioSetting = inputKey;
-    updateOptions(inputSelect, [{ id: '', name: 'Windows 默认设备' }, ...(selectedSource === 'loopback' ? outputs : state.inputs || [])], settings[inputKey] || '');
-    updateOptions(document.getElementById('audioAssistantInputChannels'), getAudioInputChannels(state.inputDevice?.channels),
-      settings.inputChannels || 'auto', '之前的声道不可用，请重新选择');
-    document.getElementById('audioAssistantDeviceInput').hidden = !deviceSource;
-    document.getElementById('audioAssistantInputHint').textContent = selectedSource === 'loopback'
-      ? '采集所选设备中正在播放的声音；最终输出须选另一个设备。这路声音会包含该设备上的其他应用。'
-      : '接入麦克风、线路或声卡回送。监听麦克风请使用耳机；使用声卡回送时，请在声卡里排除最终输出，避免声音循环。';
-    const format = state.inputDevice;
-    document.getElementById('audioAssistantInputFormat').textContent = state.inputError || (format
-      ? `自动适配 · ${format.sampleRate.toLocaleString()} Hz · ${format.channels} 声道` : '接好设备后点击「刷新设备」。');
-    document.getElementById('audioAssistantFileRow').hidden = !local;
-    document.getElementById('audioAssistantIsolation').hidden = local || deviceSource;
-    document.getElementById('audioAssistantFileName').textContent = state.fileName || '尚未选择';
-    document.getElementById('audioAssistantSourceDevice').textContent = state.sourceDevice ? `原输出：${formatAudioDeviceName(state.sourceDevice)}` : '';
+    if (fullPage) renderRouting();
     for (const root of roots) {
+      if (root === page ? !fullPage : !quickPanel) continue;
+      renderControls(root);
+    }
+
+    function renderRouting() {
+      const outputs = (state.outputs || []).map((device) => ({ ...device, name: formatAudioDeviceName(device.name) }));
+      updateOptions(document.getElementById('audioAssistantSource'), getAudioSourceOptions(state.apps, selectedSource),
+        selectedSource, '未找到之前的来源，请重新选择');
+      updateOptions(document.getElementById('audioAssistantCable'), [{ id: '', name: '请选择独立通道', disabled: true }, ...outputs], settings.cableId || '');
+      const outputChoices = state.outputChoices || outputs;
+      updateOptions(document.getElementById('audioAssistantOutput'), [{ id: '', name: local || deviceSource ? 'Windows 默认输出' : '自动跟随播放器原输出' }, ...outputChoices], settings.outputId || '');
+      const inputSelect = document.getElementById('audioAssistantInput');
+      const inputKey = selectedSource === 'loopback' ? 'loopbackId' : 'inputId';
+      inputSelect.dataset.audioSetting = inputKey;
+      updateOptions(inputSelect, [{ id: '', name: 'Windows 默认设备' }, ...(selectedSource === 'loopback' ? outputs : state.inputs || [])], settings[inputKey] || '');
+      updateOptions(document.getElementById('audioAssistantInputChannels'), getAudioInputChannels(state.inputDevice?.channels),
+        settings.inputChannels || 'auto', '之前的声道不可用，请重新选择');
+      document.getElementById('audioAssistantDeviceInput').hidden = !deviceSource;
+      document.getElementById('audioAssistantInputHint').textContent = selectedSource === 'loopback'
+        ? '采集所选设备中正在播放的声音；最终输出须选另一个设备。这路声音会包含该设备上的其他应用。'
+        : '接入麦克风、线路或声卡回送。监听麦克风请使用耳机；使用声卡回送时，请在声卡里排除最终输出，避免声音循环。';
+      const format = state.inputDevice;
+      document.getElementById('audioAssistantInputFormat').textContent = state.inputError || (format
+        ? `自动适配 · ${format.sampleRate.toLocaleString()} Hz · ${format.channels} 声道` : '接好设备后点击「刷新设备」。');
+      document.getElementById('audioAssistantFileRow').hidden = !local;
+      document.getElementById('audioAssistantIsolation').hidden = local || deviceSource;
+      document.getElementById('audioAssistantFileName').textContent = state.fileName || '尚未选择';
+      document.getElementById('audioAssistantSourceDevice').textContent = state.sourceDevice ? `原输出：${formatAudioDeviceName(state.sourceDevice)}` : '';
+    }
+    function renderControls(root) {
       for (const label of root.querySelectorAll('[data-audio-active-label]')) label.textContent = deviceSource ? '处理声音' : '当前歌曲';
       for (const label of root.querySelectorAll('[data-audio-source-label]')) label.textContent = deviceSource ? '当前来源' : '当前歌曲';
       for (const input of root.querySelectorAll('[data-audio-setting]')) {
@@ -227,8 +252,10 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
         if (input.type === 'checkbox') input.checked = key === 'original' ? optimistic.original ?? state.original ?? false : settings[key] === true;
         else if (input.tagName !== 'SELECT') {
           const value = String(key === 'strength' && !musicAvailable ? 0 : key === 'speedPercent' && !speedAvailable ? 100 : settings[key] ?? '');
-          if (input.value !== value) input.value = value;
-          if (input.type === 'range') refreshParameterRange(input);
+          if (input.value !== value) {
+            input.value = value;
+            if (input.type === 'range') refreshParameterRange(input);
+          }
         }
         const title = preparing || (key === 'strength' && !musicAvailable ? '当前保留输入人声。需要处理音乐时，先停止，再启用「音乐处理」。' : '')
           || (key === 'speedPercent' ? speedHint : '') || (busy ? routingHints[key] || '' : '');
@@ -267,8 +294,11 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       for (const group of root.querySelectorAll('[data-audio-group="speedPercent"]')) group.classList.toggle('is-unavailable', !speedAvailable);
       for (const group of root.querySelectorAll('[data-audio-group="strength"]')) group.classList.toggle('is-unavailable', !musicAvailable);
     }
-    for (const meter of page.querySelectorAll('[data-audio-level]')) {
+  }
+  function renderMeters() {
+    for (const meter of meters) {
       const level = Math.round(Math.min(1, Math.max(0, state[meter.dataset.audioLevel] || 0)) * 100);
+      if (meter.getAttribute('aria-valuenow') === String(level)) continue;
       meter.setAttribute('aria-valuenow', String(level));
       meter.firstElementChild.style.width = `${level}%`;
     }
@@ -278,7 +308,7 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
     if (disposed || (next.revision && next.revision < (state.revision || 0))) return;
     state = { ...state, ...next, settings: next.settings || state.settings, source: next.source || state.source };
     feedback.receive(state);
-    render();
+    render(true);
   }
 
   async function invoke(op, value) {
@@ -381,15 +411,16 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
   }
   const unsubscribe = bridge?.onState(receive);
   function loadVisibleSettings() {
-    if (!page.hidden && mainPage.classList.contains('active')) void load();
+    render();
+    if (pageVisible() || panelVisible()) void load();
   }
   const observer = new MutationObserver(loadVisibleSettings);
   observer.observe(page, { attributes: true, attributeFilter: ['hidden'] });
   observer.observe(mainPage, { attributes: true, attributeFilter: ['class'] });
-  panel.addEventListener('toggle', () => { if (panel.matches(':popover-open')) void load(); }, { signal });
-  render();
+  panel.addEventListener('toggle', loadVisibleSettings, { signal });
+  document.addEventListener('visibilitychange', loadVisibleSettings, { signal });
+  loadVisibleSettings();
   if (enabled()) void load();
-  else loadVisibleSettings();
   return {
     setEnabled(value) {
       render();

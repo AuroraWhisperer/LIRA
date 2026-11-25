@@ -6,6 +6,7 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { requestComponentStyles } from './component-style-api.js';
 import { createAutosave } from './settings-autosave.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 
 const MISSING_STYLE_MESSAGE = '请先在本页最下方「＋ 添加样式」导入林间花信样式包。';
 const WOODLAND_PACKAGE = 'lira.woodland-gift-frame';
@@ -206,9 +207,8 @@ function setStatus(id, message, state, retrySave = false) {
   const node = document.getElementById(id);
   if (!node) return;
   const dirty = draftFields.size > 0;
-  node.textContent = state === 'error' ? message : '';
+  renderSaveStatus(node, state || (dirty ? 'pending' : 'idle'), state === 'error' ? message : '');
   node.hidden = !node.textContent;
-  node.dataset.state = state || (dirty ? 'pending' : '');
   const effect = EFFECTS.find(effect => effect.ids.status === id);
   if (effect) document.getElementById(effect.ids.save).hidden = !retrySave;
 }

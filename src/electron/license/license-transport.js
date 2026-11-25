@@ -1,5 +1,7 @@
 'use strict';
 
+const { readResponseText: readBoundedResponseText } = require('../../shared/response-body');
+
 const { normalizeRemoteRootOrigin } = require('../../shared/remote-url-policy');
 const { readBoundedSse } = require('../../shared/bounded-sse-reader');
 const { RemoteLicenseError, normalizeErrorCode } = require('./remote-license-error');
@@ -58,7 +60,7 @@ function createLicenseTransport(options = {}) {
         () =>
           new RemoteLicenseError(
             'RESPONSE_TOO_LARGE',
-            requestOptions.responseTooLargeMessage || '授权服务器响应过大。',
+            requestOptions.responseTooLargeMessage,
             {
               status: response.status,
               retryAfterMs: readRetryAfter(response, now()),
@@ -70,7 +72,7 @@ function createLicenseTransport(options = {}) {
       try {
         data = text ? JSON.parse(text) : {};
       } catch (_) {
-        throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+        throw new RemoteLicenseError('INVALID_RESPONSE', undefined, {
           status: response.status,
           retryAfterMs: readRetryAfter(response, now()),
           retryable: response.ok || isRetryableStatus(response.status),
@@ -79,7 +81,7 @@ function createLicenseTransport(options = {}) {
       // Protocol responses must be JSON objects. Reject other shapes here so
       // they remain INVALID_RESPONSE instead of becoming network errors.
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+        throw new RemoteLicenseError('INVALID_RESPONSE', undefined, {
           status: response.status,
           retryAfterMs: readRetryAfter(response, now()),
           retryable: response.ok || isRetryableStatus(response.status),
@@ -106,8 +108,8 @@ function createLicenseTransport(options = {}) {
       if (error instanceof RemoteLicenseError) throw error;
       if (error?.name === 'AbortError' && externalSignal?.aborted) throw error;
       if (error?.name === 'AbortError' && timedOut)
-        throw new RemoteLicenseError('REQUEST_TIMEOUT', '连接授权服务器超时，请重试。', { retryable: true });
-      throw new RemoteLicenseError('NETWORK_UNAVAILABLE', '无法连接授权服务器，请检查网络后重试。', {
+        throw new RemoteLicenseError('REQUEST_TIMEOUT', undefined, { retryable: true });
+      throw new RemoteLicenseError('NETWORK_UNAVAILABLE', undefined, {
         retryable: true,
       });
     } finally {
@@ -127,8 +129,8 @@ function createLicenseTransport(options = {}) {
     );
   }
 
-  async function requestRaw(method, pathname, bodyBuffer, contentType, token) {
-    return requestWithBody(method, pathname, bodyBuffer, contentType, token);
+  async function requestRaw(method, pathname, body, contentType, token, requestOptions) {
+    return requestWithBody(method, pathname, body, contentType, token, requestOptions);
   }
 
   async function readEventStream(pathname, token, options, onOpen, onBlock, headers = {}) {
@@ -163,7 +165,7 @@ function createLicenseTransport(options = {}) {
         });
       } catch (error) {
         if (error?.name === 'AbortError') throw error;
-        throw new RemoteLicenseError('NETWORK_UNAVAILABLE', '无法连接授权服务器，请检查网络后重试。', { retryable: true });
+        throw new RemoteLicenseError('NETWORK_UNAVAILABLE', undefined, { retryable: true });
       }
       if (!response.ok) throw await readStreamError(response, now());
       const contentType = String(response.headers?.get?.('content-type') || '');
@@ -173,7 +175,7 @@ function createLicenseTransport(options = {}) {
         } catch (error) {
           void error;
         }
-        throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+        throw new RemoteLicenseError('INVALID_RESPONSE', undefined, {
           status: response.status,
           retryable: true,
         });
@@ -188,14 +190,14 @@ function createLicenseTransport(options = {}) {
           deadline(60_000);
           onBlock(block);
         },
-        createLimitError: () => new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
+        createLimitError: () => new RemoteLicenseError('RESPONSE_TOO_LARGE', undefined, {
           status: response.status,
           retryable: true,
         }),
       });
     } catch (error) {
       if (options.signal?.aborted) throw options.signal.reason;
-      if (timedOut) throw new RemoteLicenseError('REQUEST_TIMEOUT', '连接授权服务器超时，请重试。', { retryable: true });
+      if (timedOut) throw new RemoteLicenseError('REQUEST_TIMEOUT', undefined, { retryable: true });
       throw error;
     } finally {
       clearTimeout(timer);
@@ -207,31 +209,10 @@ function createLicenseTransport(options = {}) {
 }
 
 async function readResponseText(response, maxBytes, createLimitError) {
-  if (!response.body?.getReader) {
-    const text = await response.text();
-    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw createLimitError();
-    return text;
-  }
-  const reader = response.body.getReader();
-  const chunks = [];
-  let bytes = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (bytes > maxBytes) {
-        await reader.cancel().catch(() => {});
-        throw createLimitError();
-      }
-      chunks.push(Buffer.from(value));
-    }
-    const text = new TextDecoder().decode(Buffer.concat(chunks, bytes));
-    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw createLimitError();
-    return text;
-  } finally {
-    reader.releaseLock();
-  }
+  const text = await readBoundedResponseText(response, maxBytes, createLimitError);
+  // Replacement characters from invalid UTF-8 must also fit the decoded JSON budget.
+  if (Buffer.byteLength(text, 'utf8') > maxBytes) throw createLimitError();
+  return text;
 }
 
 async function readStreamError(response, now) {
@@ -240,7 +221,7 @@ async function readStreamError(response, now) {
     const text = await readResponseText(
       response,
       64 * 1024,
-      () => new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。'),
+      () => new RemoteLicenseError('RESPONSE_TOO_LARGE'),
     );
     data = text ? JSON.parse(text) : {};
   } catch (error) {

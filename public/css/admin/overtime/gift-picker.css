@@ -8,9 +8,6 @@
   color: var(--text);
   box-shadow: var(--shadow-dialog);
 }
-.overtime-gift-picker::backdrop {
-  background: var(--color-bg-overlay-light);
-}
 .overtime-picker-shell {
   display: grid;
   gap: 10px;

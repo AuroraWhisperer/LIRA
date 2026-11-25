@@ -5,12 +5,12 @@
 import { initUsageGuideLightbox } from './usage-guide-lightbox.js';
 import { initUsageGuideSearch } from './usage-guide-search.js';
 import { initUsageGuideProgress } from './usage-guide-progress.js';
-import { captureUsageGuidePosition, getUsageGuideScrollTop, createUsageGuideSidebarTransition } from './usage-guide-layout.js';
+import { captureUsageGuidePosition, getUsageGuideScrollTop, restoreUsageGuidePosition, createUsageGuideSidebarTransition } from './usage-guide-layout.js';
 import { createUsageGuideMotion } from './usage-guide-motion.js';
 
 let initialized = false;
 
-export function initUsageGuide() {
+export function initUsageGuide({ showGuide } = {}) {
   if (initialized) return;
   const panel = document.getElementById('otherUsageGuideFeature');
   if (!panel) return;
@@ -229,6 +229,7 @@ export function initUsageGuide() {
         return getUsageGuideScrollTop(scroller, position, sectionOffset);
       }, () => {
         panel.classList.remove('usage-guide-render-all');
+        restoreUsageGuidePosition(scroller, position, sectionOffset);
         updateTocLayout();
         onArrive?.();
       });
@@ -237,6 +238,9 @@ export function initUsageGuide() {
 
   function navigateToTarget(target, sectionId, focusTarget = false, onArrive) {
     rememberPosition();
+    for (let details = target.closest('details'); details; details = details.parentElement.closest('details')) {
+      details.open = true;
+    }
     setActiveLink(sectionId);
     // Align the first line, not an article's padding above its heading.
     target = target.querySelector('.usage-guide-section-title, .usage-guide-feature-head strong') || target;
@@ -252,12 +256,14 @@ export function initUsageGuide() {
     });
   }
 
-  links.forEach((link) => {
-    link.addEventListener('click', (event) => {
-      event.preventDefault();
-      const target = document.getElementById(link.hash.slice(1));
-      if (target) navigateToTarget(target, link.getAttribute('data-usage-guide-section') || target.id);
-    });
+  document.addEventListener('click', (event) => {
+    const link = event.target.closest('[data-usage-guide-link]');
+    if (!link) return;
+    const target = document.getElementById(link.hash.slice(1));
+    if (!target || !panel.contains(target)) return;
+    event.preventDefault();
+    if (!panel.contains(link)) showGuide?.();
+    navigateToTarget(target, link.getAttribute('data-usage-guide-section') || target.closest('.usage-guide-section')?.id || target.id);
   });
 
   initUsageGuideSearch(panel, navigateToTarget);

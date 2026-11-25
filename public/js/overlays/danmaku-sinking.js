@@ -1,12 +1,11 @@
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement } from '../shared/dom-element.js';
+import { GUARD_LABELS } from '../shared/bilibili-guard-labels.js';
 import { setGiftArtwork } from '../shared/gift-image.js';
 
 // Keep text, emotes and gift details in the shared safe renderer.
 export function createSinkingMessageRenderer({ document, classNames, resolveGiftImageUrl }, render) {
-  const element = (tag, className) => {
-    const node = document.createElement(tag);
-    node.className = className;
-    return node;
-  };
+  const element = createTextElement.bind(null, document);
   return (item = {}, index = 0) => {
     const superchat = item.kind === 'superchat';
     const root = render({ ...item, kind: superchat ? 'danmaku' : item.kind,
@@ -23,7 +22,7 @@ export function createSinkingMessageRenderer({ document, classNames, resolveGift
     if (item.kind === 'gift') {
       body.querySelector('.draw-danmaku-gift-art')?.remove();
       body.querySelector('.draw-danmaku-gift-amount')?.remove();
-      const membership = { 1: '总督', 2: '提督', 3: '舰长' }[item.giftGuardLevel];
+      const membership = GUARD_LABELS[item.giftGuardLevel];
       if (membership) {
         body.querySelector('.draw-danmaku-gift-action').textContent = { open: '开通', renew: '续费' }[item.guardAction] || '支持';
         body.querySelector('.draw-danmaku-gift-name').textContent = membership;
@@ -44,8 +43,7 @@ export function createSinkingMessageRenderer({ document, classNames, resolveGift
       label.textContent = superchat ? '醒目留言' : [1, 2, 3].includes(item.giftGuardLevel) ? '大航海' : '礼物';
       const amount = element('span', 'sinking-amount');
       const price = superchat ? item.price : item.giftTotalPrice;
-      amount.textContent = Number.isFinite(price) && price >= 0
-        ? `¥${price.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—';
+      amount.textContent = formatDanmakuAmount(price);
       footer.append(label, amount);
       body.append(footer);
     }

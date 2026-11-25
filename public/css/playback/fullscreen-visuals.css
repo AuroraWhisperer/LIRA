@@ -268,7 +268,7 @@
   --fsbg-base: #fffaf8;
 }
 
-/* 左侧：唱片艺术 */
+/* 方形唱片机：半透明彩胶、居中封面与右侧弯臂 */
 .player-fs-art-wrap {
   display: flex;
   align-items: center;
@@ -279,105 +279,6 @@
 .player-fs-vinyl {
   position: relative;
   max-width: calc(100dvh - var(--player-dock-height, 96px) - 180px);
-  width: min(420px, 70vmin);
-  height: min(420px, 70vmin);
-  display: grid;
-  place-items: center;
-  filter: drop-shadow(0 20px 60px rgba(87, 58, 28, 0.3));
-}
-
-.player-fs-vinyl-disc {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    #e5e7eb 0deg,
-    #f3f4f6 30deg,
-    #e5e7eb 60deg,
-    #f9fafb 90deg,
-    #e5e7eb 120deg,
-    #f3f4f6 150deg,
-    #e5e7eb 180deg,
-    #f9fafb 210deg,
-    #e5e7eb 240deg,
-    #f3f4f6 270deg,
-    #e5e7eb 300deg,
-    #f9fafb 330deg,
-    #e5e7eb 360deg
-  );
-  box-shadow:
-    0 0 0 2px rgba(0, 0, 0, 0.08) inset,
-    0 0 0 8px rgba(255, 255, 255, 0.6),
-    0 10px 40px rgba(0, 0, 0, 0.2);
-}
-
-.player-fs-vinyl-disc.spinning {
-  animation: vinyl-spin 12s linear infinite;
-}
-
-.player-fs-vinyl-disc.paused {
-  animation-play-state: paused;
-}
-
-@keyframes vinyl-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.player-fs-art {
-  position: absolute;
-  inset: 18%;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #2d2d3f 0%, #1a1a2e 100%);
-  color: rgba(255, 255, 255, 0.32);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.12) inset,
-    0 4px 12px rgba(0, 0, 0, 0.15) inset;
-}
-
-.player-fs-art svg {
-  width: 28%;
-  height: 28%;
-}
-
-.player-fs-art.has-image svg {
-  display: none;
-}
-
-.player-fs-art img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.player-fs-vinyl-center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 20%;
-  height: 20%;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #4b5563, #1f2937);
-  box-shadow:
-    0 0 0 2px rgba(0, 0, 0, 0.3),
-    0 2px 8px rgba(0, 0, 0, 0.4) inset;
-}
-
-/* 右侧：歌曲信息 + 歌词 */
-/* 方形唱片机：半透明彩胶、居中封面与右侧弯臂 */
-.player-fs-art-wrap {
-  padding: 20px;
-}
-
-.player-fs-vinyl {
   isolation: isolate;
   width: min(520px, 72vmin);
   height: auto;
@@ -391,7 +292,6 @@
     0 24px 44px rgba(67, 75, 105, 0.14),
     0 8px 18px rgba(67, 75, 105, 0.1),
     inset 0 1px 1px rgba(255, 255, 255, 0.98);
-  filter: none;
 }
 
 .player-fs-vinyl::before {
@@ -483,7 +383,7 @@
 }
 
 .player-fs-vinyl-disc.spinning {
-  animation: vinyl-spin 10s linear infinite;
+  animation: ui-spin 10s linear infinite;
 }
 
 .player-fs-vinyl-disc.paused {
@@ -491,13 +391,40 @@
 }
 
 .player-fs-art {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.32);
   inset: 21.5%;
   z-index: 2;
   background: linear-gradient(135deg, #dfe7ed, #b8c9d4);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
+.player-fs-art svg {
+  width: 28%;
+  height: 28%;
+}
+
+.player-fs-art.has-image svg {
+  display: none;
+}
+
+.player-fs-art img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
 .player-fs-vinyl-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
   z-index: 4;
   width: 3.6%;
   height: 3.6%;

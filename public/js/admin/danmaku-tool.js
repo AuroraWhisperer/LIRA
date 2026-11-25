@@ -63,7 +63,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   const viewerNames = initDanmakuViewerNames();
   initDanmakuQueryReplies();
   const thanks = initDanmakuGiftThanks({ toast });
-  initGiftInteractionControls({ surface: 'danmaku', notify: toast, onState: thanks?.updateState });
+  initGiftInteractionControls({ notify: toast, onState: thanks?.updateState });
   document.getElementById('dailyBotRefresh')?.addEventListener('click', () => {
     void welcome?.refresh();
     void pk?.refresh();
@@ -213,8 +213,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, sendSession: state.sendSession }),
         });
-        const sendPayload = await sendResponse.json();
-        if (!sendResponse.ok || !sendPayload.ok) throw new Error(sendPayload.error || '发送弹幕失败');
+        await readApiResponse(sendResponse, '发送弹幕失败');
         if (index < queue.length - 1) await wait(5000, controller.signal);
       }
       if (controller.signal.aborted) return;

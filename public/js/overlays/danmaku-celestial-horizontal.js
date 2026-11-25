@@ -1,4 +1,6 @@
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement as node } from '../shared/dom-element.js';
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const STAR_PATHS = [
   'M12 2 14.8 9.2 22 12 14.8 14.8 12 22 9.2 14.8 2 12 9.2 9.2Z',
   'M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26Z',
@@ -7,12 +9,6 @@ const STAR_PATHS = [
   'M12 2 15 8 21 8 17 12 18.5 18 12 15 5.5 18 7 12 3 8 9 8Z',
 ];
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function userStar(document, name) {
   let hash = 0;
@@ -36,10 +32,7 @@ function userStar(document, name) {
   return svg;
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-}
+const amount = value => formatDanmakuAmount(value, 2);
 
 // Keep the shared safe text/emote renderer; this adapter owns only the inline composition.
 export function createCelestialHorizontalMessageRenderer(options, render) {

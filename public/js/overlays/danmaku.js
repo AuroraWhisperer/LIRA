@@ -1,3 +1,5 @@
+import { GUARD_LABELS } from '../shared/bilibili-guard-labels.js';
+import { normalizeBilibiliAvatarUrl, bilibiliAvatarSource as proxyBilibiliAvatar } from '../shared/bilibili-avatar.js';
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
 import { createDanmakuPreviewItems, DANMAKU_PREVIEW_AVATARS, DANMAKU_PREVIEW_WELCOME, DANMAKU_PREVIEW_GIFT_IMAGES } from './danmaku-preview-samples.js';
@@ -194,6 +196,7 @@ function connectSocket() {
   if (socketController) return;
   socketController = createOverlaySocket({
     topic: 'danmaku',
+    snapshot: 'danmaku-events-v1',
     onOpen: () => {
       localSocketConnected = true;
       lastLiveStatus = null;
@@ -404,6 +407,7 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   syncCelestialBackdrop(document, style === 'celestial-horizontal');
   if (style === 'spooky') applySpookyColorFallback(document);
   if (!feed || changed || refreshPreview) createOverlayFeed(style, duration);
+  else feed.invalidateFit?.();
   if (!isSceneComponent() && params.get('source') !== 'component') syncTwitterProfile();
   syncRankedOverlayScale();
 }
@@ -430,13 +434,7 @@ export function calculateRankedOverlayScale(viewportWidth) {
 
 function bilibiliAvatarSource(value) {
   if (previewMode && DANMAKU_PREVIEW_AVATARS.includes(value)) return value;
-  try {
-    const url = new URL(String(value || ''));
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com') || url.username || url.password) return '';
-    return url.toString();
-  } catch (_) {
-    return '';
-  }
+  return normalizeBilibiliAvatarUrl(value);
 }
 
 function bilibiliImageSource(value) {
@@ -444,15 +442,11 @@ function bilibiliImageSource(value) {
   const source = bilibiliAvatarSource(value);
   if (!source) return '';
   if (isSceneComponent()) return source;
-  const token = String(window.__API_TOKEN__ || '');
-  return `/api/bilibili/avatar?url=${encodeURIComponent(source)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+  return proxyBilibiliAvatar(source, window.__API_TOKEN__);
 }
 
 function guardLabel(level) {
-  if (Number(level) === 3) return '舰长';
-  if (Number(level) === 2) return '提督';
-  if (Number(level) === 1) return '总督';
-  return '';
+  return GUARD_LABELS[Number(level)] || '';
 }
 
 function setConnectionState(text, connected) {

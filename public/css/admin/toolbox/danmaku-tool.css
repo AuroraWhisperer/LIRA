@@ -112,18 +112,12 @@
   min-height: 32px;
   padding: 5px 10px;
 }
-.danmaku-tool-panel .lira-select {
-  --select-border: var(--border);
-}
 .danmaku-reply-target {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px;
-  border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--surface-2);
 }
 .danmaku-feature-section {
   display: grid;
@@ -194,7 +188,6 @@
   height: 18px;
 }
 .danmaku-feature-section.danmaku-style-section {
-  --border: var(--color-border-default);
   gap: 0;
   padding: 0;
   border: 2px solid var(--border);

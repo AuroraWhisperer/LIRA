@@ -254,7 +254,7 @@ export class QueuePopup {
 
     return `
       <section class="playback-queue-section">
-        <h3 class="ui-card-title">${escapeHtml(state.queueTitle)} <span>${tracks.length}</span></h3>
+        ${state.pendingRequests?.length ? `<h3 class="ui-card-title">${escapeHtml(state.queueTitle)} <span>${tracks.length}</span></h3>` : ''}
         ${rows}
       </section>
     `;
@@ -279,7 +279,7 @@ export class QueuePopup {
 
     return `
       <section class="playback-queue-section">
-        <h3 class="ui-card-title">${escapeHtml(title)} <span>${queue.length}</span></h3>
+        ${state.pendingRequests?.length ? `<h3 class="ui-card-title">${escapeHtml(title)} <span>${queue.length}</span></h3>` : ''}
         ${rows}
       </section>
     `;

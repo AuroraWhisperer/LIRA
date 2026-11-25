@@ -108,6 +108,7 @@ test(
       ['linked-data-root', true, false, false],
       ['linked-legacy-data', true, false, false],
       ['locked-logs', false, true, false],
+      ['locked-uninstaller', false, true, false],
       ['empty-install-root', false, true, false],
       ['drive-install-root', false, true, false],
       ['linked-install-root', false, true, false],
@@ -130,6 +131,7 @@ test(
           }
           fs.writeFileSync(path.join(installDir, 'LIRA.exe'), 'program fixture');
           fs.writeFileSync(path.join(installDir, 'Uninstall LIRA.exe'), 'uninstaller fixture');
+          if (name === 'default-retention') fs.chmodSync(path.join(installDir, 'Uninstall LIRA.exe'), 0o444);
           const marker = path.join(installDir, 'lira-installation.ini');
           fs.writeFileSync(marker, '[installation]\r\nappId=com.aurorawhisperer.lira\r\n');
           const mixed = name === 'default-retention' || name === 'mixed-files-upgrade';
@@ -158,11 +160,21 @@ test(
             selectedDir = path.join(root, 'installation-link');
             fs.symlinkSync(outside, selectedDir, 'junction');
           }
+          const failureReport = path.join(root, 'uninstall-error.txt');
+          const lockTarget = {
+            'silent-retention': path.join(installDir, 'LIRA.exe'),
+            'locked-logs': path.join(directories[1], 'fixture.txt'),
+            'locked-uninstaller': path.join(installDir, 'Uninstall LIRA.exe'),
+          }[name];
           const source = removal
             .replaceAll('$APPDATA', '${FIXTURE_APPDATA}')
             .replaceAll('$TEMP', '${FIXTURE_TEMP}')
-            // Preserve failure exit codes without ever showing fixture error dialogs.
-            .replace(/MessageBox MB_OK\|MB_ICONSTOP ("[^\n]+") \/SD IDOK/g, 'DetailPrint $1');
+            // Release only after Windows actually refused the first deletion.
+            .replace('  liraApplicationFileBusy:', label => name === 'silent-retention'
+              ? `${label}\n    StrCmp $R2 0 +3\n    System::Call 'kernel32::CloseHandle(p R2)'\n    StrCpy $R2 0`
+              : label)
+            .replace(/MessageBox MB_OK\|MB_ICONSTOP ("[^\n]+") \/SD IDOK/g, (_line, message) =>
+              `FileOpen $9 "${quote(failureReport)}" w\nFileWriteUTF16LE $9 ${message}\nFileClose $9`);
           assert.doesNotMatch(source, /\$(?:APPDATA|LOCALAPPDATA|TEMP)\b|ReadReg|WriteReg|DeleteReg/);
           const script = path.join(root, 'fixture.nsi');
           const executable = path.join(root, 'fixture.exe');
@@ -205,9 +217,12 @@ test(
               'StrCpy $installMode "current"',
               `StrCpy $liraDeleteDataConfirmed "${approved ? '1' : '0'}"`,
               `SetSilent ${silent ? 'silent' : 'normal'}`,
-              name === 'locked-logs'
-                ? `System::Call 'kernel32::CreateFileW(w "${quote(path.join(directories[1], 'fixture.txt'))}", i 0x80000000, i 0, p 0, i 3, i 0, p 0) p .R2'`
-                : '',
+              ...(lockTarget ? [
+                `System::Call 'kernel32::CreateFileW(w "${quote(lockTarget)}", i 0x80000000, i 3, p 0, i 3, i 0, p 0) p .R2'`,
+                'StrCmp $R2 -1 0 +3',
+                'SetErrorLevel 3',
+                'Quit',
+              ] : []),
               // Invalid-root fixtures execute only validation, never the removal macro.
               `!insertmacro ${invalidRoot ? 'liraValidateUninstallDirectory' : 'customRemoveFiles'}`,
               'SetErrorLevel 0',
@@ -235,8 +250,9 @@ test(
           assert.equal(writeUninstaller.status, 0);
           const status = await runUninstaller(uninstaller, installDir, updated, ready);
           assert.ok(fs.existsSync(ready), 'the uninstaller must enter its isolated removal fixture');
-          const failed = invalidRoot || name === 'locked-logs';
-          assert.equal(status, failed ? 2 : 0, name);
+          const failed = invalidRoot || name.startsWith('locked-');
+          const failure = fs.existsSync(failureReport) ? fs.readFileSync(failureReport, 'utf16le') : '';
+          assert.equal(status, failed ? 2 : 0, `${name}\n${failure}`);
           const retainsData = !approved || silent || updated;
           assert.equal(fs.existsSync(marker), retainsData);
           for (const directory of [directories[0], legacyData, legacyBrowser]) {
@@ -252,6 +268,9 @@ test(
             assert.equal(fs.existsSync(installDir), retainsData);
             if (mixed) for (const file of unrelated) assert.equal(fs.readFileSync(file, 'utf8'), 'unrelated user file');
             for (const file of packageFiles) assert.equal(fs.existsSync(path.join(installDir, file)), false, file);
+          } else if (name === 'locked-uninstaller') {
+            assert.ok(failure.includes(lockTarget), failure);
+            assert.equal(fs.existsSync(path.join(installDir, 'LIRA.exe')), false);
           } else {
             assert.equal(fs.readFileSync(path.join(directories[1], 'fixture.txt'), 'utf8'), directories[1]);
           }

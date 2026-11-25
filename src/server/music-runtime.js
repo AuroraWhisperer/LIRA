@@ -28,7 +28,6 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   let internalSequence = 0;
   let lyricSource = 'internal';
   let nowPlaying = { source: 'internal', trackTitle: '', artists: [], coverUrl: '', playing: false };
-  let nowPlayingSignature = JSON.stringify(nowPlaying);
   let selection = 'auto';
   let started = false;
   let stopped = false;
@@ -39,12 +38,12 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
 
   function publishNowPlaying() {
     const candidate = candidates[lyricSource];
-    const next = { source: lyricSource, trackTitle: candidate.state.trackTitle,
-      artists: [...candidate.state.artists], coverUrl: candidate.coverUrl, playing: candidate.playing === true };
-    const signature = JSON.stringify(next);
-    if (signature === nowPlayingSignature) return;
-    nowPlaying = next;
-    nowPlayingSignature = signature;
+    const { trackTitle, artists } = candidate.state;
+    const playing = candidate.playing === true;
+    if (nowPlaying.source === lyricSource && nowPlaying.trackTitle === trackTitle &&
+        nowPlaying.coverUrl === candidate.coverUrl && nowPlaying.playing === playing &&
+        nowPlaying.artists.length === artists.length && artists.every((artist, i) => artist === nowPlaying.artists[i])) return;
+    nowPlaying = { source: lyricSource, trackTitle, artists: [...artists], coverUrl: candidate.coverUrl, playing };
     webSocketHub.broadcast({ type: 'now-playing', state: nowPlaying });
     onNowPlayingChanged?.();
   }
@@ -70,7 +69,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     return true;
   }
 
-  function updateSource(changedSource, stateChanged = false) {
+  function updateSource(changedSource, stateChanged = false, sourceStatusChanged = false) {
     if (stopped) return;
     const next = chooseLyricSource(selection, lyricSource, candidates);
     const switched = next !== lyricSource;
@@ -81,17 +80,22 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
       if (timelineChanged || switched || stateChanged) onLyricsChanged?.();
     }
     publishNowPlaying();
-    broadcastLyricSource();
+    broadcastLyricSource(sourceStatusChanged);
   }
 
   function acceptExternalState(source, status, input) {
     if (stopped) return;
     const candidate = candidates[source];
+    // Source controls need transitions. A source event still contains the complete current clocks.
+    const { currentMs, lyricState: captureLyric, ...sourceStatus } = status;
+    const signature = JSON.stringify([sourceStatus, captureLyric?.artists, captureLyric?.status]);
+    const sourceStatusChanged = candidate.statusSignature !== signature;
+    candidate.statusSignature = signature;
     candidate.state = normalizeLyricState(input);
     candidate.coverUrl = normalizeCoverUrl(status.coverUrl);
     candidate.playing = status.active && status.playing === true;
     candidate.available = status.active && (status.detected === true || status.platformDetected === true) && Boolean(status.trackTitle);
-    updateSource(source, true);
+    updateSource(source, true, sourceStatusChanged);
   }
 
   function acceptExternalTimeline(source, timeline) {
@@ -149,12 +153,11 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
       qqClient: qqClientCapture.getStatus(), neteaseClient: neteaseClientCapture.getStatus(), weSing: weSingCapture.getStatus() };
   }
 
-  function broadcastLyricSource() {
-    const state = getLyricSource();
-    const key = JSON.stringify(state);
-    if (key === sourceSnapshot) return;
+  function broadcastLyricSource(sourceStatusChanged) {
+    const key = `${lyricSource}:${selection}:${LYRIC_SOURCES.map((source) => Number(candidates[source].playing)).join('')}`;
+    if (!sourceStatusChanged && key === sourceSnapshot) return;
     sourceSnapshot = key;
-    webSocketHub.broadcast({ type: 'lyric-source', state });
+    webSocketHub.broadcast({ type: 'lyric-source', state: getLyricSource() });
   }
 
   async function start() {

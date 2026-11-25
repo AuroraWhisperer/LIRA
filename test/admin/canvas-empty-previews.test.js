@@ -63,7 +63,7 @@ test('saved wishes retain live filtering while song and lyric samples stay visib
     });
   });
   const url = await openCanvasDesktop(desktop, fixture);
-  await desktop.route('**/api/gifts/wishes', route => route.fulfill({ json: { ok: true, data: wishes } }));
+  await desktop.route('**/api/gifts/wishes?includeSession=0', route => route.fulfill({ json: { ok: true, data: wishes } }));
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   async function add(type, style) {

@@ -10,7 +10,7 @@ const { openAdminPageIfNeeded } = require('./server/admin-launcher');
 const { createBilibiliClient: buildBilibiliClient } = require('./server/bilibili-client');
 const { createBilibiliRuntime } = require('./server/bilibili-runtime');
 const { buildMusicRuntime } = require('./server/music-runtime');
-const { readNowPlayingConfig } = require('./server/now-playing-settings');
+const { NOW_PLAYING_SETTING, readNowPlayingConfig } = require('./server/now-playing-settings');
 const { buildAiRuntime } = require('./server/ai-runtime');
 const { createInflightTracker } = require('./server/inflight-tracker');
 const { createServerCompatibility } = require('./server/compatibility-runtime');
@@ -262,7 +262,7 @@ function createServerRuntime(runtimeOptions = {}) {
       giftSyncRuntime.initialize({
         giftDb: db.giftDb,
         getActiveSource: () => domainServices.gifts.getActiveSource(),
-        automaticEnabled: () => !isShuttingDown && isLicenseAuthorized() && settingsStore.getSettings().autoRetentionOnStartup === 'true',
+        automaticEnabled: () => !isShuttingDown && isLicenseAuthorized() && getSetting('autoRetentionOnStartup') === 'true',
         importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
         importLiveEvent: (event, sourceId, importOptions) =>
           domainServices.gifts.importProcessedEvent(event, sourceId, importOptions),
@@ -460,7 +460,7 @@ function createServerRuntime(runtimeOptions = {}) {
             bilibiliRuntime?.updateStatus({
               connected: false,
               enabled: true,
-              roomId: normalizeRoomInput(settingsStore.getSettings().roomId),
+              roomId: normalizeRoomInput(getSetting('roomId')),
               mode: 'bilibili',
               message: publicBilibiliErrorMessage(error, true),
             });
@@ -487,13 +487,13 @@ function createServerRuntime(runtimeOptions = {}) {
     return startPromise;
   }
 
-  function getState(fields, { exclude = [] } = {}) {
+  function getState(fields, { exclude = [], includeRecentGifts = true } = {}) {
     let songMetadata;
     const readSongMetadata = () => songMetadata ??= domainServices.songs.getMetadata();
     const readers = {
       queue: () => domainServices.queue.getSnapshot(),
       superChats: () => domainServices.superChats.getSnapshot(),
-      gifts: () => domainServices.gifts.getSnapshot(),
+      gifts: () => domainServices.gifts.getSnapshot({ includeRecent: includeRecentGifts }),
       giftSprint: () => domainServices.gifts.getSprintSnapshot(),
       giftDetection: () => domainServices.gifts.getStatus(),
       blindBoxMapping: cloudSync.getBlindBoxMappingState,
@@ -508,7 +508,7 @@ function createServerRuntime(runtimeOptions = {}) {
       lyricState: () => musicRuntime.getLyricState(),
       lyricTimeline: () => musicRuntime.getLyricTimeline(),
       nowPlaying: () => musicRuntime.getNowPlayingState(),
-      nowPlayingConfig: () => readNowPlayingConfig(settingsStore.getSettings()),
+      nowPlayingConfig: () => readNowPlayingConfig(settingsStore.getSettings([NOW_PLAYING_SETTING])),
       lyricSource: () => musicRuntime.getLyricSource(),
       weSing: () => musicRuntime.weSingCapture.getStatus(),
       danmakuFeed: () => danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],
@@ -682,7 +682,7 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function getSetting(key) {
-    return settingsStore ? settingsStore.getSettings()[key] : DEFAULT_SETTINGS[key];
+    return settingsStore ? settingsStore.getSettings([key])[key] : DEFAULT_SETTINGS[key];
   }
 
   function getGiftCatalogInitializationState() {

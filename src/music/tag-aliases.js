@@ -31,10 +31,10 @@ function matchesLibraryTag(libraryTag, viewerTerm) {
     LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm));
 }
 
-function createLibraryTagMatcher(viewerTerm) {
+function createNormalizedTagMatcher(viewerTerm) {
   const normalizedViewerTerm = normalizeTag(viewerTerm);
   const standardTag = LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm);
-  return (libraryTag) => matchesNormalizedTags(normalizeTag(libraryTag), normalizedViewerTerm, standardTag);
+  return (libraryTag) => matchesNormalizedTags(libraryTag, normalizedViewerTerm, standardTag);
 }
 
 function matchesNormalizedTags(libraryTag, viewerTerm, standardTag) {
@@ -48,4 +48,4 @@ function normalizeTag(value) {
     .toLocaleLowerCase('zh-Hans-CN');
 }
 
-module.exports = { matchesLibraryTag, createLibraryTagMatcher };
+module.exports = { matchesLibraryTag, normalizeTag, createNormalizedTagMatcher };

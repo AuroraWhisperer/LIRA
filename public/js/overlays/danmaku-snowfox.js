@@ -1,3 +1,4 @@
+import { GUARD_LABELS } from '../shared/bilibili-guard-labels.js';
 import { getGuardIcon, setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
 export function createSnowfoxIdentity(document, item, name, classNames) {
@@ -20,7 +21,7 @@ export function createSnowfoxIdentity(document, item, name, classNames) {
   if (source) {
     const icon = document.createElement('img');
     icon.className = 'snowfox-guard';
-    icon.alt = { 1: '总督', 2: '提督', 3: '舰长' }[guard];
+    icon.alt = GUARD_LABELS[guard];
     icon.referrerPolicy = 'no-referrer';
     icon.decoding = 'async';
     icon.addEventListener('error', () => icon.remove());
@@ -42,7 +43,7 @@ export function createSnowfoxGuardCard(document, item, classNames) {
   root.dataset.danmakuFit = 'font-size';
   root.dataset.guard = String(item.giftGuardLevel);
   const name = String(item.name || '观众').trim() || '观众';
-  const role = { 1: '总督', 2: '提督', 3: '舰长' }[item.giftGuardLevel];
+  const role = GUARD_LABELS[item.giftGuardLevel];
   const action = { open: '开通', renew: '续费' }[item.guardAction] || '支持';
   root.setAttribute('aria-label', `${name}，${action}${role}`);
   const card = document.createElement('div');

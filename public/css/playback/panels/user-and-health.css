@@ -13,8 +13,7 @@
   padding: 14px;
 }
 
-.playback-avatar,
-.playback-cover {
+.playback-avatar {
   display: grid;
   place-items: center;
   flex: 0 0 auto;

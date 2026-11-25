@@ -26,10 +26,6 @@ body.player-dock-expanded .song-workspace {
 }
 
 .queues-row .panel.queue-panel {
-  --surface: var(--color-bg-primary);
-  --border: var(--color-border-default);
-  --text: var(--color-text-primary);
-  --muted: var(--color-text-secondary);
   display: flex;
   flex-direction: column;
   min-width: 0;

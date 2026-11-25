@@ -84,12 +84,17 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     return authManager.getMusicCookieHeader(platform);
   }
 
+  const musicProviderAuth = {
+    getSessionState: authManager.getMusicSessionState,
+    getRequestSession: authManager.getMusicRequestSession &&
+      ((platform, includeBackup) => authManager.getMusicRequestSession(platform, includeBackup ? getDataDir() : undefined)),
+    getAuthState: getMusicAuthState,
+    getCookieHeader: getMusicCookieHeader,
+  };
+
   function getMusicProviderRegistry() {
     if (!providerRegistry) {
-      providerRegistry = createMusicProviderRegistry({
-        getAuthState: getMusicAuthState,
-        getCookieHeader: getMusicCookieHeader,
-      });
+      providerRegistry = createMusicProviderRegistry(musicProviderAuth);
     }
     return providerRegistry;
   }
@@ -115,7 +120,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     try {
       return await runAccountOperation(
         platform,
-        (signal) => musicLoginWindow.loginMusicAccount(getMainWindow(), platform, getDataDir(), { signal }),
+        (signal) => musicLoginWindow.loginMusicAccount(getMainWindow(), platform, getDataDir(), { signal, writeLog }),
         true,
       );
     } finally {
@@ -136,7 +141,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   }
 
   function getBilibiliAccountProfile() {
-    return bilibiliAuth.getBilibiliAccountProfile(getDataDir());
+    return bilibiliAuth.getBilibiliAccountProfile();
   }
 
   function getBilibiliUid() {
@@ -170,7 +175,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   async function restoreBilibiliCookieSnapshot() {
     const snapshot = await runAccountOperation('bilibili', async () => {
       const restored = await bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir());
-      observeBilibiliIdentity(await getBilibiliAuthState());
+      observeBilibiliIdentity(await getBilibiliSessionState());
       return restored;
     });
     logBilibiliDiagnostic('credentials-restore', { restored: Boolean(snapshot) });
@@ -255,12 +260,14 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     whenIdle,
     getMusicAuthState,
     getMusicCookieHeader,
+    musicProviderAuth,
     getMusicProviderRegistry,
     loginMusicAccount,
     logoutMusicAccount,
     clearMusicBrowserCache,
     restoreMusicCookieSnapshots,
     getBilibiliAuthState,
+    getBilibiliSessionState,
     getBilibiliAccountProfile,
     getBilibiliCookieHeader,
     getBilibiliUid,

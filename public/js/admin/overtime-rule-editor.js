@@ -179,6 +179,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     const modeOptions = documentRef.createElement('fieldset');
     modeOptions.className = 'overtime-rule-mode-options';
     const modeLegend = documentRef.createElement('legend');
+    modeLegend.className = 'sr-only';
     modeLegend.textContent = '选择礼物生效方式';
     modeOptions.append(modeLegend);
     const modeName = `overtime-rule-mode-${++ruleControlSequence}`;
@@ -190,6 +191,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     const quantityOptions = documentRef.createElement('fieldset');
     quantityOptions.className = 'overtime-rule-quantity-options';
     const quantityLegend = documentRef.createElement('legend');
+    quantityLegend.className = 'sr-only';
     quantityLegend.textContent = '选择数量计算方式';
     quantityOptions.append(quantityLegend);
     const quantityName = `overtime-rule-quantity-${++ruleControlSequence}`;

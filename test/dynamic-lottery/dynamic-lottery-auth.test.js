@@ -16,7 +16,9 @@ test('dedicated login, provider context, encrypted restore and logout never touc
   live.cookies.items = authCookies('123', 'live-test-secret');
   const liveBefore = [...live.cookies.items];
   assert.equal((await f.auth.getAuthState()).loggedIn, false);
+  const encrypt = t.mock.method(f.safeStorage, 'encryptString');
   assert.equal((await f.signIn()).uid, uid);
+  assert.equal(encrypt.mock.callCount(), 1);
   const first = await f.auth.getContext();
   assert.match(first.cookieHeader, /lottery-test-secret/);
   assert.doesNotMatch(first.cookieHeader, /live-test-secret/);
@@ -57,6 +59,52 @@ test('dedicated login, provider context, encrypted restore and logout never touc
   await f.signIn();
   assert.ok((await f.auth.getContext()).sessionEpoch > first.sessionEpoch);
   assert.deepEqual(live.cookies.items, liveBefore);
+});
+
+test('a failed final flush is retried once and a failed retry can be recovered by explicit login', async (t) => {
+  const f = createFixture(t);
+  const pending = f.auth.login();
+  await settle();
+  const cookies = f.lotteryCookies();
+  const flush = t.mock.method(cookies, 'flushStore', async () => { throw new Error('fixture flush failed'); });
+  cookies.items = authCookies();
+  cookies.emit('changed');
+  await assert.rejects(pending, /fixture flush failed/);
+  assert.equal(flush.mock.callCount(), 2);
+  flush.mock.restore();
+  assert.equal((await f.auth.login()).uid, uid);
+  assert.equal(f.windows.length, 1);
+});
+
+test('retrying a failed final state lookup does not repeat a successful save', async (t) => {
+  const f = createFixture(t);
+  const pending = f.auth.login();
+  await settle();
+  const cookies = f.lotteryCookies();
+  const get = t.mock.method(cookies, 'get');
+  const flush = t.mock.method(cookies, 'flushStore', async () => {
+    get.mock.mockImplementationOnce(async () => { throw new Error('fixture lookup failed'); });
+  });
+  cookies.items = authCookies();
+  cookies.emit('changed');
+  assert.equal((await pending).uid, uid);
+  assert.equal(flush.mock.callCount(), 1);
+});
+
+test('a final cookie read from a cancelled authorization generation cannot replace its snapshot', async (t) => {
+  const f = createFixture(t);
+  const pending = f.auth.login();
+  await settle();
+  const read = Promise.withResolvers();
+  const started = Promise.withResolvers();
+  f.lotteryCookies().get = () => { started.resolve(); return read.promise; };
+  f.windows[0].close();
+  await started.promise;
+  f.license.generation++;
+  f.stateChanges.emit('state');
+  read.resolve(authCookies());
+  await assert.rejects(pending, { code: 'LOTTERY_SESSION_CHANGED' });
+  assert.equal(fs.existsSync(path.join(f.dataDir, 'dynamic-lottery-auth')), false);
 });
 
 test('login is single-flight and logout cancels the window before clearing its snapshot', async (t) => {

@@ -496,22 +496,6 @@
   line-height: var(--type-leading-caption);
 }
 
-@media (max-width: 1180px) {
-  .wesing-capture-layout {
-    grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
-  }
-}
-
-@media (max-width: 980px) {
-  .wesing-capture-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .wesing-live-stage {
-    min-height: 360px;
-  }
-}
-
 @media (max-width: 600px) {
   .wesing-panel-heading {
     align-items: flex-start;
@@ -525,16 +509,6 @@
 
   .wesing-capture-layout {
     padding: 12px;
-  }
-
-  .wesing-live-stage,
-  .wesing-capture-console {
-    padding: 17px;
-    border-radius: var(--radius-lg);
-  }
-
-  .wesing-live-stage {
-    min-height: 330px;
   }
 
   .wesing-track-copy {

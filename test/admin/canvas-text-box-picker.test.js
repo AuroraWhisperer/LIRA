@@ -3,9 +3,43 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { randomUUID } = require('node:crypto');
+const { Readable } = require('node:stream');
 const { chromium } = require('playwright');
+const { createComponentWebLibrary } = require('../../src/server/component-web-library');
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+
+test('a native CSS text box can be selected, edited and published with its stylesheet', async t => {
+  const dataDir = createScratchDirectory('text-box-css-', t);
+  const fixture = await startCanvasOutputFixture({ dataDir });
+  t.after(() => fixture.close());
+  await createComponentWebLibrary(dataDir).add([{ path: 'ink.css', stream: Readable.from(['body { --text-box-ink: #123456; }']) }],
+    { type: 'text-box', entry: 'ink.css', name: '墨色文本' }, () => {});
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const desktop = await browser.newPage();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  page.setDefaultTimeout(5000);
+  const editorUrl = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(editorUrl)).status, 200);
+  await page.goto(editorUrl);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '添加组件' });
+  await picker.locator('[data-category="text-box"]').click();
+  await picker.getByRole('button', { name: '添加到画布：墨色文本', exact: true }).click();
+  await picker.waitFor({ state: 'hidden' });
+  await page.getByRole('textbox', { name: '文本框内容' }).fill('今晚见');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  const source = fixture.service.getSource(fixture.service.getCanvas().outputId);
+  const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  await page.goto(outputUrl);
+  const text = page.frameLocator('.scene-version:not(.is-staging) iframe').locator('#textBox');
+  await text.getByText('今晚见', { exact: true }).waitFor();
+  assert.equal(await text.evaluate(node => getComputedStyle(node).getPropertyValue('--text-box-ink').trim()), '#123456');
+});
 
 test('canvas can reuse a configured desktop text box, customize the independent copy and create a new one', { timeout: 45000 }, async (t) => {
   const fixture = await startCanvasOutputFixture();

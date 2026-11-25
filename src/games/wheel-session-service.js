@@ -3,6 +3,7 @@
 const { createPublicError } = require('../shared/public-error');
 
 const { performance } = require('node:perf_hooks');
+const { randomUUID } = require('node:crypto');
 
 const MIN_ENTRIES = 2;
 const MAX_ENTRIES = 12;
@@ -56,6 +57,8 @@ function chooseWeightedEntry(entries, random = Math.random) {
 }
 
 function createWheelSessionService(options = {}) {
+  const runtimeId = randomUUID();
+  let revision = 0;
   const broadcast = typeof options.broadcast === 'function' ? options.broadcast : () => {};
   const random = typeof options.random === 'function' ? options.random : Math.random;
   const monotonicNow = options.monotonicNow || (() => performance.now());
@@ -71,8 +74,10 @@ function createWheelSessionService(options = {}) {
   let disposed = false;
 
   function getState() {
-    const spin = isSpinning() ? { ...activeSpin } : null;
+    const spin = remainingSpinMs() > 0 ? { ...activeSpin } : null;
     return {
+      runtimeId,
+      revision,
       entries: entries.map((entry) => ({ ...entry })),
       totalWeight,
       lastResult: lastResult ? { ...lastResult } : null,
@@ -81,12 +86,12 @@ function createWheelSessionService(options = {}) {
     };
   }
 
-  function isSpinning() {
-    return activeSpin && monotonicNow() - spinStartedMs < activeSpin.durationMs;
+  function remainingSpinMs() {
+    return activeSpin ? activeSpin.durationMs - (monotonicNow() - spinStartedMs) : 0;
   }
 
   function configure(input) {
-    if (isSpinning()) {
+    if (remainingSpinMs() > 0) {
       throw createPublicError('转盘正在转动，请稍候再修改。', 409);
     }
     const normalized = normalizeWheelEntries(input);
@@ -94,13 +99,15 @@ function createWheelSessionService(options = {}) {
     totalWeight = normalized.totalWeight;
     lastResult = null;
     activeSpin = null;
+    if (spinTimer) cancelTimeout(spinTimer);
+    spinTimer = null;
     publish();
     return getState();
   }
 
   function spin() {
     if (entries.length < MIN_ENTRIES) throw createPublicError('请先配置至少两个转盘选项。');
-    if (isSpinning()) {
+    if (remainingSpinMs() > 0) {
       throw createPublicError('转盘正在转动，请稍候再抽取。', 409);
     }
     const index = chooseWeightedEntry(entries, random);
@@ -119,18 +126,27 @@ function createWheelSessionService(options = {}) {
       selectedAt: new Date(now).toISOString(),
     };
     publish();
-    const spinId = activeSpin.id;
+    const current = activeSpin;
     cancelTimeout(spinTimer);
-    spinTimer = scheduleTimeout(() => {
+    function finishWhenDue() {
+      if (activeSpin !== current) return;
+      const remaining = remainingSpinMs();
+      if (remaining > 0) {
+        spinTimer = scheduleTimeout(finishWhenDue, Math.ceil(remaining));
+        spinTimer.unref?.();
+        return;
+      }
+      activeSpin = null;
       spinTimer = null;
-      if (activeSpin?.id === spinId) publish();
-    }, SPIN_DURATION_MS);
-    spinTimer.unref?.();
+      publish();
+    }
+    finishWhenDue();
     return getState();
   }
 
   function publish() {
     if (disposed) return;
+    revision += 1;
     broadcast({ type: 'wheel:update', state: getState() });
   }
 

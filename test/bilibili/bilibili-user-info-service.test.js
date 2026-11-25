@@ -128,6 +128,27 @@ test('room identity uses verification, target ownership, authority, and verified
   });
 });
 
+test('recent viewers follow room activity while profile enrichment survives room changes', () => {
+  let now = 1000;
+  const service = new UserInfoService({ now: () => now });
+  const run = beginRoom(service);
+  service.ingestHint({ uid: '1', name: 'Alice' }, { ...run, source: 'danmaku' });
+  now += 100;
+  service.ingestHint({ uid: '2', name: 'Bob' }, { ...run, source: 'fans_rank' });
+  service.replaceOnlineSnapshot(['1', '2'], run);
+  now += 100;
+  service.ingestHint({ uid: '1', avatarUrl: 'https://i0.hdslb.com/bfs/face/new.jpg' }, { source: 'profile' });
+  assert.deepEqual(service.listRecent().map(({ uid }) => uid), ['2', '1']);
+  now = 1000 + 10 * 60000 + 1;
+  assert.deepEqual(service.listRecent().map(({ uid }) => uid), ['2']);
+  assert.equal(service.listOnline().length, 2);
+  beginRoom(service, '200', '800');
+  assert.deepEqual(service.listRecent(), []);
+  assert.deepEqual(service.listOnline(), []);
+  assert.equal(service.peek('1').avatarUrl, 'https://i0.hdslb.com/bfs/face/new.jpg');
+  service.dispose();
+});
+
 test('field validation precedes stale-room guards and projections hide internal metadata', async () => {
   const { service } = createService();
   const run = beginRoom(service);

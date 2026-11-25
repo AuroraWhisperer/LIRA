@@ -63,6 +63,7 @@ function createRemoteGiftController(options = {}) {
   let legacyMode = false;
   let retentionMode = false;
   let retentionRefreshedAt = 0;
+  let lastMaintenanceDay = '';
   let initializing = false;
   let streamEpochMismatch = false;
   let operation = Promise.resolve();
@@ -119,6 +120,7 @@ function createRemoteGiftController(options = {}) {
     legacyMode = false;
     retentionMode = false;
     retentionRefreshedAt = 0;
+    lastMaintenanceDay = '';
     streamEpochMismatch = false;
     setSyncState(GiftSyncState.SOURCE_SWITCHING);
   }
@@ -137,10 +139,7 @@ function createRemoteGiftController(options = {}) {
       currentSource = normalizeResolvedSource(source, sourceKey);
       currentState = runtime.getGiftSyncState(currentSource.id);
       publishContext();
-      if (retrySourceKey === sourceKey && retryNotBefore > Date.parse(now())) {
-        scheduleReconnect(generation, true, retryNotBefore - Date.parse(now()));
-        return false;
-      }
+      if (waitForReconnectDeadline(generation, true)) return false;
 
       const discoveryFence = captureFence();
       const discovery = await licenseManager.getGiftEventsInternal({
@@ -279,27 +278,35 @@ function createRemoteGiftController(options = {}) {
   }
 
   async function synchronizeRetention(full) {
-    abortEventStream();
+    let updating = false;
+    function beginUpdate() {
+      if (updating) return;
+      updating = true;
+      clearReconnectTimer();
+      abortEventStream();
+      epochValidated = false;
+      setSyncState(GiftSyncState.BOOTSTRAPPING);
+    }
     // A clear/restore invalidates the old ledger, including its local derived
     // state. Keep the established epoch replacement path; ordinary retention
     // and expired cursors within the same epoch preserve the previous view.
     if (currentState.syncEpoch && currentState.syncEpoch !== expectedSyncEpoch) {
+      beginUpdate();
       currentState = runtime.resetGiftProjectionForRebuild(currentSource.id);
       full = true;
     }
-    setSyncState(GiftSyncState.BOOTSTRAPPING);
     const fence = captureFence();
     const result = await syncRetainedGifts({
       runtime, licenseManager, sourceId: currentSource.id,
       projectionGeneration: currentState.projectionGeneration,
       syncEpoch: expectedSyncEpoch, full, signal: generationController.signal,
-      isCurrent: () => ensureFenceCurrent(fence),
+      isCurrent: () => ensureFenceCurrent(fence), beginUpdate,
     });
     if (!result || !ensureFenceCurrent(fence)) return false;
-    currentState = runtime.getGiftSyncState(currentSource.id);
+    if (updating) currentState = runtime.getGiftSyncState(currentSource.id);
     retentionRefreshedAt = Date.parse(now());
     publishContext();
-    return true;
+    return updating ? 'updated' : 'current';
   }
 
   async function catchUpCurrent() {
@@ -375,6 +382,7 @@ function createRemoteGiftController(options = {}) {
 
   function startEventStream(generation) {
     if (streamController || !isGenerationActive(generation)) return;
+    if (waitForReconnectDeadline(generation, false)) return;
     const controller = new AbortController();
     streamController = controller;
     const streamFence = captureFence();
@@ -513,11 +521,20 @@ function createRemoteGiftController(options = {}) {
     if (!currentState?.bootstrapComplete) return false;
     const caughtUp = await catchUpCurrent();
     if (caughtUp && retentionMode && Date.parse(now()) - retentionRefreshedAt >= 10 * 60_000) {
-      if (!(await synchronizeRetention(false))) return false;
-      startEventStream(controllerGeneration);
-      if (!(await catchUpCurrent())) return false;
+      const result = await synchronizeRetention(false);
+      if (!result) return false;
+      if (result === 'updated') {
+        startEventStream(controllerGeneration);
+        if (!(await catchUpCurrent())) return false;
+      }
     }
-    if (caughtUp && retentionMode) runtime.pruneLocalGiftRetention(currentSource.id);
+    if (caughtUp && retentionMode) {
+      const day = normalizeNow(now()).slice(0, 10);
+      if (day !== lastMaintenanceDay) {
+        runtime.pruneLocalGiftRetention(currentSource.id);
+        lastMaintenanceDay = day;
+      }
+    }
     updateLiveState();
     return caughtUp;
   }
@@ -602,12 +619,24 @@ function createRemoteGiftController(options = {}) {
     retryNotBefore = Date.parse(now()) + delay;
     retrySourceKey = currentSource?.sourceKey;
     reconnectDelayMs = Math.min(RECONNECT_MAX_MS, reconnectDelayMs * 2);
+    armReconnect(generation, initialize, delay);
+  }
+
+  function armReconnect(generation, initialize, delay) {
     reconnect.schedule(() => {
       retryNotBefore = 0;
       if (!ensureFenceCurrent(captureFence()) || !isGenerationActive(generation)) return;
       if (initialize) enqueue(() => initializeGeneration(generation));
       else startEventStream(generation);
     }, delay);
+  }
+
+  // Retention and same-source resumes cancel the timer, but the source still owns its Retry-After.
+  function waitForReconnectDeadline(generation, initialize) {
+    const remaining = retryNotBefore - Date.parse(now());
+    if (retrySourceKey !== currentSource?.sourceKey || remaining <= 0) return false;
+    armReconnect(generation, initialize, remaining);
+    return true;
   }
 
   function clearReconnectTimer() {

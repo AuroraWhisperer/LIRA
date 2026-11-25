@@ -180,21 +180,6 @@
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.interaction-rating-details {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px var(--spacing-md);
-  margin: 0;
-  font-size: var(--type-size-control);
-  line-height: var(--type-leading-body);
-}
-.interaction-rating-details dt {
-  color: var(--color-text-secondary);
-}
-.interaction-rating-details dd {
-  margin: 0;
-  text-align: right;
-}
 .interaction-form-actions,
 .interaction-result-actions {
   display: flex;

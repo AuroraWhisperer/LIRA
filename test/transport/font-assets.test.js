@@ -39,10 +39,29 @@ test('cold font HTTP never blocks rendering, then serves verified fonts with HEA
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
   assert.match(await (await fetch(`${fixture.origin}/css/shared/display-fonts.css`)).text(), /\/font-library\/smiley/);
   assert.equal((await (await fetch(`${fixture.origin}/font-library/status`)).json()).status, 'ready');
+  const open = fs.open;
+  let fontFile;
+  let bodyReads = 0;
+  t.mock.method(fs, 'open', async (filename, ...args) => {
+    const handle = await open(filename, ...args);
+    if (path.basename(filename) === `${font.sha256}.${font.format}`) {
+      fontFile = filename;
+      const read = handle.readFile.bind(handle);
+      handle.readFile = (...args) => { bodyReads++; return read(...args); };
+    }
+    return handle;
+  });
   const head = await fetch(`${fixture.origin}/font-library/smiley`, { method: 'HEAD' });
   assert.equal(head.status, 200);
   assert.equal((await head.arrayBuffer()).byteLength, 0);
   assert.equal(Number(head.headers.get('content-length')), bytes.length);
+  const conditional = () => fetch(`${fixture.origin}/font-library/smiley?v=${font.sha256}`,
+    { headers: { 'If-None-Match': response.headers.get('etag') } });
+  const hit = await conditional();
+  assert.equal(hit.status, 304);
+  assert.equal(bodyReads, 0);
+  await fs.writeFile(fontFile, Buffer.alloc(bytes.length));
+  assert.equal((await conditional()).status, 404);
   assert.equal((await fetch(`${fixture.origin}/font-library/unknown`)).status, 404);
   assert.equal((await fetch(`${fixture.origin}/font-library/%2e%2e%2findex.json`)).status, 404);
   assert.equal((await fetch(`${fixture.origin}/admin`)).status, 401);
@@ -84,6 +103,11 @@ test('CDN fonts and a cold image keep their original local URLs and never expose
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
   const css = await (await fetch(`${fixture.origin}/css/shared/display-fonts.css`)).text();
   assert.ok(css.includes(`/${fontPath}?v=${sha256(bytes)}`));
+  const versioned = `${fixture.origin}/${fontPath}?v=${sha256(bytes)}`;
+  const warm = await fetch(versioned, { headers: { 'If-None-Match': `"${sha256(bytes)}"` } });
+  assert.equal(warm.status, 304);
+  assert.match(warm.headers.get('cache-control'), /immutable/);
+  assert.equal((await warm.arrayBuffer()).byteLength, 0);
   const head = await fetch(`${fixture.origin}/img/test-map.png`, { method: 'HEAD' });
   assert.equal(head.status, 200);
   assert.equal(Number(head.headers.get('content-length')), image.length);

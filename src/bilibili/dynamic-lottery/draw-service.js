@@ -1,7 +1,7 @@
 'use strict';
 
 const { createHash, randomInt } = require('node:crypto');
-const { lotteryError, buildCandidatePool, assertSameContext } = require('./rules');
+const { lotteryError, publicCode, buildCandidatePool, assertSameContext } = require('./rules');
 
 function createUniformOrder(members, randomIntFn = randomInt) {
   const order = members.map((member) => member.uid);
@@ -73,7 +73,7 @@ function createDrawService({ store, drawStore, provider, getContext, clock, rand
       }
       drawStore.setStatus(task, 'exhausted', '', clock.nowMs());
     } catch (error) {
-      drawStore.setStatus(task, 'paused', error.code || 'LOTTERY_DRAW_FAILED', clock.nowMs());
+      drawStore.setStatus(task, 'paused', publicCode(error, signal), clock.nowMs());
       throw error;
     }
   }

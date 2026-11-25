@@ -18,6 +18,7 @@ const SHOTS = [
   {
     id: 'A3',
     file: 'client-login-username-help',
+    manualOnly: true,
     title: '用户名规则',
     kind: 'license',
     size: [880, 800],
@@ -26,6 +27,7 @@ const SHOTS = [
   {
     id: 'A4',
     file: 'client-login-password-help',
+    manualOnly: true,
     title: '密码规则',
     kind: 'license',
     size: [880, 800],
@@ -34,6 +36,7 @@ const SHOTS = [
   {
     id: 'A5',
     file: 'client-login-activation-code',
+    manualOnly: true,
     title: '注册激活码与一次性使用提示',
     kind: 'license',
     clip: '#licenseLoginCard',

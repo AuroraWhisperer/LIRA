@@ -499,6 +499,69 @@ test('clicking a track in the active playlist jumps without duplicating or repla
   assert.equal(app.audioPlayCalls(), 1);
 });
 
+test('a source drawer and restored shuffle history select the original occurrence after a duplicate insertion', async () => {
+  const tracks = ['A', 'B', 'R', 'T'].map((id) => track(id, id));
+  const app = await createPlaybackApp({ selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+    displayHistory: tracks }, { homeAction: 'recent' });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+  await app.emit('playbackDrawerActions', 'click', { target: { id: 'playbackDrawerPlayAll' } });
+  await flushAsyncWork();
+  await app.emit('playbackDrawerBody', 'click', { target: closestTarget({
+    playbackHomeTrackAction: 'requested', playbackHomeTrackIndex: '2',
+  }, 'playback-home-track-action') });
+  await app.emit('playbackDrawerBody', 'click', { target: closestTarget({
+    playbackHomeTrackRowIndex: '2',
+  }, 'playback-home-track-row-index') });
+  await flushAsyncWork();
+  assert.deepEqual(app.savedState().normalQueueTracks.map((item) => item.id), ['A', 'R', 'B', 'R', 'T']);
+  assert.equal(app.savedState().playlistIndex, 3);
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'T');
+
+  const restored = await createPlaybackApp({ ...app.savedState(), mode: 'shuffle' });
+  await restored.init();
+  await flushAsyncWork();
+  await restored.emit('playbackPrev', 'click');
+  await flushAsyncWork();
+  assert.equal(restored.savedState().playlistIndex, 3);
+  assert.deepEqual(restored.savedState().normalQueue.map((item) => item.id), ['T']);
+});
+
+test('reselecting a direct search play from recent history keeps imported songs and pending matches', async () => {
+  const waiting = ['Q', 'P'].map((song_name, id) => ({ id: id + 1, song_name, created_at: '2026-11-01T00:00:00Z' }));
+  const app = await createPlaybackApp({ displayHistory: ['A', 'B'].map(id => track(id, id)),
+    selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+    homeAction: 'recent', songQueue: { waiting },
+    matchTrack: async ({ songName }) => ({ track: track(songName, songName), autoAccept: songName === 'Q', score: songName === 'Q' ? 100 : 60 }),
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await app.emit('playbackDrawerActions', 'click', { target: { id: 'playbackDrawerPlayAll' } });
+  await flushAsyncWork();
+  await app.emit('playbackImportSongQueue', 'click');
+  app.element('playbackSearchKeyword').value = 'S';
+  await app.emit('playbackSearchBtn', 'click');
+  await app.emit('playbackSearchResults', 'click', { target: closestTarget({
+    playbackSearchAction: 'play', playbackSearchIndex: '0',
+  }, 'playback-search-action') });
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
+  });
+  await flushAsyncWork();
+  await app.emit('playbackImportSongQueue', 'click');
+  const saved = app.savedState();
+  assert.equal(saved.normalQueueTracks[saved.playlistIndex].id, 'searched');
+  assert.deepEqual(saved.normalQueue.map(item => item.id), ['Q', 'B']);
+  assert.deepEqual(saved.pendingRequests.map(item => item.songName), ['P']);
+});
+
 test('an unavailable playlist jump preserves the current song and remaining queue', async () => {
   const tracks = ['first', 'next', 'unavailable', 'last'].map(id => track(id, id));
   const app = await createPlaybackApp({ current: tracks[0], currentOrigin: 'normal',
@@ -634,6 +697,30 @@ test('playlist previous follows list order, aligns the cursor and restores the n
   await app.emit('playbackNext', 'click');
   await flushAsyncWork();
   assert.equal(app.savedState().current.id, 'second');
+});
+
+test('replaying a playlist aligns unnumbered history with its rebuilt entries', async () => {
+  const tracks = ['X', 'A', 'B', 'T'].map(id => track(id, id));
+  const app = await createPlaybackApp({ current: tracks[2], history: tracks.slice(0, 2),
+    normalQueueTracks: tracks, normalQueue: tracks.slice(3), playlistIndex: 2,
+    queueType: 'playlist', queueSourceKey: 'qq:liked', mode: 'sequence', selectedSource: 'qq', volume: 0.75 },
+  { homeAction: 'liked', homeTracks: tracks, authState: { platform: 'qq', loggedIn: true } });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+  await app.emit('playbackDrawerActions', 'click', { target: { id: 'playbackDrawerPlayAll' } });
+  await flushAsyncWork();
+  await app.emit('playbackModeBtn', 'click');
+  await app.emit('playbackPrev', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'A');
+  assert.equal(app.savedState().playlistIndex, 1);
+  await app.emit('playbackModeBtn', 'click');
+  await app.emit('playbackModeBtn', 'click');
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'B');
 });
 
 for (const unavailable of [false, true]) {

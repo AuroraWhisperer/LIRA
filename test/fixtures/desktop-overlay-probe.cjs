@@ -154,6 +154,8 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
     registerComponentPreview('clock', () => ({ id: 'clock', controller: clock }));
     setComponentPreviewPreparation(() => prepareComponentPreviewCanvas(getComponentPreviews()));
     const { initCanvasOverlaySource } = await import('/js/admin/canvas-overlay-source.js');
+    // This fixture stubs the Admin entry point, which normally selects the active tab.
+    document.getElementById('overlayPage').classList.add('active');
     initCanvasOverlaySource();
     const { waitForAuthorizedAccountInitialization } = await import('/js/admin/authorized-account.js');
     await waitForAuthorizedAccountInitialization();
@@ -247,7 +249,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   const exported = await exportWindow.webContents.executeJavaScript(
     `window.renderGiftExport({items:[{eventId:'synthetic-gift',gift:{giftId:'guard-3',
       coinType:'guard',giftName:'Synthetic gift',userName:'Synthetic sender',unitPrice:1,num:2,
-      avatarUrl:'https://synthetic.test/avatar'}}],background:'white'})`,
+      avatarUrl:'https://i0.hdslb.com/bfs/face/synthetic-avatar.png'}}],background:'white'})`,
   );
   assert.equal(exported.width, 856);
   assert.equal(exported.height, 144);
@@ -260,7 +262,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
     assert.notEqual(image.source, image.fallback);
     assert.equal(image.hidden, false);
   }
-  assert.deepEqual(avatarRequests, ['https://synthetic.test/avatar']);
+  assert.deepEqual(avatarRequests, ['https://i0.hdslb.com/bfs/face/synthetic-avatar.png']);
   const capture = await exportWindow.webContents.capturePage(
     { x: 0, y: 0, width: 856, height: 144 },
     { stayHidden: true, stayAwake: true },

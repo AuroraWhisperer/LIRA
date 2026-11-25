@@ -1,3 +1,4 @@
+import { createTextElement as node } from '../shared/dom-element.js';
 import { setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
 const ART = '/img/overlays/danmaku-flower-letter/';
@@ -5,12 +6,6 @@ const GUARDS = Object.freeze({ 1: ['governor', '总督'], 2: ['admiral', '提督
 const HEIGHTS = Object.freeze({ ordinary: 218, letter: 226, gift: 252, superchat: 207, 'small-gift': 106 });
 const CLOCK = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function image(document, source, className) {
   const element = node(document, 'img', className);

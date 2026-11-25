@@ -9,7 +9,8 @@ const songService = require('../../src/music/song-service');
 const { DatabaseSync } = require('node:sqlite');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createQueueStore } = require('../../src/storage/queue-store');
-const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { getMigrationPlan } = require('../../src/storage/database-migrations');
+const { runMigrations, SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 
 function fixture(t) {
@@ -21,7 +22,7 @@ function fixture(t) {
 
 test('song creation, renaming and cloud restoration derive the Chinese initial from the song name', (t) => {
   const { store } = fixture(t);
-  for (const [name, initial] of [['江南', 'J'], ['富士山下', 'F'], ['告白', 'G'], ['来日方长', 'L'], ['妈妈', 'M'], ['Alpha', 'A'], ['123', '#']]) {
+  for (const [name, initial] of [['江南', 'J'], ['富士山下', 'F'], ['告白', 'G'], ['哈尔滨的雪', 'H'], ['来日方长', 'L'], ['妈妈', 'M'], ['Alpha', 'A'], ['123', '#']]) {
     const saved = songService.saveSong(store, { name });
     assert.equal(saved.name_initial, initial, name);
   }
@@ -31,6 +32,30 @@ test('song creation, renaming and cloud restoration derive the Chinese initial f
   songService.replaceCloudSongs(store, [{ title: '江南', artist: '云端歌手' }]);
   assert.equal(songService.listSongs(store)[0].name_initial, 'J');
 });
+
+for (const version of [20, 21]) {
+  test(`v${version} libraries repair the Ha initial and retain each song version`, (t) => {
+    const { db, store } = fixture(t);
+    const { key, steps } = getMigrationPlan().find((plan) => plan.name === 'songDb');
+    runMigrations(db, key, steps.slice(0, version));
+    const insert = db.prepare(`INSERT INTO songs (name, artist, name_initial, name_pinyin, created_at, updated_at)
+      VALUES (?, ?, 'G', 'G', '2026-01-01', ?) RETURNING id`);
+    const title = '哈尔滨的雪';
+    const old = insert.get(title, '', '2026-01-01').id;
+    const vocal = insert.get(title, '北河', '2026-01-02').id;
+    const other = insert.get('G小调', '北河', '2026-01-03').id;
+
+    const upgrade = runMigrations(db, key, steps);
+    assert.equal(upgrade.from, version);
+    assert.equal(upgrade.to, steps.length);
+    const rows = songService.listSongs(store).map(row => [row.id, row.name_pinyin, row.name_initial, row.updated_at]);
+    assert.deepEqual(rows, [[other, 'G', 'G', '2026-01-03'], [old, 'H', 'H', '2026-01-01'],
+      [vocal, 'H', 'H', '2026-01-02']]);
+    assert.equal(songService.findSong(store, title, '').id, old);
+    assert.equal(songService.findSong(store, title).id, vocal);
+    assert.equal(runMigrations(db, key, steps).applied, 0);
+  });
+}
 
 test('song store migration preserves LIKE filtering and stable artist ordering', (t) => {
   const { store } = fixture(t);

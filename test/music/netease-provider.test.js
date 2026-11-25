@@ -21,16 +21,21 @@ const indexPath = '/api/v6/playlist/detail';
 const detailsPath = '/api/song/detail';
 const coldLikedPage = [profilePath, listsPath, indexPath, detailsPath];
 
-function createLikedCaller(t, pauseAt = async () => {}) {
+function createLikedCaller(t, pauseAt = async () => {}, combinedSession = false) {
   let account = 'A';
   const sent = [];
   const registry = createMusicProviderRegistry({
+    getRequestSession: combinedSession ? async () => {
+      const cookieHeader = account ? `MUSIC_U=${account}` : '';
+      await pauseAt('login');
+      return { state: { loggedIn: Boolean(cookieHeader) }, cookieHeader };
+    } : undefined,
     getCookieHeader: async () => {
       const cookie = account ? `MUSIC_U=${account}` : '';
       await pauseAt('cookie');
       return cookie;
     },
-    getAuthState: async () => {
+    getSessionState: async () => {
       const loggedIn = Boolean(account);
       await pauseAt('login');
       return { loggedIn };
@@ -59,7 +64,7 @@ test('NetEase liked pages reuse discovery and index per load, including after re
   assert.deepEqual(await page(1), ['12']);
   assert.deepEqual(await page(2), []);
   assert.deepEqual(await page(0, 'refresh'), ['11']);
-  assert.deepEqual(sent, [...coldLikedPage, detailsPath, ...coldLikedPage].map(path => [path, 'MUSIC_U=A']));
+  assert.deepEqual(sent, [...coldLikedPage, detailsPath, ...coldLikedPage.filter(path => path !== profilePath)].map(path => [path, 'MUSIC_U=A']));
 });
 
 test('NetEase sessionless liked reads keep a matching cached page and evict it after a switch', async t => {
@@ -89,7 +94,7 @@ test('NetEase liked reads keep their initial account across login and playlist d
           started.resolve();
           await release.promise;
         }
-      });
+      }, true);
       const oldPage = page(0);
       await started.promise;
       const initial = stage === listsPath ? [profilePath, listsPath] : stage === profilePath ? [profilePath] : [];
@@ -622,6 +627,11 @@ test('Netease search enriches result artwork with one batched song-detail reques
   assert.equal(requests[1].params.ids, '[11,22]');
   assert.equal(tracks[0].coverUrl, 'https://album.test/a.jpg');
   assert.equal(tracks[1].coverUrl, 'https://album.test/b.jpg');
+
+  requests.length = 0;
+  const lyricCandidates = await provider.searchTracks('A', { includeCovers: false });
+  assert.equal(lyricCandidates[0].sourceTrackId, tracks[0].sourceTrackId);
+  assert.deepEqual(requests.map(request => request.pathname), ['/api/search/get/web']);
 });
 
 test('Netease search preserves artist artwork when song-detail lookup fails', async () => {
@@ -877,6 +887,42 @@ test('Netease liked removal fails without writing to an arbitrary playlist', asy
     provider.removeTracksFromPlaylist({ id: 'liked' }, [{ sourceTrackId: '789012' }]),
     /没有从网易云音乐读取到.*我喜欢/,
   );
+});
+
+test('NetEase removal receipts reuse the first 50 account rows before owner and invalid-row filtering', async () => {
+  const provider = createProvider();
+  provider.getUserProfile = async () => ({ userId: '42' });
+  const ordinary = { id: 99, name: '喜欢翻唱', creator: { userId: 42 } };
+  let rows = [{ id: 77, name: '喜欢的音乐', creator: { userId: 8 } }, ordinary];
+  let listReads = 0;
+  provider.requestJson = async (pathname, { limit }) => {
+    assert.equal(pathname, listsPath);
+    listReads++;
+    return { playlist: rows.slice(0, Number(limit)) };
+  };
+  provider.requestWeapiJson = async () => ({ code: 200 });
+  const remove = id => provider.removeTracksFromPlaylist({ id }, [{ sourceTrackId: '101' }]);
+  const created = await provider.getCreatedPlaylists({ limit: 100 });
+  assert.deepEqual(created.map(row => row.id), ['99']);
+  assert.equal((await remove('99')).isLikedPlaylist, false);
+  assert.equal((await remove('77')).isLikedPlaylist, true);
+  assert.equal(listReads, 1);
+
+  rows = Array.from({ length: 50 }, () => null).concat(ordinary);
+  await provider.getCreatedPlaylists({ limit: 100 });
+  assert.equal((await remove('99')).isLikedPlaylist, false, 'the 51st raw row is outside liked discovery');
+  assert.equal(listReads, 2);
+});
+
+test('a cold numeric removal confirms its target even when favorite discovery is unavailable', async () => {
+  const provider = createProvider();
+  let writes = 0;
+  provider.requestWeapiJson = async () => { writes++; return { code: 200 }; };
+  provider.getLikedPlaylistId = async () => { throw new Error('discovery offline'); };
+  const receipt = await provider.removeTracksFromPlaylist({ id: '99' }, [{ sourceTrackId: '101' }]);
+  assert.equal(receipt.playlistId, '99');
+  assert.equal(receipt.isLikedPlaylist, undefined);
+  assert.equal(writes, 1);
 });
 
 test('created playlist content marks only playlists without the track as available', async () => {

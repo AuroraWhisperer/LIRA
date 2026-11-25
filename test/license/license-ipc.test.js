@@ -294,6 +294,21 @@ test('license IPC rejects backslash-based external relative URLs', async () => {
   assert.deepEqual(await ipc.invoke('license:get-song-page-background'), { ok: true, background: null });
 });
 
+test('license IPC removes Bilibili credential queries from renderer URLs', async () => {
+  const ipc = createLicenseIpcFixture({ framePath: '/admin' });
+  for (const key of ['SESSDATA', 'bili_jct']) {
+    ipc.licenseManager.getSongPageBackground = async () => ({
+      ok: true,
+      background: {
+        url: `/background.png?${key}=synthetic-secret`,
+        previewUrl: `https://api.example.test/background.png?${key}=synthetic-secret`,
+      },
+    });
+    const result = await ipc.invoke('license:get-song-page-background');
+    assert.equal(result.background, null);
+  }
+});
+
 test('license IPC does not forward arbitrary exception messages as error codes', async () => {
   const ipc = createLicenseIpcFixture({
     framePath: '/',

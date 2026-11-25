@@ -118,7 +118,6 @@ body[data-style='glass'][data-ambient-motion='off'] .glass-glints { display: non
   52% { --glass-glint-opacity: .45; }
 }
 @media (prefers-reduced-motion: reduce) {
-  body[data-style='glass'] .glass-item[data-live-entry] { animation: none; }
   body[data-style='glass'] .glass-glints { display: none; }
 }
 

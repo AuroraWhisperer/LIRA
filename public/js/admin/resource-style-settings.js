@@ -4,6 +4,7 @@ import { previewElement } from './component-preview-elements.js';
 import { requestComponentStyles } from './component-style-api.js';
 import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.js';
 import { bindComponentAutosave } from './settings-autosave.js';
+import { observePanelVisibility } from './panel-visibility.js';
 
 // The package provides values; the installed native renderer owns its controls.
 export function createResourceStyleSettings(style, { request = requestComponentStyles, signal } = {}) {
@@ -21,8 +22,22 @@ export function createResourceStyleSettings(style, { request = requestComponentS
     confirm: read,
   });
   controller.receive({ ...preset.config, ...style.config });
+  function observeReturn(root) {
+    let wasHidden = false;
+    let generation = 0;
+    const stop = observePanelVisibility(root, visible => {
+      const current = ++generation;
+      if (visible && wasHidden) {
+        void read().then(config => {
+          if (current === generation) controller.receive(config);
+        }, () => { /* Leave the draft and its save status intact until the next check. */ });
+      }
+      wasHidden = !visible;
+    });
+    return () => { generation++; stop(); };
+  }
   return {
-    controller,
+    controller, observeReturn,
     mount(host) {
       const root = previewElement('div');
       host.append(root);
@@ -36,11 +51,9 @@ export function createResourceStyleSettings(style, { request = requestComponentS
         status.textContent = state.error || (state.saving ? '正在保存…' : state.dirty ? '有未保存的修改' : '已保存，与画布中的同样式组件同步。');
       });
       const autosave = bindComponentAutosave(controller, { root, saveButton: save, status });
-      const timer = setInterval(() => {
-        if (!document.hidden && !controller.getStatus().error && host.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
-      }, 1000);
+      const stopReturn = observeReturn(root);
       return { dispose() {
-        clearInterval(timer);
+        stopReturn();
         root.remove();
         void autosave.flush().finally(() => { autosave.dispose(); stop(); panel?.dispose(); });
       } };

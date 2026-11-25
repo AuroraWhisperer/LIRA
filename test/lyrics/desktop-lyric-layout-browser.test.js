@@ -46,12 +46,14 @@ test('continuous fill keeps advancing between slow JS frames and still pauses pr
     const renderer = window.testLyricRenderer;
     const text = '这一句歌词应当一点一点填满';
     const words = [{ text, startMs: 0, endMs: 8000 }];
-    renderer.applySettings({ desktopLyricKaraokeMode: 'continuous', desktopLyricHideOnPause: 'false' });
+    renderer.applySettings({ desktopLyricKaraokeMode: 'continuous', desktopLyricHideOnPause: 'false',
+      desktopLyricBrightness: '1.5', desktopLyricGlobalOpacity: '0.7' });
     renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0, text, words }] });
     renderer.updateLyricState({ status: 'ready', currentMs: 0, durationMs: 8000, playing: true,
       generation: 1, sequence: ++window.testLyricSequence, lineText: text, words, discontinuity: true });
   });
   await page.waitForFunction(() => document.getElementById('desktopLyricPreviewStage').classList.contains('is-low-power'));
+  assert.equal(await page.locator('#desktopLyricPreviewViewport').evaluate(node => getComputedStyle(node).filter), 'opacity(0.7)');
   const samples = await page.evaluate(async () => {
     const highlight = document.querySelector('.desktop-lyric-preview-word-highlight');
     const values = [];
@@ -337,11 +339,95 @@ test('single and freshly laid out long lyrics follow the selected vertical ancho
   }
 });
 
+test('whole-song playback retargets an interrupted line after reflow and follows a backwards seek', async t => {
+  const page = await openRenderer(t);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 720, height: 480 });
+  const result = await page.evaluate(async () => {
+    const renderer = window.testLyricRenderer;
+    const viewport = document.getElementById('desktopLyricPreviewViewport');
+    const lines = Array.from({ length: 150 }, (_, i) => ({
+      startMs: i * 10000, text: i === 61 ? '歌词换行后需要按实际显示高度重新定位下一句' : `第 ${i} 句`,
+    }));
+    const sample = (currentMs, playing, discontinuity) => renderer.updateLyricState({
+      currentMs, playing, discontinuity, durationMs: 1500000, status: 'ready',
+      generation: 1, sequence: ++window.testLyricSequence,
+    });
+    renderer.applySettings({ desktopLyricVisibleLines: '0', desktopLyricFontSize: '24', desktopLyricLineGap: '8',
+      desktopLyricSpringAnimation: 'false', desktopLyricHideOnPause: 'false' });
+    renderer.updateLyricTimeline({ status: 'ready', lines });
+    const rows = document.querySelectorAll('[data-lyric-index]');
+    const motion = row => row.getAnimations().find(a => a.effect.getKeyframes().some(frame => frame.translate));
+    sample(600000, false, true);
+    await document.fonts.ready;
+    await new Promise(requestAnimationFrame);
+    const start = viewport.scrollTop;
+    sample(609900, true, true);
+    const timeout = AbortSignal.timeout(5000);
+    while (!rows[61].classList.contains('is-active')) {
+      timeout.throwIfAborted();
+      await new Promise(requestAnimationFrame);
+    }
+    const natural = viewport.scrollTop;
+    const first = motion(rows[62]);
+    first.currentTime = 90;
+    const short = rows[61].offsetHeight;
+    rows[61].style.maxWidth = '220px';
+    const tall = rows[61].offsetHeight;
+    const before = rows[62].getBoundingClientRect().top;
+    sample(620000, true, false);
+    const drift = Math.abs(rows[62].getBoundingClientRect().top - before);
+    const second = motion(rows[62]);
+    sample(30000, false, true);
+    return { start, natural, short, tall, drift, seek: viewport.scrollTop,
+      cleared: first.playState === 'idle' && second.playState === 'idle',
+      active: document.querySelector('.desktop-lyric-preview-row.is-active').dataset.lyricIndex };
+  });
+  t.diagnostic(JSON.stringify(result));
+  assert.ok(result.natural > result.start);
+  assert.ok(result.tall > result.short);
+  assert.ok(result.drift < 1, 'the retargeted line should start at its displayed position');
+  assert.equal(result.cleared, true);
+  assert.equal(result.active, '3');
+  assert.ok(result.seek < result.start);
+});
+
 test('lyrics output stays transparent with light and dark text', async t => {
   const page = await openRenderer(t);
   for (const color of ['#000000', '#ffffff']) {
     await page.evaluate(color => window.testLyricRenderer.applySettings({ desktopLyricTextColor: color }), color);
     assert.equal(await page.locator('#desktopLyricPreviewStage').evaluate(element => getComputedStyle(element).backgroundColor),
       'rgba(0, 0, 0, 0)');
+  }
+});
+
+test('lyrics output keeps empty and ready content visible without reserving space for announcements', async t => {
+  const page = await openRenderer(t);
+  for (const text of ['', '这一句歌词应当完整显示']) {
+    await page.evaluate(text => {
+      const renderer = window.testLyricRenderer;
+      renderer.applySettings({ desktopLyricHideOnPause: 'false' });
+      renderer.updateLyricTimeline({ status: text ? 'ready' : 'idle', lines: text ? [{ startMs: 0, text }] : [] });
+      renderer.updateLyricState({ status: text ? 'ready' : 'idle', currentMs: 0, durationMs: 8000,
+        playing: false, generation: 1, sequence: ++window.testLyricSequence, lineText: text, discontinuity: true });
+    }, text);
+    const content = page.locator(text ? '.desktop-lyric-preview-row-text' : '.desktop-lyric-preview-empty');
+    assert.equal(await content.isVisible(), true);
+    const layout = await page.evaluate(() => {
+      const stage = document.getElementById('desktopLyricPreviewStage').getBoundingClientRect();
+      const viewport = document.getElementById('desktopLyricPreviewViewport').getBoundingClientRect();
+      const announcement = document.getElementById('desktopLyricPreviewPlayback');
+      const bounds = announcement.getBoundingClientRect();
+      return { stageHeight: stage.height, viewportHeight: viewport.height, announcement: {
+        width: bounds.width, height: bounds.height, text: announcement.textContent,
+        live: announcement.getAttribute('aria-live'),
+      } };
+    });
+    assert.ok(Math.abs(layout.stageHeight - layout.viewportHeight) < 1, 'The lyric viewport must keep the full output height.');
+    assert.ok(layout.announcement.width <= 1 && layout.announcement.height <= 1, 'Announcements must not render as a second visible lyric.');
+    assert.ok(layout.announcement.text.length > 0, 'Screen readers still receive the playback state.');
+    assert.ok((await page.locator('#desktopLyricPreviewPlayback').ariaSnapshot()).includes(layout.announcement.text),
+      'The playback state must remain in the accessibility tree.');
+    assert.equal(layout.announcement.live, 'polite');
   }
 });

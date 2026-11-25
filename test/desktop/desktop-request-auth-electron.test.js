@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const test = require('node:test');
-const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 test(
   'Electron applies main-only credentials while sandboxed overlays and other windows remain unprivileged',
@@ -35,7 +35,8 @@ test(
       clearTimeout(deadline);
       if (child.exitCode === null && child.signalCode === null) child.kill();
       await closed;
-      removeScratchDirectory(directory);
+      // Windows can still hold Chromium profile files after the Electron process closes.
+      await fs.promises.rm(directory, { recursive: true, force: true, maxRetries: 3 });
     });
     const exitCode = await closed;
     clearTimeout(deadline);

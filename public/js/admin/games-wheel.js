@@ -17,24 +17,40 @@ export function initWheelAdmin() {
   byId('wheelAddEntryBtn').addEventListener('click', addWheelEntry);
   byId('wheelSaveBtn').addEventListener('click', () => saveWheel().catch(showError));
   byId('wheelSpinBtn').addEventListener('click', () => spinWheel().catch(showError));
-  window.addEventListener('app:wheel-update', (event) => renderWheelState(event.detail));
+  const update = event => {
+    const request = ++wheelRequest;
+    if (canApplyResponse(request, event.detail)) renderWheelState(event.detail);
+  };
+  window.addEventListener('app:wheel-update', update);
   const offReconnect = eventBus.on('ws:connected', () => refreshWheel().catch(showError));
-  window.addEventListener('app:shutdown', () => { wheelRequest += 1; offReconnect(); }, { once: true });
+  eventBus.once('app:shutdown', () => {
+    wheelRequest += 1;
+    wheelState = null;
+    offReconnect();
+    window.removeEventListener('app:wheel-update', update);
+  });
   byId('wheelOverlayUrl').textContent = wheelOverlayUrl();
   return refreshWheel();
+}
+
+function canApplyResponse(request, data) {
+  // A reconnect can read the old state before an outstanding write reaches the service.
+  if (data?.runtimeId && data.runtimeId === wheelState?.runtimeId && data.revision !== wheelState.revision) {
+    return data.revision > wheelState.revision;
+  }
+  return request === wheelRequest;
 }
 
 async function refreshWheel() {
   const request = ++wheelRequest;
   const response = await fetch('/api/wheel', { cache: 'no-store' });
   const payload = await readJsonResponse(response, '读取转盘设置失败');
-  if (request !== wheelRequest) return;
+  if (!canApplyResponse(request, payload.data)) return;
   if (!payload.ok) throw new Error(payload.error || '读取转盘设置失败');
   renderWheelState(payload.data);
 }
 
 export function renderWheelState(state, options = {}) {
-  wheelRequest += 1;
   const syncEntries = options.syncEntries || !hasWheelDraft();
   wheelState = state || {
     entries: [],
@@ -190,10 +206,11 @@ function updateWheelTotal() {
 async function saveWheel() {
   if (pending || wheelState?.spin) return;
   pending = true;
+  const request = ++wheelRequest;
   updateWheelControls();
   try {
     const result = await api('/api/wheel/config', { entries: readWheelEntries() });
-    renderWheelState(result.data, { syncEntries: true });
+    if (canApplyResponse(request, result.data)) renderWheelState(result.data, { syncEntries: true });
     toast('转盘设置已保存');
   } finally {
     pending = false;
@@ -208,7 +225,7 @@ async function spinWheel() {
   updateWheelControls();
   try {
     const result = await api('/api/wheel/spin');
-    if (request === wheelRequest) renderWheelState(result.data);
+    if (canApplyResponse(request, result.data)) renderWheelState(result.data);
   } finally {
     pending = false;
     updateWheelControls();

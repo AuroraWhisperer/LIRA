@@ -284,6 +284,7 @@ test('editable media uses the output font size and scales with selected text', a
 
 test('gift chips are indivisible, removable with undo, and media inserts preserve images and kaomoji', async (t) => {
   const page = await mount(t, [{ type: 'text', text: '开头' }]);
+  await page.evaluate(() => Object.defineProperty(crypto, 'randomUUID', { value: undefined }));
   await selectText(page, '开头', 2, 2);
   await page.getByRole('button', { name: '礼物图片', exact: true }).click();
   await page.getByRole('button').filter({ hasText: '测试礼物' }).click();

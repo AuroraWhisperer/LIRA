@@ -1,87 +1,62 @@
-# ADR-0011: Source-Partitioned Gift Ledger Projection
+# ADR-0011: 按来源隔离的本地礼物账本投影
 
-- Status: Accepted
-- Date: 2026-09-01
-- Source identity superseded by [ADR-0019](0019-stable-gift-source-owner.md):
-  stable Streamer ID distinguishes same-name recreated owners.
-- Live reception refined by [ADR-0021](0021-atomic-live-gift-progress.md):
-  validated contiguous SSE finals commit with their durable cursor; HTTP remains
-  the recovery and periodic reconciliation path.
+## 状态
 
-## Context
+已采纳（2026-09-01）
 
-ADR-0006 made `gift_events` the local shared gift ledger, and the first
-server-authoritative delivery design added a main-process live cursor. That
-cursor intentionally established a latest baseline for a fresh client. The
-persisted cursor and ledger rows do not currently share a transaction or a
-verified streamer partition, so the design cannot safely claim complete history
-or switch principals in one installation.
+- 来源身份已由 [ADR-0019](0019-stable-gift-source-owner.md) 替代：以稳定的主播 ID（Streamer ID）区分同名重建账号。
+- 实时接收机制已由 [ADR-0021](0021-atomic-live-gift-progress.md) 细化：校验通过的连续 SSE 终态事件与持久化游标在同一事务中原子提交，HTTP 保留为恢复与周期核对通道。
+- 永久明细保留假设已由 [ADR-0024](0024-gift-retention.md) 替代：支持按保留窗口清理已归档明细，同时永久保留按日统计汇总。
 
-## Decision
+## 背景
 
-The client keeps one SQLite projection per canonical server/account source in
-the existing gift database. `gift_sources` owns the hashed source identity,
-`gift_events.source_id` partitions projected rows, and `gift_sync_state` owns
-bootstrap token, epoch, final cursor, projection generation, and validation
-watermark. Rows and synchronization progress commit in the same gift database
-transaction.
+[ADR-0006](0006-shared-gift-detection-core.md) 将 `gift_events` 定为本地共享礼物账本，初版服务端权威交付方案在主进程引入了实时游标，用于为新客户端建立最新基线。但当时的持久化游标与账本记录既不在同一事务中提交，也没有按已验证的主播身份分区，因此无法安全宣称本地历史完整，也无法在同一安装实例内安全切换账号主体。
 
-Historical bootstrap uses a side-effect-free importer. It never enters the live
-detection/consumer pipeline. SSE remains an acceleration hint and epoch-aware
-cursor pull remains recovery truth. Authorization switching and projection
-replacement are guarded by an immutable source/auth/controller/projection fence
-and drain old work before another source is exposed.
+## 决策
 
-The renderer never selects a source. Local gift history and statistics resolve
-the active verified source in the main/server composition boundary. A server
-without history bootstrap support remains compatible for new final events but
-the projection is explicitly `LEGACY_PARTIAL`.
+客户端在现有礼物数据库中按规范的服务端与账号来源维护独立的 SQLite 投影：`gift_sources` 管理哈希后的来源标识，`gift_events.source_id` 按来源隔离投影记录，`gift_sync_state` 管理初始化令牌、纪元（`epoch`）、终态游标、投影代次（`projection generation`）及核对水位线。礼物记录与同步进度在同一礼物库事务中原子提交。
 
-## Consequences
+历史初始化同步走无业务副作用的导入通道，绝不进入实时检测与业务消费者管线。SSE 保持为实时加速通知，支持纪元感知的游标拉取作为恢复事实依据。授权切换与投影重建由不可变的来源/授权/控制器/投影防护校验（fence）守护，在暴露新来源前先排空旧任务。
 
-### Positive
+渲染进程无权自行选择来源；本地礼物历史与统计在主进程/服务端组合根边界解析当前已验证的活动来源。若对接的旧服务端不支持历史初始化接口，客户端仍兼容接收新终态事件，但投影状态显式标为 `LEGACY_PARTIAL`。
 
-- Complete paid gift history and offline local statistics can be verified.
-- Multiple streamers can reuse one installation without cross-source reads or
-  event-ID deduplication collisions.
-- Clearing and rebuilding cannot leave a cursor that falsely describes deleted
-  or stale rows.
-- Historical recovery cannot trigger old live business effects.
+## 影响
 
-### Negative
+### 正面影响
 
-- Gift storage, authorization lifecycle, remote delivery, and local queries now
-  share a stricter transactional/fence contract.
-- Existing unpartitioned remote rows cannot be attributed and remain legacy
-  diagnostic data outside active-source queries.
+- 可验证完整的付费礼物历史与离线本地统计。
+- 多名主播可安全共用同一安装实例，不会出现跨来源读取或事件 ID 去重冲突。
+- 清库与重建不会留下指向已删或过期记录的失真游标。
+- 历史恢复不会误触发过往的实时业务副作用。
 
-### Neutral
+### 代价
 
-- The existing five-database layout and live consumer registry remain.
-- Old server/client baseline behavior remains a compatibility mode rather than
-  a completeness guarantee.
+- 礼物存储、授权生命周期、远端投递与本地查询需共同遵守更严格的事务与防护校验约束。
+- 既有未分区的历史远端记录无法可靠归属主播，只能作为遗留诊断数据隔离在活动来源查询之外。
 
-## Alternatives Considered
+### 中性影响
 
-**Reuse the JSON cursor and infer ownership for existing rows**
+- 既有五库布局与实时消费者注册表保持不变。
+- 旧服务端/客户端基线行为降级为兼容模式，不提供历史完整性保证。
 
-- Rejected because its old key included mutable/device-specific inputs and no
-  transaction proves which streamer owns existing ledger rows.
+## 备选方案
 
-**Clear all gifts whenever the streamer changes**
+**继续复用旧 JSON 游标并推断既有记录归属**
 
-- Rejected because it destroys offline history, makes switching expensive, and
-  still does not fence late responses.
+- 否决：旧键混入了可变或设备相关输入，且缺乏事务证据证明既有账本记录属于哪位主播。
 
-**Feed bootstrap records through the live importer**
+**每次切换主播时清空全部本地礼物**
 
-- Rejected because historical data must not run sprint, overtime, snapshot,
-  frame, or finalization side effects.
+- 否决：会破坏离线历史、抬高切号成本，且依然无法防护迟到响应串写。
 
-## References
+**让初始化历史记录走实时导入通道**
 
-- `specs/gift-ledger-projection-sync_design.md`
-- `specs/server-authoritative-gift-detection_design.md`
-- `src/storage/gift-sync-store.js`
-- `src/electron/remote-gift-controller.js`
-- `src/bilibili/gift/query-service.js`
+- 否决：历史数据绝不能触发礼物冲刺、加班机结算、快照广播、动效帧或终态副作用。
+
+## 参考
+
+- [礼物账本投影同步设计规格](../../../specs/gift-ledger-projection-sync_design.md)
+- [服务端权威礼物检测设计规格](../../../specs/server-authoritative-gift-detection_design.md)
+- [gift-sync-store.js](../../../src/storage/gift-sync-store.js)
+- [remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)
+- [query-service.js](../../../src/bilibili/gift/query-service.js)

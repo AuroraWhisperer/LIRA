@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomUUID } = require('node:crypto');
 const { createFanRecordStore } = require('./fan-record-store');
 const { pruneFanRestoreSnapshots } = require('./fan-snapshot-retention');
@@ -48,10 +50,16 @@ function createFanProfileStore(db) {
     return decodeProfile(db.prepare('SELECT * FROM fan_profiles WHERE scope = ? AND identity_key = ?').get(scope, key));
   }
 
+  function byIdentities(scope, keys) {
+    const rows = db.prepare(`SELECT * FROM fan_profiles WHERE scope = ?
+      AND identity_key IN (SELECT value FROM json_each(?))`).all(scope, JSON.stringify(keys));
+    return new Map(rows.map(row => [row.identity_key, decodeProfile(row)]));
+  }
+
   function save(scope, profile, key, now) {
     const duplicate = key ? byIdentity(scope, key) : null;
     if (duplicate && duplicate.id !== profile.id) {
-      const error = new Error('该身份已有档案，请打开已有档案或明确合并。');
+      const error = createPublicError('该身份已有档案，请打开已有档案或明确合并。');
       error.existingId = duplicate.id;
       throw error;
     }
@@ -62,7 +70,7 @@ function createFanProfileStore(db) {
         updated_at = ? WHERE scope = ? AND id = ? AND revision = ?`,
         )
         .run(key, JSON.stringify(profile), now, scope, profile.id, profile.revision);
-      if (result.changes !== 1) throw new Error('档案已更新，请重新加载后核对；未保存的输入仍保留。');
+      if (result.changes !== 1) throw createPublicError('档案已更新，请重新加载后核对；未保存的输入仍保留。');
       return get(scope, profile.id);
     }
     const id = randomUUID();
@@ -103,7 +111,7 @@ function createFanProfileStore(db) {
   }
 
   function saveState(scope, profileId, key, data) {
-    if (!get(scope, profileId)) throw new Error('档案不存在。');
+    if (!get(scope, profileId)) throw createPublicError('档案不存在。');
     db.prepare(
       `INSERT INTO fan_reminder_states (scope, profile_id, item_key, data) VALUES (?, ?, ?, ?)
       ON CONFLICT(scope, profile_id, item_key) DO UPDATE SET data = excluded.data`,
@@ -134,7 +142,7 @@ function createFanProfileStore(db) {
   function remove(scope, id, suppress) {
     return transaction(() => {
       const row = db.prepare('SELECT identity_key FROM fan_profiles WHERE scope = ? AND id = ?').get(scope, id);
-      if (!row) throw new Error('档案不存在。');
+      if (!row) throw createPublicError('档案不存在。');
       if (suppress && row.identity_key) {
         db.prepare('INSERT OR IGNORE INTO fan_suppressions VALUES (?, ?)').run(scope, row.identity_key);
       }
@@ -157,7 +165,7 @@ function createFanProfileStore(db) {
         const batch = ids.slice(offset, offset + 500);
         const result = db.prepare(`DELETE FROM fan_profiles WHERE scope = ? AND id IN (${batch.map(() => '?').join(', ')})`)
           .run(scope, ...batch);
-        if (Number(result.changes) !== batch.length) throw new Error('档案不存在。');
+        if (Number(result.changes) !== batch.length) throw createPublicError('档案不存在。');
       }
       if (ids.length) records.pruneRosterTemplates(scope);
       return ids.length;
@@ -201,7 +209,7 @@ function createFanProfileStore(db) {
   }
 
   function moveRecords(scope, from, to, at) {
-    if (!get(scope, from) || !get(scope, to)) throw new Error('待合并档案不存在。');
+    if (!get(scope, from) || !get(scope, to)) throw createPublicError('待合并档案不存在。');
     const songs = records.list(scope, from).filter((record) => record.kind === 'song');
     db.prepare("DELETE FROM fan_records WHERE scope = ? AND profile_id = ? AND kind = 'song'").run(scope, from);
     for (const song of songs) records.insert(scope, to, song, at);
@@ -223,7 +231,7 @@ function createFanProfileStore(db) {
 
   function getSnapshot(scope, id) {
     const row = db.prepare('SELECT data FROM fan_restore_snapshots WHERE scope = ? AND id = ?').get(scope, id);
-    if (!row) throw new Error('恢复点不存在或不属于当前账号。');
+    if (!row) throw createPublicError('恢复点不存在或不属于当前账号。');
     return JSON.parse(row.data);
   }
 
@@ -251,7 +259,7 @@ function createFanProfileStore(db) {
 
   function claimRequest(id, scope) {
     const row = db.prepare('SELECT stable_id, owner_scope FROM requests WHERE id = ?').get(id);
-    if (!row || (row.owner_scope && row.owner_scope !== scope)) throw new Error('点歌归属已变化，请重新预览。');
+    if (!row || (row.owner_scope && row.owner_scope !== scope)) throw createPublicError('点歌归属已变化，请重新预览。');
     const stableId = row.stable_id || randomUUID();
     db.prepare('UPDATE requests SET stable_id = ?, owner_scope = ?, identity_type = ? WHERE id = ?').run(
       stableId,
@@ -267,6 +275,7 @@ function createFanProfileStore(db) {
     get,
     list,
     byIdentity,
+    byIdentities,
     save,
     records,
     markSongRequest(scope, stableId) {

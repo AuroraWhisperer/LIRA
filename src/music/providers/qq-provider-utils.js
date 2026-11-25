@@ -7,9 +7,17 @@ const { decodeXmlEntities } = require('../qrc-xml-entities');
 
 const { decryptQrc } = require('qrc-decoder');
 
+function qqSongMid(song) {
+  return String(song.mid || song.songmid || song.song_mid || song.SongMid || song.songMid || '').trim();
+}
+
+function qqSongId(song) {
+  return Number(song.id || song.songid || song.songId || song.song_id || song.SongId || song.SongID || 0);
+}
+
 function mapQQSong(song) {
   if (!song) return null;
-  const sourceTrackId = String(song.mid || song.songmid || song.song_mid || song.SongMid || song.songMid || '').trim();
+  const sourceTrackId = qqSongMid(song);
   const title = String(song.title || song.name || song.songname || song.SongName || song.SongTitle || '').trim();
   if (!sourceTrackId || !title) return null;
   const album = song.album || {};
@@ -20,9 +28,7 @@ function mapQQSong(song) {
   const sourceMediaId = String(
     (song.file && (song.file.media_mid || song.file.mediaMid)) || song.media_mid || song.mediaMid || sourceTrackId,
   ).trim();
-  const numericSongId = Number(
-    song.id || song.songid || song.songId || song.song_id || song.SongId || song.SongID || 0,
-  );
+  const numericSongId = qqSongId(song);
   const sourceSongType = normalizeQQSongType(song.type ?? song.songtype ?? song.songType ?? song.SongType);
   return {
     id: `qq:${sourceTrackId}`,
@@ -313,6 +319,8 @@ module.exports = {
   hasQQMusicAuthCookie,
   mapQQPlaylist,
   mapQQSong,
+  qqSongId,
+  qqSongMid,
   mapRecommendCard,
   normalizeQQPlaylistSongInfo,
   normalizeQQPlaylistWriteTarget,

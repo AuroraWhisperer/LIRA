@@ -44,6 +44,9 @@
 /* Toast 通知 */
 @import url('./admin/toasts.css');
 
+/* Shared rich-text tools used by gift wishes and text boxes. */
+@import url('./admin/rich-text-toolbar.css');
+
 /* 礼物相关样式 */
 @import url('./admin/gifts.css');
 

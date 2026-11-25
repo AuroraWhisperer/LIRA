@@ -5,16 +5,6 @@
   outline: 2px solid var(--color-control-focus);
   outline-offset: -2px;
 }
-.planner-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
 /* In short workspaces, read the planner through its main scrolling region. */
 @media (max-height: 700px) {
   .streamer-planner :is(.planner-note-list, .planner-task-list) {

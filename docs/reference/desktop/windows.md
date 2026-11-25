@@ -1,42 +1,46 @@
 # 辅助窗口：音乐登录窗、B 站登录窗、全屏取色
 
-> 涉及文件：[src/electron/music-login-window.js](../../../src/electron/music-login-window.js)、[src/electron/bilibili-login-window.js](../../../src/electron/bilibili-login-window.js)、[src/electron/doubao-session.js](../../../src/electron/doubao-session.js)、[src/electron/screen-color-picker.js](../../../src/electron/screen-color-picker.js)
+> 涉及文件：[src/electron/login-window.js](../../../src/electron/login-window.js)、[src/electron/music-login-window.js](../../../src/electron/music-login-window.js)、[src/electron/bilibili-login-window.js](../../../src/electron/bilibili-login-window.js)、[src/electron/doubao-session.js](../../../src/electron/doubao-session.js)、[src/electron/screen-color-picker.js](../../../src/electron/screen-color-picker.js)
 
 主窗口规格见 [main.md](main.md)；登录分区、登录地址、Cookie 快照与登录检测逻辑见 [auth.md](auth.md)（本文档只说明辅助窗口本身的行为）；全部 IPC 通道见 [preload.md](preload.md) §2。
 
 ## 1. 音乐平台登录窗（`music-login-window.js`）
 
-`loginMusicAccount(mainWindow, platform, dataDir)`（[music-login-window.js:9-90](../../../src/electron/music-login-window.js#L9-L90)）为**通用实现**，平台参数来自 `music-auth-manager.js` 的 `MUSIC_LOGIN_CONFIG`（分区、登录 URL 与允许域名见 [auth.md](auth.md) §1–§3）：
+`loginMusicAccount(mainWindow, platform, dataDir, {signal, writeLog})`（[music-login-window.js](../../../src/electron/music-login-window.js)）将平台配置与认证操作交给共享的 [login-window.js](../../../src/electron/login-window.js)。平台参数来自 `music-auth-manager.js` 的 `MUSIC_LOGIN_CONFIG`（分区、登录 URL 与允许域名见 [auth.md](auth.md) §1–§3）：
 
 | 项目 | 配置与行为 | 出处 |
 | --- | --- | --- |
-| 窗口形态 | `1000×720`，父窗口为主窗口，`modal: false` | [music-login-window.js:11-15](../../../src/electron/music-login-window.js#L11-L15) |
-| `webPreferences` | 指定平台的持久化分区（隔离登录态），`nodeIntegration: false`、`contextIsolation: true`、`sandbox: true`，**无预加载脚本** | [music-login-window.js:16-21](../../../src/electron/music-login-window.js#L16-L21) |
-| 权限 | `setPermissionRequestHandler` 一律拒绝 | [music-login-window.js:25](../../../src/electron/music-login-window.js#L25) |
-| 初始 URL | 对应平台登录 URL（见 [auth.md](auth.md) §2） | [music-login-window.js:70](../../../src/electron/music-login-window.js#L70) |
+| 窗口形态 | `1000×720`，父窗口为主窗口，`modal: false` | [login-window.js](../../../src/electron/login-window.js) |
+| `webPreferences` | 指定平台的持久化分区（隔离登录态），`nodeIntegration: false`、`contextIsolation: true`、`sandbox: true`，**无预加载脚本** | 同上 |
+| 权限 | `setPermissionRequestHandler` 一律拒绝 | 同上 |
+| 初始 URL | 对应平台登录 URL（见 [auth.md](auth.md) §2） | 同上 |
 
-**导航白名单**：[music-login-window.js](../../../src/electron/music-login-window.js) 的 `setWindowOpenHandler`、`will-navigate` 与主框架 `will-redirect` 共用 `isAllowedLoginNavigation(url, config.allowedHosts)`，仅允许对应音乐平台的 HTTPS 域名及其子域。允许的弹窗目标在当前窗口调用 `loadURL` 打开；显式外部链接仅在通过 `isAllowedExternal` 校验时交由系统浏览器打开。主框架越界重定向一律阻止，不自动打开系统浏览器；子框架重定向不套用顶层页面规则。`setWindowOpenHandler` 始终返回 `{action:'deny'}`，不新建 Electron 窗口。
+**导航白名单**：[login-window.js](../../../src/electron/login-window.js) 的 `setWindowOpenHandler`、`will-navigate` 与主框架 `will-redirect` 共用 `isAllowedLoginNavigation(url, config.allowedHosts)`，仅允许对应音乐平台的 HTTPS 域名及其子域。允许的弹窗目标在当前窗口调用 `loadURL` 打开；显式外部链接仅在通过 `isAllowedExternal` 校验时交由系统浏览器打开。主框架越界重定向一律阻止，不自动打开系统浏览器；子框架重定向不套用顶层页面规则。`setWindowOpenHandler` 始终返回 `{action:'deny'}`，不新建 Electron 窗口。
 
 **关闭与登录检测联动**：窗口监听 Cookie 变更并按 1.5s 轮询兜底，检测到登录成功后自动 `close()`；窗口 `closed` 时清理定时器与监听器、执行最终强制落盘并返回 `{platform, snapshot, state}`（防抖落盘、轮询与防重入细则见 [auth.md](auth.md) §9）。
 
+主框架加载失败的 `music-login-load-failure` 日志包含 `platform`、`errorCode` 与 `errorDescription`；其他错误日志保留原始 Error 对象交给桌面日志脱敏，子框架失败不关闭登录窗口。
+
 ## 2. B 站登录窗（`bilibili-login-window.js`）
 
-`openBilibiliLoginWindow(options)`（[bilibili-login-window.js:3-131](../../../src/electron/bilibili-login-window.js#L3-L131)）采用依赖注入方式（由 `main.js` 传入 `BrowserWindow`、`shell` 和 `auth` 适配器），整体结构与音乐登录窗一致：
+`openBilibiliLoginWindow(options)`（[bilibili-login-window.js](../../../src/electron/bilibili-login-window.js)）接收 `BrowserWindow`、`shell` 和 `auth` 适配器，同样通过 `login-window.js` 管理窗口：
 
 | 项目 | 配置与行为 | 出处 |
 | --- | --- | --- |
-| 初始 URL | `https://live.bilibili.com/`（见 [auth.md](auth.md) §2） | [bilibili-login-window.js:120](../../../src/electron/bilibili-login-window.js#L120) |
-| 持久化分区 | Bilibili 持久化登录分区（见 [auth.md](auth.md) §1） | [bilibili-login-window.js:23](../../../src/electron/bilibili-login-window.js#L23) |
-| 默认静音 | `webContents.setAudioMuted(true)` — 防止直播首页自动播放带声音的直播流；静音为 `webContents` 级属性，跨页内导航持续生效 | [bilibili-login-window.js:31](../../../src/electron/bilibili-login-window.js#L31) |
-| 权限 | 拒绝所有权限请求 | [bilibili-login-window.js:34](../../../src/electron/bilibili-login-window.js#L34) |
-| 导航 | 与音乐登录窗共用 `isAllowedLoginNavigation` HTTPS 域名规则；显式外链按外部策略打开，主框架越界重定向仅阻止（域名清单见 [auth.md](auth.md) §3） | [bilibili-login-window.js](../../../src/electron/bilibili-login-window.js) |
+| 初始 URL | `https://live.bilibili.com/`（见 [auth.md](auth.md) §2） | [bilibili-auth.js](../../../src/electron/bilibili-auth.js) |
+| 持久化分区 | Bilibili 持久化登录分区（见 [auth.md](auth.md) §1） | 同上 |
+| 默认静音 | 入口传入 `muted: true`，共享窗口调用 `webContents.setAudioMuted(true)`，防止直播首页自动播放带声音的直播流；静音跨页内导航持续生效 | [bilibili-login-window.js](../../../src/electron/bilibili-login-window.js)、[login-window.js](../../../src/electron/login-window.js) |
+| 权限 | 拒绝所有权限请求 | [login-window.js](../../../src/electron/login-window.js) |
+| 导航 | 与音乐登录窗共用 HTTPS 域名规则；显式外链按外部策略打开，主框架越界重定向仅阻止（域名清单见 [auth.md](auth.md) §3） | 同上 |
 
-与音乐登录窗的差异：
+入口保留 B 站专用的认证与诊断：
 
-- **登录检测与防重入**：优先调用注入的 `getBilibiliSessionState()`（兼容仅提供 `getBilibiliAuthState()` 的适配器），并通过 `loginCheckInFlight` 与 `loginCloseRequested` 防止重复检测和重复自动关闭；详细时序与 `closed` 时清理旧 `cookies.txt` 规则见 [auth.md](auth.md) §6、§9。
-- **加载失败处理**：`loadURL` 失败时清理监听器并立即 `destroy()` 窗口，将异常抛回 IPC 调用方（[bilibili-login-window.js:119-125](../../../src/electron/bilibili-login-window.js#L119-L125)）。
+- **登录检测**：优先调用注入的 `getBilibiliSessionState()`（兼容仅提供 `getBilibiliAuthState()` 的适配器）；详细时序与 `closed` 时清理旧 `cookies.txt` 规则见 [auth.md](auth.md) §6、§9。
+- **诊断摘要**：通过 `onEvent` 记录打开、加载失败与关闭结果；关闭记录只包含认证摘要、是否自动关闭及快照是否保存，不输出 Cookie。
 
 ## 3. 生命周期与 IPC 语义
+
+音乐与 B 站窗口均固定调用方提供的标题，阻止页面修改原生标题；共享的 `loginCheckInFlight` 与 `loginCloseRequested` 防止重复检测和重复自动关闭。初次 `loadURL` 失败时清理监听、销毁窗口并等待关闭后的写入收尾，再将异常抛回调用方（主动取消则返回关闭结果）。音乐入口由 `desktop-auth-controller` 注入桌面 `writeLog`，保存、状态读取和导航异常沿用统一脱敏，不直接输出原始异常到控制台。
 
 抽奖专用登录复用 `openBilibiliLoginWindow`，通过可选 `title` 设置「登录抽奖专用账号」，并通过 `signal` 在退出、授权变化或软件关闭时销毁窗口；`onWindowReady` 仅供抽奖认证模块保存窗口句柄并在重复点击时聚焦窗口。默认标题和直播登录行为不变，分区与登录 URL 见 [auth.md](auth.md) §14。取消监听会与原有定时器、Cookie 监听一并清理，抽奖认证模块等待窗口关闭后的写入排空，且不向渲染进程返回原始快照。
 

@@ -7,20 +7,39 @@ const EVENT_TTL_MS = 60000;
 
 function createDanmakuDeliveryVerifier(options = {}) {
   const now = options.now || Date.now;
-  const events = [];
+  const sentChunks = new Set();
   const pending = new Set();
   let disposed = false;
 
-  function observe(danmaku = {}) {
+  function trackSend({ accountUid, message, mentionName }) {
     if (disposed) return;
+    const sentAt = now();
+    pruneChunks(sentAt);
+    const target = cleanText(mentionName);
+    const text = cleanText(message);
+    sentChunks.add({ uid: cleanText(accountUid), message: text, mentionName: target,
+      mentioned: target ? `@${target} ${text}` : null, sentAt, echoAt: null });
+  }
+
+  function observe(danmaku = {}) {
+    if (disposed || (!sentChunks.size && !pending.size)) return;
     const uid = cleanText(danmaku.uid);
-    const message = cleanText(danmaku.message);
-    if (!uid || !message) return;
-    const event = { uid, message, observedAt: now(), consumed: false };
-    events.push(event);
-    pruneEvents();
-    // Existing waiters already checked the buffer; only the new event can add a match.
-    for (const waiter of pending) checkWaiter(waiter, [event]);
+    const observedAt = now();
+    pruneChunks(observedAt);
+    let message;
+    let expected;
+    for (const chunk of sentChunks) {
+      if (chunk.uid !== uid || chunk.echoAt !== null) continue;
+      message ??= cleanText(danmaku.message);
+      // A failed send can leave an older expectation for the same chunk.
+      if (message === chunk.message || message === chunk.mentioned) expected = chunk;
+    }
+    for (const waiter of pending) {
+      if (waiter.accountUid !== uid || waiter.sentAfter > observedAt) continue;
+      message ??= cleanText(danmaku.message);
+      if (match(waiter, message, expected)) return;
+    }
+    if (expected) expected.echoAt = observedAt;
   }
 
   function waitForDelivery(delivery = {}) {
@@ -44,27 +63,30 @@ function createDanmakuDeliveryVerifier(options = {}) {
       if (waiter.signal) {
         waiter.onAbort = () => finish(waiter, false);
         waiter.signal.addEventListener('abort', waiter.onAbort, { once: true });
-        if (waiter.signal.aborted) waiter.onAbort();
+        if (waiter.signal.aborted) return waiter.onAbort();
       }
-      checkWaiter(waiter);
+      pruneChunks(now());
+      for (const chunk of sentChunks) {
+        if (chunk.uid !== waiter.accountUid || chunk.echoAt === null || chunk.echoAt < waiter.sentAfter) continue;
+        match(waiter, chunk.message, chunk);
+        if (!pending.has(waiter)) break;
+      }
       if (!pending.has(waiter)) return;
       const timeoutMs = Math.max(1, Number(delivery.timeoutMs) || DEFAULT_TIMEOUT_MS);
       waiter.timer = setTimeout(() => finish(waiter, false), timeoutMs);
     });
   }
 
-  function checkWaiter(waiter, candidates = events) {
-    for (const event of candidates) {
-      if (event.consumed || event.uid !== waiter.accountUid || event.observedAt < waiter.sentAfter) continue;
-      const index = findExpectedMessage(waiter, event.message);
-      if (index < 0) continue;
-      event.consumed = true;
-      waiter.matched.add(index);
-      if (waiter.matched.size === waiter.messages.length) {
-        finish(waiter, true);
-        return;
-      }
-    }
+  function match(waiter, message, chunk) {
+    if (chunk && (chunk.sentAt < waiter.sentAfter || (chunk.mentionName && chunk.mentionName !== waiter.mentionName))) return false;
+    const index = chunk
+      ? waiter.messages.findIndex((text, i) => !waiter.matched.has(i) && text === chunk.message)
+      : findExpectedMessage(waiter, message);
+    if (index < 0) return false;
+    if (chunk) sentChunks.delete(chunk);
+    waiter.matched.add(index);
+    if (waiter.matched.size === waiter.messages.length) finish(waiter, true);
+    return true;
   }
 
   function findExpectedMessage(waiter, observedMessage) {
@@ -88,16 +110,18 @@ function createDanmakuDeliveryVerifier(options = {}) {
   function dispose() {
     if (disposed) return;
     disposed = true;
-    events.length = 0;
+    sentChunks.clear();
     for (const waiter of Array.from(pending)) finish(waiter, false);
   }
 
-  function pruneEvents() {
-    const cutoff = now() - EVENT_TTL_MS;
-    while (events.length && events[0].observedAt < cutoff) events.shift();
+  function pruneChunks(time) {
+    for (const chunk of sentChunks) {
+      if (chunk.sentAt >= time - EVENT_TTL_MS) break;
+      if (chunk.echoAt === null || chunk.echoAt < time - EVENT_TTL_MS) sentChunks.delete(chunk);
+    }
   }
 
-  return { observe, waitForDelivery, dispose };
+  return { trackSend, observe, waitForDelivery, dispose };
 }
 
 module.exports = {

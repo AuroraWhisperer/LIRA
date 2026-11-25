@@ -4,7 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { getClockConfig, normalizeClockSettingValue, normalizeClockStyleOptions } = require('./clock-contract');
 const { CLOCK_APPEARANCE_KEYS } = require('../../public/js/shared/clock-settings.js');
 const { normalizeSettingsPatch } = require('./settings-contract');
-const { projectOverlayState } = require('./overlay-projection');
+const { projectOverlayState, projectRoomGuard } = require('./overlay-projection');
 const { validateBackground } = require('../overtime/overtime-contract');
 const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../shared/danmaku-style-options');
 const { createLayout, normalizeLayout } = require('../shared/danmaku-layout');
@@ -193,7 +193,7 @@ function createSceneComponentPorts({ getState, cloud, getDanmakuConfig, getExtra
     if (displayContext) displayContext.readState = readState;
     const data = {};
     if (needsRoomGuard) {
-      const roomGuard = projectOverlayState('queue', readState()).roomGuard;
+      const roomGuard = projectRoomGuard(readState().roomGuard);
       if (roomGuard) data.roomGuard = roomGuard;
     }
     const pending = [];

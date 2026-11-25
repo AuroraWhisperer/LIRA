@@ -34,11 +34,11 @@ async function installResourceStyles(dataDir) {
   return styles;
 }
 
-async function mountResourceStylePage(page) {
+async function mountResourceStylePage(page, { waitForInitialLoad = true } = {}) {
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
   // A reload must not abort the Electron host's still-pending initial loadURL.
-  await page.waitForLoadState('load');
-  await page.route('**/api/gifts/wishes', route => route.fulfill({ json: { ok: true, data: {
+  if (waitForInitialLoad) await page.waitForLoadState('load');
+  await page.route(/\/api\/gifts\/wishes(?:\?includeSession=0)?$/, route => route.fulfill({ json: { ok: true, data: {
     viewRevision: 'resource-styles', items: [], partial: false, guards: [], session: { state: 'live' },
   } } }));
   await page.route('**/api/overtime/gifts/catalog', route => route.fulfill({ json: { ok: true, data: { gifts: [
@@ -51,6 +51,7 @@ async function mountResourceStylePage(page) {
     for (const id of ['guardThanksPanel', 'otherClockFeature', 'giftWishesPanel', 'themePage', 'desktopLyricPage']) {
       const panel = source.getElementById(id);
       panel.hidden = false; panel.style.display = 'block'; document.body.append(panel);
+      if (panel.classList.contains('tab-page')) panel.classList.add('active');
     }
     const { initGuardThanks, renderGuardThanks } = await import('/js/admin/gift-guard-thanks.js');
     initGuardThanks(); renderGuardThanks({ guardThanksNauticalEnabled: 'false' });

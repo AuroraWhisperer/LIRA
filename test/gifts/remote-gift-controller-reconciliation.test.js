@@ -13,6 +13,104 @@ const {
   waitFor,
 } = require('../helpers/remote-gift-controller-fixture');
 
+test('unchanged retention summaries preserve the live stream and only request daily maintenance once', async (t) => {
+  const f = createFixture({
+    initialState: { bootstrapComplete: true, finalCursor: 10, syncEpoch: 'epoch-1' },
+    discovery: capabilityPage({ giftRetentionVersion: 1 }),
+  });
+  let time = Date.parse('2026-09-01T02:00:00Z');
+  let summaries = 0;
+  let maintenance = 0;
+  f.options.now = () => new Date(time).toISOString();
+  f.options.runtime.getGiftRetentionProgress = () => ({ active: { revision: 1, detail_start: '2026-06-01' } });
+  f.options.runtime.pruneLocalGiftRetention = () => maintenance++;
+  f.options.licenseManager.getGiftSummariesInternal = async () => {
+    summaries++;
+    return { revision: 1, syncEpoch: 'epoch-1', detailStart: '2026-06-01', rows: [], hasMore: false };
+  };
+  const controller = createRemoteGiftController(f.options);
+  t.after(() => controller.dispose());
+  await controller.start();
+  const pulls = f.pullCalls.length;
+  for (const milliseconds of [10000, 600000, 86400000]) {
+    time += milliseconds;
+    f.scheduledTimers.at(-1).callback();
+    await controller.whenIdle();
+  }
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  assert.equal(summaries, 3);
+  assert.equal(f.streamSignals.length, 1);
+  assert.equal(f.streamSignals[0].aborted, false);
+  assert.equal(f.pullCalls.length - pulls, 3);
+  assert.equal(maintenance, 2);
+});
+
+test('retention staging invalidates a pending SSE reconnect and honors its remaining Retry-After', async (t) => {
+  const f = createFixture({
+    initialState: { bootstrapComplete: true, finalCursor: 10, syncEpoch: 'epoch-1' },
+    discovery: capabilityPage({ giftRetentionVersion: 1 }),
+  });
+  const { runtime, licenseManager } = f.options;
+  const current = { revision: 1, syncEpoch: 'epoch-1', detailStart: '2026-06-01', rows: [], hasMore: false };
+  let time = Date.parse('2026-09-01T02:00:00Z');
+  f.options.now = () => new Date(time).toISOString();
+  runtime.getGiftRetentionProgress = () => ({ active: { revision: 1, detail_start: current.detailStart } });
+  runtime.commitGiftSummaryPage = ({ page }) => ({ staging: {
+    id: 2, member_snapshot_id: 1, covered_cursor: 10,
+    phase: page.hasMore ? 'summaries' : 'catchup', summary_page_token: page.nextPageToken,
+  } });
+  let activations = 0;
+  runtime.activateGiftRetention = () => { activations++; };
+  runtime.pruneLocalGiftRetention = () => {};
+  licenseManager.getGiftSummariesInternal = async () => current;
+  const disconnect = createDeferred();
+  const watch = licenseManager.watchGiftEventsInternal;
+  licenseManager.watchGiftEventsInternal = options => {
+    const connection = watch(options);
+    return f.streamSignals.length === 1 ? Promise.race([connection, disconnect.promise]) : connection;
+  };
+  const controller = createRemoteGiftController(f.options);
+  t.after(() => controller.dispose());
+  await controller.start();
+  const firstStream = f.stream;
+  const summary = createDeferred();
+  const lastPage = createDeferred();
+  const tokens = [];
+  licenseManager.getGiftSummariesInternal = ({ pageToken }) => {
+    tokens.push(pageToken);
+    return pageToken === null ? summary.promise : lastPage.promise;
+  };
+  time += 600_000;
+  f.scheduledTimers.at(-1).callback();
+  await waitFor(() => tokens.length === 1);
+  disconnect.reject(Object.assign(new Error('disconnected'), { retryAfterMs: 60_000 }));
+  await waitFor(() => f.scheduledTimers.at(-1).delay === 60_000);
+  const pendingRetry = f.scheduledTimers.at(-1);
+  summary.resolve({ ...current, revision: 2, hasMore: true, nextPageToken: 'next' });
+  await waitFor(() => tokens.includes('next'));
+  assert.equal(controller.getStatus().state, GiftSyncState.BOOTSTRAPPING);
+  pendingRetry.callback();
+  firstStream.onEvent(makeEvent('stale-final', 11));
+  assert.equal(f.streamSignals.length, 1);
+  assert.equal(controller.getStatus().state, GiftSyncState.BOOTSTRAPPING);
+  assert.equal(controller.getCursor(), 10);
+
+  time += 10_000;
+  lastPage.resolve({ ...current, revision: 2 });
+  await controller.whenIdle();
+  assert.equal(activations, 1);
+  assert.equal(f.streamSignals.length, 1);
+  assert.equal(f.runtimeState.lastValidatedAt, f.options.now());
+  const remainingRetry = f.scheduledTimers.at(-1);
+  assert.equal(remainingRetry.delay, 50_000);
+  time += remainingRetry.delay;
+  remainingRetry.callback();
+  await controller.whenIdle();
+  assert.equal(f.streamSignals.length, 2);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  assert.equal(f.runtimeState.lastValidatedAt, f.options.now());
+});
+
 test('silent open SSE recovers finals and later ticks use the advanced cursor', async () => {
   let catchUpCalls = 0;
   const fixture = createFixture({

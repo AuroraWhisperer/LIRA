@@ -11,8 +11,8 @@ const MAX_SONG_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 
 function createSongEndpoints({ request, requestRaw }) {
   return {
-    syncSongs: (songs, token, requestOptions) =>
-      request('PUT', '/api/device/songs/sync', { songs }, token, requestOptions),
+    syncSongs: (songs, token, requestOptions, body = JSON.stringify({ songs })) =>
+      requestRaw('PUT', '/api/device/songs/sync', body, 'application/json', token, requestOptions),
     getCloudSongs: (token, requestOptions = {}) =>
       request('GET', '/api/device/songs', undefined, token, {
         maxResponseBytes: MAX_SONG_SNAPSHOT_BYTES,
@@ -49,7 +49,8 @@ function createSongOperations({ remote, withAuthorizedToken }) {
     if (songs.length > 5000)
       throw new RemoteLicenseError('TOO_MANY_SONGS', '歌库超过 5000 首，请先整理后重新同步。');
     const snapshot = songs.map(mapSongForSync);
-    if (Buffer.byteLength(JSON.stringify({ songs: snapshot }), 'utf8') > MAX_SONG_SYNC_REQUEST_BYTES) {
+    const body = JSON.stringify({ songs: snapshot });
+    if (Buffer.byteLength(body, 'utf8') > MAX_SONG_SYNC_REQUEST_BYTES) {
       throw new RemoteLicenseError('PAYLOAD_TOO_LARGE', '歌库数据超过同步大小限制，请减少歌曲或缩短备注、点歌价格和歌切后重新同步。');
     }
     // A count-only acknowledgement cannot detect a truncated title or clip.
@@ -61,7 +62,7 @@ function createSongOperations({ remote, withAuthorizedToken }) {
       }
     }
     return withAuthorizedToken(
-      (token) => remote.syncSongs(snapshot, token, requestOptions),
+      (token) => remote.syncSongs(snapshot, token, requestOptions, body),
       {
         acceptResult: (result) => {
           if (result?.ok !== true || result.count !== snapshot.length) {

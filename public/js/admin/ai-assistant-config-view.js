@@ -1,4 +1,6 @@
 'use strict';
+
+import { readApiResponse } from '../shared/json-response.js';
 import { isSubscriptionSelected, renderSubscriptionStatus } from './ai-assistant-subscription.js';
 
 const FIELD_MAP = Object.freeze({
@@ -41,12 +43,9 @@ export async function readApi(url, options = {}) {
     ...options,
     headers: options.body ? { 'Content-Type': 'application/json', ...(options.headers || {}) } : options.headers,
   });
-  const payload = await response.json();
-  if (!response.ok || !payload.ok) {
-    const error = new Error(payload.error || '请求失败');
-    error.code = payload.code || `HTTP_${response.status}`;
-    throw error;
-  }
+  let payload;
+  try { payload = await readApiResponse(response, '请求失败'); }
+  catch (error) { error.code ||= `HTTP_${response.status}`; throw error; }
   return payload.data || {};
 }
 
@@ -165,19 +164,6 @@ export function renderProviderSelection(value, options = {}) {
   const accountControl = document.getElementById('xiaomiAiDoubaoAccount');
   if (accountControl) accountControl.hidden = !accountMode;
 
-  const labels = {
-    auto: ['自动识别', '保留原有设置；首次设置时建议选择你使用的 AI 平台。'],
-    deepseek: ['DeepSeek 官方', '地址会自动填好，可以调整思考强度。'],
-    kimi: ['Kimi 官方', '使用 Moonshot 开放平台 API，可获取账号可用的 Kimi 模型。'],
-    openai: ['OpenAI 官方', '使用 OpenAI 官方服务，地址会自动填好。'],
-    anthropic: ['Claude 官方兼容', '使用 Claude 官方兼容服务，部分功能不可用。'],
-    gemini: ['Gemini 官方兼容', '使用 Gemini 官方兼容服务，可以调整思考强度。'],
-    doubao: ['个人账号·实验性', '使用豆包个人账号对话（实验性）；遇到平台弹窗验证时需手动点一下，无法保证全程免打理。'],
-    custom: ['自定义兼容', '按所用平台的说明填写地址，连接方式不确定时保持自动。'],
-  };
-  const [badge, note] = labels[provider] || labels.auto;
-  setText('xiaomiAiProviderBadge', badge);
-  setText('xiaomiAiProviderNote', note);
   setText(
     'xiaomiAiEndpointHelp',
     official ? '官方预设地址不可编辑；切换到自定义后可修改。' : '可填写服务根地址、v1 地址或完整接口地址。',

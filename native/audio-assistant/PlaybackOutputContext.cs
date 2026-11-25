@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Buffers.Text;
 using System.Text.Json;
 using System.Runtime.InteropServices;
 using NAudio.CoreAudioApi;
@@ -9,6 +11,7 @@ internal sealed class PlaybackOutputContext : ApplicationContext
   readonly System.Windows.Forms.Timer timer = new() { Interval = 1000 };
   IWavePlayer? output;
   BufferedWaveProvider? buffer;
+  readonly byte[] pcm = new byte[16384];
   string endpointId = "";
   string backend = "";
   long stream, sequence;
@@ -87,13 +90,9 @@ internal sealed class PlaybackOutputContext : ApplicationContext
           }
           long next = value.GetProperty("sequence").GetInt64();
           if (next != sequence + 1) throw new InvalidOperationException("音频数据顺序错误，请重新播放。");
-          string encoded = value.GetProperty("pcm").GetString()!;
-          if (encoded.Length > 21848) throw new ArgumentException("音频数据过大。");
-          byte[] pcm = Convert.FromBase64String(encoded);
-          if (pcm.Length == 0 || pcm.Length > 16384 || pcm.Length % 8 != 0) throw new ArgumentException("音频数据格式无效。");
-          ValidateSamples(pcm);
+          int length = DecodePcm(value.GetProperty("pcm"), pcm);
           if (playing && output.PlaybackState == PlaybackState.Stopped) throw new InvalidOperationException("输出设备已停止。");
-          buffer!.AddSamples(pcm, 0, pcm.Length);
+          buffer!.AddSamples(pcm, 0, length);
           sequence = next;
           data = new { bufferedFrames = buffer.BufferedBytes / 8 };
           break;
@@ -109,14 +108,26 @@ internal sealed class PlaybackOutputContext : ApplicationContext
     }
   }
 
-  static void ValidateSamples(byte[] pcm)
+  internal static int DecodePcm(JsonElement value, Span<byte> destination)
   {
-    var samples = MemoryMarshal.Cast<byte, float>(pcm.AsSpan());
+    if (value.ValueKind != JsonValueKind.String) throw new ArgumentException("音频数据格式无效。");
+    var encoded = JsonMarshal.GetRawUtf8Value(value)[1..^1];
+    // The bridge emits ASCII Base64. JSON escapes must be interpreted before checking its length.
+    string? unescaped = encoded.Contains((byte)'\\') ? value.GetString() : null;
+    if ((unescaped?.Length ?? encoded.Length) > 21848) throw new ArgumentException("音频数据过大。");
+    int length;
+    bool valid = unescaped != null
+      ? Convert.TryFromBase64String(unescaped, destination, out length)
+      : Base64.DecodeFromUtf8(encoded, destination, out _, out length) == OperationStatus.Done;
+    if (!valid || length == 0 || length % 8 != 0) throw new ArgumentException("音频数据格式无效。");
+
+    var samples = MemoryMarshal.Cast<byte, float>(destination[..length]);
     for (int index = 0; index < samples.Length; index++)
     {
       if (!float.IsFinite(samples[index])) throw new ArgumentException("音频采样无效。");
       samples[index] = Math.Clamp(samples[index], -1f, 1f);
     }
+    return length;
   }
 
   sealed class ReadyProvider(IWaveProvider source) : IWaveProvider

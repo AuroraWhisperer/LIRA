@@ -62,7 +62,8 @@
       </div>
       <div class="danmaku-cloud-toolbar">
         <p id="dailyBotStatus" class="hint" role="status">连接 LIRA 账号后可设置</p>
-        <lira-help label="自动互动使用说明">「关键词回复」和「点歌回复」需要客户端在线，并在开播时发送。「AI 助手」也需要客户端在线。下播后若仍收到符合条件的弹幕，点名问答和已开启的自动接话都可能回复。要暂停 AI 回复，请关闭「启用 AI」。其他自动互动在云端运行，关闭客户端后仍可用。其中，签到、抽签、昵称管理和礼物答谢在未开播时也可用。</lira-help>
+        <lira-help label="自动互动使用说明">关键词回复、点歌回复和 AI 助手需要客户端在线；其他自动互动由云端运行。</lira-help>
+        <a data-usage-guide-link href="#ug-cloud-runtime">运行范围说明</a>
         <button id="dailyBotRefresh" type="button" class="ghost" aria-label="刷新固定回复云端状态" disabled>刷新云端状态</button>
       </div>
     </div>
@@ -154,7 +155,7 @@
           <div id="danmakuQueryControls" class="danmaku-fixed-item" data-fixed-item="query">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">观众发弹幕查自己的送礼/盲盒统计，主播发弹幕查全房汇总（支持按日/周/月/年或指定礼物名称查询）。与「礼物 → 弹幕查询」开关同步，云端运行。</lira-help>
+                <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">观众发弹幕查自己的送礼/盲盒统计，主播发弹幕查全房汇总（支持按日/周/月/年或指定礼物名称查询），云端运行。</lira-help>
               </div>
               <span class="danmaku-fixed-summary">通过弹幕查询礼物和盲盒统计</span>
               <span id="danmakuQueryStatus" class="danmaku-fixed-note" role="status">正在读取云端状态…</span>
@@ -191,6 +192,7 @@
           </div>
           <!-- admin-fragment: pages/admin/toolbox/danmaku-interaction-thanks-switch.html -->
         </div>
+        <p class="hint">点赞、分享和关注感谢在直播中由云端发送：随机选一条文案，同一观众的同类互动 30 秒内最多触发一次；B 站未提供具体互动人时不发送。</p>
       </div>
       <div class="danmaku-function-group" role="group" aria-label="昵称管理">
         <div class="danmaku-fixed-overview">
@@ -275,7 +277,7 @@
         <!-- admin-fragment: pages/admin/toolbox/danmaku-viewer-names.html -->
         <!-- admin-fragment: pages/admin/toolbox/danmaku-interaction-thanks-libraries.html -->
         <div id="danmakuSongReplyPanel" data-fixed-editor="random" hidden>
-          <p class="hint">回复内容由系统根据点歌条件、歌曲和剩余时间生成，无需设置词库。以下为示例，发送时会自动 @ 发起点歌的观众。</p>
+          <p class="hint">以下为示例，发送时会自动 @ 发起点歌的观众。</p>
           <dl id="danmakuSongReplyExamples" class="danmaku-song-reply-examples">
             <div><dt>随机点歌无匹配</dt><dd>歌库里暂时没有「摇滚」类歌曲，换个条件试试～</dd></div>
             <div><dt>多个条件无匹配</dt><dd>暂时没有同时符合「粤语＋民谣」的歌曲，换个条件试试～</dd></div>
@@ -285,7 +287,7 @@
             <div><dt>不允许重复点歌</dt><dd>这首歌已经在队列里啦～</dd></div>
             <div><dt>只允许歌库歌曲</dt><dd>歌库里没找到这首，换一首试试～</dd></div>
           </dl>
-          <p class="hint">成功点歌不发送此类回复。关闭开关只停止回复，点歌规则仍然生效。点歌回复需保持客户端运行并登录直播账号。</p>
+          <p class="hint">成功点歌不发送此类回复。点歌回复需保持客户端运行并登录直播账号。</p>
         </div>
         <div id="danmakuExactRepliesPanel" data-fixed-editor="exact" hidden>
           <p class="hint"><span id="danmakuExactReplyCount">0 条</span>自定义规则，最多 30 条。</p>

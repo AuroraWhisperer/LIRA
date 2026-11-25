@@ -12,12 +12,13 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
   let generation = 0;
   let controller;
   let visibleCount = 80;
+  let role = createGiftCatalogRoleLookup(null);
+  let searchTimer;
 
   function render() {
     const root = get('giftWishResults');
     root.replaceChildren();
     const query = get('giftWishSearch').value.trim().toLowerCase();
-    const role = createGiftCatalogRoleLookup(snapshot);
     const gifts = [...guards, ...(snapshot?.gifts || [])].filter((gift) =>
       `${gift.name} ${gift.id}`.toLowerCase().includes(query),
     );
@@ -62,6 +63,8 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
     controller?.abort();
     controller = new AbortController();
     snapshot = null;
+    role = createGiftCatalogRoleLookup(null);
+    clearTimeout(searchTimer);
     get('giftWishPickerStatus').textContent = source === 'room' ? '正在刷新本直播间在售礼物…' : '正在读取本机已收录的礼物…';
     dialog
       .querySelectorAll('[data-wish-source]')
@@ -82,6 +85,7 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
       }
       if (current !== generation) return;
       snapshot = data;
+      role = createGiftCatalogRoleLookup(snapshot);
       if (data.guards) guards = data.guards;
       if (!data?.gifts?.length)
         get('giftWishPickerStatus').textContent = '本机还没有这份礼物目录，请连接直播间后重新打开。';
@@ -98,13 +102,15 @@ export function createWishPicker(onSelect, { root, request = requestGiftWish, re
 
   get('giftWishSearch').addEventListener('input', () => {
     visibleCount = 80;
-    render();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(render, 100);
   });
   get('giftWishPickerClose').addEventListener('click', () => dialog.close());
   dialog
     .querySelectorAll('[data-wish-source]')
     .forEach((button) => button.addEventListener('click', () => load(button.dataset.wishSource)));
   dialog.addEventListener('close', () => {
+    clearTimeout(searchTimer);
     generation++;
     controller?.abort();
   });

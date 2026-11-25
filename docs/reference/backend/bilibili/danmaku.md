@@ -63,11 +63,11 @@
 
 | 组件                                    | 间隔/容量                                                                                     | 行为                                                                                                                                                | 出处                                                                                                                                                                                                                                                                                                  |
 | --------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| HistoryPoller                           | **2.5s**（首轮立即）                                                                            | 拉 `gethistory`（`data.admin` + `data.room` 按 timeline 排序），只处理命令文本且通过可捕获窗口的消息；产出 `source:'history'`                           | [history-poller.js:26-31](../../../../src/bilibili/danmaku/history-poller.js#L26-L31)、[history-poller.js:42-74](../../../../src/bilibili/danmaku/history-poller.js#L42-L74)                                                                                                                          |
+| HistoryPoller | 首轮立即，成功后 **2.5 秒**，连续失败按 **5/10/20/40/60 秒**退避 | 离线或断线时拉 `gethistory`，按时间合并 `data.admin` 和 `data.room`，仅发布可捕获窗口内的命令。已认证连接收到 `LIVE` 后停止历史请求，`PREPARING` 恢复请求。`alwaysHistory` 使直播期间也保留补偿。 | [history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | OnlineRankPoller | **60s**，两种在线榜排序各 **100 人** | `queryContributionRank` 的 `type=online_rank`，并行读取 `switch=contribution_rank` / `entry_time_rank`；均使用 `page=1&page_size=100&platform=web&web_location=444.8`。按 `data.item[].uid` 合并去重，最多 200 人；同 UID 优先贡献值排序的身份线索。后续页重复名单，不按总人数翻页；进房时间排序实测 `data.count=0` 仍有名单，不能据此跳过。通过 `UserInfoService.ingestHint` 提交线索，再 `replaceOnlineSnapshot` 替换 UID 集合。手动刷新共享整个在途任务，每次最多两次上游请求；一路失败采用另一路成功名单，两路均失败保留旧快照，成功空名单清空；API 成功且 `count=0,item=null` 时按空列表处理，非零业务码或缺失/矛盾结构仍报错；停止/重连丢弃旧结果。 | [online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js) |
 | FansMedalPoller | 完整刷新目标 **5 分钟**，每页 **30 条** | 同一房间 / `generation` / `runToken` 下重复 `start` 幂等；每批最多拉 30 页或连续运行 10 秒后暂停 1 秒再继续。失败按 5/10/20/30 分钟退避（附带最多 10% 随机抖动，总等待上限仍为 30 分钟），跑完一轮全量后恢复 5 分钟周期；单轮超过 10000 页视为异常并报错。拉取结果写入 `UserInfoService`，但不续期已过期资料的有效期；切房或停止时丢弃在途结果。每轮完成后记录页数、条数和耗时。 | [fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js) |
-| LiveStatusMonitor                       | **10 分钟**，`timer.unref()`                                                                     | 开播与下播时都保持轮询；检测到非直播→直播触发 `reconnectAfterLiveStarted`；实时 `LIVE/PREPARING` 更新同一状态并使迟到轮询失效；`checkInFlight/reconnectInFlight` 防重入                               | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)、[live-status-monitor.js:27-37](../../../../src/bilibili/danmaku/live-status-monitor.js#L27-L37)、[live-status-monitor.js:49-93](../../../../src/bilibili/danmaku/live-status-monitor.js#L49-L93)              |
-| UserInfoService + IdentityCache adapter | 内存 TTL **10 分钟**，定期清理 **5 分钟** | 统一接收 `DANMU_MSG` / SC / 历史消息 / 礼物 / 榜单提交的 `IdentityHint` 并维护合并后的最终状态与观众索引（完整边界与头像补全见 §10） | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js) |
+| LiveStatusMonitor | **10 分钟**，`timer.unref()` | 开播和下播都查询 `room_init`，缺主播名时补查 `master_info`。REST 检出开播触发 `reconnectAfterLiveStarted`，实时 `LIVE/PREPARING` 使迟到的 REST 结果失效。在途检查和重连互斥。 | [live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js) |
+| UserInfoService | 内存 TTL **10 分钟** | 单 UID 读取与线索合并按需清理，整批扫描间隔至少 30 秒。最近和在线名单在读取时清理。身份归属与头像补全见 §10。 | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js) |
 | MessageDeduplicator                     | 精确键含发送者线索、秒桶与清洗文本；跨源匹配窗 **1.5s**，候选保留 **30 分钟**，最多 **500** 条；精确键超 **1000** 时修剪至最多 **500** | 同源重放只记录一次拒绝日志。跨源只查同文本候选，每条消息与每个来源最多配对一次，精确命中也占用这次配对。年龄清理根据已知最早接收时间跳过尚不可能过期的扫描，超容量按插入顺序淘汰并同步文本索引。 | [message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js) |
 
 **精确键。** 有可靠 UID 时按 UID 去重，改昵称仍使用同一键。UID 缺失、为 `0` 或 `'0'` 时，使用平台传入的原样昵称，保留大小写和掩码中的每个字符。空白昵称和占位名 `观众` 都按空昵称处理。同源同秒同文的 `Alpha` 和 `alpha` 各派发一次，各自原包重放时均被过滤。`has(uid, message, timestampMs, { userName })` 与 `remember()` 使用同一精确键，缺少可靠 UID 且省略昵称时查询空昵称的记录。
@@ -260,7 +260,7 @@ AI 自动接话通过同一 sender 的等待限流、授权与会话断言发送
 | `socket-summary` / `listener-stopped` / `socket-closed` / `socket-error` | 断开/停止时的认证状态、包数、弹幕数、心跳回复数及最后收包时间，或连接错误 |
 | `history-start` / `history-stop` / `history-sample` | 历史补偿启停，以及首次成功拉取/有新命令时的总数、过期数、重复数和处理数；空闲轮询不重复写样本 |
 | `command-ingress` / `command-received` | 上游点歌进入及通过前置过滤；各自的 `nameMasked` 可比较原始昵称与身份缓存合并后的昵称 |
-| `command-filtered` / `command-result` / `queue-broadcast` | 时间或去重过滤、处理结果、入队后的广播调用完成；queue-broadcast 不是 浏览器源渲染确认 |
+| `command-filtered` / `command-result` / `queue-broadcast` | 时间或去重过滤、处理结果、入队后的广播调用完成；`queue-broadcast` 不是浏览器源渲染确认 |
 
 拒绝原因代码：`requests-paused` 暂停接收、`user-cooldown` 用户冷却、`song-cooldown` 单首歌曲／随机候选全部冷却、
 `song-request-blacklisted` 点歌内容完整命中本机黑名单、
@@ -284,11 +284,11 @@ AI 自动接话通过同一 sender 的等待限流、授权与会话断言发送
 
 | 参数                      | 值                               | 出处                                                                                                                                                             |
 | ------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 历史轮询间隔              | 2.5s                             | [history-poller.js:30](../../../../src/bilibili/danmaku/history-poller.js#L30)                                                                                   |
+| 历史轮询间隔 | 成功后 2.5 秒，错误退避见 §3 | [history-poller.js](../../../../src/bilibili/danmaku/history-poller.js) |
 | 在线榜轮询                | 60s；两种排序各取前 100 人，去重合并 | [online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js) |
 | 全量粉丝牌轮询            | 健康刷新目标 5min，每页 30 条；分批预算与失败退避见 §3 | [fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)                                                                        |
 | 开播检测                  | 10min(unref)                     | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)                                                                           |
-| 身份缓存 TTL / 清理       | 10min / 5min                     | [identity-cache.js:7](../../../../src/bilibili/danmaku/identity-cache.js#L7)、[message-handlers.js:31](../../../../src/bilibili/danmaku/message-handlers.js#L31) |
+| 身份缓存 TTL / 清理 | 10 分钟，读取与回收时机见 §10 | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js) |
 | 去重:跨源窗 / 保留 / 上限 | 1.5s / 30min / 1000→500          | [message-deduplicator.js:8-10](../../../../src/bilibili/danmaku/message-deduplicator.js#L8-L10)                                                                  |
 | 重连延迟                  | 1/2/4/8/16/30 秒，有上限；稳定认证连接后清零 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | 可捕获窗口                | 启动前 5s ~ 30min 前 ~ 未来 5min | [helpers.js:41-50](../../../../src/bilibili/helpers.js#L41-L50)                                                                                                  |
@@ -300,7 +300,9 @@ AI 自动接话通过同一 sender 的等待限流、授权与会话断言发送
 
 `UserInfoService`([user-info-service.js](../../../../src/bilibili/users/user-info-service.js)) 是 Bilibili 用户资料和当前房间身份的唯一 merge policy owner。解析器只产生 `IdentityHint`；`MessageHandlers`、History/OnlineRank/FansMedal poller 通过注入的 `ingestHint`/`replaceOnlineSnapshot` sink 提交，poller 不访问 `IdentityCache`、profile provider 或 Avatar Proxy。
 
-门面接管缓存后，兼容方法 `resolve` 只读取最终身份，`remember` 拒绝直接写入。切换房间会同步更新兼容投影。独立构造的旧缓存保留两个方法的签名，旧输入复用门面的昵称、头像和房间来源优先级。见[字段证据规则](../../../../src/bilibili/users/user-info-evidence.js)。
+默认服务按 UID 保存一份合并资料，最近观众按房间活动时间排序，在线名单来自最近一次有效的榜单快照。补取头像只更新资料。切房时清空两类名单和旧房身份。粉丝牌轮询提交线索后只统计受理数，订阅者仍按字段变化收到通知。
+
+显式注入 `IdentityCache` 时，门面同步维护其兼容投影。`resolve` 读取最终身份，`remember` 拒绝绕过门面写入。独立构造的旧缓存保留两个方法的签名，旧输入复用门面的昵称、头像和房间来源优先级。见[字段证据规则](../../../../src/bilibili/users/user-info-evidence.js)。
 
 门面公开 `peek`、`ingestHint`、`ensure`、`listRecent`、`listOnline`、`replaceOnlineSnapshot`、`subscribe`、`setRoom`、`beginRoomRun`、`endRoomRun`、`dispose`。`name`/`avatarUrl` 是 UID 全局 profile，`guard`/`fansMedal` 是 `{roomId, ownerUid}` 房间身份；字段投影只返回请求字段和 `uid`，不泄露 evidence、source、generation 或 runToken。粉丝牌非空值必须携带匹配主播 UID，verified absence 与 unknown 分离。
 

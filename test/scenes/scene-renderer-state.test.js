@@ -66,13 +66,13 @@ const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'sig
 test('obsolete autoplay failures cannot mute a replacement decoration or access cleared media', async () => {
   const videos = [];
   const style = { setProperty() {}, removeProperty() {} };
-  const document = { documentElement: { style, dataset: {} }, querySelector: () => null,
+  const document = Object.assign(new EventTarget(), { documentElement: { style, dataset: {} }, querySelector: () => null,
     head: { append() {} }, body: { prepend() {} }, createElement(tag) {
       const node = { tagName: tag.toUpperCase(), dataset: {}, remove() {}, removeAttribute() {}, pause() {}, load() {},
         plays: [], play() { return new Promise((resolve, reject) => node.plays.push({ resolve, reject })); } };
       if (tag === 'video') videos.push(node);
       return node;
-    } };
+    } });
   const { createMediaDecoration } = await load('overlays/component-media.js', { document, location: { pathname: '/background' }, AbortController });
   const decoration = createMediaDecoration();
   const config = char => ({ mediaStyle: { id: randomUUID(), kind: 'video', width: 640, height: 480, volume: 0.5,
@@ -83,12 +83,19 @@ test('obsolete autoplay failures cannot mute a replacement decoration or access 
   await Promise.resolve();
   assert.equal(videos[1].muted, false);
   assert.equal(videos[1].plays.length, 1);
-  videos[1].plays[0].reject(new Error('autoplay denied'));
+  document.hidden = true;
+  document.dispatchEvent(new Event('visibilitychange'));
+  videos[1].plays[0].reject(new Error('paused while hiding'));
+  await Promise.resolve();
+  assert.equal(videos[1].plays.length, 1);
+  document.hidden = false;
+  document.dispatchEvent(new Event('visibilitychange'));
+  videos[1].plays[1].reject(new Error('autoplay denied'));
   await Promise.resolve();
   assert.equal(videos[1].muted, true);
-  assert.equal(videos[1].plays.length, 2);
+  assert.equal(videos[1].plays.length, 3);
   decoration.dispose();
-  videos[1].plays[1].reject(new Error('cleared'));
+  videos[1].plays[2].reject(new Error('cleared'));
   await Promise.resolve();
   assert.equal(videos[1].dataset.playbackFailed, undefined);
 });
@@ -240,10 +247,15 @@ test('saved shared appearances update active frames without replaying events or 
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
   const document = outputDoc();
   const id = document.items[0].id;
+  let textReads = 0;
+  document.items.push(item('text-box', 'independent', { nodes: [
+    { type: 'text', get text() { textReads++; return 'Static text'; } },
+  ] }));
   f.renderer.update({ version: 1, document, appearances: { [id]: { fullscreenDurationSeconds: 7 } }, data: sceneData([{ message: 'once' }]) });
   const root = f.host.children[0];
   const frame = root.children[0];
-  f.complete(frame);
+  root.children.forEach(f.complete);
+  const preparedReads = textReads;
   f.renderer.update({ version: 1, document: null, appearances: { [id]: { fullscreenDurationSeconds: 12 } }, data: sceneData([]) });
   f.renderer.update({ version: 1, document: null, appearances: { [id]: { fullscreenDurationSeconds: 12 } }, data: sceneData([]) });
   assert.equal(f.host.children[0], root);
@@ -251,6 +263,7 @@ test('saved shared appearances update active frames without replaying events or 
   const configs = f.messages.get(frame).filter(message => message.type === 'component-preview:config');
   assert.equal(configs.length, 1);
   assert.equal(configs[0].config.fullscreenDurationSeconds, 12);
+  assert.equal(textReads, preparedReads, 'unrelated updates must not serialize the prepared text layer');
   assert.deepEqual(f.messages.get(frame).flatMap(message => message.data?.events || []), [{ message: 'once' }]);
 });
 
@@ -280,6 +293,11 @@ test('active appearance failures report saved-versus-applied state and retry the
   update(61);
   update(60);
   assert.equal(configs().at(-1).config.nameFontSize, 60, 'returning to the prior value supersedes an in-flight change');
+  const superseded = configs().at(-1).configuration;
+  f.renderer.update({ version: 1, data: {} });
+  assert.equal(configs().at(-1).config.nameFontSize, 45, 'removing the override restores the published appearance');
+  f.signal(frame, 'prepared', { configuration: superseded });
+  assert.equal(f.timers.size, 1);
   f.signal(frame, 'prepared');
   f.renderer.dispose();
   assert.equal(f.timers.size, 0);

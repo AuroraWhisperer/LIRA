@@ -179,6 +179,10 @@ async function fixture(t) {
 test('sprint overlay reads only the existing countdown and cannot change its goal or reset progress', async (t) => {
   const f = await fixture(t);
   f.state.giftSprint = { targetRmb: 1000, remainingCrystalBalls: 7, receivedRmb: 300, sourceId: SECRET };
+  f.context.system.getState = fields => {
+    assert.deepEqual(fields, ['giftSprint']);
+    return { giftSprint: f.state.giftSprint };
+  };
   const token = createOverlayToken(ADMIN, 'gift-sprint');
   const response = await f.request('/api/state', token, { headers: { Origin: 'null' } });
   assert.equal(response.status, 200);
@@ -223,7 +227,12 @@ test('wish overlay HTTP reads projected counts and rejects writes and source sel
   assert.equal(payload.data.items[0].displayStyle, 'text');
   assert.equal(payload.data.items[0].textTemplate, '许愿{礼物}（{已收}/{目标}）');
   assert.doesNotMatch(JSON.stringify(payload), /PRIVATE-SENTINEL/);
-  assert.equal((await f.request('/api/gifts/wishes?sourceId=1', token)).status, 400);
+  const cards = '/api/gifts/wishes?includeSession=0';
+  f.context.giftWishes.getSnapshot = ({ includeSession }) => ({ session: includeSession ? { state: 'live' } : null, guards: [SECRET] });
+  const compact = await f.request(cards, token);
+  assert.deepEqual((await compact.json()).data, { session: null });
+  assert.equal((await f.request(`${cards}&sourceId=1`, token)).status, 400);
+  assert.equal((await f.request(cards, createOverlayToken(ADMIN, 'gift-feed'))).status, 403);
   for (const path of ['/api/gifts/wishes/save', '/api/gifts/wishes/delete']) {
     assert.equal((await f.request(path, token, { method: 'POST', body: '{}' })).status, 403);
   }
@@ -231,6 +240,7 @@ test('wish overlay HTTP reads projected counts and rejects writes and source sel
     throw Object.assign(new Error('source changed'), { code: 'GIFT_VIEW_STALE' });
   };
   assert.equal((await f.request('/api/gifts/wishes', token)).status, 409);
+  assert.equal((await f.request(cards, token)).status, 409);
 });
 
 test('anonymous canonical and raw overlay HTML contains only its own capability and is isolated', async (t) => {

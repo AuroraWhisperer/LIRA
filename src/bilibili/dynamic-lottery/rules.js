@@ -4,6 +4,11 @@ function lotteryError(code) {
   return Object.assign(new Error(code), { code });
 }
 
+function publicCode(error, signal) {
+  const code = (signal?.aborted ? signal.reason : error)?.code;
+  return typeof code === 'string' && /^LOTTERY_[A-Z_]{1,64}$/u.test(code) ? code : 'LOTTERY_OPERATION_FAILED';
+}
+
 function normalizeRules(input, endsAtMs) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw lotteryError('LOTTERY_RULES_INVALID');
@@ -70,6 +75,7 @@ function assertSameContext(before, after) {
 
 module.exports = {
   lotteryError,
+  publicCode,
   normalizeRules,
   buildCandidatePool,
   assertSameContext,

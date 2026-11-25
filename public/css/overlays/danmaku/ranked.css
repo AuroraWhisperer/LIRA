@@ -1,4 +1,4 @@
-/* 经典样式：共用外层画布，窄容器内按卡片宽度等比缩小。 */
+/* 经典气泡：共用外层画布，窄容器内按卡片宽度等比缩小。 */
 body[data-style='ranked'] {
   --danmaku-move-base-ms: 250;
   --danmaku-move-max-ms: 480;

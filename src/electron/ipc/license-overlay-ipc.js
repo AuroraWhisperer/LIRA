@@ -13,8 +13,9 @@ const {
 const {
   welcomeV2Parameters,
   sanitizeWelcomeV2,
+  normalizeWelcomeMessages,
 } = require('../../shared/welcome-settings-contract');
-const { sanitizePublicUrl } = require('./license-public-values');
+const { normalizeRemoteOverlayUrl } = require('../../shared/remote-url-policy');
 const { pkReportParameters, sanitizePkReportSettings } = require('../../shared/pk-report-settings-contract');
 const OVERLAY_STYLES = new Set(Object.keys(DANMAKU_STYLE_OPTIONS));
 
@@ -77,21 +78,9 @@ function welcomeParameters(value) {
   ) {
     throw Object.assign(new Error(), { code: 'INVALID_WELCOME_SETTINGS' });
   }
-  if (
-    Object.hasOwn(value, 'messages') &&
-    (!Array.isArray(value.messages) ||
-      value.messages.length < 1 ||
-      value.messages.length > 30 ||
-      value.messages.some(
-        (item) =>
-          typeof item !== 'string' || !item.trim() || Array.from(item).length > 80 || /[\x00-\x1f\x7f]/u.test(item),
-      ))
-  ) {
-    throw Object.assign(new Error(), { code: 'INVALID_WELCOME_MESSAGES' });
-  }
   return {
     ...(Object.hasOwn(value, 'enabled') ? { enabled: value.enabled } : {}),
-    ...(Object.hasOwn(value, 'messages') ? { messages: value.messages.map((item) => item.trim()) } : {}),
+    ...(Object.hasOwn(value, 'messages') ? { messages: normalizeWelcomeMessages(value.messages) } : {}),
   };
 }
 
@@ -124,13 +113,8 @@ function overlayParameters(value) {
 
 function sanitizeOverlaySettings(value) {
   const parameters = overlayParameters(value);
-  const overlayUrl = sanitizePublicUrl(value?.overlayUrl);
-  if (
-    !overlayUrl ||
-    !/^\/overlay\/[A-Za-z0-9_-]{16}$/.test(new URL(overlayUrl).pathname) ||
-    new URL(overlayUrl).search ||
-    new URL(overlayUrl).hash
-  ) {
+  const overlayUrl = normalizeRemoteOverlayUrl(value?.overlayUrl);
+  if (!overlayUrl) {
     throw Object.assign(new Error('INVALID_RESPONSE'), { code: 'INVALID_RESPONSE' });
   }
   return { ok: true, ...parameters, overlayUrl };

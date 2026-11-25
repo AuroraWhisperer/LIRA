@@ -6,13 +6,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion, migrateSceneBodyTokens } = require('../../src/storage/scene-migration');
 const { createSceneStore } = require('../../src/storage/scene-store');
+const { createDanmakuAppearanceStore } = require('../../src/storage/danmaku-appearance-store');
 const { createDatabases, closeDatabases, getSchemaVersions } = require('../../src/storage/database');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
 const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../../src/shared/scene-component-types');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { createLegacyDatabases } = require('../helpers/legacy-databases');
+const { migrateTestSongDb } = require('../helpers/song-database');
 
 function document(title = '场景') {
   return { schemaVersion: 1, id: randomUUID(), title, canvas: { width: 1920, height: 1080 }, items: [] };
@@ -40,9 +42,7 @@ function fixture(t) {
     fs.rmSync(directory, { recursive: true, force: true });
   });
   const db = open();
-  migrateScenes(db);
-  migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db); migrateSceneDeletion(db);
+  migrateTestSongDb(db);
   return { db, open, close, store: createSceneStore(db) };
 }
 
@@ -93,6 +93,33 @@ test('v11 upgrades a populated v10 canvas without changing documents or credenti
   assert.deepEqual(store.getCanvas('owner'), binding);
   db.prepare('UPDATE component_canvas SET active_scene_id = NULL WHERE owner_scope = ?').run('owner');
   assert.equal(store.getCanvas('owner').activeSceneId, null);
+});
+
+test('v21 upgrades populated v20 scenes and appearances atomically and can be repeated', t => {
+  const directory = createScratchDirectory('scene-body-upgrade-');
+  const databases = createLegacyDatabases(t, { dataDir: directory }, 20);
+  t.after(() => { closeDatabases(databases); fs.rmSync(directory, { recursive: true, force: true }); });
+  const db = databases.songDb;
+  const store = createSceneStore(db);
+  const { document: draft } = store.create({ scope: 'owner', document: document('draft'), capability: capability() });
+  const before = store.publish({ scope: 'owner', id: draft.id, expectedRevision: 1, document: { ...draft, title: 'live' } });
+  db.exec(`INSERT INTO danmaku_appearances (owner_scope, config_json) VALUES ('owner', '{"style":"bubble"}');
+    CREATE TRIGGER fail_backfill BEFORE UPDATE ON danmaku_appearances
+    BEGIN SELECT RAISE(ABORT, 'synthetic backfill failure'); END;`);
+  assert.throws(() => runAllMigrations(databases), /synthetic backfill failure/);
+  assert.equal(getSchemaVersions(databases).songDb, 20);
+  assert.ok(!db.prepare('PRAGMA table_info(component_scenes)').all().some(column => column.name === 'body_token'));
+  db.exec('DROP TRIGGER fail_backfill');
+  runAllMigrations(databases);
+  assert.deepEqual(store.get('owner', draft.id), before);
+  assert.deepEqual(store.getOutput('owner', draft.id).publishedDocument, before.publishedDocument);
+  assert.equal(createDanmakuAppearanceStore(db).get('owner').style, 'bubble');
+
+  const writes = db.prepare('SELECT total_changes() AS count');
+  const completed = writes.get().count;
+  migrateSceneBodyTokens(db);
+  assert.equal(writes.get().count, completed);
+  assert.equal(runAllMigrations(databases).find(entry => entry.key === 'song_db').applied, 0);
 });
 
 test('v10 binds the previously first scene without rewriting drafts or credentials and remains stable after new presets', t => {

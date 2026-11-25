@@ -67,14 +67,17 @@ test('a visible next sentence continues from its displayed position, including i
   const { transition, row, viewport, animations } = await createFixture();
   const rows = [row(120), row(220)];
   let positions = transition.capture(rows, { first: 0, last: 1 });
-  viewport.scrollTop = 80;
+  let reads = 0;
+  let scroll = 80;
+  Object.defineProperty(viewport, 'scrollTop', { get() { reads++; return scroll; } });
   transition.play(rows, positions);
+  assert.equal(reads, 1);
   assert.equal(animations[1].frames[0].translate, '0 80px');
   assert.equal(animations[1].frames[0].opacity, undefined, 'an already visible sentence must not fade in again');
   rows[1].computed.translate = '0px 25px';
   positions = transition.capture(rows, { first: 0, last: 1 });
   assert.ok(animations.every(animation => animation.cancelled));
-  viewport.scrollTop = 110;
+  scroll = 110;
   transition.play(rows, positions);
   assert.equal(animations.at(-1).frames[0].translate, '0 55px', 'retarget from the interrupted visual position');
   transition.clear();
@@ -91,4 +94,26 @@ test('reduced motion does not translate sentences and clearing removes outgoing 
   assert.ok(animations.every(animation => animation.cancelled));
   assert.ok(ghosts.every(ghost => ghost.removed));
   assert.ok(animations.every(animation => animation.onfinish === null));
+});
+
+test('whole-song transitions read the viewport and retain a moving line outside its layout bounds', async () => {
+  const { transition, row, viewport, animations } = await createFixture();
+  const full = { first: 0, last: 499 };
+  let height = 40, reads = 0;
+  const rows = Array.from({ length: 500 }, (_, index) => Object.defineProperties(row(0), {
+    offsetTop: { get() { reads++; return index * 40 + (index > 250 ? height - 40 : 0); } },
+    offsetHeight: { get() { reads++; return index === 250 ? height : 40; } },
+  }));
+  viewport.scrollTop = 10010;
+  viewport.clientHeight = 160;
+  let positions = transition.capture(rows, full, full);
+  assert.equal(positions.get(rows[250]).top, -10, 'the row crossing the top edge is visible');
+  height = 140;
+  transition.play(rows, positions, full);
+  assert.equal(animations.find(a => a.element === rows[251]).frames[0].translate, '0 -100px');
+  rows[251].computed.translate = '0px -70px';
+  viewport.scrollTop = 9950;
+  positions = transition.capture(rows, full, full);
+  assert.equal(positions.get(rows[251]).top, 120, 'its translated box is visible below the tall row');
+  assert.ok(reads < rows.length, `three passes should not measure the whole song (${reads} geometry reads)`);
 });

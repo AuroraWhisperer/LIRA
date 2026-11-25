@@ -10,7 +10,10 @@
 
 ## 安装使用
 
-从 [Releases](https://github.com/AuroraWhisperer/LIRA/releases) 下载最新安装包，双击安装即可。
+从 [Releases](https://github.com/AuroraWhisperer/LIRA/releases) 下载 `lira-setup-<版本>.exe`，双击安装。
+
+- **首次安装**请选择当前 Windows 用户可写的专用空目录，例如 `D:\Apps\LIRA`。日常从开始菜单打开 LIRA。`LIRA.exe`、旁边的 DLL、`resources` 和 `locales` 需要保留在安装器放置的位置。
+- **同机更新或重装**时，直接运行安装包，选择原安装目录即可。如果先卸载，请保持「同时删除用户数据」未勾选，保留原处的 `data` 和 `lira-installation.ini`，重装后即可继续使用原有资料。
 
 ### 首次使用与服务器协作
 

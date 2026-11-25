@@ -641,9 +641,6 @@
   color: var(--text);
 }
 
-.world-clock-dialog::backdrop {
-  background: var(--color-bg-overlay-light);
-}
 
 .world-clock-dialog-header {
   justify-content: space-between;

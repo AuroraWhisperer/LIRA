@@ -1,18 +1,22 @@
 'use strict';
 
+const { createHash } = require('node:crypto');
+
 // Reuse only within one paginated load, never across a refresh or account change.
 const providerSessions = new WeakMap();
 
-async function getLikedTracksSession(provider, sessionId, cookieSnapshot) {
-  if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 100) {
-    // A sessionless read can still observe a change to the cached account.
-    if (cookieSnapshot !== undefined && providerSessions.get(provider)?.cookie !== cookieSnapshot) clearLikedTracksSessions(provider);
+function getLikedTracksSession(provider, sessionId, cookie) {
+  let state = providerSessions.get(provider);
+  const hasSession = typeof sessionId === 'string' && sessionId.length > 0 && sessionId.length <= 100;
+  if (!hasSession && !state) return null;
+  const signature = createHash('sha256').update(cookie).digest('hex');
+  if (!hasSession) {
+    // A sessionless read can still invalidate an older account's pages.
+    if (state.signature !== signature) clearLikedTracksSessions(provider);
     return null;
   }
-  const cookie = cookieSnapshot ?? await provider.getSafeCookieHeader();
-  let state = providerSessions.get(provider);
-  if (!state || state.cookie !== cookie) {
-    state = { cookie, sessions: new Map() };
+  if (!state || state.signature !== signature) {
+    state = { signature, sessions: new Map() };
     providerSessions.set(provider, state);
   }
   const now = Date.now();

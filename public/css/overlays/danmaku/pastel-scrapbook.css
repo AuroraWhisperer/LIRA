@@ -1,0 +1,90 @@
+body[data-style='pastel-scrapbook'] {
+  --danmaku-ui-font: 'Spooky Nunito', 'Microsoft YaHei UI Light', 'Microsoft YaHei UI', sans-serif;
+  --danmaku-enter-animation: danmakuEntryClock calc(1650ms * var(--motion-speed, 1)) linear;
+  --danmaku-move-base-ms: 300;
+  --danmaku-move-max-ms: 350;
+  --danmaku-move-curve: .22, 1, .36, 1;
+}
+body[data-style='pastel-scrapbook'] .danmaku-signal-header { display: none; }
+body[data-style='pastel-scrapbook'] .danmaku-signal-stage {
+  padding: 28px 0 40px;
+  overflow: hidden;
+  border-radius: min(64px, 10vw);
+  background: rgb(205 224 254 / var(--danmaku-background-opacity, 1));
+}
+body[data-style='pastel-scrapbook'] .draw-danmaku-feed {
+  gap: 0;
+  padding: 0 5.65%;
+}
+body[data-style='pastel-scrapbook'] .draw-danmaku-item.scrapbook-item {
+  display: block; width: 100%; max-width: 100%; min-height: 0; padding: 6px 0 44px;
+  overflow: visible; border: 0; border-radius: 0; clip-path: none; background: none; box-shadow: none;
+  color: var(--danmaku-text-color, #f3b1cb); font: 400 var(--danmaku-font-size)/1.3 var(--danmaku-ui-font);
+  text-align: center; text-shadow: none; zoom: 1;
+}
+body[data-style='pastel-scrapbook'] .draw-danmaku-item.scrapbook-item::after,
+body[data-style='pastel-scrapbook'] .draw-danmaku-item.scrapbook-item.is-gift::after { display: none; }
+body[data-style='pastel-scrapbook'] .scrapbook-item .draw-danmaku-body {
+  display: block; position: relative; width: 100%; margin: 0; padding: 0; color: inherit;
+}
+.scrapbook-sheet {
+  position: relative; isolation: isolate; display: grid; align-content: center;
+  min-height: 152px; padding: 42px 9% 31px 13.5%;
+}
+.scrapbook-sheet::before, .scrapbook-tape::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: url('/img/overlays/danmaku-pastel-scrapbook/paper.svg') center / 100% 100% no-repeat;
+  transform: rotate(-2deg);
+  filter: drop-shadow(0 2px 5px rgb(68 61 75 / 27%));
+}
+body[data-style='pastel-scrapbook'] .scrapbook-item .scrapbook-copy, .scrapbook-caption {
+  margin: 0; color: inherit; font: inherit; text-align: center; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+body[data-style='pastel-scrapbook'] .scrapbook-item:not(.scrapbook-notice) .scrapbook-copy { text-align: left; }
+.scrapbook-tape {
+  position: relative; isolation: isolate; z-index: 1; display: flex; justify-content: center; align-items: center;
+  gap: .45em; width: 54%; min-height: 70px; margin: 0 0 -42px 8%;
+  padding: 12px 16px; overflow-wrap: anywhere;
+}
+.scrapbook-tape::before {
+  background-image: url('/img/overlays/danmaku-pastel-scrapbook/tape.svg');
+  transform: rotate(.7deg);
+}
+.scrapbook-name { min-width: 0; overflow-wrap: anywhere; }
+.scrapbook-role { flex: none; width: 1.2em; height: 1.1em; background: currentColor; }
+.scrapbook-role-camera { clip-path: polygon(0 10%, 72% 10%, 78% 20%, 78% 33%, 100% 15%, 100% 85%, 78% 68%, 78% 80%, 72% 91%, 5% 91%, 0 83%); }
+.scrapbook-role-star { clip-path: polygon(50% 0, 65% 30%, 100% 36%, 76% 61%, 80% 96%, 50% 79%, 20% 96%, 24% 61%, 0 36%, 35% 30%); }
+.scrapbook-role-diamond { clip-path: polygon(18% 6%, 80% 6%, 100% 38%, 50% 98%, 0 38%); }
+.scrapbook-sticker {
+  position: absolute; width: 72px; height: 80px; pointer-events: none;
+  background: url('/img/overlays/danmaku-pastel-scrapbook/stickers.svg') 0 0 / 500% 100% no-repeat;
+  filter: drop-shadow(0 1px 3px rgb(69 58 73 / 33%));
+}
+.scrapbook-flower { left: 5.5%; bottom: -45px; --sticker-delay: 880ms; }
+.scrapbook-star { right: -6px; top: -33px; background-position-x: 25%; --sticker-delay: 1050ms; }
+.scrapbook-heart { right: 19%; bottom: -32px; background-position-x: 50%; --sticker-delay: 1280ms; }
+.scrapbook-notice .scrapbook-sheet {
+  min-height: 170px; padding: 38px 9%; gap: 4px; margin-top: 19px;
+}
+.scrapbook-notice .scrapbook-sheet::before {
+  background-image: url('/img/overlays/danmaku-pastel-scrapbook/notice.svg'); transform: none;
+}
+.scrapbook-pin { left: calc(45% - 36px); top: -39px; background-position-x: 75%; --sticker-delay: 850ms; }
+.scrapbook-clip { left: 6%; bottom: -35px; background-position-x: 100%; --sticker-delay: 1070ms; }
+.scrapbook-item[data-live-entry] .scrapbook-sheet,
+.scrapbook-item[data-live-entry] .scrapbook-tape {
+  top: var(--danmaku-enter-y); opacity: var(--danmaku-enter-opacity);
+  animation: scrapbookPaper calc(340ms * var(--motion-speed, 1)) ease-out calc(420ms * var(--motion-speed, 1)) both;
+}
+.scrapbook-item[data-live-entry] .scrapbook-tape {
+  animation-name: scrapbookTape; animation-delay: calc(620ms * var(--motion-speed, 1));
+}
+.scrapbook-item[data-live-entry] .scrapbook-sticker {
+  animation: scrapbookStick calc(340ms * var(--motion-speed, 1)) cubic-bezier(.2,.75,.3,1) calc(var(--sticker-delay) * var(--motion-speed, 1)) both;
+}
+@keyframes scrapbookPaper { from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 14px; } }
+@keyframes scrapbookTape { from { --danmaku-enter-opacity: 0; --danmaku-enter-y: -17px; } }
+@keyframes scrapbookStick {
+  from { opacity: 0; transform: translateY(-6px) scale(1.18) rotate(-7deg); }
+  to { opacity: 1; transform: none; }
+}

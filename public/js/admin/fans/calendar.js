@@ -36,17 +36,27 @@ export function createFanCalendar({ windowRef = window, isVisible, onChange }) {
 
   const unsubscribe = windowRef.liraLicense?.onStateChanged?.(invalidate);
   windowRef.addEventListener('fan-profiles-changed', invalidate);
-  const timer = windowRef.setInterval(() => void refresh(), 30000);
+  let timer = null;
+  function syncVisibility() {
+    if (disposed || !isVisible()) {
+      if (timer !== null) windowRef.clearInterval(timer);
+      timer = null;
+    } else if (timer === null) {
+      timer = windowRef.setInterval(() => void refresh(), 30000);
+      void refresh();
+    }
+  }
   function dispose() {
     if (disposed) return;
     disposed = true;
     generation++;
     events = [];
-    windowRef.clearInterval(timer);
+    syncVisibility();
     unsubscribe?.();
     windowRef.removeEventListener('fan-profiles-changed', invalidate);
     windowRef.removeEventListener('pagehide', dispose);
   }
   windowRef.addEventListener('pagehide', dispose, { once: true });
-  return { refresh, dispose, getEvents: () => events };
+  syncVisibility();
+  return { refresh, syncVisibility, dispose, getEvents: () => events };
 }

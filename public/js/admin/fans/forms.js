@@ -1,3 +1,4 @@
+import { bindTabNavigation } from '../../shared/tab-navigation.js';
 import { html, attr } from './view.js';
 import { bilibiliAvatarSource } from '../../shared/bilibili-avatar.js';
 
@@ -251,20 +252,7 @@ export function profileForm(profile = {}, { previewIdentity, lookupFormerNames, 
         }
         for (const panel of panels) panel.hidden = panel.id !== tab.getAttribute('aria-controls');
       }
-      for (const tab of tabs) {
-        tab.addEventListener('click', () => selectTab(tab));
-        tab.addEventListener('keydown', (event) => {
-          let index = tabs.indexOf(tab);
-          if (event.key === 'ArrowRight') index = (index + 1) % tabs.length;
-          else if (event.key === 'ArrowLeft') index = (index + tabs.length - 1) % tabs.length;
-          else if (event.key === 'Home') index = 0;
-          else if (event.key === 'End') index = tabs.length - 1;
-          else return;
-          event.preventDefault();
-          selectTab(tabs[index]);
-          tabs[index].focus();
-        });
-      }
+      bindTabNavigation(tabs, selectTab);
       root.addEventListener(
         'invalid',
         (event) => {

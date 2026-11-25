@@ -6,8 +6,9 @@ const os = require('node:os');
 const path = require('node:path');
 const { createGiftExportController, exportLayout } = require('../../src/electron/gift-export-controller');
 const { registerGiftExportIpc } = require('../../src/electron/ipc/gift-export-ipc');
+const { createPublicError } = require('../../src/shared/public-error');
 
-function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport) {
+function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport, capturePage) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-export-unit-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   let revision = 'a';
@@ -30,14 +31,17 @@ function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport) 
             ? { width: renderWidths[Math.min(render++, renderWidths.length - 1)] }
             : undefined;
         },
-        capturePage: async (rect) => ({
+        capturePage: capturePage || (async (rect) => ({
+          getScaleFactors: () => [1],
+          getSize: () => rect,
           toPNG() {
             const bytes = Buffer.alloc(24);
+            bytes.set([137, 80, 78, 71, 13, 10, 26, 10]);
             bytes.writeUInt32BE(rect.width, 16);
             bytes.writeUInt32BE(rect.height, 20);
             return bytes;
           },
-        }),
+        })),
       };
     }
     loadURL(url) {
@@ -96,6 +100,51 @@ function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport) 
   };
 }
 
+test('gift export hides internal errors containing Chinese paths and preserves marked business errors', async t => {
+  const f = fixture(t);
+  const task = await f.controller.prepare({});
+  t.mock.method(fs.promises, 'mkdir', async () => { throw new Error('EIO C:\\合成用户\\礼物导出\\private.png'); });
+  const result = await f.controller.save({ id: task.id });
+  assert.equal(result.ok, false);
+  assert.equal(result.error.includes('private.png'), false);
+  assert.equal(result.error.includes('合成用户'), false);
+
+  const handlers = new Map();
+  const frame = { url: 'http://127.0.0.1:3000/admin' };
+  const contents = new (require('node:events').EventEmitter)();
+  contents.mainFrame = frame;
+  let failure = new Error('EIO C:\\合成用户\\private.png');
+  const dispose = registerGiftExportIpc({
+    ipcMain: { handle: (name, handler) => handlers.set(name, handler), removeHandler() {} },
+    controller: { prepare: async () => { throw failure; }, cancel() {}, dispose() {} },
+    getMainWindow: () => ({ webContents: contents, isDestroyed: () => false }),
+    getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
+  });
+  t.after(dispose);
+  const invoke = () => handlers.get('gift-export:prepare')({ sender: contents, senderFrame: frame }, {});
+  assert.equal((await invoke()).error.includes('private.png'), false);
+  failure = createPublicError('请选择礼物记录。');
+  assert.equal((await invoke()).error, failure.publicMessage);
+});
+
+test('gift export rejects empty or malformed capture output without writing a partial PNG', async t => {
+  for (const [scaleFactor, bytes] of [[1, Buffer.alloc(0)], [2, Buffer.alloc(24)]]) {
+    const f = fixture(t, [856], {}, undefined, async rect => ({
+      getScaleFactors: () => [scaleFactor],
+      getSize: () => rect,
+      toBitmap: () => Buffer.alloc(0),
+      toPNG: () => bytes,
+    }));
+    const task = await f.controller.prepare({});
+    const result = await f.controller.save({ id: task.id });
+    assert.equal(result.ok, false);
+    assert.equal(result.saved, 0);
+    assert.match(result.error, /尺寸/);
+    assert.deepEqual(fs.readdirSync(task.directory), []);
+    assert.equal(f.windows[0].destroyed, true);
+  }
+});
+
 test('export settings work without a selection, persist and only affect new tasks', async (t) => {
   const { root, controller, storedSettings, dialog } = fixture(t);
   assert.deepEqual(await controller.settings(), {
@@ -152,18 +201,22 @@ test('export settings reject unsafe values and discard cancelled or stale direct
 });
 
 test('export preview creates no files and accepts only dialog/system directories and bounded output', async (t) => {
-  const { root, controller } = fixture(t);
+  const { root, controller, storedSettings } = fixture(t);
   const task = await controller.prepare({});
   assert.equal(fs.existsSync(task.directory), false);
   const configured = await controller.configure({
     id: task.id,
     mode: 'separate',
-    background: 'transparent',
+    background: 'white',
     directoryAction: 'choose',
+    remember: true,
     root: 'C:/arbitrary',
   });
   assert.equal(configured.root, path.join(root, 'LIRA', '礼物导出'));
   assert.equal(configured.directory, task.directory);
+  assert.equal(configured.files.length, 2);
+  assert.equal(configured.background, 'white');
+  assert.equal(storedSettings.giftExportDirectory, undefined);
   await assert.rejects(() => controller.configure({ id: task.id, mode: 'huge', background: 'white' }));
   assert.equal(exportLayout(40, 'combined').length, 2);
   assert.throws(() => exportLayout(10001, 'combined'));
@@ -177,6 +230,7 @@ test('the export reuses frozen groupings when toggled and saves the previewed ca
   });
   const task = await controller.prepare({});
   const options = { id: task.id, mode: 'separate', background: 'white' };
+  await assert.rejects(controller.configure({ ...options, mode: 'invalid', mergeAcrossDates: true }));
   assert.equal(requests, 0);
   const grouped = await controller.configure({ ...options, mergeAcrossDates: true });
   assert.equal(grouped.files.length, 1);
@@ -275,17 +329,29 @@ test('reconfiguring a partially failed export allocates a new directory and keep
   const widths = [856, 9000];
   const { controller } = fixture(t, widths);
   const task = await controller.prepare({});
-  await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
+  const options = { id: task.id, mode: 'separate', background: 'transparent' };
+  const cancelPicker = () => controller.configure({ ...options, directoryAction: 'choose' });
+  await controller.configure(options);
   const failed = await controller.save({ id: task.id });
   assert.equal(failed.ok, false);
   assert.equal(failed.saved, 1);
-  const next = await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
+  assert.equal((await cancelPicker()).directory, task.directory);
+  assert.equal((await controller.openFolder({ id: task.id })).ok, true);
+  const next = await controller.configure(options);
   assert.notEqual(next.directory, task.directory);
   assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
   widths[1] = 856;
   const retried = await controller.save({ id: task.id });
   assert.equal(retried.ok, true);
   assert.equal(retried.saved, 2);
+  assert.equal((await cancelPicker()).directory, next.directory);
+  await assert.rejects(controller.save({ id: task.id }));
+  assert.equal((await controller.openFolder({ id: task.id })).ok, true);
+  const changed = await controller.configure({ ...options, background: 'white', directoryAction: 'choose' });
+  assert.equal(changed.background, 'white');
+  assert.equal(changed.root, next.root);
+  assert.notEqual(changed.directory, next.directory);
+  await assert.rejects(controller.openFolder({ id: task.id }));
   assert.deepEqual(fs.readdirSync(next.directory), ['礼物_001.png', '礼物_002.png']);
   assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
 });

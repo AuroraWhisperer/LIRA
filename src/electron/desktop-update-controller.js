@@ -9,10 +9,6 @@ function createDesktopUpdateController({
   beforeInstall = async () => {},
   timers = { setTimeout, clearTimeout },
 }) {
-  let state = {
-    status: 'idle', message: '尚未检查更新', version: '', canDownload: false,
-    canInstall: false, progress: null, updateVersion: '',
-  };
   let startupTimer = null;
   let disposed = false;
 
@@ -20,15 +16,12 @@ function createDesktopUpdateController({
     const mainWindow = getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
-    mainWindow.webContents.send('desktop:update-state', state);
+    mainWindow.webContents.send('desktop:update-state', updateManager.getUpdateState());
   }
 
   function configureAutoUpdater() {
     updateManager.configureAutoUpdater({
-      onStateChange(nextState) {
-        state = nextState;
-        sendUpdateState();
-      },
+      onStateChange: sendUpdateState,
       writeLog,
     });
   }
@@ -50,30 +43,12 @@ function createDesktopUpdateController({
   }
 
   async function installUpdate() {
-    if (state.canInstall) await beforeInstall();
+    if (updateManager.getUpdateState().canInstall) await beforeInstall();
     return updateManager.installUpdate();
   }
 
-  function setUpdateState(nextState) {
-    state = {
-      ...state,
-      ...nextState,
-      version: app.getVersion(),
-    };
-    sendUpdateState();
-    return state;
-  }
-
   function setUpdateError(error) {
-    writeLog('update-error', error);
-    const friendly = updateManager.friendlyUpdateError(error);
-    setUpdateState({
-      status: friendly.status,
-      message: friendly.message,
-      canDownload: false,
-      canInstall: false,
-      progress: null,
-    });
+    updateManager.reportUpdateError(error);
   }
 
   function scheduleStartupCheck() {
@@ -100,7 +75,7 @@ function createDesktopUpdateController({
     sendUpdateState,
     scheduleStartupCheck,
     dispose,
-    getState: () => state,
+    getState: () => updateManager.getUpdateState(),
   };
 }
 

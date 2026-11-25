@@ -10,7 +10,10 @@ This project is for personal learning, research, and reference only. Commercial 
 
 ## Installation
 
-Download the latest installer from [Releases](https://github.com/AuroraWhisperer/LIRA/releases) and run it.
+Download and run `lira-setup-<version>.exe` from [Releases](https://github.com/AuroraWhisperer/LIRA/releases).
+
+- **First install.** Choose an empty folder dedicated to LIRA that your Windows account can write to, such as `D:\Apps\LIRA`. Open LIRA from the Start menu. Keep `LIRA.exe`, its DLLs, `resources`, and `locales` where the installer places them.
+- **Update or reinstall on the same computer.** Run the installer again and select the original folder. If you uninstall first, leave “Also delete user data” (同时删除用户数据) unchecked. Keep `data` and `lira-installation.ini` in place so the next installation can reuse your data.
 
 ### First Launch and Server-Assisted Features
 

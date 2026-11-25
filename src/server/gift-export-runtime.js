@@ -5,6 +5,7 @@ const { buildGiftCards, addGiftCardTotals } = require('../../public/js/shared/gi
 const { shanghaiToday } = require('../../public/js/shared/gift-feed-state.js');
 const { createGiftCardRuntime } = require('./gift-card-runtime');
 const { normalizeGiftCardAvatarResult, GIFT_CARD_AVATAR_BATCH_SIZE } = require('../shared/gift-card-profiles');
+const { createPublicError } = require('../shared/public-error');
 
 async function completeExportAvatars(items, profiles, readAvatars, assertCurrent) {
   if (!readAvatars) return items;
@@ -135,7 +136,7 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       const day = shanghaiToday();
       const assertCurrent = () => {
         if (services.gifts.getViewRevision() !== snapshot.viewRevision || shanghaiToday() !== day) {
-          throw Object.assign(new Error('礼物来源或流水已变更，请重新选择。'), { code: 'GIFT_VIEW_STALE' });
+          throw Object.assign(createPublicError('礼物来源或流水已变更，请重新选择。'), { code: 'GIFT_VIEW_STALE' });
         }
       };
       const profiles = await cards.getProfiles(snapshot.viewRevision);

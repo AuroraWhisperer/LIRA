@@ -195,9 +195,6 @@ body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade=
   60% { --stargazer-decor-opacity: .15; }
   80% { --stargazer-decor-opacity: .5; --stargazer-decor-x: 4px; --stargazer-decor-y: -20px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='stargazer'] :is(.stargazer-item,.stargazer-meteor,.stargazer-particle) { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='stargazer'] .draw-danmaku-item .stargazer-copy {

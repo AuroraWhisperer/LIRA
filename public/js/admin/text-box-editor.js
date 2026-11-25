@@ -1,3 +1,4 @@
+import { createRichTextSelection } from './rich-text-selection.js';
 import { renderTextBox } from '../shared/text-box-renderer.js';
 import { normalizeTextBoxConfig } from '../shared/text-box-config.js';
 import { previewElement } from './component-preview-elements.js';
@@ -52,43 +53,16 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   editor.spellcheck = false;
   wrapper.append(editor);
   host.append(wrapper);
-  let savedRange = null;
+  const selectionState = createRichTextSelection(editor, '[data-text-box-node]');
+  const { currentRange, select, restore, expand: expandAtoms } = selectionState;
   let previous = '';
   let disabled = false;
   let applyingCommand = false;
+  let insertionId = 0;
 
-  function currentRange() {
-    const selection = window.getSelection();
-    if (!selection.rangeCount) return null;
-    const range = selection.getRangeAt(0);
-    return editor.contains(range.commonAncestorContainer) ? range : null;
-  }
-  function select(range) {
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    savedRange = range.cloneRange();
-  }
   function hasTextSelection(range) {
     return range && !range.collapsed && editor.contains(range.commonAncestorContainer)
       && readTextBoxNodes(editor, getConfig(), range).some(node => node.type === 'text' && node.text.length);
-  }
-  function restore() {
-    const range = savedRange && editor.contains(savedRange.commonAncestorContainer) ? savedRange.cloneRange() : document.createRange();
-    if (!savedRange || !editor.contains(savedRange.commonAncestorContainer)) { range.selectNodeContents(editor); range.collapse(false); }
-    editor.focus({ preventScroll: true });
-    select(range);
-    return range;
-  }
-  function expandAtoms(range) {
-    for (const edge of ['start', 'end']) {
-      const container = range[`${edge}Container`];
-      const atom = (container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement)?.closest('[data-text-box-node]');
-      if (atom && editor.contains(atom)) {
-        if (edge === 'start') range.setStartBefore(atom); else range.setEndAfter(atom);
-      }
-    }
-    return range;
   }
   function sync() {
     try {
@@ -141,21 +115,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
       const nodes = transform(readTextBoxNodes(editor, config, range));
       const fragment = previewElement('div');
       renderTextBox(fragment, { ...config, nodes }, { editable: true });
-      const span = previewElement('span');
-      const marker = crypto.randomUUID();
-      span.dataset.textFormat = marker;
-      span.append(...fragment.childNodes);
-      const content = previewElement('div');
-      content.append(span);
-      select(range);
-      document.execCommand('insertHTML', false, content.innerHTML);
-      const inserted = editor.querySelector(`[data-text-format="${marker}"]`);
-      if (inserted) {
-        delete inserted.dataset.textFormat;
-        const selection = document.createRange();
-        selection.selectNodeContents(inserted);
-        select(selection);
-      }
+      selectionState.replace(range, fragment);
     });
   }
   function format(property, value) {
@@ -170,7 +130,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     transformSelection(nodes => nodes.map(node => node.type === 'text' ? { type: 'text', text: node.text } : node));
   }
   const toolbar = mountRichTextToolbar(editor, {
-    getRange() { const range = currentRange(); if (range) savedRange = range.cloneRange(); return range || savedRange; },
+    getRange() { const range = currentRange(); if (range) selectionState.savedRange = range.cloneRange(); return range || selectionState.savedRange; },
     getConfig, readNodes: range => readTextBoxNodes(editor, getConfig(), range), format, clearFormat,
     isDisabled: () => disabled, isApplying: () => applyingCommand,
   });
@@ -184,7 +144,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   listen(editor, 'paste', event => {
     event.preventDefault();
     const range = currentRange();
-    if (range) savedRange = range.cloneRange();
+    if (range) selectionState.savedRange = range.cloneRange();
     insertText(event.clipboardData.getData('text/plain').replace(/\r\n?/g, '\n'));
   });
   listen(editor, 'drop', event => event.preventDefault());
@@ -195,12 +155,12 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
   });
   return {
     editor,
-    rememberSelection() { const range = currentRange(); if (range) savedRange = range.cloneRange(); },
+    rememberSelection() { const range = currentRange(); if (range) selectionState.savedRange = range.cloneRange(); },
     insertText,
     insertNode(node) {
       const content = previewElement('div');
       renderTextBox(content, { ...getConfig(), nodes: [node] }, { editable: true });
-      const marker = crypto.randomUUID();
+      const marker = String(++insertionId);
       content.firstElementChild.dataset.textInsertion = marker;
       command('insertHTML', content.innerHTML);
       const inserted = editor.querySelector(`[data-text-insertion="${marker}"]`);
@@ -217,7 +177,7 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
       if (serialized !== previous) {
         renderTextBox(editor, config, { editable: true });
         previous = serialized;
-        savedRange = null;
+        selectionState.savedRange = null;
       }
       updateSelection();
     },

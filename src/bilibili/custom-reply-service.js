@@ -17,9 +17,9 @@ function createCustomReplyService(dependencies = {}) {
   let cachedRuleText = null;
   let cachedRules = [];
 
-  function findCurrentRule(message) {
+  function findCurrentRule(simplified) {
     const current = typeof settings === 'function' ? settings() : {};
-    const text = cleanText(message);
+    const text = cleanText(simplified);
     if (!text || current.enableCustomReplyBot !== 'true') return null;
     const value = current.customReplyRules;
     if (typeof value !== 'string') return matchCustomReplyRule(text, compileCustomReplyRules(value));
@@ -52,12 +52,12 @@ function createCustomReplyService(dependencies = {}) {
         ? ['菜单', ...projected.customExactReplies.map((rule) => toSimplifiedChinese(rule.trigger))] : []);
     },
 
-    isCloudOwnedCommand(message) {
-      return cloudTriggers.has(toSimplifiedChinese(String(message || '').trim()));
+    isCloudOwnedCommand(message, simplified = toSimplifiedChinese(String(message || '').trim())) {
+      return cloudTriggers.has(simplified);
     },
 
-    handleDanmaku(danmaku = {}) {
-      const matchedRule = findCurrentRule(danmaku.message);
+    handleDanmaku(danmaku = {}, simplified = toSimplifiedChinese(danmaku.message)) {
+      const matchedRule = findCurrentRule(simplified);
       if (!matchedRule) {
         return { accepted: false, reason: 'not-custom-reply' };
       }
@@ -75,8 +75,8 @@ function createCustomReplyService(dependencies = {}) {
       };
     },
 
-    isCommandText(message) {
-      return cloudTriggers.has(toSimplifiedChinese(String(message || '').trim())) || Boolean(findCurrentRule(message));
+    isCommandText(message, simplified = toSimplifiedChinese(String(message || '').trim())) {
+      return cloudTriggers.has(simplified) || Boolean(findCurrentRule(simplified));
     },
   };
 }
@@ -88,7 +88,7 @@ function compileCustomReplyRules(value) {
 }
 
 function matchCustomReplyRule(text, rules) {
-  const normalizedText = toSimplifiedChinese(text).toLocaleLowerCase();
+  const normalizedText = text.toLocaleLowerCase();
   return rules.find(({ keyword }) => normalizedText.includes(keyword))?.rule || null;
 }
 

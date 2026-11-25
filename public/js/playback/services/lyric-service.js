@@ -2,6 +2,7 @@
 // 歌词服务 - 负责歌词加载和浏览器源同步
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import { findLyricLineIndex } from '../../shared/lyric-line-index.js';
 import { getPlaybackLyricOffsetMs } from '../utils.js';
 
@@ -55,9 +56,7 @@ export class LyricService {
 
       const payload = await this.readJsonResponse(response, '获取歌词失败');
 
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || '获取歌词失败');
-      }
+      assertApiResponse(response, payload, '获取歌词失败');
 
       return payload.data;
     } catch (error) {
@@ -201,6 +200,7 @@ export class LyricService {
 
   async publishBrowserState(state, force) {
     const now = Date.now();
+    if (!force && now - this.lastPublishedAt < 180) return;
     const roundedState = {
       ...state,
       currentMs: Math.round(Number(state.currentMs || 0)),
@@ -208,7 +208,6 @@ export class LyricService {
     };
     const serialized = JSON.stringify(roundedState);
     if (!force && serialized === this.lastPublishedState) return;
-    if (!force && now - this.lastPublishedAt < 180) return;
     return new Promise((resolve) => {
       const request = { serialized, state: { ...roundedState, sequence: ++this.stateSequence }, resolve };
       if (force) {

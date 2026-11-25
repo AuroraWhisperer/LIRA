@@ -63,6 +63,8 @@ function createCloudSyncController(options = {}) {
   let operation = Promise.resolve();
   let pendingSync = null;
   let streamAbortController = null;
+  let streamOpen = false;
+  let reconciled = false;
   const streamReconnect = createCancellableDelay(timers);
   let streamRetryMs = STREAM_RETRY_MIN_MS;
   let streamRetryNotBefore = 0;
@@ -272,6 +274,7 @@ function createCloudSyncController(options = {}) {
         signal: controller.signal,
         onOpen() {
           if (streamAbortController !== controller || controller.signal.aborted) return;
+          streamOpen = true;
           streamRetryMs = STREAM_RETRY_MIN_MS;
           if (reconnect) {
             syncNow().catch((error) => {
@@ -283,6 +286,7 @@ function createCloudSyncController(options = {}) {
           if (streamAbortController !== controller || controller.signal.aborted) return;
           if (!hasNewCloudRevision(event)) return;
           if (pendingSync) {
+            pendingSync.localOnly = false;
             mergePendingRevisions(pendingSync, event);
             return;
           }
@@ -296,12 +300,14 @@ function createCloudSyncController(options = {}) {
       })
       .finally(() => {
         if (streamAbortController !== controller) return;
+        streamOpen = false;
         streamAbortController = null;
         if (!controller.signal.aborted) scheduleStreamReconnect(retryAfterMs);
       });
   }
 
   function stopEventStream() {
+    streamOpen = false;
     clearStreamReconnectTimer();
     streamAbortController?.abort();
     streamAbortController = null;
@@ -343,12 +349,16 @@ function createCloudSyncController(options = {}) {
 
   async function flushDirty(work) {
     let conflict = null;
+    let acknowledged = true;
     for (const scope of VALID_SCOPES) {
       if (!isCurrent(work)) return;
       if (!dirty.has(scope)) continue;
       try {
-        await flushScope(scope, work);
+        const result = await flushScope(scope, work);
+        if (!Number.isSafeInteger(result?.revision) || result.revision < 0 || (scope === 'settings' && !result.values))
+          acknowledged = false;
       } catch (error) {
+        acknowledged = false;
         // Menu-only notifications cannot protect a previous account's settings from restoration.
         if (scope === 'settings' && error?.code === 'CLOUD_SETTINGS_NOT_READY' && isCurrent(work)) dirty.delete(scope);
         // Other failed uploads remain dirty for the next scheduled or explicit retry.
@@ -358,6 +368,7 @@ function createCloudSyncController(options = {}) {
       }
     }
     if (conflict) throw conflict;
+    return acknowledged;
   }
 
   async function seedScope(scope, work) {
@@ -396,19 +407,22 @@ function createCloudSyncController(options = {}) {
     dirty.add(scope);
   }
 
-  async function runSync(work) {
+  async function runSync(work, localOnly) {
     if (!isCurrent(work)) return false;
     if (retryNotBefore > now()) {
       schedule();
       return false;
     }
-    clearTimer();
+    // An upload may skip its own read, but must never postpone the periodic recovery read.
+    const uploadOnly = localOnly && streamOpen && reconciled && timer !== null;
+    if (!uploadOnly) clearTimer();
     try {
       if (settingsSync.getPending(work.accountKey) && !dirty.has('settings')) markScopeDirty('settings');
       if (songSync.hasPending(work.accountKey) && !dirty.has('songs')) markScopeDirty('songs');
       if (bilibiliSync.getPendingLogout(work.accountKey) && !dirty.has('bilibili')) markScopeDirty('bilibili');
-      await flushDirty(work);
+      const acknowledged = await flushDirty(work);
       if (!isCurrent(work)) return false;
+      if (uploadOnly && streamOpen && acknowledged && !dirty.size) return true;
       const state = await licenseManager.getCloudState({ signal: work.signal });
       if (!isCurrent(work)) return false;
       for (const scope of VALID_SCOPES) {
@@ -438,13 +452,18 @@ function createCloudSyncController(options = {}) {
       }
       await bilibiliSync.reconcile(state.bilibili, work);
       if (songError) throw songError;
-      return isCurrent(work);
+      if (!isCurrent(work)) return false;
+      reconciled = true;
+      return true;
     } catch (error) {
-      if (isCurrent(work)) rememberRetry(error);
+      if (isCurrent(work)) {
+        reconciled = false;
+        rememberRetry(error);
+      }
       if (isCurrent(work)) giftInteraction.fail(error);
       throw error;
     } finally {
-      if (isCurrent(work)) schedule();
+      if (isCurrent(work) && (!uploadOnly || !timer)) schedule();
     }
   }
 
@@ -455,8 +474,9 @@ function createCloudSyncController(options = {}) {
     }
   }
 
-  function syncNow(event) {
+  function syncNow(event, localOnly = false) {
     if (pendingSync) {
+      if (!localOnly) pendingSync.localOnly = false;
       if (!event) pendingSync.force = true;
       else mergePendingRevisions(pendingSync, event);
       return pendingSync.promise;
@@ -466,14 +486,14 @@ function createCloudSyncController(options = {}) {
       accountKey,
       signal: requestController?.signal,
     };
-    const pending = { force: !event, scopes: {} };
+    const pending = { force: !event, scopes: {}, localOnly };
     mergePendingRevisions(pending, event);
     pendingSync = pending;
     pending.promise = enqueue(() => {
       if (pendingSync === pending) pendingSync = null;
       // An earlier upload/read may already have consumed this SSE revision.
       if (!pending.force && !hasNewCloudRevision(pending)) return false;
-      return runSync(work);
+      return runSync(work, pending.localOnly);
     });
     return pending.promise;
   }
@@ -487,6 +507,7 @@ function createCloudSyncController(options = {}) {
   }
 
   function stop() {
+    reconciled = false;
     active = false;
     lifecycleGeneration += 1;
     pendingSync = null;
@@ -506,7 +527,8 @@ function createCloudSyncController(options = {}) {
     if (isAuthorized() && !prepareAccount()) return;
     markScopeDirty(scope);
     if (isAuthorized()) {
-      start().catch((error) => {
+      const sync = active ? syncNow(null, true) : start();
+      sync.catch((error) => {
         void error;
       });
     }

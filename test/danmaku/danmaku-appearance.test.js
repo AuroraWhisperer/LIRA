@@ -2,13 +2,17 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { createDanmakuAppearanceStore, migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
 const { createDanmakuAppearance } = require('../../src/server/danmaku-appearance');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
+const { migrateTestSongDb } = require('../helpers/song-database');
+const { trackBodyReads } = require('../helpers/sqlite-body-reads');
 
 function fixture(t, loadLegacy = async () => ({ style: 'bubble', fullscreenDurationSeconds: 9 })) {
   const db = new DatabaseSync(':memory:');
-  migrateDanmakuAppearance(db);
+  migrateTestSongDb(db);
   const store = createDanmakuAppearanceStore(db);
   const state = { owner: { scope: '["https://example.test","streamer-a"]', epoch: 1 }, changes: 0 };
   const service = createDanmakuAppearance({ store, getOwner: () => state.owner, loadLegacy,
@@ -16,6 +20,61 @@ function fixture(t, loadLegacy = async () => ({ style: 'bubble', fullscreenDurat
   t.after(() => db.close());
   return { db, store, state, service };
 }
+
+test('queue activity and another owner’s writes do not transfer the cached appearance in either direction', async t => {
+  const f = fixture(t);
+  const { config } = await f.service.read();
+  const size = Buffer.byteLength(JSON.stringify(config));
+  const reads = trackBodyReads(t, f.db, 'config_json');
+  const store = createDanmakuAppearanceStore(f.db);
+  const addRequest = f.db.prepare("INSERT INTO queue (song_name, created_at, updated_at) VALUES ('song', 'test', 'test')");
+  for (let n = 0; n < 60; n++) {
+    addRequest.run();
+    f.store.set('account-b', { n });
+    const copy = store.get(f.state.owner.scope);
+    assert.equal(copy.style, config.style);
+    copy.style = 'caller mutation';
+  }
+  assert.equal(reads.returnedBytes, size);
+  assert.ok(reads.largestBind < size, 'cache checks must not bind the configuration');
+});
+
+test('appearance cache follows same-connection and external repairs, rollback and whole-row replacement', t => {
+  const directory = createScratchDirectory('danmaku-appearance-');
+  const filename = path.join(directory, 'appearance.sqlite');
+  const db = new DatabaseSync(filename);
+  const other = new DatabaseSync(filename);
+  t.after(() => { other.close(); db.close(); removeScratchDirectory(directory); });
+  migrateTestSongDb(db);
+  const reads = trackBodyReads(t, db, 'config_json');
+  const store = createDanmakuAppearanceStore(db);
+  store.set('owner', { style: 'bubble' });
+  const style = () => store.get('owner')?.style;
+  assert.equal(style(), 'bubble');
+  const coldBytes = reads.returnedBytes;
+  other.exec("INSERT INTO queue (song_name, created_at, updated_at) VALUES ('external song', 'test', 'test')");
+  assert.equal(style(), 'bubble');
+  assert.equal(reads.returnedBytes, coldBytes);
+  const repair = db.prepare("UPDATE danmaku_appearances SET config_json = ? WHERE owner_scope = 'owner'");
+  db.exec('BEGIN');
+  repair.run('{"style":"signal"}');
+  assert.equal(style(), 'signal');
+  db.exec('ROLLBACK');
+  assert.equal(style(), 'bubble');
+  repair.run('{"style":"notebook"}');
+  assert.equal(style(), 'notebook');
+  const priorToken = db.prepare("SELECT body_token FROM danmaku_appearances WHERE owner_scope = 'owner'").get().body_token;
+  other.exec(`UPDATE danmaku_appearances SET config_json = '{"style":"spooky"}' WHERE owner_scope = 'owner'`);
+  // A second repair writes the same JSON with a token from an older backup.
+  other.prepare("UPDATE danmaku_appearances SET config_json = config_json, body_token = ? WHERE owner_scope = 'owner'").run(priorToken);
+  assert.equal(style(), 'spooky');
+  other.exec(`CREATE TEMP TABLE restored AS SELECT * FROM danmaku_appearances;
+    UPDATE restored SET config_json = '{"style":"astral"}';
+    INSERT OR REPLACE INTO danmaku_appearances SELECT * FROM restored;`);
+  assert.equal(style(), 'astral');
+  other.exec("DELETE FROM danmaku_appearances WHERE owner_scope = 'owner'");
+  assert.equal(store.get('owner'), null);
+});
 
 test('legacy settings initialize once; local profiles survive repeated migrations and service recreation', async t => {
   let reads = 0;
@@ -25,20 +84,7 @@ test('legacy settings initialize once; local profiles survive repeated migration
   assert.equal(initial.config.style, 'bubble');
   assert.equal(initial.config.styleOptions.bubble.fontSize, 32);
   assert.doesNotMatch(JSON.stringify(initial), /PRIVATE/);
-  const next = { ...initial, config: { ...initial.config, style: 'spooky',
-    styleOptions: { ...initial.config.styleOptions, spooky: { fontSize: 36, nicknameFontSize: 24, nicknameFontFamily: '"Georgia"',
-      nicknameColor: '#cceeff', frameTitleFontSize: 16 }, outline: { durationSeconds: 12 },
-      'animated-gradient': { gradientPalette: 'ocean', gradientCycleSeconds: 24, gradientUnderline: 'hide' },
-      'glass-bubble': { glassBubbleReveal: 'instant', glassBubbleTypingSpeed: 60, glassBubbleSweep: 'off', glassBubbleHighlight: 0 },
-      'celestial-horizontal': { celestialNebulaOpacity: 80, celestialStarDensity: 'dense', celestialStarShape: 'star', celestialSeparator: 'hide' },
-      glass: { glassTime: 'hide', glassGlintIntensity: 0, glassDensity: 'compact' },
-      glowy: { glowyLayout: 'horizontal', glowyAvatar: 'hide', glowyTime: 'hide', glowyLight: 60 },
-      'dark-moon': { darkMoonPalette: 'ice', darkMoonRingSize: 140, darkMoonSparks: 'hide' },
-      window: { windowGuard: 'hide', windowMedal: 'show' },
-      wireframe: { wireframeFadeLength: 0, wireframeOrbit: 'hide', wireframeEntrance: 'none', wireframeEntranceMs: 1400 },
-      'sea-breeze': { seaBreezeReflectionOpacity: 0, seaBreezeReflectionLength: 100, seaBreezeReflectionGap: 0 },
-      'sea-breeze-random': { seaBreezeReflectionOpacity: 60, seaBreezeReflectionLength: 200, seaBreezeReflectionGap: 30 },
-    } } };
+  const next = { ...initial, config: { ...initial.config, style: 'spooky' } };
   f.service.save(next);
   assert.equal(f.service.seed({ ownerScope: f.state.owner.scope, authorizationEpoch: 1,
     settings: { style: 'signal', fullscreenDurationSeconds: 6 } }), false);
@@ -51,66 +97,24 @@ test('legacy settings initialize once; local profiles survive repeated migration
   assert.equal(f.state.changes, 2);
 });
 
-test('stardust text effects survive local saving and service restart', async t => {
+test('local appearance restores the selected style, edited region and per-style effects after restart', async t => {
   const f = fixture(t);
   const initial = await f.service.read();
-  f.service.save({ ...initial, config: { ...initial.config, style: 'stardust',
-    styleParameters: { stardust: { showEntryMessages: false,
-      textOutline: { color: '#203040', width: 1.5 }, shadow: { opacity: 60, blur: 4 } } } } });
-  const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner,
-    loadLegacy: () => { throw new Error('Saved local effects must not read remote settings.'); } });
-  const config = (await restarted.read()).config;
-  assert.equal(config.style, 'stardust');
-  assert.equal(config.styleParameters.stardust.showEntryMessages, false);
-  assert.equal(config.styleParameters.stardust.textOutline.width, 1.5);
-  assert.equal(config.styleParameters.stardust.shadow.opacity, 60);
-});
-
-test('horizontal charm saves its layout and shared perspective in the local account profile', async t => {
-  const { createLayout } = require('../../public/js/shared/danmaku-layout.js');
-  const f = fixture(t);
-  const initial = await f.service.read();
-  f.service.save({ ...initial, config: { ...initial.config, style: 'horizontal-charm', layout: createLayout(),
-    styleOptions: { 'horizontal-charm': { charmGap: 44, charmMaxWidth: 680 } },
-    styleParameters: { 'horizontal-charm': { transform: { rotateY: -12, perspective: 1400 } } } } });
-  const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner,
-    loadLegacy: () => { throw new Error('Local appearance must not fetch remote settings.'); } });
-  const { config } = await restarted.read();
-  assert.equal(config.style, 'horizontal-charm');
-  assert.equal(config.styleOptions['horizontal-charm'].charmGap, 44);
-  assert.equal(config.styleOptions['horizontal-charm'].charmMaxWidth, 680);
-  assert.equal(config.styleParameters['horizontal-charm'].transform.perspective, 1400);
-  assert.equal(config.styleParameters['horizontal-charm'].transform.rotateY, -12);
-  assert.equal(config.layout.regions['horizontal-charm'].width, 1920);
-});
-
-test('astral public perspective survives local saving and service restart', async t => {
-  const f = fixture(t);
-  const initial = await f.service.read();
-  f.service.save({ ...initial, config: { ...initial.config, style: 'astral',
-    styleOptions: { astral: { astralAccentColor: '#aaddff', astralEntrance: 'none' } },
-    styleParameters: { astral: { transform: { perspective: 1600, rotateY: -18, rotateZ: 2 } } } } });
+  const config = structuredClone(initial.config);
+  config.style = 'horizontal-charm';
+  config.layout.regions['horizontal-charm'] = { x: 100, y: 600, width: 1100, height: 140 };
+  config.styleOptions['horizontal-charm'] = { charmGap: 44 };
+  config.styleParameters = {
+    'horizontal-charm': { transform: { rotateY: -12, perspective: 1400 } },
+    stardust: { showEntryMessages: false, textOutline: { color: '#203040', width: 1.5 }, shadow: { opacity: 60, blur: 4 } },
+  };
+  f.service.save({ binding: initial.binding, config: structuredClone(config) });
   const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner });
-  const config = (await restarted.read()).config;
-  assert.equal(config.style, 'astral');
-  assert.equal(config.styleOptions.astral.astralEntrance, 'none');
-  assert.equal(config.styleParameters.astral.transform.perspective, 1600);
-  assert.equal(config.styleParameters.astral.transform.rotateY, -18);
-});
-
-test('neon glass and shared perspective survive local saving and service restart', async t => {
-  const f = fixture(t);
-  const initial = await f.service.read();
-  f.service.save({ ...initial, config: { ...initial.config, style: 'neon-glass',
-    styleOptions: { 'neon-glass': { neonGlassNameColors: 'identity', neonGlassHighlight: 70, neonGlassEntranceMs: 700 } },
-    styleParameters: { 'neon-glass': { transform: { perspective: 1600, rotateY: -18, rotateZ: 2 } } } } });
-  const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner });
-  const config = (await restarted.read()).config;
-  assert.equal(config.style, 'neon-glass');
-  assert.equal(config.styleOptions['neon-glass'].neonGlassNameColors, 'identity');
-  assert.equal(config.styleOptions['neon-glass'].neonGlassHighlight, 70);
-  assert.equal(config.styleParameters['neon-glass'].transform.perspective, 1600);
-  assert.equal(config.styleParameters['neon-glass'].transform.rotateY, -18);
+  const restored = (await restarted.read()).config;
+  assert.equal(restored.style, config.style);
+  assert.deepEqual(restored.layout.regions['horizontal-charm'], config.layout.regions['horizontal-charm']);
+  assert.deepEqual(restored.styleOptions, config.styleOptions);
+  assert.partialDeepStrictEqual(restored.styleParameters, config.styleParameters);
 });
 
 test('invalid local writes leave the complete saved appearance unchanged', async t => {

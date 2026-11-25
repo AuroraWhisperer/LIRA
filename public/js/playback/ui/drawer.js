@@ -184,13 +184,6 @@ export class Drawer {
     // 底部操作按钮
     if (!this.actionsEl) return;
 
-    this.actionsEl.innerHTML = '';
-
-    if (showPlayAll) {
-      this.actionsEl.innerHTML += '<button id="playbackDrawerPlayAll" type="button">播放全部</button>';
-      this.actionsEl.innerHTML += '<button id="playbackDrawerShuffleAll" type="button">随机播放</button>';
-    }
-
     this.actionsEl.hidden = !showPlayAll;
   }
 }

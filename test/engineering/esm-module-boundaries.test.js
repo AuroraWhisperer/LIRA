@@ -49,6 +49,37 @@ test('every public ES module only references identifiers it declares or imports'
   assert.deepEqual(findings, [], `unbound identifiers found:\n${details}`);
 });
 
+test('scope audit distinguishes module specifier names from local bindings and executable references', async (t) => {
+  const scratch = path.join(__dirname, '../..', 'tmp');
+  fs.mkdirSync(scratch, { recursive: true });
+  const directory = fs.mkdtempSync(path.join(scratch, 'esm-scope-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const declarations = [
+    "import primary, { sourceValue as localValue, otherValue } from './source.js';",
+    "import * as namespace from './source.js';",
+    "export { sourceValue as forwarded, default as defaultForward } from './source.js';",
+    "export * as bundle from './source.js';",
+    'export { localValue as publicValue, otherValue };',
+  ];
+  const sources = new Map([
+    ['source.js', 'export default 1; export const sourceValue = 2, otherValue = 3;'],
+    ['valid.js', [...declarations, 'export default () => primary + localValue + otherValue + namespace.sourceValue;'].join('\r\n')],
+    ['unbound.js', [...declarations, 'export function read() { return sourceValue + forwarded + defaultForward + bundle + publicValue + missing; }'].join('\r\n')],
+  ]);
+  const modules = new Map();
+  for (const [file, source] of sources) {
+    fs.writeFileSync(path.join(directory, file), source);
+    modules.set(file, new vm.SourceTextModule(source, { identifier: file }));
+  }
+  const root = new vm.SourceTextModule("import './valid.js'; import './unbound.js';");
+  await root.link(specifier => modules.get(specifier.slice(2)));
+  assert.deepEqual(auditPublicEsModules(directory), [{
+    file: path.join(directory, 'unbound.js'),
+    unresolved: ['bundle', 'defaultForward', 'forwarded', 'missing', 'publicValue', 'sourceValue']
+      .map(name => ({ name, line: 6 })),
+  }]);
+});
+
 function assertLocations(source, sanitized, names) {
   assert.equal(sanitized.length, source.length);
   for (let index = 0; index < source.length; index += 1) {

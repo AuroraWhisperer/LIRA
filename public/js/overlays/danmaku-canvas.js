@@ -3,6 +3,7 @@ import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 
 // Default placement can change without enlarging text in saved regions.
 const FIXED_DESIGN_WIDTHS = Object.freeze({
+  'pastel-scrapbook': 616,
   'sea-breeze': 480, sketch: 680, prismatic: 640, harbor: 640, snowfox: 640,
   ripploid: 520, twitter: 530, 'flower-letter': 640, spooky: 530, notebook: 640,
   glass: 696, 'animated-gradient': 520, christmas: 560, stargazer: 560,

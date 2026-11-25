@@ -127,7 +127,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
       message,
       type,
       duration,
-      className: 'gift-catalog-update-toast',
+      className: 'toast-with-icon gift-catalog-update-toast',
     });
     toastNode = toastHandle.node;
     const progress = documentRef.createElement('progress');

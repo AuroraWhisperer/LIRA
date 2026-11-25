@@ -3,6 +3,7 @@
 'use strict';
 
 import { getQueueTrackKey } from '../utils.js';
+import { addedPlaylistTracks, samePlaylistEntry, sourcePlaylistTracks } from './playlist-entries.js';
 
 /**
  * 队列管理器类
@@ -43,7 +44,8 @@ export class QueueManager {
     if (!items.length) return;
 
     this.state.requestedQueue = [];
-    const nextItems = items.map((track) => ({ ...track, playNext: true }));
+    const entries = this.state.queueType === 'playlist' ? addedPlaylistTracks(this.state, items) : items;
+    const nextItems = entries.map((track) => ({ ...track, playNext: true }));
 
     if (this.state.queueType === 'radio') {
       this.state.radioQueue.unshift(...nextItems);
@@ -53,7 +55,7 @@ export class QueueManager {
 
       if (this.state.queueType === 'playlist') {
         const insertAt = Math.max(0, Math.min(this.state.normalQueueTracks.length, this.state.playlistIndex + 1));
-        this.state.normalQueueTracks.splice(insertAt, 0, ...items.map((track) => ({ ...track })));
+        this.state.normalQueueTracks.splice(insertAt, 0, ...entries);
       } else {
         this.state.queueType = 'queue';
         this.state.queueTitle = '播放队列';
@@ -100,12 +102,7 @@ export class QueueManager {
 
     // 如果是播放列表模式，同时从完整列表中移除
     if (this.state.queueType === 'playlist') {
-      const sourceIndex = this.state.normalQueueTracks.findIndex(
-        (item, itemIndex) => itemIndex > this.state.playlistIndex && getQueueTrackKey(item) === getQueueTrackKey(track),
-      );
-      if (sourceIndex >= 0) {
-        this.state.normalQueueTracks.splice(sourceIndex, 1);
-      }
+      this._removePlaylistEntry(track);
     }
 
     return track;
@@ -131,10 +128,9 @@ export class QueueManager {
       if (track && this.state.queueType === 'playlist') {
         const nextIndex = this.state.playlistIndex + 1;
         const nextTrack = this.state.normalQueueTracks[nextIndex];
-        const key = getQueueTrackKey(track);
-        this.state.playlistIndex = nextTrack && getQueueTrackKey(nextTrack) === key
+        this.state.playlistIndex = samePlaylistEntry(nextTrack, track)
           ? nextIndex
-          : this.state.normalQueueTracks.findIndex((item) => getQueueTrackKey(item) === key);
+          : this.state.normalQueueTracks.findIndex((item) => samePlaylistEntry(item, track));
       }
 
       if (track) delete track.playNext;
@@ -189,12 +185,23 @@ export class QueueManager {
     const { normalQueueTracks: tracks, current, playlistIndex } = this.state;
     if (this.state.queueType !== 'playlist' || !tracks.length) return -1;
     if (previousTrack) {
-      return tracks.findIndex((track) => getQueueTrackKey(track) === getQueueTrackKey(previousTrack));
+      if (previousTrack.playlistOccurrence !== undefined) {
+        return tracks.findIndex((track) => samePlaylistEntry(track, previousTrack));
+      }
+      // Old history has no occurrence. Walk back from the cursor when several rows share its key.
+      const key = getQueueTrackKey(previousTrack);
+      const matches = [];
+      for (let step = 1; step <= tracks.length; step++) {
+        const index = (Math.max(0, playlistIndex) + tracks.length - step) % tracks.length;
+        if (getQueueTrackKey(tracks[index]) === key) matches.push(index);
+      }
+      if (matches.length === 1) return matches[0];
+      const byRequester = matches.filter((index) => (tracks[index].requestedBy || '') === (previousTrack.requestedBy || ''));
+      return byRequester.find((index) => tracks[index].title === previousTrack.title) ?? byRequester[0] ?? -1;
     }
-    const currentKey = current ? getQueueTrackKey(current) : '';
-    const index = tracks[playlistIndex] && getQueueTrackKey(tracks[playlistIndex]) === currentKey
+    const index = samePlaylistEntry(tracks[playlistIndex], current)
       ? playlistIndex
-      : tracks.findIndex((track) => getQueueTrackKey(track) === currentKey);
+      : tracks.findIndex((track) => samePlaylistEntry(track, current));
     return (Math.max(0, index) - 1 + tracks.length) % tracks.length;
   }
 
@@ -265,8 +272,10 @@ export class QueueManager {
     this.state.shuffleCursor = 0;
 
     if (type === 'playlist') {
-      this.state.normalQueueTracks = items.map((track) => ({ ...track }));
-      this.state.normalQueue = items.slice(index + 1).map((track) => ({ ...track }));
+      this.state.normalQueueTracks = queueSourceKey && items.every((track) => Number.isSafeInteger(track.playlistOccurrence))
+        ? items.map((track) => ({ ...track })) : sourcePlaylistTracks(items);
+      this.state.normalQueue = this.state.normalQueueTracks.slice(index + 1).map((track) => ({ ...track }));
+      return this.state.normalQueueTracks[index];
     } else {
       this.state.radioQueue = items.slice(index + 1).map((track) => ({ ...track }));
     }
@@ -290,11 +299,13 @@ export class QueueManager {
       this.state.queueSourceKey = '';
       this.state.normalQueueTracks = [];
       this.state.playlistIndex = -1;
+      this.state.normalQueue.push(...items);
     } else {
-      this.state.normalQueueTracks.push(...items.map((track) => ({ ...track })));
+      const entries = addedPlaylistTracks(this.state, items);
+      this.state.normalQueueTracks.push(...entries);
+      this.state.normalQueue.push(...entries.map((track) => ({ ...track })));
     }
     this.state.radioQueue = [];
-    this.state.normalQueue.push(...items);
   }
 
   insertAndPlayTrack(track) {
@@ -304,6 +315,7 @@ export class QueueManager {
 
     if (this.state.queueType === 'playlist' && this.state.current) {
       const insertAt = Math.max(0, Math.min(this.state.normalQueueTracks.length, this.state.playlistIndex + 1));
+      [track] = addedPlaylistTracks(this.state, [track]);
       this.state.normalQueueTracks.splice(insertAt, 0, { ...track });
       this.state.playlistIndex = insertAt;
       this.state.radioQueue = [];
@@ -336,10 +348,7 @@ export class QueueManager {
     const track = queue.splice(index, 1)[0];
     delete track.playNext;
     if (this.state.queueType === 'playlist') {
-      const sourceIndex = this.state.normalQueueTracks.findIndex(
-        (item, itemIndex) => itemIndex > this.state.playlistIndex && getQueueTrackKey(item) === getQueueTrackKey(track),
-      );
-      if (sourceIndex >= 0) this.state.normalQueueTracks.splice(sourceIndex, 1);
+      this._removePlaylistEntry(track);
       const insertAt = this.state.playlistIndex + 1;
       this.state.normalQueueTracks.splice(insertAt, 0, { ...track });
       this.state.playlistIndex = insertAt;
@@ -354,8 +363,16 @@ export class QueueManager {
     const first = tracks[0];
     this.state.normalQueue = tracks.slice(1);
     this.state.playlistIndex = this.state.normalQueueTracks.findIndex(
-      (track) => getQueueTrackKey(track) === getQueueTrackKey(first),
+      (track) => samePlaylistEntry(track, first),
     );
     return first;
+  }
+
+  _removePlaylistEntry(track) {
+    const index = this.state.normalQueueTracks.findIndex((item, i) => samePlaylistEntry(item, track) &&
+      (track.playlistOccurrence !== undefined || i > this.state.playlistIndex));
+    if (index < 0) return;
+    this.state.normalQueueTracks.splice(index, 1);
+    if (index < this.state.playlistIndex) this.state.playlistIndex--;
   }
 }

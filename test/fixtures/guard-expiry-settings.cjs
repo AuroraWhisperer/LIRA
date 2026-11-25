@@ -34,6 +34,7 @@ async function run() {
     failNext: '', partitions: [], uploaded: 0,
   };
   const manager = {
+    getRemoteBaseUrl: () => 'https://guard-expiry.example.test',
     isAuthorized: () => true, getCloudSyncIdentity: () => ({ streamerId: 1 }), getAuthorizationGeneration: () => 1,
     onStateChanged: () => () => {}, getGuardExpiryAccountInternal: async () => state.account,
     async updateGuardExpiryAccountInternal(input) {
@@ -53,7 +54,7 @@ async function run() {
     inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}),
     createApiContext: () => ({ sessionToken: token, bilibili: {
       getRoomProfile: async () => ({ roomId: '12345', uid: '123', name: '合成主播', avatarUrl: 'https://i0.hdslb.com/bfs/face/synthetic-owner.png' }),
-      fetchAvatarImage: async () => ({ contentType: 'image/png', data: fs.readFileSync(path.join(root, 'build/icon.png')) }),
+      fetchAvatarImage: async () => ({ contentType: 'image/png', data: fs.readFileSync(path.join(root, 'public/img/shared/lira-app-icon.png')) }),
     } }),
     servePageOrAsset(req, res, url) {
       if (url.pathname === '/js/admin/index.js') {

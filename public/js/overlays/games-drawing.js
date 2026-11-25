@@ -132,6 +132,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     byId('drawCountdown').textContent = countdown;
     byId('gameTurn').textContent =
       `第 ${currentSession.state.round} / ${currentSession.state.totalRounds} 局 · ${countdown}`;
+    return remaining;
   }
 
   function setDrawingClock(nextClock) {

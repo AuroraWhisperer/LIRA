@@ -1,4 +1,3 @@
 /* Player appearance styles - ordered compatibility entrypoint. */
-@import url('../shared/display-fonts.css');
 @import url('./appearance/settings.css');
 @import url('./appearance/rendering.css');

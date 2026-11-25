@@ -1,39 +1,29 @@
+import { openOrCreateCanvasItem } from './canvas-item-entry.js';
 import { previewElement } from './component-preview-elements.js';
 import { mountComponentStyleLibrary, openComponentStyleLibrary } from './component-style-library.js';
 import { openComponentLibraryManager } from './component-library-manager.js';
-import { prepareComponentPreviews } from './component-preview-registry.js';
-import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
-import { openComponentPreview } from './component-preview-dialog.js';
-import { getActiveComponentPreview } from './component-preview-session.js';
-import { validateSceneDocument } from './scene-template.js';
 import { loadComponentStyleCss, requestComponentStyles } from './component-style-api.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
 import { mountResourceStyleSettings } from './component-resource-settings-panel.js';
 import { renderGiftFrameStyleState } from './gift-frame.js';
 import { renderGiftFrameStyles } from './gift-frame-styles.js';
+import { isPanelVisible } from './panel-visibility.js';
 
 export async function addStyleToCanvas(style, { previewData, reuseExisting = false } = {}) {
-  const entries = await prepareComponentPreviews();
-  const canvas = entries.find(entry => entry.id === 'canvas');
-  if (!canvas?.controller.getState().loaded) throw new Error('画布尚未准备完成，请稍后重试。');
-  await getActiveComponentPreview('browser-preview')?.syncCanvas();
-  const document = canvas.controller.getState().draft.document;
-  const component = entries.find(entry => entry.id === style.type) || COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview();
   const styleKey = config => config?.resourceStyle?.id || config?.mediaStyle?.id;
-  const existing = reuseExisting && styleKey(style.config) && document.items.find(item => item.type === style.type
-    && styleKey(item.appearance.config) === styleKey(style.config));
-  if (existing) return openComponentPreview({ ...component, previewData, selectedItemId: existing.id });
-  if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
-  const media = componentStyleMedia(style.config);
-  const [sourceWidth, sourceHeight] = media ? [media.width, media.height] : component.size(style.config);
-  const scale = Math.min(1, document.canvas.width / sourceWidth, document.canvas.height / sourceHeight);
-  const width = Math.max(32, Math.round(sourceWidth * scale)); const height = Math.max(32, Math.round(sourceHeight * scale));
-  const id = crypto.randomUUID();
-  document.items.push({ id, type: style.type, name: style.name,
-    x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
-    width, height, visible: true, locked: false, appearance: { mode: 'independent', config: structuredClone(style.config) } });
-  canvas.controller.edit({ document: validateSceneDocument(document) });
-  return openComponentPreview({ ...component, previewData, selectedItemId: id });
+  return openOrCreateCanvasItem({ type: style.type, previewData,
+    findItem: items => reuseExisting && styleKey(style.config) && items.find(item => item.type === style.type
+      && styleKey(item.appearance.config) === styleKey(style.config)),
+    createItem(document, component) {
+      const media = componentStyleMedia(style.config);
+      const [sourceWidth, sourceHeight] = media ? [media.width, media.height] : component.size(style.config);
+      const scale = Math.min(1, document.canvas.width / sourceWidth, document.canvas.height / sourceHeight);
+      const width = Math.max(32, Math.round(sourceWidth * scale)); const height = Math.max(32, Math.round(sourceHeight * scale));
+      return { id: crypto.randomUUID(), type: style.type, name: style.name,
+        x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
+        width, height, visible: true, locked: false, appearance: { mode: 'independent', config: structuredClone(style.config) } };
+    },
+  });
 }
 
 let initialized = false;
@@ -58,10 +48,10 @@ export function initComponentStyleLibraries() {
     if (action !== 'list') return requestComponentStyles(action, options);
     if (!pendingList) {
       const next = requestComponentStyles('list', { signal: requests.signal }).then(packs => {
-        renderGiftFrameStyleState(packs);
+        if (pendingList === next) renderGiftFrameStyleState(packs);
         return packs;
       }, error => {
-        renderGiftFrameStyleState(null);
+        if (pendingList === next) renderGiftFrameStyleState(null);
         throw error;
       }).finally(() => {
         if (pendingList === next) pendingList = null;
@@ -122,7 +112,7 @@ export function initComponentStyleLibraries() {
     host.addEventListener('change', event => {
       if (wishes && event.target.matches('input[type="radio"]')) select(null);
     }, { signal: requests.signal });
-    libraries.push(mountComponentStyleLibrary(list, { type, request, inline: true,
+    const library = mountComponentStyleLibrary(list, { type, request, inline: true,
       actionLabel: wishes ? '预览样式' : '添加到画布',
       onUse: style => {
         select(style);
@@ -172,15 +162,23 @@ export function initComponentStyleLibraries() {
           host.dispatchEvent(new CustomEvent('gift-wish:style', { detail: null }));
         }
       },
-    }));
+    });
+    libraries.push({ library, visible: () => isPanelVisible(list) || (selectedId && isPanelVisible(settings)) });
   }
-  const refresh = () => { for (const library of libraries) void library.refresh(); };
-  window.addEventListener('focus', refresh, { signal: requests.signal });
-  window.addEventListener('component-styles:changed', () => { pendingList = null; refresh(); }, { signal: requests.signal });
+  let changeTimer;
+  window.addEventListener('component-styles:changed', () => {
+    // Local acknowledgements and WS invalidations can describe the same save.
+    clearTimeout(changeTimer);
+    changeTimer = setTimeout(() => {
+      pendingList = null;
+      for (const { library, visible } of libraries) if (visible()) void library.refresh();
+    }, 50);
+  }, { signal: requests.signal });
   window.addEventListener('pagehide', () => {
     requests.abort();
     manager?.dispose(); updateEditor?.dispose();
-    for (const library of libraries) library.dispose();
+    clearTimeout(changeTimer);
+    for (const { library } of libraries) library.dispose();
     for (const view of settingsViews) view.dispose();
   }, { once: true });
 }

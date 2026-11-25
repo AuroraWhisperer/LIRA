@@ -1,9 +1,9 @@
 import { SongVirtualScroller } from './song-virtual-scroller.js';
-import { createOverlaySocket } from './socket-client.js';
+import { createOverlaySocket, snapshotReasons } from './socket-client.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { SONG_BOARD_THEME_FIELDS } from '../shared/song-board-theme-fields.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
-import { hexToRgba } from './overlay-utils-module.js';
+import { hexToRgba } from './overlay-utils.js';
 import { applyOverlayTheme } from './overlay-theme.js';
 
 ('use strict');
@@ -24,8 +24,12 @@ let songListElement = null;
 let lastOrderKey = null;
 let lastLayoutKey = null;
 let lastMotionKey = null;
+let lastThemeKey = null;
 let componentSongs = [];
 let componentCategory = '';
+const THEME_FIELDS = [...Object.keys(SONG_BOARD_THEME_FIELDS), ...Object.values(SONG_BOARD_THEME_FIELDS),
+  'songBoardSyncTheme', 'songBoardFontSize', 'songBoardSongFontSize', 'songBoardTitleFontSize', 'overlayRequesterColor', 'overlayLowPowerMode'];
+const SONG_FIELDS = ['id', 'name', 'artist', 'category_name', 'language', 'name_initial'];
 
 document.addEventListener('DOMContentLoaded', () => {
   initializeScroller();
@@ -35,8 +39,10 @@ document.addEventListener('DOMContentLoaded', () => {
         state = { settings: { ...config, ...(config.songBoardSyncTheme === 'true'
           ? Object.fromEntries(Object.entries(SONG_BOARD_THEME_FIELDS).map(([field, key]) => [key, config[field]]))
           : { songBoardSyncTheme: 'false' }) } };
-        componentCategory = config.category;
-        updateComponentSongs();
+        if (componentCategory !== config.category) {
+          componentCategory = config.category;
+          updateComponentSongs();
+        } else render();
       },
       onData(data) { componentSongs = data?.songs || []; updateComponentSongs(); },
       onDispose: destroyScroller,
@@ -50,8 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function updateComponentSongs() {
   const next = componentCategory ? componentSongs.filter((song) => song.category_name === componentCategory) : componentSongs;
-  if (JSON.stringify(next) !== JSON.stringify(songs)) { songs = next; songsRevision += 1; }
+  setSongs(next);
   render();
+}
+
+function setSongs(next) {
+  if (songs === next || (songs.length === next.length && next.every((song, index) =>
+    SONG_FIELDS.every(field => song[field] === songs[index][field])))) return;
+  songs = next;
+  songsRevision += 1;
 }
 
 function initializeScroller() {
@@ -122,10 +135,7 @@ async function loadAll() {
       if (expectedLiveStatusRevision !== liveStatusRevision) statePayload.data.liveStatus = state.liveStatus;
       state = statePayload.data;
     }
-    if (songsPayload.ok && JSON.stringify(songsPayload.data) !== JSON.stringify(songs)) {
-      songs = songsPayload.data;
-      songsRevision += 1;
-    }
+    if (songsPayload.ok) setSongs(songsPayload.data);
   } catch (error) {
     console.warn('[overlay-songs] loadAll failed:', error.message || error);
   }
@@ -140,7 +150,8 @@ function connectSocket() {
     },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
-      if (payload.reason === 'live:status' && state) {
+      const reasons = snapshotReasons(payload);
+      if (reasons.length === 1 && payload.reason === 'live:status' && state) {
         liveStatusRevision += 1;
         state.liveStatus = payload.state.liveStatus;
         return;
@@ -148,13 +159,8 @@ function connectSocket() {
 
       stateRevision += 1;
       state = payload.state;
-      if (
-        payload.reason &&
-        (payload.reason.startsWith('songs:') ||
-          payload.reason === 'cloud:songs' ||
-          payload.reason === 'database:clear' ||
-          payload.reason === 'database:clear-all')
-      ) {
+      if (reasons.some(reason => reason?.startsWith('songs:') ||
+        ['cloud:songs', 'database:clear', 'database:clear-all'].includes(reason))) {
         loadRevision += 1;
         clearTimeout(reloadTimer);
         reloadTimer = setTimeout(loadAll, 220);
@@ -175,20 +181,25 @@ function disposeSocket() {
 
 function render() {
   if (!state || !scroller) return;
-  const anchor = scroller.captureAnchor();
   const settings = state.settings || {};
   const category = new URLSearchParams(location.search).get('category') || '';
   const sortMode = settings.songBoardSortMode || 'initial';
   const orderKey = `${songsRevision}:${sortMode}`;
   const layoutKey = computeLayoutKey(settings);
   const motionKey = String(resolveSongScrollSpeed(settings));
+  const themeKey = JSON.stringify(THEME_FIELDS.map(key => settings[key]));
   const orderChanged = orderKey !== lastOrderKey;
   const layoutChanged = layoutKey !== lastLayoutKey;
+  if (!orderChanged && !layoutChanged && motionKey === lastMotionKey && themeKey === lastThemeKey) return;
+  const anchor = orderChanged || layoutChanged ? scroller.captureAnchor() : null;
 
   if (layoutChanged) scroller.pause();
-  applyTheme(settings);
-  if (!settings.overlayTitle && !settings.songBoardTitle) {
-    document.getElementById('songBoardTitle').textContent = category ? `可点歌单 · ${category}` : '可点歌单';
+  if (themeKey !== lastThemeKey) {
+    applyTheme(settings);
+    if (!settings.overlayTitle && !settings.songBoardTitle) {
+      document.getElementById('songBoardTitle').textContent = category ? `可点歌单 · ${category}` : '可点歌单';
+    }
+    lastThemeKey = themeKey;
   }
 
   if (motionKey !== lastMotionKey) {
@@ -212,7 +223,7 @@ function render() {
 
   if (layoutChanged && songs.length > 0) {
     scheduleRelayout({
-      anchor: scroller.captureAnchor(),
+      anchor,
       delay: 0,
       waitForFonts: true,
     });

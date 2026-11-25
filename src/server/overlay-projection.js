@@ -154,7 +154,7 @@ const INTERACTION = {
   ...fields('runtimeId revision'),
   session: {
     ...fields(
-      'sessionId kind title phase rule startedAt endsAt finishedAt finishReason receptionInterrupted connected participants average',
+      'sessionId kind title phase rule startedAt endsAt remainingMs serverNowMs finishedAt finishReason receptionInterrupted connected participants average',
     ),
     options: [fields('text votes percentage')],
   },
@@ -309,6 +309,11 @@ function projectGameSession(session) {
 }
 
 const ROOM_GUARD_SCOPES = new Set(['queue', 'overtime', 'danmaku', 'gift-feed', 'gift-wishes', 'heart-box-collection']);
+const ROOM_GUARD_FIELDS = fields('roomId count');
+
+function projectRoomGuard(roomGuard) {
+  return roomGuard ? select(roomGuard, ROOM_GUARD_FIELDS) : undefined;
+}
 
 function getOverlayStateFields(scope) {
   if (!Object.hasOwn(STATE_SCHEMAS, scope)) return [];
@@ -325,7 +330,7 @@ function projectOverlayState(scope, state) {
   if (!Object.hasOwn(STATE_SCHEMAS, scope)) return null;
   const result = select(state || {}, STATE_SCHEMAS[scope]);
   if (ROOM_GUARD_SCOPES.has(scope) && state?.roomGuard) {
-    result.roomGuard = select(state.roomGuard, fields('roomId count'));
+    result.roomGuard = projectRoomGuard(state.roomGuard);
   }
   if (SETTING_KEYS[scope]) result.settings = select(state?.settings || {}, SETTING_SCHEMAS[scope]);
   // Retain the optional legacy dedicated game snapshot without expanding the
@@ -395,4 +400,4 @@ function projectWebSocketPayload(principal, payload) {
   return event?.scope === scope ? { type: payload.type, ...select(payload, event.schema) } : null;
 }
 
-module.exports = { getOverlayStateFields, projectOverlayState, projectOverlayResponse, projectWebSocketPayload };
+module.exports = { getOverlayStateFields, projectRoomGuard, projectOverlayState, projectOverlayResponse, projectWebSocketPayload };

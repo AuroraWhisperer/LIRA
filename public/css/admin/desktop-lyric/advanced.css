@@ -40,9 +40,7 @@
 .advanced-lyric-section > summary::-webkit-details-marker { display: none; }
 .advanced-lyric-section > summary:hover { background: color-mix(in srgb, var(--color-selection-marker) 16%, var(--surface)); }
 .advanced-lyric-section > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
-.advanced-lyric-section > summary::after { flex: 0 0 7px; width: 7px; height: 7px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); content: ''; transform: rotate(45deg) translateY(-2px); transition: transform 160ms ease; }
 .advanced-lyric-section[open] > summary { border-bottom: 1px solid var(--border); border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0; }
-.advanced-lyric-section[open] > summary::after { transform: rotate(225deg) translate(-1px, -1px); }
 .advanced-lyric-section-title { flex: 1 0 auto; color: var(--text); font-family: var(--font-display); font-size: 16px; font-weight: var(--type-weight-bold); line-height: var(--type-leading-card-title); }
 .advanced-lyric-section-state { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; color: var(--muted); font-size: var(--type-size-control); text-overflow: ellipsis; white-space: nowrap; }
 .advanced-lyric-section[open] > summary > .advanced-lyric-section-state { display: none; }

@@ -15,6 +15,9 @@ const LEGACY_STORAGE_KEY = 'admin.streamerPlanner.v1';
 
 test('cancelling event deletion preserves the draft, while confirmation deletes only the saved target', async t => {
   const { documentRef: document, windowRef: window, windowListeners, container } = createDom();
+  const events = new EventTarget();
+  document.addEventListener = events.addEventListener.bind(events);
+  document.removeEventListener = events.removeEventListener.bind(events);
   const clock = createClock();
   const create = document.createElement;
   document.createElement = tag => {
@@ -87,6 +90,7 @@ async function loadTodo(stored = new Map(), storageOverrides = {}, plannerRemind
   let nextId = 0;
   const globals = {
     console,
+    Date: class extends Date { static now() { return Date.parse('2026-10-02T09:00'); } },
     crypto: { randomUUID: () => `item-${++nextId}` },
     document: { getElementById: () => null },
     window: {
@@ -315,20 +319,20 @@ test('failed writes keep the latest records in memory', async () => {
 
 test('successfully saved events synchronize native reminders, reschedules and cancellations without duplicate calls', async () => {
   const calls = [];
-  const bridge = { sync: async (value) => { calls.push(value); return { ok: true, supported: true }; } };
+  const bridge = { sync: async ({ agenda }) => { calls.push(agenda ? agenda.split('\n').map(JSON.parse) : []); return { ok: true, supported: true }; } };
   const { todo, stored } = await loadTodo(new Map(), {}, bridge);
   const event = todo.addEvent({ title: '学歌', date: '2026-10-02', time: '20:00', reminderTime: '20:00' });
   assert.equal(calls.length, 1);
-  assert.equal(calls[0][0].remindAt, new Date('2026-10-02T20:00:00').getTime());
+  assert.equal(calls[0][0].localAt, '2026-10-02T20:00');
   todo.addTask({ title: '无关待办' });
   assert.equal(calls.length, 1);
   todo.updateEvent(event.id, { time: '21:00' });
-  assert.equal(calls[1][0].remindAt, new Date('2026-10-02T21:00:00').getTime());
+  assert.equal(calls[1][0].localAt, '2026-10-02T21:00');
   assert.equal((await loadTodo(stored)).todo.getState().events[0].reminderTime, '21:00');
   todo.updateEvent(event.id, { reminderTime: '' });
   assert.equal(calls[2].length, 0);
   todo.updateEvent(event.id, { time: '', reminderTime: '09:00' });
-  assert.equal(calls[3][0].remindAt, new Date('2026-10-02T09:00:00').getTime());
+  assert.equal(calls[3][0].localAt, '2026-10-02T09:00');
   todo.removeEvent(event.id);
   assert.equal(calls[4].length, 0);
   await Promise.resolve();
@@ -351,10 +355,10 @@ test('a successful retry persists the in-memory draft before synchronizing remin
   const stored = new Map();
   const calls = [];
   let writable = false;
-  const bridge = { sync: async (reminders) => {
+  const bridge = { sync: async ({ agenda }) => {
     const persisted = JSON.parse(stored.get(STORAGE_KEY));
     assert.equal(persisted.events[0].title, '未保存的日程');
-    calls.push(reminders);
+    calls.push(JSON.parse(agenda));
     return { ok: true, supported: true };
   } };
   const { todo } = await loadTodo(stored, {
@@ -369,6 +373,6 @@ test('a successful retry persists the in-memory draft before synchronizing remin
   writable = true;
   todo.addTask({ title: '同时保存草稿' });
   assert.equal(calls.length, 1);
-  assert.equal(calls[0][0].title, '未保存的日程');
+  assert.equal(calls[0].title, '未保存的日程');
   await Promise.resolve();
 });

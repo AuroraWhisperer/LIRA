@@ -54,10 +54,16 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
     ];
   }
 
-  async function getSnapshot() {
+  async function getSnapshot({ includeSession = true } = {}) {
     const { source, revision } = scope();
-    const session = await sessions.get(source.sourceId, String(getRoomId() || ''));
-    scope(revision);
+    let rows = includeSession === false ? store.list(source.sourceId) : null;
+    let session = null;
+    if (!rows || rows.some(wish => wish.period === 'session')) {
+      session = await sessions.get(source.sourceId, String(getRoomId() || ''));
+      scope(revision);
+      // Wishes may have been edited while the room request was pending.
+      rows = store.list(source.sourceId);
+    }
     const timestamp = now();
     const asOf = new Date(timestamp).toISOString();
     const day = new Date(timestamp + 8 * 3600000).toISOString().slice(0, 10);
@@ -67,7 +73,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
       return (key) => paths.get(key);
     })();
     const requests = [];
-    const wishes = store.list(source.sourceId).map((wish) => {
+    const wishes = rows.map((wish) => {
       let start;
       if (wish.period === 'long') {
         start = wish.created_at;
@@ -106,7 +112,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
         todayCount: counts[todayIndex],
         remaining: Math.max(0, wish.target - count),
         completed: count >= wish.target,
-        progress: Math.min(100, Math.floor((count / wish.target) * 100)),
+        progress: Math.min(100, Math.floor((count * 100) / wish.target)),
         startAt: start || null,
       };
     });
@@ -115,7 +121,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
       asOf,
       day,
       partial: source.partial !== false,
-      session: {
+      session: session && {
         state: session.state,
         stale: session.stale,
         startedAt: session.started_at || null,

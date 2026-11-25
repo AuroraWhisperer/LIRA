@@ -3,7 +3,7 @@
 @property --notebook-scale { syntax: '<number>'; inherits: false; initial-value: 1.0193; }
 
 body[data-style='notebook'] {
-  --danmaku-enter-animation: notebookEntry 740ms linear;
+  --danmaku-enter-animation: danmakuEntryClock 740ms linear;
   --danmaku-move-base-ms: 85;
   --danmaku-move-max-ms: 85;
   --danmaku-move-curve: 0, 0, 1, 1;
@@ -150,16 +150,14 @@ body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-paper { op
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-heading { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: notebookTextEnter 300ms ease-out 320ms both; }
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-copy { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: notebookTextEnter 320ms ease-out 420ms both; }
 body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='gift'] .notebook-paper,
-body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='sc'] .notebook-paper { opacity: var(--danmaku-enter-opacity); animation: notebookEventEnter 200ms ease-out both; }
-body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='member'] .notebook-paper { opacity: var(--danmaku-enter-opacity); animation: notebookEventEnter 280ms ease-out 120ms both; }
-@keyframes notebookEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='sc'] .notebook-paper { opacity: var(--danmaku-enter-opacity); animation: danmakuEnterOpacity 200ms ease-out both; }
+body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='member'] .notebook-paper { opacity: var(--danmaku-enter-opacity); animation: danmakuEnterOpacity 280ms ease-out 120ms both; }
 @keyframes notebookFloat { 0%,100% { --notebook-shift: 0; } 50% { --notebook-shift: -.173077em; } }
 @keyframes notebookAvatarFade { 0% { --danmaku-enter-opacity: 0; } 20% { --danmaku-enter-opacity: .746; } 40% { --danmaku-enter-opacity: .949; } 60% { --danmaku-enter-opacity: .99; } 100% { --danmaku-enter-opacity: 1; } }
 @keyframes notebookAvatarRise { from { --danmaku-enter-y: .173077em; } to { --danmaku-enter-y: 0; } }
 @keyframes notebookAvatarReturn { 0% { --notebook-angle: -3.05deg; } 25% { --notebook-angle: -1.831deg; } 50% { --notebook-angle: -.893deg; } 75% { --notebook-angle: -.262deg; } 100% { --notebook-angle: 0deg; } }
 @keyframes notebookPaperEnter { from { --danmaku-enter-opacity: 0; --danmaku-enter-x: .432692em; --danmaku-enter-angle: 3deg; --danmaku-enter-scale-x: .975; } to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; --danmaku-enter-angle: 0deg; --danmaku-enter-scale-x: 1; } }
 @keyframes notebookTextEnter { from { --danmaku-enter-opacity: 0; --danmaku-enter-y: .259615em; } to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0; } }
-@keyframes notebookEventEnter { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 
 @keyframes notebookAvatarSway {
   0% { --notebook-angle: -1.07000deg; --notebook-shift: 0.059712em; }
@@ -217,10 +215,6 @@ body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='
   100% { --notebook-scale: 1.029324; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='notebook'] .notebook-item,
-  body[data-style='notebook'] .notebook-item * { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='notebook'] .draw-danmaku-item .notebook-copy {

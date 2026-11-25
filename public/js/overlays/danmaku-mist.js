@@ -1,4 +1,6 @@
-const GUARD_NAMES = { 1: '总督', 2: '提督', 3: '舰长' };
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement } from '../shared/dom-element.js';
+import { GUARD_LABELS as GUARD_NAMES } from '../shared/bilibili-guard-labels.js';
 
 export function decorateMistMessage(bubble, item, { avatar, identity, body, message }) {
   const guard = Number(item.roomGuardLevel);
@@ -31,16 +33,10 @@ export function createMistGuardCard(document, item, classNames, createAvatar) {
   footer.append(node('span', 'mist-guard-companion', Number.isSafeInteger(days) && days >= 0
     ? `已陪伴 ${days} 天` : '感谢你的陪伴'));
   const total = item.giftTotalPrice;
-  footer.append(node('span', 'mist-guard-amount', Number.isFinite(total) && total >= 0
-    ? `¥${total.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—'));
+  footer.append(node('span', 'mist-guard-amount', formatDanmakuAmount(total)));
   card.append(profile, seal, title, footer);
   root.append(card);
   return root;
 
-  function node(tag, className, text) {
-    const element = document.createElement(tag);
-    element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
-  }
+  function node(tag, className, text) { return createTextElement(document, tag, className, text); }
 }

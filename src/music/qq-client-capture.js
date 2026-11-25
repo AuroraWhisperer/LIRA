@@ -1,6 +1,7 @@
 'use strict';
 
 const { createQQClientMonitor } = require('./qq-client-monitor');
+const { isDeepStrictEqual } = require('node:util');
 const { findCurrentLyricLine } = require('./lyric-parser');
 
 function createQQClientCapture({
@@ -27,6 +28,7 @@ function createQQClientCapture({
   let previousTrackTimeline = null;
   let stableTrack = false;
   let lyrics = null;
+  let lastEmitted, lastLyrics;
   let resolving = false;
   let resolved = false;
   let clockReady = false;
@@ -56,6 +58,9 @@ function createQQClientCapture({
   }
 
   function emit() {
+    if (lastLyrics === lyrics && isDeepStrictEqual(lastEmitted, state)) return;
+    lastEmitted = { ...state };
+    lastLyrics = lyrics;
     onState(getStatus(), getLyricState());
   }
 
@@ -130,13 +135,13 @@ function createQQClientCapture({
       missingSince = null;
     }
     if (sample.error || !sample.detected || ['Stopped', 'Closed'].includes(sample.playbackStatus)) {
-      const hadTrack = Boolean(trackKey);
+      const clearTimeline = Boolean(trackKey) || (sample.error && state.status !== 'error');
       resetTrack(sample.detected === true && !sample.error);
       state = { ...initial, active: true, detected: sample.detected === true,
         status: sample.error ? 'error' : 'waiting',
         message: sample.error ? '无法读取 QQ 音乐播放状态，请重新检测' : '请打开 QQ 音乐客户端并播放歌曲',
       };
-      if (hadTrack || sample.error) clearLyrics();
+      if (clearTimeline) clearLyrics();
       emit();
       return;
     }

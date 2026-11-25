@@ -100,25 +100,6 @@
   border-radius: 8px;
   background: var(--surface);
 }
-.xiaomi-ai-provider-note {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 10px;
-  border: 1px solid var(--color-border-light);
-  border-radius: 7px;
-  background: var(--color-bg-tertiary);
-}
-.xiaomi-ai-provider-note #xiaomiAiProviderBadge {
-  flex: 0 0 auto;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: var(--color-primary-light);
-  color: var(--primary-strong);
-  font-size: var(--type-size-micro);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
 .xiaomi-ai-form legend {
   padding: 0 6px;
   color: var(--danmaku-heading-color);
@@ -482,10 +463,6 @@
     border-top: 1px solid var(--border);
     border-left: 0;
   }
-  .xiaomi-ai-provider-note {
-    align-items: flex-start;
-    flex-direction: column;
-  }
   .xiaomi-ai-model-picker {
     grid-template-columns: 1fr;
   }
@@ -530,9 +507,6 @@
   border-radius: 12px;
   background: var(--surface);
   color: var(--text);
-}
-.xiaomi-ai-persona-dialog::backdrop {
-  background: var(--color-bg-overlay-light);
 }
 .xiaomi-ai-persona-editor {
   display: grid;

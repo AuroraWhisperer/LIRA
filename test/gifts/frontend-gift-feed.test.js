@@ -143,7 +143,7 @@ test('a settings change arriving during a gift refresh is applied in the next ba
     window.feedConfig.thresholds = [100, 300, 500];
     window.feedConfig.tailStyle = 'capsule';
     window.feedConfig.textureStyle = 'starlight';
-    window.socketOptions.onMessage({ type: 'snapshot', reason: 'settings' });
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'bilibili:gift', reasons: ['settings', 'bilibili:gift'] });
     window.resumeHistory();
   });
   await page.waitForFunction(() => window.feedScans === 3);
@@ -226,9 +226,11 @@ test('feed minimum filters accumulated historical prices after merging and uses 
   assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-count').allTextContents(), ['×2', '×1', '×11']);
 });
 
-test('hidden feeds defer reconciliation requests and immediately confirm resources when visible', async (t) => {
+test('hidden feeds defer requests across Shanghai midnight and reconcile the new day on return', async (t) => {
   const page = await openFeed(t);
-  await page.clock.install();
+  const day = await page.evaluate(() => new URL(window.feedRequests.find(url => url.startsWith('/api/gifts/history?')),
+    location.href).searchParams.get('startDate'));
+  await page.clock.install({ time: new Date(`${day}T23:59:58+08:00`) });
   await page.evaluate(() => {
     window.feedRequests = [];
     Object.defineProperty(document, 'hidden', { configurable: true, value: true });
@@ -241,8 +243,12 @@ test('hidden feeds defer reconciliation requests and immediately confirm resourc
     Object.defineProperty(document, 'hidden', { configurable: true, value: false });
     document.dispatchEvent(new Event('visibilitychange'));
   });
+  assert.equal(await page.locator('#giftFeedStage > *').count(), 0);
   await page.clock.runFor(500);
   const requests = await page.evaluate(() => window.feedRequests);
+  const historyDates = requests.filter(url => url.startsWith('/api/gifts/history?'))
+    .map(url => new URLSearchParams(url.split('?')[1]).get('startDate'));
+  assert.deepEqual(historyDates, [new Date(Date.parse(day) + 86400000).toISOString().slice(0, 10)]);
   assert.equal(requests.filter(url => url.startsWith('/api/overtime/gifts/catalog?')).length, 1);
   assert.equal(requests.filter(url => url === '/api/gifts/display-settings').length, 1);
 });

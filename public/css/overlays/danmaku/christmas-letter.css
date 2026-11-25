@@ -181,7 +181,6 @@ body[data-style='christmas-letter'] .christmas-letter-item[data-live-entry] { an
 @keyframes xletterParticle { 0% { opacity: 0; transform: translate(0, 5px) scale(.5); } 25% { opacity: .9; } 100% { opacity: 0; transform: translate(calc(7px - var(--particle) * 4px), -15px) scale(.25) rotate(45deg); } }
 @keyframes xletterTwinkle { 0% { opacity: .35; scale: .65; } 34% { opacity: 1; scale: 1.2; } 65% { opacity: .65; scale: .9; } 100% { opacity: 1; scale: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  body[data-style='christmas-letter'] .christmas-letter-item[data-live-entry], .christmas-letter-item[data-live-entry] *, .christmas-letter-item[data-live-entry] *::after { animation: none !important; }
   .christmas-letter-item :is(.xletter-trace,.xletter-particle,.xletter-glint::after,.xletter-ribbon) { opacity: 0; }
 }
 

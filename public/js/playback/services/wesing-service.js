@@ -1,6 +1,8 @@
 // 全民 K 歌前端适配器：只负责 API/实时状态与专属界面，不参与在线音乐播放逻辑。
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
+import { formatTimeMs as formatTime } from '../utils.js';
 import { LyricWordRenderer } from '../../shared/lyric-word-renderer.js';
 import { refreshParameterRange } from '../../shared/parameter-range.js';
 import { createWeSingDiagnostics } from './wesing-diagnostics.js';
@@ -83,8 +85,10 @@ export class WeSingService {
       const offsetMs = parseLyricOffset(offsetNumber.value);
       if (offsetRange && offsetMs !== null) {
         this.pendingLyricOffsetMs = offsetMs;
-        offsetRange.value = String(offsetMs);
-        refreshParameterRange(offsetRange);
+        if (offsetRange.value !== String(offsetMs)) {
+          offsetRange.value = String(offsetMs);
+          refreshParameterRange(offsetRange);
+        }
       }
     });
     offsetNumber?.addEventListener('change', () => {
@@ -244,21 +248,12 @@ export class WeSingService {
         ...(nextState.lyricState || {}),
       },
     };
-    this.applyLyricState(this.status.lyricState, { notify: false });
     this.render();
     // Progress and lyrics belong to this view; only provider health affects the shared player.
     if (['supported', 'cacheReady', 'platformDetected', 'status', 'message']
       .some((key) => previousStatus[key] !== this.status[key])) {
       this.onStateChange(this.status);
     }
-  }
-
-  applyLyricState(nextState, options = {}) {
-    if (!nextState || typeof nextState !== 'object') return;
-    this.status.lyricState = { ...this.status.lyricState, ...nextState };
-    this.lyricRenderer?.setState(this.status.lyricState);
-    this.renderLyricContent();
-    if (options.notify !== false) this.render();
   }
 
   render() {
@@ -268,10 +263,14 @@ export class WeSingService {
       'weSingTrackMeta',
       status.trackTitle
         ? (status.lyricState.artists || []).join(' / ') || formatLyricSource(status.lyricSource)
-        : '等待播放',
+        : '',
     );
+    const trackMeta = document.getElementById('weSingTrackMeta');
+    if (trackMeta) trackMeta.hidden = !status.trackTitle;
     setText('weSingPlaybackState', status.playing ? '正在播放' : status.waitingForPlayback ? '等待播放' : '已暂停');
     setText('weSingStatusMessage', getCompactStatusMessage(status));
+    const statusMessage = document.getElementById('weSingStatusMessage');
+    if (statusMessage) statusMessage.hidden = !statusMessage.textContent;
     setText('weSingClientStatus', status.platformDetected ? '已检测' : '未检测');
     setText('weSingCacheStatus', status.cacheReady ? '已就绪' : '未找到');
     const cacheHint = document.getElementById('weSingCacheHint');
@@ -308,7 +307,9 @@ export class WeSingService {
     const lyricState = this.status.lyricState || EMPTY_STATUS.lyricState;
     setText(
       'weSingLyricHint',
-      this.status.qrcReady ? '同步中' : this.status.status === 'loading' ? '读取中' : '等待歌词',
+      this.status.qrcReady ? '同步中' : this.status.status === 'loading' ? '读取中'
+        : this.status.status === 'empty' ? '这首歌尚未找到本地歌词'
+          : '启动全民 K 歌后，逐字歌词会在这里同步',
     );
     this.lyricRenderer?.setState(lyricState);
   }
@@ -317,11 +318,11 @@ export class WeSingService {
     const value = String(this.pendingLyricOffsetMs ?? numberValue(this.status.lyricOffsetMs, 0));
     const range = document.getElementById('weSingLyricOffsetMs');
     const number = document.getElementById('weSingLyricOffsetMsNumber');
-    if (range && (force || range !== document.activeElement)) {
+    if (range && range.value !== value && (force || range !== document.activeElement)) {
       range.value = value;
       refreshParameterRange(range);
     }
-    if (number && (force || number !== document.activeElement)) number.value = value;
+    if (number && number.value !== value && (force || number !== document.activeElement)) number.value = value;
   }
 
   async request(url, options = {}) {
@@ -335,7 +336,7 @@ export class WeSingService {
     const payload = this.readJsonResponse
       ? await this.readJsonResponse(response, '全民 K 歌请求失败')
       : await response.json();
-    if (!response.ok || !payload.ok) throw new Error(payload.error || '全民 K 歌请求失败');
+    assertApiResponse(response, payload, '全民 K 歌请求失败');
     return payload.data || {};
   }
 
@@ -352,18 +353,12 @@ export class WeSingService {
 
 function setText(id, value) {
   const element = document.getElementById(id);
-  if (element) element.textContent = String(value || '');
+  const text = String(value || '');
+  if (element && element.textContent !== text) element.textContent = text;
 }
 
 function setSignal(id, active) {
   document.getElementById(id)?.classList.toggle('is-active', active === true);
-}
-
-function formatTime(milliseconds) {
-  const totalSeconds = Math.max(0, Math.floor(numberValue(milliseconds, 0) / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function formatLyricSource(source) {
@@ -375,11 +370,9 @@ function formatLyricSource(source) {
 
 function getCompactStatusMessage(status) {
   if (status.status === 'error') return status.message || '检测失败';
-  if (status.status === 'loading') return '读取中';
   if (status.status === 'empty') return '无歌词';
-  if (status.qrcReady) return '同步中';
   if (!status.cacheReady) return '未配置';
-  return '等待播放';
+  return '';
 }
 
 function numberValue(value, fallback) {

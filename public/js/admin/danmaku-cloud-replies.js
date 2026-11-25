@@ -2,6 +2,7 @@ import { createCustomReplyEditor } from './danmaku-libraries.js';
 import { createScheduledLibraryEditor } from './danmaku-scheduled-library.js';
 import { initDanmakuInteractionThanks } from './danmaku-interaction-thanks.js';
 import { createAutosave } from './settings-autosave.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 
 export function initDanmakuCloudReplies({
   documentRef = globalThis.document,
@@ -147,7 +148,7 @@ export function initDanmakuCloudReplies({
   function markDirty() {
     dirty = true;
     draftRevision += 1;
-    saveState.textContent = '等待自动保存…';
+    renderSaveStatus(saveState, 'pending');
     max.setCustomValidity('');
     scheduledAutosave.schedule();
   }
@@ -177,17 +178,17 @@ export function initDanmakuCloudReplies({
       selection: selection.value,
       messages,
     };
-    saveState.textContent = '正在保存…';
+    renderSaveStatus(saveState, 'saving');
     try {
       await sync({ scheduledDanmaku });
       if (generation !== requested || disposed) return;
       if (revision === draftRevision) {
         dirty = false;
-        saveState.textContent = '已自动保存到云端';
+        renderSaveStatus(saveState, 'saved', '已自动保存到云端');
       }
     } catch (error) {
       if (generation === requested && !disposed) {
-        saveState.textContent = `自动保存失败，草稿已保留。${error.message}`;
+        renderSaveStatus(saveState, 'error', `自动保存失败，草稿已保留。${error.message}`);
         toast('自动保存失败，修改已保留。请检查连接，重新编辑或刷新云端状态后重试。', { type: 'error' });
       }
     }
@@ -217,7 +218,7 @@ export function initDanmakuCloudReplies({
     form.reset();
     library.reset();
     max.setCustomValidity('');
-    saveState.textContent = '';
+    renderSaveStatus(saveState, 'idle', '');
     get('danmakuScheduledSummary').textContent = '直播中按间隔发送词库';
     exactState.textContent = scheduledState.textContent = available ? '连接 LIRA 账号后可设置' : '请升级桌面客户端后设置';
     timingFields();

@@ -35,7 +35,7 @@ function fixture(t, options = {}) {
   return { monitor, children, samples };
 }
 
-test('NetEase monitor parses split rows, enriches matched IDs and ignores retired helpers', (t) => {
+test('NetEase monitor parses split rows, enriches matched IDs and ignores retired helpers', async (t) => {
   let reads = 0;
   const { monitor, children, samples } = fixture(t, { readTrack(sample) {
     reads++;
@@ -47,7 +47,10 @@ test('NetEase monitor parses split rows, enriches matched IDs and ignores retire
   assert.equal(children[0].stdin.read().toString('utf8'), buildNeteaseClientMonitorScript());
   children[0].stdout.write('{"detected":');
   children[0].stdout.write('true,"windowTitle":"Song - Artist"}\n');
-  children[0].stdout.write('{"detected":true,"windowTitle":"Song - Artist"}\ninvalid\n');
+  await new Promise(setImmediate);
+  children[0].stdout.write('{"detected":true,"windowTitle":"Song - Artist"}\n');
+  await new Promise(setImmediate);
+  children[0].stdout.write('invalid\n');
   assert.equal(samples[0].sourceTrackId, '123');
   assert.deepEqual(samples[0].artists, ['Artist']);
   assert.equal(reads, 1);
@@ -60,12 +63,45 @@ test('NetEase monitor parses split rows, enriches matched IDs and ignores retire
   assert.equal(children[1].killed, true);
 });
 
-test('NetEase rejects a native clock paired with the previous local song identity', (t) => {
-  const { monitor, children, samples } = fixture(t, { readTrack: () => ({ title: 'Previous', artists: ['Artist'], sourceTrackId: '123' }) });
+test('NetEase rejects a native clock paired with the previous local song identity', async (t) => {
+  let time = 1000, reads = 0;
+  const { monitor, children, samples } = fixture(t, { now: () => time,
+    readTrack: () => ({ title: 'Previous', artists: ['Artist'], sourceTrackId: ++reads === 1 ? '123' : '456' }) });
   monitor.start();
-  children[0].stdout.write(JSON.stringify({ detected: true, windowTitle: 'Previous - Artist',
-    clockSource: 'native', playbackStatus: 'Playing', sourceTrackId: '456', positionMs: 1500 }) + '\n');
+  const row = JSON.stringify({ detected: true, windowTitle: 'Previous - Artist',
+    clockSource: 'native', playbackStatus: 'Playing', sourceTrackId: '456', positionMs: 1500 }) + '\n';
+  children[0].stdout.write(row);
+  await new Promise(setImmediate);
   assert.deepEqual(samples.at(-1), { detected: true, playbackStatus: 'Changing', clockSource: 'native' });
+  time += 1000;
+  children[0].stdout.write(row);
+  await new Promise(setImmediate);
+  assert.equal(samples.at(-1).sourceTrackId, '456');
+  assert.equal(samples.at(-1).positionMs, 1500);
+});
+
+test('NetEase drops history reads completed after a track change or helper shutdown', async (t) => {
+  const pending = new Map();
+  const { monitor, children, samples } = fixture(t, { readTrack({ title }) {
+    const request = Promise.withResolvers();
+    pending.set(title, request);
+    return request.promise;
+  } });
+  monitor.start();
+  const send = title => children[0].stdout.write(JSON.stringify({ detected: true, windowTitle: `${title} - Artist` }) + '\n');
+  send('Old');
+  send('Active');
+  await new Promise(setImmediate);
+  pending.get('Active').resolve(null);
+  pending.get('Old').resolve(null);
+  await new Promise(setImmediate);
+  assert.deepEqual(samples.map(s => s.title), ['Active']);
+  send('Last');
+  await new Promise(setImmediate);
+  monitor.stop();
+  pending.get('Last').resolve(null);
+  await new Promise(setImmediate);
+  assert.equal(samples.length, 1);
 });
 
 test('NetEase helper input failures retire the child and cannot restart after stop', (t) => {
@@ -146,4 +182,35 @@ try {
   });
   assert.equal(result.error, undefined);
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('NetEase keeps a progress-only window on the slow rescan and picks up a late playback button', { skip: process.platform !== 'win32' }, (t) => {
+  const script = buildNeteaseClientMonitorScript()
+    .replace('while ($true)', String.raw`
+$manager = $null
+$fixtureWindow = @{ Handle = [IntPtr]::Zero; ProcessId = 0; Title = 'fixture' }
+$progress = [pscustomobject]@{ Current = @{ Name = ''; BoundingRectangle = @{ Top = 20 } } }
+$button = [pscustomobject]@{ Current = @{ Name = 'Pause'; BoundingRectangle = @{ Top = 20 }; ControlType = [System.Windows.Automation.ControlType]::Button } }
+$scans = 0
+for ($i = 0; $i -le 68; $i++)`)
+    .replace('$sampledAt = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()', "$sampledAt = 1000 + 500 * $i\n$progress.Current.Name = '00:{0:00} / 03:20' -f [Math]::Floor($i / 2)")
+    .replace('Get-Process -Name cloudmusic -ErrorAction SilentlyContinue', '[Diagnostics.Process]::GetCurrentProcess()')
+    .replace('[NeteasePlaybackWindows]::Find([int[]]@($processes | ForEach-Object { [int]$_.Id }))', '$fixtureWindow')
+    .replace('$nativePlayer.Read($window.ProcessId)', '$null')
+    .replace('$root = [System.Windows.Automation.AutomationElement]::FromHandle($window.Handle)', '$scans++')
+    .replace('$controls = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $controlCondition)',
+      '$controls = [System.Collections.ArrayList]::new(); [void]$controls.Add($progress); if ($i -gt 16) { [void]$controls.Add($button) }')
+    .replace('[NeteasePlaybackWindows]::ReadTitle($window.Handle)', '$window.Title')
+    .replace('Start-Sleep -Milliseconds 500', '');
+  const file = path.join(createScratchDirectory('netease-rescan-', t), 'sample.ps1');
+  fs.writeFileSync(file, '\ufeff' + script + '\nWrite-Output $scans\n');
+  const result = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', file],
+    { windowsHide: true, encoding: 'utf8', timeout: 15000 });
+  assert.equal(result.status, 0, result.stderr);
+  const rows = result.stdout.trim().split(/\r?\n/);
+  assert.equal(Number(rows.pop()), 2);
+  const samples = rows.map(row => JSON.parse(row));
+  assert.ok(samples[50].positionMs > samples[6].positionMs);
+  assert.equal(samples[50].playbackStatus, 'Unknown');
+  assert.equal(samples.at(-1).playbackStatus, 'Playing');
 });

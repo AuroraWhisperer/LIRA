@@ -2,6 +2,7 @@
 // 歌单操作模块
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import * as PlaybackUtils from '../utils.js';
 import * as PlaybackComponents from '../ui/components.js';
 import { activateModalFocus } from '../../shared/modal-focus.js';
@@ -115,84 +116,40 @@ export function createPlaylistOperations(deps) {
     const platform = playbackState.selectedSource;
     const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
 
+    if (action !== 'liked' && action !== 'playlist-tracks') return;
+    const liked = action === 'liked';
+    const target = homeService.getPlaylistRemovalTarget(action);
+    if (!target) return;
+    const { playlist } = target;
     const notice = {
-      key: `playlist-remove:${platform}:${action}:${homeService.getCurrentPlaylist()?.id || 'liked'}:${track.sourceTrackId || track.sourceSongId || track.id || track.mid || track.title}`,
+      key: `playlist-remove:${platform}:${action}:${playlist.id}:${track.sourceTrackId || track.sourceSongId || track.id || track.mid || track.title}`,
       update: true,
     };
-
-    if (action === 'liked') {
-      const confirmed = await showConfirmDialog(
-        '从我喜欢中删除',
-        '确认要删除这首歌曲吗？',
-        track.title || '当前歌曲',
-        '删除',
-        '取消',
-      );
-      if (!confirmed) return;
-
-      try {
-        toast('正在从我喜欢中删除…', { ...notice, duration: 0 });
-        const response = await fetch('/api/music/playlists/tracks/remove', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform,
-            playlist: { id: 'liked' },
-            tracks: [track],
-          }),
-        });
-        const payload = await readJsonResponse(response, `从我喜欢删除失败`);
-        if (!response.ok || !payload.ok) throw new Error(payload.error || `从我喜欢删除失败`);
-
-        toast('已从我喜欢中删除', { ...notice, type: 'success' });
-        await homeService.refreshContent();
-        const updatedState = homeService.getHomeState();
-        if (deps.renderPlaybackHomeResults) {
-          deps.renderPlaybackHomeResults(updatedState.action);
-        }
-      } catch (error) {
-        toast(error.message || String(error), { ...notice, type: 'error' });
-      }
+    const confirmed = await showConfirmDialog(
+      liked ? '从我喜欢中删除' : '从歌单中删除',
+      liked ? '确认要删除这首歌曲吗？' : `确认从「${playlist.title || '歌单'}」中删除这首歌曲吗？`,
+      track.title || '当前歌曲', '删除', '取消',
+    );
+    if (!confirmed) return;
+    const errorMessage = liked ? '从我喜欢删除失败' : `从${platformLabel}歌单删除失败`;
+    let receipt;
+    try {
+      toast(liked ? '正在从我喜欢中删除…' : '正在从歌单中删除…', { ...notice, duration: 0 });
+      const response = await fetch('/api/music/playlists/tracks/remove', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, playlist, tracks: [track] }),
+      });
+      const payload = await readJsonResponse(response, errorMessage);
+      assertApiResponse(response, payload, errorMessage);
+      receipt = payload.data?.result;
+    } catch (error) {
+      toast(error.message || String(error), { ...notice, type: 'error' });
       return;
     }
-
-    if (action === 'playlist-tracks') {
-      const currentPlaylist = homeService.getCurrentPlaylist();
-      if (!currentPlaylist) return;
-
-      const confirmed = await showConfirmDialog(
-        `从歌单中删除`,
-        `确认从「${currentPlaylist.title || '歌单'}」中删除这首歌曲吗？`,
-        track.title || '当前歌曲',
-        '删除',
-        '取消',
-      );
-      if (!confirmed) return;
-
-      try {
-        toast('正在从歌单中删除…', { ...notice, duration: 0 });
-        const response = await fetch('/api/music/playlists/tracks/remove', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform,
-            playlist: currentPlaylist,
-            tracks: [track],
-          }),
-        });
-        const payload = await readJsonResponse(response, `从${platformLabel}歌单删除失败`);
-        if (!response.ok || !payload.ok) throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
-
-        toast(`已从「${currentPlaylist.title || '歌单'}」中删除`, { ...notice, type: 'success' });
-        await homeService.refreshContent();
-        const updatedState = homeService.getHomeState();
-        if (deps.renderPlaybackHomeResults) {
-          deps.renderPlaybackHomeResults(updatedState.action);
-        }
-      } catch (error) {
-        toast(error.message || String(error), { ...notice, type: 'error' });
-      }
-    }
+    toast(liked ? '已从我喜欢中删除' : `已从「${playlist.title || '歌单'}」中删除`, { ...notice, type: 'success' });
+    // Refresh errors are reported by HomeService independently of the completed write.
+    const result = await homeService.refreshAfterPlaylistRemoval(target, track, receipt);
+    if (!result.stale) deps.renderPlaybackHomeResults?.(result.action, homeService.getCurrentPlaylist()?.title);
   }
 
   /**
@@ -219,7 +176,7 @@ export function createPlaylistOperations(deps) {
         }),
       });
       const listPayload = await readJsonResponse(listResponse, `加载${platformLabel}歌单失败`);
-      if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || `加载${platformLabel}歌单失败`);
+      assertApiResponse(listResponse, listPayload, `加载${platformLabel}歌单失败`);
       const playlists = Array.isArray(listPayload.data && listPayload.data.playlists)
         ? listPayload.data.playlists.filter(
             (item) => item && (platform === 'qq' ? item.dirId && (item.tid || item.id) : item.id),
@@ -242,8 +199,7 @@ export function createPlaylistOperations(deps) {
         body: JSON.stringify({ platform, playlist, tracks: [track] }),
       });
       const writePayload = await readJsonResponse(writeResponse, `添加到${platformLabel}歌单失败`);
-      if (!writeResponse.ok || !writePayload.ok)
-        throw new Error(writePayload.error || `添加到${platformLabel}歌单失败`);
+      assertApiResponse(writeResponse, writePayload, `添加到${platformLabel}歌单失败`);
       const song =
         writePayload.data && writePayload.data.result && Array.isArray(writePayload.data.result.songlist)
           ? writePayload.data.result.songlist[0]

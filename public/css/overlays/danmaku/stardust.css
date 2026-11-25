@@ -1,4 +1,4 @@
-/* 星尘 2.0: transparent type, converging copy and a delayed constellation. */
+/* 落星尘: transparent type, converging copy and a delayed constellation. */
 body[data-style='stardust'] .danmaku-signal-header { display: none; }
 body[data-style='stardust'] :is(.danmaku-signal-stage, .draw-danmaku-feed) {
   position: relative;
@@ -157,7 +157,7 @@ body[data-style='stardust'] .stardust-item:has(.stardust-event) .stardust-copy {
   animation: stardustNameGather 1200ms cubic-bezier(.16, 1, .3, 1) both;
 }
 .stardust-item[data-live-entry][data-stardust-entrance='on'] :is(.stardust-ornament, .stardust-event, .stardust-tail) {
-  animation: stardustIgnite 750ms 650ms ease-out backwards;
+  animation: danmakuEnterOpacity 750ms 650ms ease-out backwards;
 }
 @keyframes stardustCopyGather {
   from { --danmaku-enter-opacity: 0; --danmaku-enter-y: -12px; }
@@ -167,7 +167,6 @@ body[data-style='stardust'] .stardust-item:has(.stardust-event) .stardust-copy {
   from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 24px; }
   to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
-@keyframes stardustIgnite { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 @keyframes stardustTwinkle { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 @keyframes stardustMemberTwinkle { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
 @keyframes stardustOrbit {
@@ -175,9 +174,6 @@ body[data-style='stardust'] .stardust-item:has(.stardust-event) .stardust-copy {
   50% { transform: translate(-50%, -50%) rotate(-17deg); }
 }
 body[data-style='stardust'][data-ambient-motion='off'] :is(.stardust-star, .stardust-orbit) { animation: none; }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='stardust'] .stardust-item[data-live-entry] :is(.stardust-copy, .stardust-name, .stardust-ornament, .stardust-event, .stardust-tail, .stardust-star, .stardust-orbit) { animation: none; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='stardust'] .draw-danmaku-item .stardust-copy {

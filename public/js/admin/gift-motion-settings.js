@@ -1,11 +1,9 @@
+import { openOrCreateCanvasItem } from './canvas-item-entry.js';
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 import { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS, giftMotionSettingKeys } from '../shared/gift-motion-settings.js';
 import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import { mountGiftMotionParameters } from './gift-motion-parameters.js';
-import { prepareComponentPreviews } from './component-preview-registry.js';
-import { getActiveComponentPreview } from './component-preview-session.js';
-import { openComponentPreview } from './component-preview-dialog.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 
@@ -118,25 +116,19 @@ async function preview(effect) {
   if (button.disabled || !valid(effect)) return;
   button.disabled = true;
   try {
-    const entries = await prepareComponentPreviews();
-    const canvas = entries.find(entry => entry.id === 'canvas');
-    if (!canvas?.controller.getState().loaded) throw new Error('画布尚未准备完成，请稍后重试。');
-    await getActiveComponentPreview('browser-preview')?.syncCanvas();
-    const document = canvas.controller.getState().draft.document;
-    let item = document.items.find(item => item.type === 'gift-frame' && item.appearance.config?.style === effect.style
-      && !item.appearance.config.mediaStyle && !item.appearance.config.resourceStyle);
-    if (!item) {
-      if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
-      const variant = SCENE_EXTRA_COMPONENTS['gift-frame'].variants.find(variant => variant.value === effect.style);
-      const height = Math.min(document.canvas.height, variant.size?.[1] || document.canvas.height);
-      item = { id: crypto.randomUUID(), type: 'gift-frame', name: effect.label, x: 0, y: document.canvas.height - height,
-        width: document.canvas.width, height, visible: true, locked: false,
-        appearance: { mode: 'independent', config: { style: effect.style } } };
-      document.items.push(item); canvas.controller.edit({ document });
-    }
     const settings = Object.fromEntries(keys(effect).map(key => [key, value(key)]));
-    openComponentPreview({ id: 'gift-frame', selectedItemId: item.id,
-      previewData: { preview: true, events: createGiftMotionSamples(effect.style, settings) } });
+    await openOrCreateCanvasItem({ type: 'gift-frame',
+      previewData: { preview: true, events: createGiftMotionSamples(effect.style, settings) },
+      findItem: items => items.find(item => item.type === 'gift-frame' && item.appearance.config?.style === effect.style
+        && !item.appearance.config.mediaStyle && !item.appearance.config.resourceStyle),
+      createItem(document) {
+        const variant = SCENE_EXTRA_COMPONENTS['gift-frame'].variants.find(variant => variant.value === effect.style);
+        const height = Math.min(document.canvas.height, variant.size?.[1] || document.canvas.height);
+        return { id: crypto.randomUUID(), type: 'gift-frame', name: effect.label, x: 0, y: document.canvas.height - height,
+          width: document.canvas.width, height, visible: true, locked: false,
+          appearance: { mode: 'independent', config: { style: effect.style } } };
+      },
+    });
   } catch (error) {
     toast(error.message || '无法打开预览，请重试。', { type: 'error' });
   } finally { button.disabled = false; }

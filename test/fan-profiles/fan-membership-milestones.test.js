@@ -92,6 +92,16 @@ test('today counts only evidence that has started and preserves intraday expiry'
   assert.ok(!milestones([expiring], NOW + 3 * 3600000, 7).some(item => item.key === 'continuous:active:30'));
 });
 
+test('only the snoozed continuous cycle returns when its revised crossing is outside the window', () => {
+  const records = [
+    interval('first', '2026-06-01T00:00:00+08:00', '2026-07-02T00:00:00+08:00'),
+    interval('return', '2026-09-15T00:00:00+08:00', '2026-10-16T00:00:00+08:00'),
+  ];
+  const state = { key: 'continuous:return:30', date: '2026-10-15', status: 'snoozed', until: dayOf(NOW) };
+  const due = buildReminders(PROFILE, records, [state], NOW).filter(item => item.actionable);
+  assert.deepEqual(due.map(item => [item.key, item.date]), [[state.key, '2026-10-14']]);
+});
+
 test('a full year checks milestone candidates instead of every intervening day', () => {
   const records = [interval('cycle', '2026-10-01T00:00:00+08:00', '2027-12-01T00:00:00+08:00')];
   const prepared = prepareMembership(records);

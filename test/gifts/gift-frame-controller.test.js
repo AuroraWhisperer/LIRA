@@ -31,7 +31,7 @@ async function fixture(source) {
   const windowHandlers = new Map();
   const window = { innerWidth: 960, innerHeight: 540, addEventListener: (name, fn) => windowHandlers.set(name, fn), removeEventListener: (name) => windowHandlers.delete(name) };
   const { createFrameController } = await loadModuleExports(path.resolve('public/js/overlays/gift-effects-frame.js'), {
-    window,
+    window, URL, URLSearchParams,
     setTimeout: (fn, delay) => { timers.set(++serial, { fn, delay }); return serial; },
     clearTimeout: (id) => timers.delete(id),
   });

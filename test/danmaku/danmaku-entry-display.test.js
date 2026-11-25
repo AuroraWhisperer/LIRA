@@ -6,24 +6,6 @@ const { FakeNode, allNodes } = require('../helpers/fake-dom');
 const { createSceneDanmakuDisplay } = require('../../public/js/overlays/scene-danmaku-display.js');
 const { createCloudDisplayBuffer } = require('../../src/scenes/cloud-display-buffer');
 
-test('supported random and sinking scene output include SC and forward its deletion; other floating styles omit SC', () => {
-  for (const style of ['mist', 'comic', 'sinking', 'stardust', 'sea-breeze-random', 'glass-bubble', 'celestial-horizontal', 'outline', 'floating']) {
-    const items = [];
-    const deleted = [];
-    const display = createSceneDanmakuDisplay({ clear() {}, append: item => items.push(item),
-      remove: ids => deleted.push(...ids), status() {}, getStyle: () => style });
-    const snapshot = { status: 'connected', epoch: 'mist-test', state: { liveStatus: 1, liveSessionId: 'live' } };
-    display.update({ ...snapshot, events: [
-      { type: 'superchat', liveSessionId: 'live', messageId: 'sc', message: '原文\n第二行', price: 30 },
-      { type: 'superchat', liveSessionId: 'old', messageId: 'old-sc', message: '旧场次', price: 30 },
-    ] });
-    assert.equal(items.length, ['mist', 'comic', 'sinking', 'stardust', 'sea-breeze-random', 'glass-bubble', 'celestial-horizontal'].includes(style) ? 1 : 0);
-    if (items.length) assert.equal(items[0].message, '原文\n第二行');
-    display.update({ ...snapshot, events: [{ type: 'superchat-delete', liveSessionId: 'live', messageIds: ['sc'] }] });
-    assert.deepEqual(deleted, ['sc']);
-  }
-});
-
 test('scene room identity comes only from authorized room state and clears while offline', () => {
   const rooms = [];
   const display = createSceneDanmakuDisplay({ clear() {}, append() {}, status() {}, getStyle: () => 'twitter',
@@ -118,7 +100,8 @@ test('temporary disconnects and cursor gaps retain messages without repeating th
   assert.deepEqual(items, []);
 });
 
-test('scene SC deletion targets only current-session SC without replaying confirmation or entries', () => {
+test('switching to a style that hides SC still forwards retractions from the current session', () => {
+  let style = 'mist';
   let items = [];
   let clears = 0;
   const messageId = 'a'.repeat(64);
@@ -126,19 +109,27 @@ test('scene SC deletion targets only current-session SC without replaying confir
     clear() { items = []; clears += 1; },
     append(item) { items.push(item); },
     remove(ids) { items = items.filter(item => item.kind !== 'superchat' || !ids.includes(item.messageId)); },
-    status() {}, getStyle: () => 'signal', showWelcomeMessages: () => true,
+    status() {}, getStyle: () => style, showWelcomeMessages: () => true,
   });
   const snapshot = { status: 'connected', epoch: 'one', state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: '开播' } };
   display.update({ ...snapshot, events: [
     { type: 'danmaku', liveSessionId: 'live', message: '聊天' },
     { type: 'danmaku', liveSessionId: 'live', name: '机器人', message: '欢迎新观众', isWelcome: true },
-    { type: 'superchat', liveSessionId: 'live', message: '撤下', messageId },
+    { type: 'superchat', liveSessionId: 'old', message: '旧场次', messageId },
+    { type: 'superchat', liveSessionId: 'live', message: '原文\n第二行', messageId },
     { type: 'superchat', liveSessionId: 'live', message: '旧服务端没有 ID' },
   ] });
+  assert.equal(items.length, 5);
+  assert.deepEqual(items.filter(item => item.kind === 'superchat').map(item => item.message), ['原文\n第二行', '旧服务端没有 ID']);
+  const beforeSwitch = [...items];
   const retained = items.filter(item => item.messageId !== messageId);
   const deletion = { type: 'superchat-delete', liveSessionId: 'live', messageIds: [messageId] };
-  display.update({ ...snapshot, events: [{ ...deletion, liveSessionId: 'other' }] });
-  assert.equal(items.length, 5);
+  style = 'outline';
+  display.update({ ...snapshot, events: [
+    { type: 'superchat', liveSessionId: 'live', message: '切换后的留言' },
+    { ...deletion, liveSessionId: 'other' },
+  ] });
+  assert.deepEqual(items, beforeSwitch);
   display.update({ ...snapshot, events: [deletion, deletion] });
   assert.deepEqual(items, retained);
   assert.equal(clears, 1);
@@ -172,6 +163,9 @@ test('both imported CSS chat engines apply welcome visibility and remove only ma
       ...(enabled === undefined ? {} : { styleParameters: { [`css:${id}`]: { showEntryMessages: enabled } } }) } });
     const messageId = 'a'.repeat(64);
     const snapshot = { status: 'connected', epoch: 'one', state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: '开播' } };
+    const items = allNodes(host).find(node => node.className === 'danmaku-list' || node.id === 'items');
+    let scrolls = 0;
+    Object.defineProperty(items.parentElement, 'scrollTop', { set() { scrolls++; } });
     await send({ type: 'component-preview:data', data: { ...snapshot, events: [
       { type: 'danmaku', liveSessionId: 'live', message: '聊天' },
       { type: 'danmaku', liveSessionId: 'live', name: '机器人', message: '欢迎新观众', isWelcome: true },
@@ -179,12 +173,13 @@ test('both imported CSS chat engines apply welcome visibility and remove only ma
       { type: 'superchat', liveSessionId: 'live', message: '撤下', messageId, price: 30 },
       { type: 'superchat', liveSessionId: 'live', message: '旧服务器 SC', price: 30 },
     ] } });
-    const items = allNodes(host).find(node => node.className === 'danmaku-list' || node.id === 'items');
     assert.equal(items.children.length, 4 + Number(enabled !== false), engine);
+    assert.equal(scrolls, 1, 'one bottom alignment includes the confirmation and the batch of live events');
     const retained = items.children.filter(node => node.dataset.superchatMessageId !== messageId);
     const deletion = { type: 'superchat-delete', liveSessionId: 'live', messageIds: [messageId] };
     await send({ type: 'component-preview:data', data: { ...snapshot, events: [deletion, deletion] } });
     assert.deepEqual(items.children, retained, engine);
+    assert.equal(scrolls, 1, 'a deletion without appends does not scroll');
     await send({ type: 'component-preview:dispose' });
   }
 });

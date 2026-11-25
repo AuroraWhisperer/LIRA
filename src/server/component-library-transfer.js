@@ -5,22 +5,10 @@ const path = require('node:path');
 const { randomUUID, createHash } = require('node:crypto');
 const { createComponentStyleStore } = require('../storage/component-style-store');
 const { beginStyleFileUse, endStyleFileUse, listStyleFiles } = require('../storage/component-style-files');
-const { collectStyleReferences } = require('./component-library-maintenance');
 const { receiveMedia, identifyMedia } = require('./component-media-files');
 const { checkReferences } = require('./component-web-library');
 const { MAX_BACKUP_BYTES, MAX_BACKUP_FILES, invalidBackup, backupFileName, encodeBackup, extractBackup } = require('./component-library-archive');
-const { transferId, remapReferences, portableDocuments, validateBackupManifest } = require('./component-library-transfer-contract');
-
-function referencedFiles(value, result = new Set()) {
-  if (typeof value === 'string') {
-    if (/^\/component-(media|web)\//.test(value)) {
-      const match = /^\/component-(media|web)\/([a-f0-9-]{36})\/(.+)$/.exec(value);
-      if (!match) throw invalidBackup();
-      result.add(backupFileName(`packages/${match[2]}/${match[1] === 'web' ? 'web/' : ''}${decodeURIComponent(match[3])}`));
-    } else if (value.startsWith('/scene-text-images/')) result.add(backupFileName(`images/${value.slice('/scene-text-images/'.length)}`));
-  } else if (value && typeof value === 'object') for (const child of Object.values(value)) referencedFiles(child, result);
-  return result;
-}
+const { transferId, mapConfigReferences, backupDependencies, portableDocuments, validateBackupManifest } = require('./component-library-transfer-contract');
 
 function createComponentLibraryTransfer({ dataDir, scenes }) {
   const store = createComponentStyleStore(dataDir);
@@ -49,9 +37,10 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
       }
     }
     validateBackupManifest(manifest, files);
-    const required = referencedFiles([manifest.packages, manifest.documents]);
+    const dependencies = backupDependencies(manifest.documents);
+    for (const pack of manifest.packages) dependencies.include(pack);
     const available = new Set(files.map(file => file.name));
-    for (const name of required) if (!available.has(name)) throw invalidBackup('备份缺少场景或样式所需的配套文件。');
+    for (const name of dependencies.files) if (!available.has(name)) throw invalidBackup('备份缺少场景或样式所需的配套文件。');
     for (const pack of manifest.packages) {
       for (const style of pack.styles) {
         const url = style.config.cssStyle?.src || (style.type === 'browser' ? style.config.url : '');
@@ -71,13 +60,13 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
       const session = capture(); authorize();
       const portable = portableDocuments(session.documents);
       const index = store.read();
-      const references = collectStyleReferences(portable.documents);
+      const dependencies = backupDependencies(portable.documents);
       const selected = new Set();
       for (let changed = true; changed;) {
         changed = false;
         for (const pack of index.packages) if (!selected.has(pack.id)
-          && (!pack.removed && pack.styles.some(style => !style.removed) || references.has(pack.id) || pack.styles.some(style => references.has(style.id)))) {
-          selected.add(pack.id); collectStyleReferences(pack.styles, references); changed = true;
+          && (!pack.removed && pack.styles.some(style => !style.removed) || dependencies.uses(pack))) {
+          selected.add(pack.id); dependencies.include(pack); changed = true;
         }
       }
       const packages = index.packages.filter(pack => selected.has(pack.id));
@@ -87,7 +76,7 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
           files.push({ name: backupFileName(`packages/${pack.id}/${file.name}`), file: file.file });
         }
       }
-      for (const name of referencedFiles([packages, portable.documents])) if (name.startsWith('images/')) {
+      for (const name of dependencies.files) if (name.startsWith('images/')) {
         const root = path.join(path.resolve(dataDir), 'scene-text-images');
         if (fs.lstatSync(root).isSymbolicLink()) throw invalidBackup();
         const file = path.join(root, name.slice('images/'.length));
@@ -96,7 +85,7 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
       }
       if (files.length >= MAX_BACKUP_FILES) throw invalidBackup('备份文件数量过多，请减少素材后重试。');
       const available = new Set(files.map(file => file.name));
-      for (const required of referencedFiles([packages, portable.documents])) if (!available.has(required)) throw invalidBackup('有配套素材缺失，请先重新导入原安装包。');
+      for (const required of dependencies.files) if (!available.has(required)) throw invalidBackup('有配套素材缺失，请先重新导入原安装包。');
       const heldFiles = [...selected].map(id => store.directory(id));
       heldFiles.push(...files.filter(file => file.name.startsWith('images/')).map(file => file.file));
       for (const file of heldFiles) beginStyleFileUse(file);
@@ -134,31 +123,35 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
         if (binding !== session.binding || scopeKey !== session.scopeKey) throw Object.assign(new Error('账号状态已变化，请重新选择备份。'), { statusCode: 409 });
         const check = () => { authorize(); session.assertCurrent(); };
         await validateFiles(manifest, directory, check); check();
-        const identities = new Map();
+        const identities = { package: new Map(), style: new Map(), image: new Map() };
+        const mapId = (kind, previous) => identities[kind].get(previous) ?? previous;
         for (const pack of manifest.packages) {
-          identities.set(pack.id, transferId(digest, 'package', pack.id));
-          for (const style of pack.styles) identities.set(style.id, transferId(digest, 'style', style.id));
+          identities.package.set(pack.id, transferId(digest, 'package', pack.id));
+          for (const style of pack.styles) identities.style.set(style.id, transferId(digest, 'style', style.id));
         }
         for (const file of manifest.files) if (file.name.startsWith('images/')) {
-          const previous = path.basename(file.name).split('.')[0]; identities.set(previous, transferId(digest, 'image', previous));
+          const previous = path.parse(file.name).name;
+          identities.image.set(previous, transferId(digest, 'image', previous));
         }
-        const packs = manifest.packages.map(pack => ({ ...remapReferences(pack, identities),
-          name: `${pack.name.slice(0, 75)}（备份）`,
+        const packs = manifest.packages.map(pack => ({ ...pack, id: mapId('package', pack.id), name: `${pack.name.slice(0, 75)}（备份）`,
+          styles: pack.styles.map(style => ({ ...style, id: mapId('style', style.id), config: mapConfigReferences(style.type, style.config, mapId) })),
           ...(pack.packageId ? { packageId: `backup.${transferId(digest, 'identity', pack.packageId)}` } : {}) }));
         for (const pack of packs) {
           store.beginPending(pack.id); staged.push(pack.id); store.stage(pack);
         }
         for (const file of manifest.files) {
           const parts = file.name.split('/');
-          const target = parts[0] === 'packages' ? path.join(store.directory(identities.get(parts[1]), true), ...parts.slice(2))
-            : path.join(path.resolve(dataDir), 'scene-text-images', remapReferences(parts[1], identities));
+          const target = parts[0] === 'packages' ? path.join(store.directory(mapId('package', parts[1]), true), ...parts.slice(2))
+            : path.join(path.resolve(dataDir), 'scene-text-images', mapId('image', path.parse(parts[1]).name) + path.extname(parts[1]));
           fs.mkdirSync(path.dirname(target), { recursive: true });
           if (!fs.existsSync(target)) fs.copyFileSync(path.join(directory, file.name), target, fs.constants.COPYFILE_EXCL);
           else if (createHash('sha256').update(fs.readFileSync(target)).digest('hex') !== file.sha256) throw invalidBackup('已有备份素材与文件内容不符，未覆盖原文件。');
         }
-        const documents = manifest.documents.map(({ kind, document }) => ({ ...remapReferences(document, identities),
+        const documents = manifest.documents.map(({ kind, document }) => ({ ...document,
           id: transferId(digest, scopeKey, kind, document.id), title: `${document.title.slice(0, 69)}（${kind === 'published' ? '发布备份' : '备份'}）`,
-          items: remapReferences(document.items, identities).map(item => ({ ...item, id: transferId(digest, scopeKey, kind, document.id, item.id) })) }));
+          items: document.items.map(item => ({ ...item, id: transferId(digest, scopeKey, kind, document.id, item.id),
+            appearance: item.appearance.mode === 'independent' ? { ...item.appearance,
+              config: mapConfigReferences(item.type, item.appearance.config, mapId) } : item.appearance })) }));
         check();
         const result = store.restorePackages(packs, () => scenes.restoreBackup(documents, binding));
         store.removePending(id);

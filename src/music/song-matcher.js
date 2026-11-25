@@ -29,14 +29,18 @@ function matchMusicTrackCandidates(body) {
 }
 
 function rankTrackCandidates(request, candidates) {
+  const normalized = normalizeRequest(request);
   return (Array.isArray(candidates) ? candidates : [])
-    .map((candidate) => scoreTrackMatch(request, candidate))
+    .map((candidate) => scoreCandidate(normalized, candidate))
     .filter(Boolean)
     .sort((a, b) => b.score - a.score || Number(a.track.playable === false) - Number(b.track.playable === false));
 }
 
 function scoreTrackMatch(input, candidate) {
-  const request = normalizeRequest(input);
+  return scoreCandidate(normalizeRequest(input), candidate);
+}
+
+function scoreCandidate(request, candidate) {
   const track = normalizeCandidate(candidate);
   const sameTitle = Boolean(request.titleKey && normalizeSongKey(track.title) === request.titleKey);
   const sameBaseTitle = Boolean(track.cleanTitle && track.cleanTitle === request.cleanSongName);

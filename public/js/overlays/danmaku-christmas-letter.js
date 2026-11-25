@@ -1,3 +1,5 @@
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement as node } from '../shared/dom-element.js';
 const ART = '/img/overlays/danmaku-christmas-letter/';
 const GUARDS = Object.freeze({ 1: 'governor', 2: 'admiral', 3: 'captain' });
 const LABELS = Object.freeze({ streamer: '主播', captain: '舰长', admiral: '提督', governor: '总督', fan: '粉丝团' });
@@ -7,12 +9,6 @@ const DECORATIONS = Object.freeze({
   admiral: ['stockings', 'stockings'], governor: ['santa', 'gift'],
 });
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function star(document, className) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -38,10 +34,7 @@ function art(document, key, position) {
   return slot;
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-}
+const amount = value => formatDanmakuAmount(value, 2);
 
 // The shared SC module owns paid-message dispatch; this adapter decorates the other messages.
 export function createChristmasLetterMessageRenderer(options, render) {

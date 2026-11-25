@@ -14,35 +14,51 @@ function parseNeteaseWindowTitle(value) {
   };
 }
 
-function readNeteaseClientTrack(sample, {
+function createNeteaseTrackReader({
   localAppData = process.env.LOCALAPPDATA,
   openDatabase = (filename, options) => new (require('node:sqlite').DatabaseSync)(filename, options),
 } = {}) {
-  if (!localAppData) return null;
-  const root = path.join(localAppData, 'NetEase', 'CloudMusic');
-  let database;
-  let row;
-  try {
-    database = openDatabase(path.join(root, 'Library', 'webdb.dat'), { readOnly: true, timeout: 100 });
-    row = database.prepare('SELECT jsonStr FROM historyTracks ORDER BY playtime DESC LIMIT 1').get();
-  } catch (_) {
-    // A missing, locked or changed client database falls back to the older history format.
-    row = null;
-  } finally {
-    database?.close();
-  }
-  if (row) {
-    try { return matchNeteaseRecord(JSON.parse(row.jsonStr), sample); } catch (_) { return null; }
-  }
-  try {
+  let dbStamp, latestRecord, historyStamp, latestHistory;
+  return async function readTrack(sample) {
+    if (!localAppData) return null;
+    const root = path.join(localAppData, 'NetEase', 'CloudMusic');
+    const dbPath = path.join(root, 'Library', 'webdb.dat');
+    const [db, wal] = await Promise.all([dbPath, `${dbPath}-wal`].map(fileStat));
+    if (db) {
+      const stamp = `${fingerprint(db)}:${fingerprint(wal)}`;
+      let database;
+      try {
+        if (dbStamp !== stamp) {
+          database = openDatabase(dbPath, { readOnly: true, timeout: 100 });
+          const row = database.prepare('SELECT jsonStr FROM historyTracks ORDER BY playtime DESC LIMIT 1').get();
+          // Only an empty table falls through to the legacy history. A malformed current row cannot identify a track.
+          try { latestRecord = row && JSON.parse(row.jsonStr); } catch (_) { latestRecord = null; }
+          dbStamp = stamp;
+        }
+        if (latestRecord !== undefined) return matchNeteaseRecord(latestRecord, sample);
+      } catch (_) {
+        // A busy DB is retryable even if its timestamps do not change.
+        dbStamp = undefined;
+      } finally {
+        database?.close();
+      }
+    }
     const filename = path.join(root, 'webdata', 'file', 'history');
-    if (fs.statSync(filename).size > 8 * 1024 * 1024) return null;
-    const records = JSON.parse(fs.readFileSync(filename, 'utf8'));
-    return matchNeteaseRecord(records?.[0]?.track, sample);
-  } catch (_) {
-    return null;
-  }
+    const stat = await fileStat(filename);
+    if (!stat || stat.size > 8 * 1024 * 1024) return null;
+    const stamp = fingerprint(stat);
+    try {
+      if (historyStamp !== stamp) {
+        latestHistory = JSON.parse(await fs.promises.readFile(filename, 'utf8'))?.[0]?.track;
+        historyStamp = stamp;
+      }
+      return matchNeteaseRecord(latestHistory, sample);
+    } catch (_) { return null; }
+  };
 }
+
+const fileStat = (filename) => fs.promises.stat(filename, { bigint: true }).catch(() => null);
+const fingerprint = (stat) => stat ? `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}` : '';
 
 function matchNeteaseRecord(record, sample) {
   if (!record || !sample) return null;
@@ -66,4 +82,4 @@ function normalize(value) {
   return String(value || '').normalize('NFKC').replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-module.exports = { parseNeteaseWindowTitle, readNeteaseClientTrack, matchNeteaseRecord };
+module.exports = { parseNeteaseWindowTitle, createNeteaseTrackReader, matchNeteaseRecord };

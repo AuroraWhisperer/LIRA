@@ -3,7 +3,7 @@ body[data-style='starlight'] {
   --danmaku-move-base-ms: 380;
   --danmaku-move-max-ms: 650;
   --danmaku-move-curve: .28, .08, .25, 1;
-  --danmaku-enter-animation: starlightMessageIn 440ms cubic-bezier(.16, 1, .3, 1) backwards;
+  --danmaku-enter-animation: danmakuEnterOpacity 440ms cubic-bezier(.16, 1, .3, 1) backwards;
   --starlight-ink: #fff;
   --starlight-decoration-animation: starlightTwinkle;
   --starlight-decoration-duration: 3.2s;
@@ -346,15 +346,6 @@ body[data-style='starlight'][data-custom-font='true'] :is(.draw-danmaku-identity
 body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name, .draw-danmaku-gift-amount, .sc-money)::before,
 body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name)::after { animation: none; }
 
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name, .draw-danmaku-gift-amount, .sc-money)::before,
-  body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::after { animation: none; }
-}
-
-@keyframes starlightMessageIn {
-  from { --danmaku-enter-opacity: 0; }
-  to { --danmaku-enter-opacity: 1; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='starlight'] .draw-danmaku-item .draw-danmaku-body > p {

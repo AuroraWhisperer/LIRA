@@ -63,7 +63,7 @@ const PARAMETER_GROUPS = {
 
 export function appendSceneParameterControl(label, input, { slider = false } = {}) {
   label.classList.add('desktop-lyric-control', 'scene-parameter-control');
-  const row = previewElement('span', input.type === 'checkbox' ? 'switch-control' : 'scene-parameter-value');
+  const row = previewElement('span', input.type === 'checkbox' ? 'switch-control switch-control--fill-hit' : 'scene-parameter-value');
   let range;
   if (slider) {
     row.classList.add('range-row');

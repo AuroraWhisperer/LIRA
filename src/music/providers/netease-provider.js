@@ -1,7 +1,9 @@
 'use strict';
 
 const { createPublicError } = require('../../shared/public-error');
+const { createHash } = require('node:crypto');
 const { getLikedTracksSession } = require('./liked-tracks-session');
+const { readProviderHealthSession } = require('../auth-state');
 
 const { readResponseText } = require('../../shared/response-body');
 
@@ -30,6 +32,12 @@ const REQUEST_TIMEOUT_MS = 10000;
 const PLAYLIST_DETAIL_BATCH_SIZE = 100;
 const MAX_PLAYLIST_READS = 6; // Match the catalog's existing membership fan-out.
 const STREAM_TTL_MS = 5 * 60 * 1000;
+const LIKED_PLAYLIST_WINDOW = 50;
+const ACCOUNT_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function findLikedPlaylistId(playlists) {
+  return playlists.slice(0, LIKED_PLAYLIST_WINDOW).find((playlist) => playlist && /喜欢/.test(playlist.title))?.id || '';
+}
 
 function assertPlaylistAccount(expected, currentCookie) {
   const cookie = typeof expected === 'object' && expected !== null ? expected.cookie : expected;
@@ -55,23 +63,27 @@ class NeteaseMusicProvider {
   #activePlaylistReads = 0;
   #playlistReadWaiters = [];
   #activeLikedReads = new Set();
+  #profile;
+  #likedPlaylist;
 
   constructor(options = {}) {
     this.source = 'netease';
     this.name = '网易云音乐';
     this.getAuthState = typeof options.getAuthState === 'function' ? options.getAuthState : () => null;
+    this.getSessionState = typeof options.getSessionState === 'function' ? options.getSessionState : this.getAuthState;
+    this.getRequestSession = typeof options.getRequestSession === 'function' ? options.getRequestSession : null;
     this.getCookieHeader = typeof options.getCookieHeader === 'function' ? options.getCookieHeader : () => '';
   }
 
   async healthCheck() {
-    const auth = await this.getSafeAuthState();
+    const { state: auth, cookieHeader } = await readProviderHealthSession(this);
     try {
       const data = await this.requestJson('/api/search/get/web', {
         s: '晴天',
         type: '1',
         limit: '1',
         offset: '0',
-      });
+      }, undefined, cookieHeader);
       readSearchSongs(data);
       const loggedIn = Boolean(auth && auth.loggedIn);
       return {
@@ -108,7 +120,8 @@ class NeteaseMusicProvider {
       limit: String(limit),
       offset: String(offset),
     });
-    return this.mapTracksWithArtwork(readSearchSongs(data));
+    const songs = readSearchSongs(data);
+    return options.includeCovers === false ? songs.map((song) => mapNeteaseSong(song)).filter(Boolean) : this.mapTracksWithArtwork(songs);
   }
 
   async mapTracksWithArtwork(songs, expectedCookie) {
@@ -159,10 +172,10 @@ class NeteaseMusicProvider {
   }
 
   async getDailyTracks(options = {}) {
-    await this.requireLogin('每日推荐需要先登录网易云音乐。');
+    const cookie = await this.getLoginCookieHeader('每日推荐需要先登录网易云音乐。');
     const limit = clampInteger(options.limit, 1, 100, 30);
     const page = clampInteger(options.page, 1, 50, 1);
-    const data = await this.requestJson('/api/v1/discovery/recommend/songs');
+    const data = await this.requestJson('/api/v1/discovery/recommend/songs', {}, undefined, cookie);
     const songs = data && data.recommend && Array.isArray(data.recommend) ? data.recommend : [];
     // 网易云每日推荐是「当天固定一份」，接口不分页。这里按 page 开窗口往后取，
     // 取完就绕回开头 —— 换一批只能在当天这份列表里换，不会有全新的歌。
@@ -192,9 +205,9 @@ class NeteaseMusicProvider {
         else if (read.cookie !== cookie) read.cookie = null;
         if (read === scope) break;
       }
-      const session = await getLikedTracksSession(this, options.loadingSession, cookie);
-      await this.requireLogin('我喜欢需要先登录网易云音乐。', scope);
-      const playlistId = session ? await (session.playlist ||= this.getLikedPlaylistId(scope)) : await this.getLikedPlaylistId(scope);
+      const session = getLikedTracksSession(this, options.loadingSession, cookie);
+      const requestCookie = await this.getLoginCookieHeader('我喜欢需要先登录网易云音乐。', scope);
+      const playlistId = session ? await (session.playlist ||= this.getLikedPlaylistId(scope, requestCookie)) : await this.getLikedPlaylistId(scope, requestCookie);
       const limit = clampInteger(options.limit, 1, 5000, 200);
       const offset = clampInteger(options.offset, 0, 200000, 0);
       return await this.getPlaylistTracks(playlistId, { limit, offset, session, serialDetails: true }, scope);
@@ -203,43 +216,43 @@ class NeteaseMusicProvider {
     }
   }
 
-  async getLikedPlaylistId(expectedCookie) {
-    const profile = await this.getUserProfile(expectedCookie);
+  async getLikedPlaylistId(expectedCookie, cookie) {
+    const profile = await this.getUserProfile(expectedCookie, cookie);
     const playlists = await this.getUserPlaylists(profile.userId, {
-      limit: 50,
+      limit: LIKED_PLAYLIST_WINDOW,
     }, expectedCookie);
-    const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title));
-    if (!likedPlaylist) {
+    const id = findLikedPlaylistId(playlists);
+    if (!id) {
       throw createPublicError('没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。', 501);
     }
-    return likedPlaylist.id;
+    return id;
   }
 
   async getCreatedPlaylists(options = {}) {
-    await this.requireLogin('我的歌单需要先登录网易云音乐。');
-    const profile = await this.getUserProfile();
+    const cookie = await this.getLoginCookieHeader('我的歌单需要先登录网易云音乐。');
+    const profile = await this.getUserProfile(undefined, cookie);
     const playlists = await this.getUserPlaylists(profile.userId, {
       limit: clampInteger(options.limit, 1, 500, 200),
-    });
+    }, cookie);
     return playlists.filter((playlist) => playlist.creatorUserId === profile.userId);
   }
 
   async getCollectedPlaylists(options = {}) {
-    await this.requireLogin('收藏歌单需要先登录网易云音乐。');
-    const profile = await this.getUserProfile();
+    const cookie = await this.getLoginCookieHeader('收藏歌单需要先登录网易云音乐。');
+    const profile = await this.getUserProfile(undefined, cookie);
     const playlists = await this.getUserPlaylists(profile.userId, {
       limit: clampInteger(options.limit, 1, 500, 200),
-    });
+    }, cookie);
     return playlists.filter((playlist) => playlist.creatorUserId !== profile.userId);
   }
 
   async getRecentTracks(options = {}) {
-    await this.requireLogin('最近播放需要先登录网易云音乐。');
+    const cookie = await this.getLoginCookieHeader('最近播放需要先登录网易云音乐。');
     const limit = clampInteger(options.limit, 1, 100, 50);
     const data = await this.requestJson('/api/play-record', {
-      uid: (await this.getUserProfile()).userId,
+      uid: (await this.getUserProfile(undefined, cookie)).userId,
       type: '1',
-    });
+    }, cookie);
     const rows = data && Array.isArray(data.weekData) ? data.weekData : [];
     return this.mapTracksWithArtwork(
       rows
@@ -353,8 +366,16 @@ class NeteaseMusicProvider {
       limit: String(limit),
       offset: '0',
     }, expectedCookie);
-    const playlists = data && Array.isArray(data.playlist) ? data.playlist : [];
-    return playlists.map(mapNeteasePlaylist).filter(Boolean);
+    if (!Array.isArray(data?.playlist)) return [];
+    const rows = data.playlist.slice(0, limit).map(mapNeteasePlaylist);
+    const id = findLikedPlaylistId(rows);
+    const cookie = typeof expectedCookie === 'string' ? expectedCookie : expectedCookie?.cookie;
+    if (cookie && (id || limit >= LIKED_PLAYLIST_WINDOW || rows.length < limit)) {
+      this.#likedPlaylist = {
+        account: createHash('sha256').update(cookie).digest('hex'), id, expires: Date.now() + ACCOUNT_CACHE_TTL_MS,
+      };
+    }
+    return rows.filter(Boolean);
   }
 
   async addTracksToPlaylist(playlist, tracks) {
@@ -365,10 +386,22 @@ class NeteaseMusicProvider {
     return this.writePlaylistTracks('del', playlist, tracks);
   }
 
+  async #isLikedPlaylist(playlistId, cookie) {
+    const known = this.#likedPlaylist;
+    const account = createHash('sha256').update(cookie).digest('hex');
+    if (known?.account === account && known.expires > Date.now()) return known.id === playlistId;
+    // A persisted desktop list may be opened before this provider has read the account's playlists.
+    try {
+      return String(await this.getLikedPlaylistId(cookie, cookie)) === playlistId;
+    } catch {
+      return undefined; // The numeric deletion already succeeded, even if discovery is offline.
+    }
+  }
+
   async writePlaylistTracks(operation, playlist, tracks) {
-    await this.requireLogin('修改网易云音乐歌单需要先登录。');
+    const cookie = await this.getLoginCookieHeader('修改网易云音乐歌单需要先登录。');
     const requestedId = String((playlist && playlist.id) || '').trim();
-    const playlistId = requestedId === 'liked' ? String(await this.getLikedPlaylistId()) : requestedId;
+    const playlistId = requestedId === 'liked' ? String(await this.getLikedPlaylistId(cookie, cookie)) : requestedId;
     if (!/^\d+$/.test(playlistId)) throw createPublicError('缺少网易云歌单 ID。', 501);
     const trackIds = normalizeNeteasePlaylistTrackIds(tracks);
     const data = await this.requestWeapiJson('/weapi/playlist/manipulate/tracks', {
@@ -377,7 +410,7 @@ class NeteaseMusicProvider {
       trackIds: JSON.stringify(trackIds),
       imme: 'true',
       tracks: JSON.stringify(trackIds.map((id) => ({ type: 3, id }))),
-    });
+    }, requestedId === 'liked' ? undefined : cookie, cookie);
     const code = Number(data && data.code);
     if (operation === 'add' && code === 502) {
       return {
@@ -391,10 +424,14 @@ class NeteaseMusicProvider {
         `网易云音乐歌单写入失败（code=${Number.isFinite(code) ? code : 'unknown'}${message ? `，${message}` : ''}）。`,
       ), { statusCode: 501, publicMessage: '网易云音乐歌单写入失败，请稍后重试。' });
     }
-    return {
+    const result = {
       playlistId,
       songlist: trackIds.map((songId) => ({ songId, existed: 0 })),
     };
+    if (operation === 'del') {
+      result.isLikedPlaylist = requestedId === 'liked' || await this.#isLikedPlaylist(playlistId, cookie);
+    }
+    return result;
   }
 
   async getLyrics(track) {
@@ -472,7 +509,7 @@ class NeteaseMusicProvider {
     };
   }
 
-  async requestJson(pathname, params = {}, expectedCookie) {
+  async requestJson(pathname, params = {}, expectedCookie, cookieHeader) {
     const url = new URL(pathname, NETEASE_BASE_URL);
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
@@ -483,7 +520,7 @@ class NeteaseMusicProvider {
       Referer: `${NETEASE_BASE_URL}/`,
       'User-Agent': 'Mozilla/5.0 SongAssistant/1.0',
     };
-    const cookieHeader = await this.getSafeCookieHeader();
+    cookieHeader ??= await this.getSafeCookieHeader();
     assertPlaylistAccount(expectedCookie, cookieHeader);
     if (cookieHeader) headers.Cookie = cookieHeader;
 
@@ -505,8 +542,9 @@ class NeteaseMusicProvider {
     }
   }
 
-  async requestWeapiJson(pathname, payload) {
-    const cookieHeader = await this.getSafeCookieHeader();
+  async requestWeapiJson(pathname, payload, cookieHeader, expectedCookie) {
+    cookieHeader ??= await this.getSafeCookieHeader();
+    assertPlaylistAccount(expectedCookie, cookieHeader);
     const csrfToken = extractCookieValue(cookieHeader, '__csrf');
     const encrypted = encryptNeteaseWeapiPayload({
       ...payload,
@@ -537,9 +575,9 @@ class NeteaseMusicProvider {
     }
   }
 
-  async getSafeAuthState() {
+  async getSafeAuthState(readState = this.getAuthState) {
     try {
-      return await this.getAuthState(this.source);
+      return await readState.call(this, this.source);
     } catch (_) {
       return null;
     }
@@ -553,24 +591,39 @@ class NeteaseMusicProvider {
     }
   }
 
-  async requireLogin(message, expectedCookie) {
-    const auth = await this.getSafeAuthState();
-    if (expectedCookie !== undefined) assertPlaylistAccount(expectedCookie, await this.getSafeCookieHeader());
+  async requireLogin(message) {
+    const auth = await this.getSafeAuthState(this.getSessionState);
     if (!auth || !auth.loggedIn) {
       throw createPublicError(message || '需要先登录网易云音乐。', 501);
     }
     return auth;
   }
 
-  async getUserProfile(expectedCookie) {
-    const data = await this.requestJson('/api/nuser/account/get', {}, expectedCookie);
+  async getLoginCookieHeader(message, expectedCookie) {
+    const request = this.getRequestSession && await this.getSafeAuthState(this.getRequestSession);
+    const auth = request ? request.state : await this.getSafeAuthState(this.getSessionState);
+    const cookie = request?.cookieHeader ?? await this.getSafeCookieHeader();
+    assertPlaylistAccount(expectedCookie, cookie);
+    if (!auth?.loggedIn) throw createPublicError(message, 501);
+    return cookie;
+  }
+
+  async getUserProfile(expectedCookie, cookie) {
+    cookie ??= await this.getSafeCookieHeader();
+    assertPlaylistAccount(expectedCookie, cookie);
+    const signature = createHash('sha256').update(cookie).digest('hex');
+    if (this.#profile?.signature !== signature) this.#profile = null;
+    if (this.#profile && Date.now() < this.#profile.expires) return { ...this.#profile.value };
+    const data = await this.requestJson('/api/nuser/account/get', {}, cookie, cookie);
+    const currentCookie = await this.getSafeCookieHeader();
+    assertPlaylistAccount(cookie, currentCookie);
+    assertPlaylistAccount(expectedCookie, currentCookie);
     const profile = data && data.profile ? data.profile : null;
     const userId = profile && profile.userId ? String(profile.userId) : '';
     if (!userId) throw createPublicError('未能读取网易云用户资料，请重新登录后再试。', 501);
-    return {
-      userId,
-      nickname: profile.nickname || '',
-    };
+    const value = { userId, nickname: profile.nickname || '' };
+    if (cookie) this.#profile = { signature, value, expires: Date.now() + ACCOUNT_CACHE_TTL_MS };
+    return { ...value };
   }
 }
 

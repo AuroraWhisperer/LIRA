@@ -1,7 +1,7 @@
 'use strict';
 
 // Electron acceptance check with synthetic records, isolated SQLite and output.
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, nativeImage } = require('electron');
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -171,6 +171,7 @@ async function screenshot(win, name) {
   const controller = createGiftExportController({
     app: { getPath: () => root },
     BrowserWindow,
+    nativeImage,
     dialog: {},
     shell: {},
     getMainWindow: () => main,

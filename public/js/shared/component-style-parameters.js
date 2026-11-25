@@ -43,6 +43,7 @@ export const STYLE_PARAMETER_CAPABILITIES = Object.freeze({
   danmaku: {
     'neon-glass': 'panel',
     'horizontal-charm': 'panel',
+    'charm-thread': 'panel',
     astral: 'art',
     glowy: 'panel',
     'celestial-horizontal': 'text',
@@ -57,6 +58,7 @@ export const STYLE_PARAMETER_CAPABILITIES = Object.freeze({
     wireframe: 'frame',
     'flower-letter': 'art',
     coffee: 'art',
+    'pastel-scrapbook': 'art',
     'sea-breeze': 'art',
     'sea-breeze-random': 'art',
     bubble: 'panel', signal: 'panel', minimal: 'art', ranked: 'panel', transparent: 'text',

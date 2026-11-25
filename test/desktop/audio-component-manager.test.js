@@ -6,6 +6,7 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 const test = require('node:test');
 const { createDeflatedZip } = require('../../scripts/component-style-zip');
+const { verifyAudioDirectory } = require('../../src/electron/audio-component-files');
 const { createAudioComponentManager } = require('../../src/electron/audio-component-manager');
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -39,7 +40,7 @@ async function fixture(t) {
   const archive = createDeflatedZip(entries);
   const manifest = { id: '0123456789abcdef01234567', platform: 'win32', arch: 'x64', entry: 'LiraAudioAssistant.exe',
     files: [...entries].map(([name, bytes]) => ({ path: name, size: bytes.length, sha256: hash(bytes) })),
-    archive: { path: 'resources/audio/fixture.zip', size: archive.length, sha256: hash(archive) } };
+    archive: { path: 'client/resources/audio/fixture.zip', size: archive.length, sha256: hash(archive) } };
   let requests = 0;
   const states = [];
   function manager(extra = {}) {
@@ -72,6 +73,38 @@ test('one cold download serves concurrent consumers; subsequent starts and retri
   const offline = f.manager({ fetch: () => { throw new Error('Network must not be used'); } });
   assert.equal(await offline.getExecutable(), paths[0]);
   assert.deepEqual(await fs.readdir(f.root), [f.manifest.id]);
+});
+
+test('verified background files are checked again when a worker requests its executable', async t => {
+  const f = await fixture(t);
+  await f.populate(f.destination);
+  const manager = f.manager();
+  await manager.initialize();
+  assert.equal(f.requests(), 0);
+  const library = path.join(f.destination, 'dependency.dll');
+  const original = f.entries.get('dependency.dll');
+  await fs.writeFile(library, Buffer.alloc(original.length));
+  const paths = await Promise.all([manager.getExecutable(), manager.getExecutable()]);
+  assert.ok(paths.every(filename => filename === path.join(f.destination, f.manifest.entry)));
+  assert.equal(f.requests(), 1);
+  assert.deepEqual(await fs.readFile(library), original);
+});
+
+test('a cancelled audio check takes precedence over a missing directory and an earlier batch mismatch', async t => {
+  const f = await fixture(t);
+  const controller = new AbortController();
+  await assert.rejects(verifyAudioDirectory(f.destination, f.manifest, AbortSignal.abort()), { name: 'AbortError' });
+  await f.populate(f.destination);
+  const realpath = fs.realpath;
+  let members = 0;
+  t.mock.method(fs, 'realpath', async filename => {
+    if (filename === f.destination) return realpath(filename);
+    if (++members === 1) return path.join(f.root, 'different-file');
+    controller.abort();
+    throw controller.signal.reason;
+  });
+  await assert.rejects(verifyAudioDirectory(f.destination, f.manifest, controller.signal),
+    error => error === controller.signal.reason);
 });
 
 test('6.0.0 installer preservation is promoted without download or a duplicate legacy copy', async t => {
@@ -126,7 +159,7 @@ test('download corruption leaves no partial executable and retries only when exp
 test('a damaged installed version is repaired while a different version is preserved', async t => {
   const f = await fixture(t);
   await f.populate(f.destination);
-  await fs.writeFile(path.join(f.destination, 'dependency.dll'), 'damaged');
+  await fs.writeFile(path.join(f.destination, 'dependency.dll'), Buffer.alloc(f.entries.get('dependency.dll').length));
   const old = path.join(f.root, 'previous-version');
   await f.populate(old);
   await f.manager().initialize();

@@ -95,10 +95,14 @@ export function createDanmakuFeed(root, options = {}) {
   let lastFullscreenPosition = null;
   let randomPlacement = { centerBias: options.centerBias, dispersion: options.dispersion, clearCenter: options.clearCenter };
   let layoutFrame = null;
+  let fitted = new WeakSet();
+  let fitWidth, fitHeight;
   const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
   const resizeObserver =
     typeof ResizeObserver === 'function'
-      ? new ResizeObserver(() => {
+      ? new ResizeObserver(records => {
+          if (records) records.forEach(({ target }) => fitted.delete(target));
+          else fitted = new WeakSet();
           updateViewportExtent();
           if (smoothLayout) {
             if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);
@@ -109,7 +113,15 @@ export function createDanmakuFeed(root, options = {}) {
         })
       : null;
   resizeObserver?.observe(root);
-  root.ownerDocument?.defaultView?.addEventListener('lira:effects-updated', scheduleLayout);
+  function invalidateFit(event) {
+    if (event?.detail?.cards) {
+      for (const node of event.detail.cards) fitted.delete(node);
+    } else fitted = new WeakSet();
+    scheduleLayout();
+  }
+  const fonts = (fitViewport || fullscreen) && root.ownerDocument?.fonts;
+  fonts?.addEventListener?.('loadingdone', invalidateFit);
+  root.ownerDocument?.defaultView?.addEventListener('lira:effects-updated', invalidateFit);
   reducedMotion?.addEventListener?.('change', finishMotion);
   if (hasEntrance) root.addEventListener?.('animationend', finishEntrance);
 
@@ -169,7 +181,7 @@ export function createDanmakuFeed(root, options = {}) {
       renderedContentExtent += extent;
     });
     root.append(fragment);
-    if (fullscreen || fitViewport) renderedEntries.forEach(({ node }) => resizeObserver?.observe(node));
+    if (fullscreen || fitViewport) renderedEntries.forEach(({ node }) => resizeObserver?.observe(node, { box: 'border-box' }));
     if (fullscreen || options.expireFixedItems) {
       [...renderedEntries].forEach(scheduleExpiration);
     }
@@ -191,7 +203,7 @@ export function createDanmakuFeed(root, options = {}) {
     renderedEntries.push(entry);
     renderedContentExtent += extent;
     renderedSequence += 1;
-    if (fullscreen || fitViewport) resizeObserver?.observe(node);
+    if (fullscreen || fitViewport) resizeObserver?.observe(node, { box: 'border-box' });
     if (fullscreen) {
       scheduleExpiration(entry);
       pruneMaxItems();
@@ -236,16 +248,22 @@ export function createDanmakuFeed(root, options = {}) {
     const padding = (Number.parseFloat(styles?.[axis.paddingStart]) || 0) + (Number.parseFloat(styles?.[axis.paddingEnd]) || 0);
     layoutGap = gap;
     layoutPadding = padding;
-    if (viewportExtent > padding) renderedEntries.forEach((entry) => fitItem(entry,
-      horizontal && options.fitWidth === false ? 0 : horizontal ? viewportExtent - padding : root.clientWidth,
-      horizontal ? root.clientHeight - (Number.parseFloat(styles?.paddingTop) || 0) - (Number.parseFloat(styles?.paddingBottom) || 0) : viewportExtent - padding));
-    renderedContentExtent = renderedEntries.reduce((total, entry) => {
-      const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
-      const measured = componentEffectBounds(entry.node, entry.node.offsetWidth, entry.node.offsetHeight)[axis.size] * zoom;
+    const availableWidth = horizontal ? (options.fitWidth === false ? 0 : viewportExtent - padding) : root.clientWidth;
+    const availableHeight = horizontal ? root.clientHeight - (Number.parseFloat(styles?.paddingTop) || 0) -
+      (Number.parseFloat(styles?.paddingBottom) || 0) : viewportExtent - padding;
+    const canFit = viewportExtent > padding;
+    const pending = fitViewport ? entriesToFit(availableWidth, availableHeight) : renderedEntries;
+    if (canFit) pending.forEach(resetFit);
+    const sizes = pending.map(entry => measureFit(entry, canFit ? availableHeight : 0));
+    pending.forEach((entry, index) => {
+      const size = sizes[index];
+      const measured = canFit ? applyFit(entry, size, availableWidth, availableHeight)[axis.size] : size.bounds[axis.size] * size.zoom;
       entry.extent = measured > 0 ? measured : estimateItemHeight(entry.item);
-      return total + entry.extent;
-    }, 0);
-    root.dataset.flowOverflow = String(renderedContentExtent + gap * Math.max(0, renderedEntries.length - 1) + padding > viewportExtent);
+      if (measured > 0 && canFit) fitted.add(entry.node);
+    });
+    renderedContentExtent = renderedEntries.reduce((total, entry) => total + entry.extent, 0);
+    const overflow = String(renderedContentExtent + gap * Math.max(0, renderedEntries.length - 1) + padding > viewportExtent);
+    if (root.dataset.flowOverflow !== overflow) root.dataset.flowOverflow = overflow;
     if (smoothLayout) animateFixedLayout(gap, styles?.flexDirection === axis.reverse ? -1 : 1, styles);
     pruneFixedLayout();
   }
@@ -334,7 +352,16 @@ export function createDanmakuFeed(root, options = {}) {
     }
   }
 
-  function fitItem(entry, availableWidth, availableHeight) {
+  function entriesToFit(width, height) {
+    if (width !== fitWidth || height !== fitHeight) {
+      fitted = new WeakSet();
+      fitWidth = width;
+      fitHeight = height;
+    }
+    return resizeObserver ? renderedEntries.filter(entry => !fitted.has(entry.node)) : renderedEntries;
+  }
+
+  function resetFit(entry) {
     const node = entry.node;
     node.style.setProperty('width', '');
     node.style.setProperty('zoom', '');
@@ -342,27 +369,34 @@ export function createDanmakuFeed(root, options = {}) {
       // Full-width cards reflow at a smaller type size instead of narrowing the panel.
       node.style.setProperty('font-size', '');
       node.style.setProperty('--danmaku-font-size', '');
-      if (availableHeight > 0 && node.offsetHeight > availableHeight) {
-        const computed = globalThis.getComputedStyle?.(node);
-        const baseSize = Number.parseFloat(computed?.fontSize) || 0;
-        const bodySize = Number.parseFloat(computed?.getPropertyValue('--danmaku-font-size')) || baseSize;
-        let low = 0;
-        let high = baseSize;
-        for (let attempt = 0; attempt < 8 && high > 0; attempt += 1) {
-          const size = (low + high) / 2;
-          node.style.setProperty('font-size', `${size}px`);
-          node.style.setProperty('--danmaku-font-size', `${bodySize * size / baseSize}px`);
-          if (node.offsetHeight <= availableHeight - 1) low = size;
-          else high = size;
-        }
-        node.style.setProperty('font-size', `${low}px`);
-        if (baseSize > 0) node.style.setProperty('--danmaku-font-size', `${bodySize * low / baseSize}px`);
+    }
+  }
+
+  function measureFit({ node }, availableHeight) {
+    if (node.dataset.danmakuFit === 'font-size' && availableHeight > 0 && node.offsetHeight > availableHeight) {
+      const computed = globalThis.getComputedStyle?.(node);
+      const baseSize = Number.parseFloat(computed?.fontSize) || 0;
+      const bodySize = Number.parseFloat(computed?.getPropertyValue('--danmaku-font-size')) || baseSize;
+      let low = 0;
+      let high = baseSize;
+      for (let attempt = 0; attempt < 8 && high > 0; attempt += 1) {
+        const size = (low + high) / 2;
+        node.style.setProperty('font-size', `${size}px`);
+        node.style.setProperty('--danmaku-font-size', `${bodySize * size / baseSize}px`);
+        if (node.offsetHeight <= availableHeight - 1) low = size;
+        else high = size;
       }
+      node.style.setProperty('font-size', `${low}px`);
+      if (baseSize > 0) node.style.setProperty('--danmaku-font-size', `${bodySize * low / baseSize}px`);
     }
     const zoom = Number.parseFloat(globalThis.getComputedStyle?.(node)?.zoom) || 1;
     const width = Number(node.offsetWidth) || 0;
     const height = Number(node.offsetHeight) || 0;
-    const bounds = componentEffectBounds(node, width, height);
+    return { width, height, zoom, bounds: componentEffectBounds(node, width, height) };
+  }
+
+  function applyFit(entry, { width, height, zoom, bounds }, availableWidth, availableHeight) {
+    const node = entry.node;
     // Computed zoom is rounded; an exact fit can appear a fraction of a pixel wider.
     const scale = Math.min(
       1,
@@ -477,41 +511,53 @@ export function createDanmakuFeed(root, options = {}) {
     const width = Number(root.clientWidth) || 0;
     const height = Number(root.clientHeight) || 0;
     if (width <= 0 || height <= 0) return;
-    const occupied = [];
-    const measured = renderedEntries.map((entry) => ({
-      entry,
-      anchor: entry.node.dataset.danmakuAnchor,
-      ...fitItem(entry, width - FULLSCREEN_SAFE_INSET_PX * 2, height - FULLSCREEN_SAFE_INSET_PX * 2),
-    }));
-    for (const item of measured) {
-      if (item.width > width - FULLSCREEN_SAFE_INSET_PX * 2 || item.height > height - FULLSCREEN_SAFE_INSET_PX * 2) {
-        removeEntry(item.entry);
+    const availableWidth = width - FULLSCREEN_SAFE_INSET_PX * 2;
+    const availableHeight = height - FULLSCREEN_SAFE_INSET_PX * 2;
+    const pending = entriesToFit(availableWidth, availableHeight);
+    if (!pending.length) return;
+    pending.forEach(resetFit);
+    const sizes = pending.map(entry => measureFit(entry, availableHeight));
+    pending.forEach((entry, index) => {
+      entry.box = { entry, anchor: entry.node.dataset.danmakuAnchor,
+        ...applyFit(entry, sizes[index], availableWidth, availableHeight) };
+      fitted.add(entry.node);
+    });
+    // A changed card can displace later cards. Earlier boxes are already valid obstacles.
+    const firstChanged = renderedEntries.indexOf(pending[0]);
+    const occupied = renderedEntries.slice(0, firstChanged).map(entry => entry.box);
+    for (const entry of renderedEntries.slice(firstChanged)) {
+      const item = entry.box;
+      if (item.width > availableWidth || item.height > availableHeight) {
+        removeEntry(entry);
         continue;
       }
-      if (!item.entry.center) item.entry.previousPosition = lastFullscreenPosition;
+      if (!entry.center) entry.previousPosition = lastFullscreenPosition;
       let position = findRandomDanmakuPosition(item, width, height, occupied, randomPlacement);
       while (!position && occupied.length) {
         removeEntry(occupied.shift().entry);
         position = findRandomDanmakuPosition(item, width, height, occupied, randomPlacement);
       }
       if (!position) {
-        removeEntry(item.entry);
+        removeEntry(entry);
         continue;
       }
-      if (!item.entry.center) {
-        item.entry.center = {};
-        lastFullscreenPosition = item.entry.center;
+      if (!entry.center) {
+        entry.center = {};
+        lastFullscreenPosition = entry.center;
       }
-      Object.assign(item.entry.center, { x: position.left + item.width / 2, y: position.top + item.height / 2 });
-      item.entry.position = position;
-      item.entry.node.style.setProperty('left', `${position.left / item.zoom - item.x}px`);
-      item.entry.node.style.setProperty('top', `${position.top / item.zoom - item.y}px`);
-      item.entry.node.style.setProperty('visibility', 'visible');
-      if (item.entry.live) {
-        item.entry.node.dataset.liveEntry = 'true';
-        item.entry.live = false;
+      Object.assign(entry.center, { x: position.left + item.width / 2, y: position.top + item.height / 2 });
+      if (item.left !== position.left || item.top !== position.top) {
+        entry.node.style.setProperty('left', `${position.left / item.zoom - item.x}px`);
+        entry.node.style.setProperty('top', `${position.top / item.zoom - item.y}px`);
+        entry.node.style.setProperty('visibility', 'visible');
+        entry.position = position;
+        Object.assign(item, position);
       }
-      occupied.push({ ...item, ...position });
+      if (entry.live) {
+        entry.node.dataset.liveEntry = 'true';
+        entry.live = false;
+      }
+      occupied.push(item);
     }
   }
 
@@ -547,6 +593,7 @@ export function createDanmakuFeed(root, options = {}) {
     render,
     append,
     remove,
+    invalidateFit: fitViewport || fullscreen ? invalidateFit : undefined,
     setRandomPlacement(value) {
       randomPlacement = { centerBias: value.centerBias, dispersion: value.dispersion, clearCenter: value.clearCenter };
     },
@@ -557,7 +604,8 @@ export function createDanmakuFeed(root, options = {}) {
       if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);
       layoutFrame = null;
       resizeObserver?.disconnect();
-      root.ownerDocument?.defaultView?.removeEventListener('lira:effects-updated', scheduleLayout);
+      root.ownerDocument?.defaultView?.removeEventListener('lira:effects-updated', invalidateFit);
+      fonts?.removeEventListener?.('loadingdone', invalidateFit);
       reducedMotion?.removeEventListener?.('change', finishMotion);
       if (hasEntrance) root.removeEventListener?.('animationend', finishEntrance);
       clearExpirationTimers();

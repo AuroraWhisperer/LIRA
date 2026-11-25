@@ -279,6 +279,7 @@ export function scheduleAuroraReduced(session, parts, holdMs, enterMs, total) {
 export const auroraRenderer = Object.freeze({
   id: 'aurora',
   needsAvatar: false,
+  enterMs: tier => AURORA_TIERS[tier].enterMs,
   prepare: prepareAurora,
   build: buildAuroraCard,
   schedule: scheduleAurora,

@@ -1,3 +1,4 @@
+import { readApiResponse } from '../shared/json-response.js';
 import { api, copyText, localOverlayOrigin, showError, toast } from '../shared/utils.js';
 import { eventBus } from '../shared/event-bus.js';
 import {
@@ -9,7 +10,7 @@ import {
   RATING_RULE,
 } from '../shared/interaction-rules.js';
 import { createInteractionClient } from '../shared/interaction-client.js';
-import { renderPollRows, interactionStatus } from '../shared/interaction-view.js';
+import { createPollCountdown, renderPollRows, interactionStatus } from '../shared/interaction-view.js';
 import { initInteractionAppearance } from './interaction-appearance.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
@@ -27,22 +28,22 @@ export function initInteractions() {
   let busy = false;
   let polling = null;
   let pollingRevision = 0;
+  let currentPanel;
+  let panelVisible;
   let disposed = false;
   let selectedKind = 'poll';
   let appearanceOpen = false;
+  const countdown = createPollCountdown();
   const client = createInteractionClient({
-    onState(state) {
+    countdown,
+    onState(state, hostState) {
       session = state.session;
-      render();
-    },
-    onHost(state) {
-      host = state;
+      if (hostState) host = hostState;
       render();
     },
     async fetchState(isHost) {
       const response = await fetch(`/api/interactions/${isHost ? 'host-state' : 'session'}`, { cache: 'no-store' });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '读取互动失败');
+      const payload = await readApiResponse(response, '读取互动失败');
       return payload.data;
     },
   });
@@ -148,8 +149,8 @@ export function initInteractions() {
       client.receive(result.data);
     } finally {
       busy = false;
-      await client.load(true).catch(showError);
-      render();
+      const rendered = await syncPolling();
+      if (!rendered) render();
     }
   }
   for (const kind of ['poll', 'rating']) {
@@ -185,6 +186,7 @@ export function initInteractions() {
   });
 
   function render() {
+    if (disposed || !visible()) return;
     renderWorkspace();
     const ownSession = session?.kind === selectedKind;
     for (const kind of ['poll', 'rating']) {
@@ -194,7 +196,7 @@ export function initInteractions() {
     get('interactionHostStatus').textContent = session && !ownSession
       ? `请先到「${session.kind === 'poll' ? '弹幕投票' : '观众评分'}」${session.phase === 'finished' ? '关闭结果' : '结束或取消本场'}，再开始${selectedKind === 'poll' ? '投票' : '评分'}。`
       : session
-      ? `${interactionStatus(session)} · 已收到 ${host?.session?.sessionId === session.sessionId ? host.participants : session.participants || 0} 人${session.receptionInterrupted ? ' · 接收曾中断，可能漏收' : ''}`
+      ? `${interactionStatus(session, countdown.remainingMs())} · 已收到 ${host?.session?.sessionId === session.sessionId ? host.participants : session.participants || 0} 人${session.receptionInterrupted ? ' · 接收曾中断，可能漏收' : ''}`
       : host ? host.blockedReason || '准备开始' : '正在读取实时连接状态…';
     get('interactionResults').hidden = !ownSession;
     get('interactionSessionTitle').textContent = session?.title || '';
@@ -221,7 +223,7 @@ export function initInteractions() {
     clearTimeout(polling);
     polling = null;
     if (disposed || !visible()) return;
-    client
+    return client
       .load(true)
       .catch(showError)
       .finally(() => {
@@ -230,6 +232,10 @@ export function initInteractions() {
   }
   function syncPanel() {
     const panel = panels.find((item) => !item.hidden);
+    const showing = Boolean(panel && !document.hidden && page.classList.contains('active'));
+    if (panel === currentPanel && showing === panelVisible) return;
+    currentPanel = panel;
+    panelVisible = showing;
     if (panel) {
       selectedKind = panel.dataset.interactionKind;
       // Keep one editor and subscription while each component retains its form draft.
@@ -237,26 +243,24 @@ export function initInteractions() {
         panel.append(root);
         appearanceOpen = false;
       }
-      render();
+      if (showing) render();
     }
     syncPolling();
   }
   const observer = new MutationObserver(syncPanel);
   for (const panel of panels) observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
   observer.observe(page, { attributes: true, attributeFilter: ['class'] });
-  document.addEventListener('visibilitychange', syncPolling);
+  document.addEventListener('visibilitychange', syncPanel);
   const update = (event) => client.receive(event.detail);
   window.addEventListener('app:interaction-update', update);
   const offConnected = eventBus.on('ws:connected', () => {
+    host = null;
     client.reset();
     syncPolling();
   });
-  const offGame = () => {
-    if (visible()) client.load(true).catch(showError);
-  };
-  window.addEventListener('app:game-update', offGame);
+  window.addEventListener('app:game-update', syncPolling);
   syncPanel();
-  window.addEventListener(
+  eventBus.once(
     'app:shutdown',
     () => {
       disposed = true;
@@ -264,10 +268,9 @@ export function initInteractions() {
       observer.disconnect();
       client.dispose();
       offConnected?.();
-      document.removeEventListener('visibilitychange', syncPolling);
+      document.removeEventListener('visibilitychange', syncPanel);
       window.removeEventListener('app:interaction-update', update);
-      window.removeEventListener('app:game-update', offGame);
+      window.removeEventListener('app:game-update', syncPolling);
     },
-    { once: true },
   );
 }

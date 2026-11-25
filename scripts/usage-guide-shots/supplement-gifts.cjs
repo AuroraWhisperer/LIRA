@@ -5,13 +5,6 @@ const { applyCovers } = require('./lib/page-tools.cjs');
 const SHOTS = [
   { id: 'D1', file: 'gift-records-overview', title: '礼物统计与最近礼物', main: 'giftAssistantPage' },
   {
-    id: 'D2',
-    file: 'gift-query-controls',
-    title: '礼物查询开关（演示设置）',
-    main: 'giftAssistantPage',
-    clip: '.gift-controls-grid',
-  },
-  {
     id: 'D3',
     file: 'gift-danmaku-query',
     title: '弹幕查询礼物统计开关（演示设置）',
@@ -53,7 +46,7 @@ const SHOTS = [
       await page.locator('#giftExportPanel').waitFor({ timeout: 5000 });
       await applyCovers(page, [
         { selector: '#giftExportSettingsDirectory', text: '图片\\LIRA\\礼物导出' },
-        { selector: '#giftExportDirectory', text: '图片\\LIRA\\礼物导出\\2026-11-22\\12-30-00-示例批次' },
+        { selector: '#giftExportDirectory', text: '\\2026-11-22\\12-30-00-示例批次' },
       ]);
     },
   },

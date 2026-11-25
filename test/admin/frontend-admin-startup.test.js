@@ -27,6 +27,9 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
   const preferenceWrites = [];
   const selectedFeatures = [];
   const selectedToolboxFeatures = [];
+  let liveComponentsOptions;
+  let guideOptions;
+  let sceneGuideClicks = 0;
   let desktopOptions;
   let playbackOptions;
   let aboutOpened = 0;
@@ -49,6 +52,8 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
       readyState: 'interactive',
       documentElement: { classList: { remove: (name) => classes.delete(name) } },
       querySelectorAll: selector => selector === '.main-page-tab' ? navigationButtons : selector === '.main-page' ? pages : [],
+      querySelector: selector => selector === '#otherUsageGuideFeature a[href="#ug-scene-guide"]'
+        ? { click: () => { sceneGuideClicks++; } } : null,
       getElementById: (id) => id === 'settingsAboutTab' ? { click: () => { aboutOpened++; } } : null,
       addEventListener: (name, listener) => {
         if (name === 'DOMContentLoaded') start = listener;
@@ -86,7 +91,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
       playbackOptions = options;
       featureInitializations.push('playback');
     }, closeQueuePopup: noop },
-    './usage-guide.js': { initUsageGuide: noop },
+    './usage-guide.js': { initUsageGuide: options => { guideOptions = options; } },
     './toolbox-lifecycle.js': { createToolboxLifecycle: (options) => {
       toolboxOptions.push(options);
       return { dispose: () => disposed.push(options.ownerPageId || 'toolbox'), setPage: noop };
@@ -134,7 +139,8 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     './toolbox-navigation.js': {
       other: { initOtherPage: (options) => toolboxBindings.push(options),
         selectFeatureById: (feature) => selectedToolboxFeatures.push(feature) },
-      createFeatureNavigation: () => ({ initOtherPage: noop, selectFeatureById: feature => selectedFeatures.push(feature) }),
+      createFeatureNavigation: () => ({ initOtherPage: options => { liveComponentsOptions = options; },
+        selectFeatureById: feature => selectedFeatures.push(feature) }),
     },
     './danmaku-tool.js': { danmakuTool: {} },
     './ai-assistant-settings.js': { aiAssistantSettings: {} },
@@ -181,6 +187,8 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
   return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions, windowEvents, disposed,
     featureInitializations, toolboxBindings, preferenceWrites, selectedFeatures, pageState,
     selectedToolboxFeatures, desktopOptions, get playbackOptions() { return playbackOptions; },
+    get liveComponentsOptions() { return liveComponentsOptions; }, get guideOptions() { return guideOptions; },
+    get sceneGuideClicks() { return sceneGuideClicks; },
     get aboutOpened() { return aboutOpened; }, get fullscreenClosed() { return fullscreenClosed; } };
 }
 
@@ -212,6 +220,26 @@ test('music display links open the matching component after its navigation is in
     assert.deepEqual(fixture.selectedFeatures, [feature]);
     assert.deepEqual(fixture.errors, []);
   }
+});
+
+test('component links preserve the toolbox selection unless they open its guide', async () => {
+  const fixture = await createStartupFixture();
+  const starting = fixture.start();
+  fixture.theme.resolve();
+  await fixture.dataRequested.promise;
+  fixture.data.resolve();
+  await starting;
+  fixture.liveComponentsOptions.onNavigate('songAssistantPage');
+  assert.equal(fixture.pageState.mainPage, 'songs');
+  assert.deepEqual(fixture.selectedToolboxFeatures, []);
+  assert.equal(fixture.sceneGuideClicks, 0);
+  fixture.liveComponentsOptions.onNavigate('otherAssistantPage');
+  assert.deepEqual(fixture.selectedToolboxFeatures, ['otherUsageGuideFeature']);
+  assert.equal(fixture.sceneGuideClicks, 1);
+  fixture.guideOptions.showGuide();
+  assert.equal(fixture.pageState.mainPage, 'other');
+  assert.equal(fixture.selectedToolboxFeatures.at(-1), 'otherUsageGuideFeature');
+  assert.equal(fixture.sceneGuideClicks, 1, 'external guide links keep their own target instead of opening the scene chapter');
 });
 
 test('toolbox initialization recovery reloads only after confirmation and keeps the failure visible', async () => {
@@ -302,6 +330,7 @@ test('window controls and local settings work while account initialization is st
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, {
         id, value: '', dataset: {}, checkValidity: () => true,
+        classList: { toggle: noop }, setAttribute: noop,
         querySelector: () => ({}),
         addEventListener: (event, listener) => listeners.set(`${id}:${event}`, listener),
       });

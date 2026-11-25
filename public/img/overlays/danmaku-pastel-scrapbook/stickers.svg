@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 360 80" preserveAspectRatio="none">
+  <defs>
+    <path id="flower" d="M35 29C29 9 12 14 16 28Q18 32 22 35C2 31 1 52 19 51L25 48C17 67 38 72 42 52C57 65 70 49 51 41C69 27 54 10 42 26L38 33Z"/>
+    <path id="star" d="M111 17Q114 10 117 15L118 33L133 36Q139 38 133 41L118 43L116 61Q115 68 111 60L103 44L87 53Q80 55 85 48L96 36L86 24Q81 17 89 20L104 27Z"/>
+    <path id="heart" d="M153 34C151 18 166 13 175 28C188 18 202 26 198 40C194 52 180 58 168 62Q154 48 153 34Z"/>
+    <path id="pin" d="M250 8C259 5 265 10 266 20L267 24C285 25 279 43 266 48L267 67L255 52C236 58 226 48 234 39L239 34L235 21Q232 13 250 8Z"/>
+    <path id="clip" d="M311 20C306 26 294 55 303 65C313 78 327 62 331 51L343 22C351 1 330 0 323 14C318 23 307 47 315 50Q323 55 329 30"/>
+  </defs>
+  <g stroke-linejoin="round" stroke-linecap="round" fill="#fae8ef" stroke="white" stroke-width="12">
+    <use xlink:href="#flower"/><use xlink:href="#star"/><use xlink:href="#heart"/><use xlink:href="#pin"/>
+    <use xlink:href="#clip" fill="none"/>
+  </g>
+  <g stroke-linejoin="round" stroke-linecap="round" fill="#fae8ef" stroke="#f6b3cb" stroke-width="2.5">
+    <use xlink:href="#flower"/><circle cx="36" cy="41" r="4" fill="white"/>
+    <use xlink:href="#star"/><use xlink:href="#heart"/><use xlink:href="#pin"/>
+    <path d="M236 21Q245 31 264 17M239 34Q251 47 267 31L265 21M253 52Q260 51 267 47" fill="none"/>
+    <use xlink:href="#clip" fill="none"/>
+  </g>
+</svg>

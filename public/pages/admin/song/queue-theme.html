@@ -66,7 +66,7 @@
           <legend>标题设置</legend>
           <div class="grid-2">
             <label style="grid-column: 1 / -1">
-              <span>面板标题 <lira-help>开启「同步点歌板主题」的展示板也会使用此标题。留空时，展示板默认显示「可点歌单」，按曲风筛选时可附上曲风名。</lira-help></span>
+              <span>面板标题 <lira-help>展示板的默认标题为「可点歌单」，按曲风筛选时可附上曲风名。</lira-help></span>
               <input id="overlayTitle" placeholder="留空显示「点歌队列」" />
             </label>
             <label>
@@ -423,18 +423,19 @@
 
           <fieldset class="theme-section" data-identity-only>
             <legend>置顶公告</legend>
+            <p id="overlayPinHelp" class="hint">显示在点歌板风格 2 顶部，留空的公告不显示。</p>
             <div class="grid-1">
               <label>
                 置顶内容 1
-                <input id="overlayPin1" placeholder="显示在点歌板风格 2 顶部，留空则隐藏" />
+                <input id="overlayPin1" aria-describedby="overlayPinHelp" />
               </label>
               <label>
                 置顶内容 2
-                <input id="overlayPin2" placeholder="显示在点歌板风格 2 顶部，留空则隐藏" />
+                <input id="overlayPin2" aria-describedby="overlayPinHelp" />
               </label>
               <label>
                 置顶内容 3
-                <input id="overlayPin3" placeholder="显示在点歌板风格 2 顶部，留空则隐藏" />
+                <input id="overlayPin3" aria-describedby="overlayPinHelp" />
               </label>
             </div>
           </fieldset>
@@ -510,8 +511,8 @@
           <div class="queue-theme-save-group">
             <div class="actions queue-theme-save-actions" id="queueThemeActions">
               <button id="queueThemePreview" class="secondary" type="button">预览与调整</button>
-              <button id="queueThemeDiscard" class="secondary" type="button" disabled>放弃未保存修改</button>
-              <button id="queueThemeSave" class="primary" type="submit" disabled>保存点歌板主题</button>
+              <button id="queueThemeDiscard" class="secondary" type="button" hidden disabled>放弃未保存修改</button>
+              <button hidden id="queueThemeSave" class="primary" type="submit" disabled>重试保存</button>
             </div>
             <p id="queueThemeSaveState" class="queue-theme-save-state" role="status" aria-live="polite"></p>
           </div>

@@ -52,7 +52,7 @@ function sanitizeRemoteResponse(value, seen = new WeakSet()) {
 function addSongBackgroundPreviewUrl(result, baseUrl) {
   if (!result?.background) return result;
   const pathname = String(result.background.url || '');
-  if (!pathname.startsWith('/')) throw new RemoteLicenseError('BACKGROUND_URL_INVALID', '服务器返回的背景地址无效。');
+  if (!pathname.startsWith('/')) throw new RemoteLicenseError('BACKGROUND_URL_INVALID');
   try {
     const origin = new URL(String(baseUrl || '')).origin;
     const preview = new URL(pathname, origin);
@@ -65,7 +65,7 @@ function addSongBackgroundPreviewUrl(result, baseUrl) {
       background: { ...result.background, previewUrl: preview.href },
     };
   } catch (_) {
-    throw new RemoteLicenseError('BACKGROUND_URL_INVALID', '服务器返回的背景地址无效。');
+    throw new RemoteLicenseError('BACKGROUND_URL_INVALID');
   }
 }
 

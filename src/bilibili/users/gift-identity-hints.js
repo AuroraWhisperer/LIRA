@@ -5,6 +5,7 @@ const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
 const { readFirstObject } = require('../utils/user-meta-extractor');
 const { firstProtoScalar, decodeBilibiliGiftV2Proto } = require('../protocols/protobuf-decoder');
 const { isBilibiliDuplicateGuardToast, isBilibiliGiftLikeCommand } = require('../parsers/gift-command-utils');
+const SENDER_FIELDS = new Set([1, 2, 3]);
 
 function extractBilibiliGiftIdentity(packet) {
   const cmd = cleanText(packet?.cmd);
@@ -14,7 +15,7 @@ function extractBilibiliGiftIdentity(packet) {
   if (!data || typeof data !== 'object') return null;
 
   if (cmd.startsWith('SEND_GIFT_V2') && data.pb) {
-    const root = decodeBilibiliGiftV2Proto(data.pb);
+    const root = decodeBilibiliGiftV2Proto(data.pb, SENDER_FIELDS);
     const uid = cleanText(firstProtoScalar(root?.[1]));
     if (uid)
       return {

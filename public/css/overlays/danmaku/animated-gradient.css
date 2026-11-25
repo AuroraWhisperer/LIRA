@@ -2,7 +2,7 @@ body[data-style='animated-gradient'] {
   --gradient-font: 'Gradient Montserrat', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
   --gradient-paint: linear-gradient(100deg, #8cd7bb, #74b5e6 22%, #9487f5 44%, #c485f0 66%, #e99be5 82%, #8b9eee);
   --gradient-edge: #e5b2ec;
-  --danmaku-enter-animation: gradientEntry calc(1100ms * var(--motion-speed, 1)) linear;
+  --danmaku-enter-animation: danmakuEntryClock calc(1100ms * var(--motion-speed, 1)) linear;
   --danmaku-move-base-ms: 280;
   --danmaku-move-max-ms: 450;
   --danmaku-move-curve: .22, 1, .36, 1;
@@ -42,8 +42,7 @@ body[data-style='animated-gradient'] .gradient-heading {
   position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
   width: max-content; max-width: 100%; min-height: 44px; margin: 0 20px -12px -20px;
   padding: 8px 22px; border: 0; border-radius: 23px 23px 23px 0;
-  color: #fff; font: 700 19px/1.3 var(--gradient-font); background: var(--gradient-paint);
-  background-size: 400% 100%; animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite;
+  color: #fff; font: 700 19px/1.3 var(--gradient-font);
   text-shadow: 0 1px 2px rgb(43 34 76 / 48%);
 }
 body[data-style='animated-gradient'] .gradient-heading .gradient-name {
@@ -92,36 +91,34 @@ body[data-style='animated-gradient'][data-gradient-underline='hide'] .gradient-u
 .gradient-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gradient-event-label {
   position: relative; z-index: 1; flex: 0 0 auto; max-width: min(230px, 100%);
-  padding: 5px 13px; border-radius: 20px; background: var(--gradient-paint); background-size: 400% 100%;
+  padding: 5px 13px; border-radius: 20px;
   color: #fff; font: italic 700 calc(var(--danmaku-font-size, 19px) * 13 / 19)/1.4 var(--gradient-font); text-align: center; overflow-wrap: anywhere;
-  animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite;
   text-shadow: 0 1px 2px rgb(43 34 76 / 48%);
+}
+.gradient-flow {
+  position: absolute; z-index: -1; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none;
+}
+.gradient-flow::before {
+  content: ''; position: absolute; inset: 0 auto 0 0; width: 400%;
+  background: var(--gradient-paint);
+  animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite;
 }
 body[data-style='animated-gradient'] .gradient-item[data-gradient-kind='superchat'] .gradient-copy,
 body[data-style='animated-gradient'] .gradient-item[data-gradient-kind='notice'] .gradient-copy { margin-top: 9px; }
 .gradient-item[data-live-entry] .gradient-body { opacity: var(--danmaku-enter-opacity); transform: translateY(var(--danmaku-enter-y)); animation: gradientAppear calc(480ms * var(--motion-speed, 1)) ease-out calc(180ms * var(--motion-speed, 1)) both; }
 .gradient-item[data-live-entry] .gradient-underline { opacity: var(--danmaku-enter-opacity); transform: scaleX(var(--danmaku-enter-scale-x)); animation: gradientLine calc(650ms * var(--motion-speed, 1)) ease-out calc(330ms * var(--motion-speed, 1)) both; }
-.gradient-item:not([data-gradient-kind='chat']) { --danmaku-enter-animation: gradientEntry calc(1650ms * var(--motion-speed, 1)) linear; }
+.gradient-item:not([data-gradient-kind='chat']) { --danmaku-enter-animation: danmakuEntryClock calc(1650ms * var(--motion-speed, 1)) linear; }
 .gradient-item[data-live-entry] .gradient-event-label {
-  opacity: var(--danmaku-enter-opacity);
-  transform: translateX(var(--danmaku-enter-x));
-  animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite, gradientTag calc(500ms * var(--motion-speed, 1)) ease-out calc(1100ms * var(--motion-speed, 1)) both;
-}
-@keyframes gradientEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
-@keyframes gradientAppear { from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 8px; } to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; } }
-@keyframes gradientLine { from { --danmaku-enter-opacity: 0; --danmaku-enter-scale-x: 0; } to { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1; } }
-@keyframes gradientTag { from { --danmaku-enter-opacity: 0; --danmaku-enter-x: 25px; } to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; } }
-@keyframes gradientFlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-body[data-style='animated-gradient'][data-ambient-motion='off'] :is(.gradient-heading, .gradient-event-label) { animation: none; background-position: 60% 50%; }
-body[data-style='animated-gradient'][data-ambient-motion='off'] .gradient-item[data-live-entry] .gradient-event-label {
   opacity: var(--danmaku-enter-opacity);
   transform: translateX(var(--danmaku-enter-x));
   animation: gradientTag calc(500ms * var(--motion-speed, 1)) ease-out calc(1100ms * var(--motion-speed, 1)) both;
 }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='animated-gradient'] .gradient-item,
-  body[data-style='animated-gradient'] .gradient-item * { animation: none !important; }
-  body[data-style='animated-gradient'] .gradient-panel::after { animation: none; }
+@keyframes gradientAppear { from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 8px; } to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; } }
+@keyframes gradientLine { from { --danmaku-enter-opacity: 0; --danmaku-enter-scale-x: 0; } to { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1; } }
+@keyframes gradientTag { from { --danmaku-enter-opacity: 0; --danmaku-enter-x: 25px; } to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; } }
+@keyframes gradientFlow { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-75%); } }
+body[data-style='animated-gradient'][data-ambient-motion='off'] .gradient-flow::before {
+  animation: none; transform: translateX(-45%);
 }
 
 /* Keep readable type inside the existing card and region dimensions. */

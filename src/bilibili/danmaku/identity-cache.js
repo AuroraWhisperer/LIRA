@@ -217,18 +217,8 @@ function normalizeRequesterIdentity(input) {
 }
 
 function publicRequesterIdentity(input) {
-  const identity = normalizeRequesterIdentity(input);
-  return addAvatarUrl(
-    {
-      uid: identity.uid,
-      userName: identity.userName,
-      guardLevel: identity.guardLevel,
-      medalName: identity.medalName,
-      medalLevel: identity.medalLevel,
-      seenAt: identity.seenAt,
-    },
-    identity.avatarUrl,
-  );
+  const { currentRoom, source, ...identity } = normalizeRequesterIdentity(input);
+  return identity;
 }
 
 function addAvatarUrl(identity, value) {

@@ -3,10 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { allNodes } = require('../helpers/fake-dom');
 const { createParameterDocument } = require('../helpers/parameter-dom');
 const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
-
-const styles = ['stardust', 'window', 'comic', 'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   const document = createParameterDocument();
@@ -18,13 +17,8 @@ async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   };
   const node = document.getElementById;
   document.querySelector = selector => selector === '.danmaku-signal-stage' ? node('stage') : null;
-  const buttons = [...styles, 'floating', 'comet'].map((style) => {
-    const button = node(style);
-    button.dataset.previewStyle = style;
-    button.querySelector = () => ({ textContent: `${style} description`, firstChild: { textContent: style } });
-    return button;
-  });
-  node('danmakuPreviewControls').querySelectorAll = (selector) => selector === '[data-preview-style]' ? buttons : [];
+  const styleButtons = () => allNodes(node('danmakuPreviewStyles')).filter(button => button.dataset.previewStyle);
+  node('danmakuPreviewControls').querySelectorAll = selector => selector === '[data-preview-style]' ? styleButtons() : [];
   const listeners = {};
   document.hidden = false;
   document.addEventListener = (name, handler) => { listeners[name] = handler; };
@@ -150,7 +144,8 @@ async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   await module.evaluate();
   listeners.DOMContentLoaded();
   flushFrames();
-  return { node, location, history, document, renders, appends, options, timeouts, frames, destroyedFeeds,
+  return { node: id => styleButtons().find(button => button.dataset.previewStyle === id) || node(id),
+    location, history, document, renders, appends, options, timeouts, frames, destroyedFeeds,
     advance, advanceMessages, flushFrames,
     setHidden(hidden) { document.hidden = hidden; listeners.visibilitychange?.(); },
     pagehide: () => windowListeners.get('pagehide').forEach((handler) => handler()) };
@@ -400,9 +395,13 @@ test('resizing a fixed region preserves logical typography without replaying mes
   assert.equal(f.appends.length, playbackCount, 'resizing must not replay or duplicate messages');
 });
 
-test('local preview restores the last style on reload and rejects unknown initial styles', async () => {
+test('local preview restores built-in styles and falls back for unavailable styles', async () => {
   assert.equal((await fixture('?preview=1', 'identity')).document.body.dataset.style, 'identity');
   assert.equal((await fixture('?preview=1&style=unknown')).document.body.dataset.style, 'signal');
+  const restored = await fixture('?preview=1', 'moonlit');
+  assert.equal(restored.document.body.dataset.style, 'signal');
+  const thumbnails = allNodes(restored.node('danmakuPreviewStyles')).map(node => node.src);
+  assert.ok(!thumbnails.includes('/img/overlays/danmaku-previews/moonlit.png'));
 });
 
 test('danmaku avatars load directly from the allowed Bilibili CDN while emotes retain their proxy', async () => {

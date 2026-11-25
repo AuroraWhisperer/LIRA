@@ -1,6 +1,4 @@
 @import url('./opening-layout.css');
-@import url('./opening-pixel.css');
-@import url('./opening-moon-fan.css');
 
 :root {
   --opening-night: #1d151c;
@@ -601,3 +599,21 @@ body.opening-disabled,
     transform: scaleY(0.72);
   }
 }
+
+.opening-pixel,
+.opening-moon-fan {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.opening-pixel { image-rendering: pixelated; }
+.opening-stage[data-style='pixel-cassette'] { background: #f6dce5; animation: none; }
+.opening-stage[data-style='moonlit-fan'] { background: #f0f4fa; animation: none; }
+.opening-stage[data-style='pixel-cassette'] > .opening-pixel,
+.opening-stage[data-style='moonlit-fan'] > .opening-moon-fan { display: block; }
+.opening-stage:is([data-style='pixel-cassette'], [data-style='moonlit-fan']) > :is(
+  .opening-backdrop, .opening-particles, .opening-eq, .opening-copy,
+  .opening-character, .opening-notes, .opening-footer
+) { display: none; }

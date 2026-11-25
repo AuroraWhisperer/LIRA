@@ -29,7 +29,7 @@ async function handleCanvasAppearance(context, req, res, url) {
     } else if (body?.action === 'patch') {
       const config = normalizeSceneConfig(body.type, body.config);
       data = owner.patch(body.type, config, body.patch);
-      context.broadcastSnapshot('settings');
+      context.broadcastSnapshot(config.resourceStyle ? 'component:styles' : 'settings');
     } else return sendJson(res, 400, { ok: false, error: '显示参数请求无效。' });
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {

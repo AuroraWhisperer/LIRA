@@ -337,7 +337,7 @@ export class PlaybackBar {
     }
 
     // 更新搜索框的音乐源显示
-    const searchSource = document.getElementById('playbackSearchSource');
-    if (searchSource) searchSource.value = sourceName;
+    const searchKeyword = document.getElementById('playbackSearchKeyword');
+    if (searchKeyword) searchKeyword.placeholder = `${sourceName} · 歌名 / 歌手`;
   }
 }

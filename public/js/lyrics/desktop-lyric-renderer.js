@@ -191,6 +191,7 @@ function syncLayerVisibility() {
     && !['idle', 'loading', 'empty'].includes(latestState?.status);
   renderer?.setEnabled((basicVisible || advancedVisible) && hasContent);
   advancedRenderer?.setVisible(advancedVisible && renderer?.isVisible() !== false);
+  updatePreviewStatus();
 }
 
 function updateLyricState(state) {
@@ -272,9 +273,9 @@ function renderTimeline() {
     return;
   }
 
+  timelineElement.style.paddingBlock = latestTimeline.lines.length
+    ? 'var(--preview-follow-padding, 50cqh) calc(100cqh - var(--preview-follow-padding, 50cqh))' : '';
   if (!latestTimeline.lines.length) {
-    timelineElement.style.paddingBlockStart = '';
-    timelineElement.style.paddingBlockEnd = '';
     const empty = document.createElement('div');
     empty.className = 'desktop-lyric-preview-empty';
     empty.textContent = timelineFallback(latestTimeline, currentDisplaySettings);
@@ -349,7 +350,7 @@ function renderTimelineFrame(currentMs) {
     const canTransition = activeIndex >= 0 && nextActiveIndex === activeIndex + 1
       && !immediateLineChange && latestState?.playing === true && Date.now() >= manualFollowUntil;
     const positions = canTransition ? lineTransition?.capture(rowElements,
-      getVisibleLyricRange(nextActiveIndex, currentDisplaySettings.visibleLines, rowElements.length)) : null;
+      getVisibleLyricRange(nextActiveIndex, currentDisplaySettings.visibleLines, rowElements.length), visibleLineRange) : null;
     if (!positions) lineTransition?.clear();
     const previousIndex = activeIndex;
     activeIndex = nextActiveIndex;
@@ -372,7 +373,7 @@ function renderTimelineFrame(currentMs) {
     renderActiveWords();
     updateCountdown(lyricTime);
     followActiveLyric();
-    if (positions) lineTransition.play(rowElements, positions);
+    if (positions) lineTransition.play(rowElements, positions, visibleLineRange);
   } else {
     updateCountdown(lyricTime);
   }
@@ -417,8 +418,7 @@ function renderActiveWords() {
   const matchesCurrentLine = latestState?.lineText === line.text;
   // Preloaded timing lets the local clock cross a line before the next state sample.
   if (!timelineWords && !matchesCurrentLine && activeWordIndex === activeIndex) return;
-  const wordSignature = timelineWords ? JSON.stringify(timelineWords) : matchesCurrentLine ? latestWordSignature : '';
-  const signature = `${activeIndex}:${wordSignature}`;
+  const signature = timelineWords || `${activeIndex}:${matchesCurrentLine ? latestWordSignature : ''}`;
   if (signature === activeWordSignature) return;
 
   resetActiveWords();
@@ -534,13 +534,13 @@ function updateCountdown(currentMs) {
 function followActiveLyric() {
   if (!basicVisible || renderer?.isVisible() === false || Date.now() < manualFollowUntil) return;
   const activeRow = rowElements[activeIndex] || (countdownElement?.hidden === false ? countdownElement : null);
-  if (!activeRow || !viewport || viewport.clientHeight <= 0) return;
-  timelineElement.style.paddingBlockStart = `${viewport.clientHeight * currentDisplaySettings.alignPosition}px`;
-  timelineElement.style.paddingBlockEnd = `${viewport.clientHeight * (1 - currentDisplaySettings.alignPosition)}px`;
+  if (!activeRow || !viewport) return;
+  const height = viewport.clientHeight;
+  if (height <= 0) return;
   followTarget = calculateFollowTarget(
     activeRow.offsetTop,
     activeRow.offsetHeight,
-    viewport.clientHeight,
+    height,
     viewport.scrollHeight,
     currentDisplaySettings.alignPosition,
     currentDisplaySettings.alignAnchor,
@@ -613,6 +613,7 @@ function updatePreviewStatus() {
   if (!status) return;
   const lineCount = latestTimeline.lines.length;
   const hasLyric = lineCount > 0 || Boolean(latestState?.lineText || latestState?.words?.length);
+  status.hidden = basicVisible && !hasLyric;
   if (latestTimeline.status === 'loading' || latestState?.status === 'loading') {
     status.textContent = '正在载入歌词';
   } else if (latestTimeline.status === 'empty' || latestState?.status === 'empty') {

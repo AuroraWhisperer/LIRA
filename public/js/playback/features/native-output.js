@@ -86,6 +86,10 @@ export function createNativeOutput(audio, { bridge, onFault, AudioContextClass =
       route();
     })();
     try { await opening; }
+    catch (error) {
+      if (request === epoch && !disposed && audio.paused && context) await context.suspend();
+      throw error;
+    }
     finally { if (request === epoch) opening = null; }
   }
   function stop() {
@@ -93,16 +97,22 @@ export function createNativeOutput(audio, { bridge, onFault, AudioContextClass =
     const active = stream || opening;
     invalidate();
     if (selectedId && active) void bridge.invoke({ op: 'stop' });
+    if (context && !disposed) void context.suspend().catch(() => {});
+  }
+  function resumeOutput() {
+    const request = epoch;
+    const resume = selectedId ? start() : context?.resume();
+    resume?.catch(error => { if (request === epoch && !disposed) fail(error.message); });
   }
   const events = {
     playing() {
       naturallyEnded = false;
       clearTimeout(endTimer);
-      if (selectedId) void start().catch(error => fail(error.message));
+      resumeOutput();
     },
     pause() { if (!audio.ended) stop(); },
     seeking() { stop(); },
-    seeked() { if (!audio.paused && selectedId) void start().catch(error => fail(error.message)); },
+    seeked() { if (!audio.paused) resumeOutput(); },
     emptied() { if (!naturallyEnded) stop(); },
     ended() {
       naturallyEnded = true;
@@ -140,7 +150,7 @@ export function createNativeOutput(audio, { bridge, onFault, AudioContextClass =
       if (context && node) {
         await context.setSinkId(deviceId);
         route();
-        await context.resume();
+        if (!audio.paused) await context.resume();
       } else await audio.setSinkId(deviceId);
     },
     async prepare() { if (selectedId) await start(); },

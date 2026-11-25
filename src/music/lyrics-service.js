@@ -5,41 +5,51 @@
 const { cleanTextPreserveLines } = require('../shared/utils');
 const {
   musicCacheKey,
-  readMusicJsonCache,
-  writeMusicJsonCache,
-  MUSIC_LYRIC_CACHE_TTL_MS,
-  MUSIC_LYRIC_CACHE_MAX_BYTES,
+  readLyricJsonCache,
+  writeLyricJsonCache,
 } = require('./music-cache');
 const { parseLyricResult } = require('./lyric-parser');
 const { normalizeMusicTrackForProvider } = require('./track-contract');
 
 function createLyricsService(options = {}) {
   const lyricCacheDir = String(options.lyricCacheDir || '');
+  const inFlight = new WeakMap();
   return {
     getMusicTrackLyrics(registry, body) {
-      return getMusicTrackLyrics(registry, body, lyricCacheDir);
+      return getMusicTrackLyrics(registry, body, lyricCacheDir, inFlight);
     },
     parseLyricPayload,
   };
 }
 
-async function getMusicTrackLyrics(registry, body, lyricCacheDir = '') {
+async function getMusicTrackLyrics(registry, body, lyricCacheDir = '', inFlight = new WeakMap()) {
   const input = body && typeof body === 'object' ? body : {};
   const normalizedTrack = normalizeMusicTrackForProvider(input.track || input);
   const cacheKey = musicCacheKey(normalizedTrack.source === 'netease' ? 'lyrics-v6' : 'lyrics-v5', {
     source: normalizedTrack.source,
     sourceTrackId: normalizedTrack.sourceTrackId,
   });
-  const cached = readMusicJsonCache(lyricCacheDir, cacheKey, MUSIC_LYRIC_CACHE_TTL_MS);
+  const cached = await readLyricJsonCache(lyricCacheDir, cacheKey);
   if (cached) return { ...cached, cached: true };
+  const revision = await registry.getAuthorizationRevision?.(normalizedTrack.source);
+  const requestKey = JSON.stringify([cacheKey, revision, normalizedTrack.durationMs, normalizedTrack.sourceSongId,
+    normalizedTrack.source === 'qq' && !normalizedTrack.sourceSongId && [normalizedTrack.title, normalizedTrack.artists[0]]]);
+  let requests = inFlight.get(registry);
+  if (!requests) inFlight.set(registry, requests = new Map());
+  if (requests.has(requestKey)) return structuredClone(await requests.get(requestKey));
   const provider = registry.get(normalizedTrack.source);
-  const result = await provider.getLyrics(normalizedTrack);
-  // 空歌词结果不缓存：否则会压制 30 天内的重试（例如登录后才可获取的歌词）。
-  const lines = Array.isArray(result && result.lines) ? result.lines : [];
-  if (lines.length > 0) {
-    writeMusicJsonCache(lyricCacheDir, cacheKey, result, MUSIC_LYRIC_CACHE_MAX_BYTES);
-  }
-  return result;
+  const pending = (async () => {
+    const result = await provider.getLyrics(normalizedTrack);
+    // 空歌词结果允许登录后重试。
+    if (Array.isArray(result?.lines) && result.lines.length) {
+      await writeLyricJsonCache(lyricCacheDir, cacheKey, result,
+        async () => revision === await registry.getAuthorizationRevision?.(normalizedTrack.source));
+    }
+    return result;
+  })();
+  requests.set(requestKey, pending);
+  try { return await pending; }
+  finally { requests.delete(requestKey); }
 }
 
 function parseLyricPayload(body) {

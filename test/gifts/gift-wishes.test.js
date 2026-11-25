@@ -192,6 +192,16 @@ test('three periods count final integer quantities in their own windows and surv
   assert.equal(edited.completed, true);
 });
 
+test('wish progress preserves exact percentage points and floors partial ones', async (t) => {
+  const f = setup(t);
+  f.add('session', 'flower-v1', { target: 100 });
+  f.add('session', 'flower-v1', { target: 101 });
+  f.event('stream', '2026-09-20T03:00:00Z', 29);
+  const { items } = await f.service.getSnapshot();
+  assert.equal(items.find(wish => wish.target === 100).progress, 29);
+  assert.equal(items.find(wish => wish.target === 101).progress, 28);
+});
+
 test('blind box body and output use separate confirmed identities, guards use bundled art', async (t) => {
   const f = setup(t);
   f.add('day', 'box-v1');
@@ -242,7 +252,7 @@ test('Beijing midnight and a new broadcast reset only their matching periods', a
   f.time('2026-09-20T17:00:00Z');
   f.room({ live_status: 0 });
   f.event('offline-before-reopen', '2026-09-20T16:30:00Z', 2);
-  const offline = await f.service.getSnapshot();
+  const offline = await f.service.getSnapshot({ includeSession: false });
   assert.equal(offline.session.state, 'offline');
   assert.equal(offline.items.find((item) => item.period === 'session').count, 0);
   assert.equal(offline.session.endedAt, '2026-09-20T15:59:59.000Z');
@@ -252,7 +262,7 @@ test('Beijing midnight and a new broadcast reset only their matching periods', a
   f.room(new Error('network unavailable after offline'));
   f.time('2026-09-20T17:03:00Z');
   assert.equal(
-    (await createGiftWishService(f.options).getSnapshot()).items.find((item) => item.period === 'session').count,
+    (await createGiftWishService(f.options).getSnapshot({ includeSession: false })).items.find((item) => item.period === 'session').count,
     0,
   );
   f.room({
@@ -264,22 +274,56 @@ test('Beijing midnight and a new broadcast reset only their matching periods', a
   assert.equal((await f.service.getSnapshot()).items.find((item) => item.period === 'long').count, 9);
 });
 
+test('card reads skip the room for empty, daily and long lists; status readers share one check', async t => {
+  const f = setup(t);
+  const cards = { includeSession: false };
+  assert.equal((await f.service.getSnapshot(cards)).session, null);
+  f.add('day');
+  f.add('long');
+  f.time('2026-09-20T04:01:00Z');
+  assert.equal((await f.service.getSnapshot(cards)).items.length, 2);
+  assert.equal(f.reads(), 0);
+  const [first, second] = await Promise.all([f.service.getSnapshot(), f.service.getSnapshot()]);
+  assert.equal(first.session.state, 'live');
+  assert.equal(second.session.startedAt, first.session.startedAt);
+  assert.equal(f.reads(), 1);
+});
+
+test('a pending card read picks up wish edits and rejects a switch of authorized source', async t => {
+  const f = setup(t);
+  let resolve;
+  const service = createGiftWishService({ ...f.options, readRoom: () => new Promise(done => { resolve = done; }) });
+  const id = f.add('session');
+  const cards = { includeSession: false };
+  const first = service.getSnapshot(cards);
+  f.service.save({ id, target: 14, label: '', viewRevision: `source-${f.source}` });
+  resolve({ live_status: 0 });
+  assert.equal((await first).items[0].target, 14);
+  f.time('2026-09-20T04:01:00Z');
+  const pending = service.getSnapshot(cards);
+  f.fixture.setActiveSource(f.other, { partial: false });
+  resolve({ live_status: 0 });
+  await assert.rejects(pending, { code: 'GIFT_VIEW_STALE' });
+  assert.equal((await service.getSnapshot(cards)).items.length, 0);
+});
+
 test('session failures preserve known boundaries and concurrent reads share one request', async (t) => {
   const f = setup(t);
   f.add('session');
   f.event('confirmed-live', '2026-09-20T03:59:00Z', 2);
-  const [first, second] = await Promise.all([f.service.getSnapshot(), f.service.getSnapshot()]);
+  const cards = { includeSession: false };
+  const [first, second] = await Promise.all([f.service.getSnapshot(cards), f.service.getSnapshot()]);
   assert.equal(f.reads(), 1);
   assert.deepEqual(first.session, second.session);
   f.room(new Error('offline network'));
   f.event('after-last-confirmed-live', '2026-09-20T04:00:30Z', 3);
   f.time('2026-09-20T04:01:00Z');
-  const failed = await f.service.getSnapshot();
+  const failed = await f.service.getSnapshot(cards);
   assert.equal(failed.session.stale, true);
   assert.equal(failed.session.startedAt, first.session.startedAt);
   assert.equal(failed.session.endedAt, null);
   assert.equal(failed.items[0].count, 2);
-  assert.equal((await createGiftWishService(f.options).getSnapshot()).items[0].count, 2);
+  assert.equal((await createGiftWishService(f.options).getSnapshot(cards)).items[0].count, 2);
   f.room({
     live_status: 1,
     live_time: Date.parse(first.session.startedAt) / 1000,

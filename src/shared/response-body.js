@@ -11,11 +11,11 @@ async function readResponseBytes(response, maxBytes, createLimitError) {
     throw error;
   }
 
-  if (response.body?.[Symbol.asyncIterator]) {
+  if (response.body?.[Symbol.asyncIterator] || response.body?.getReader) {
     let bytes = Buffer.alloc(0);
     let total = 0;
     // Exiting the iterator on overflow cancels the unread body and releases it.
-    for await (const chunk of response.body) {
+    for await (const chunk of bodyChunks(response.body)) {
       const length = total + chunk.byteLength;
       if (length > maxBytes) throw createLimitError();
       if (length > bytes.length) {
@@ -37,6 +37,25 @@ async function readResponseBytes(response, maxBytes, createLimitError) {
       : Buffer.from(await response.text());
   if (bytes.length > maxBytes) throw createLimitError();
   return bytes;
+}
+
+async function* bodyChunks(body) {
+  if (body[Symbol.asyncIterator]) {
+    yield* body;
+    return;
+  }
+  const reader = body.getReader();
+  let complete = false;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { complete = true; return; }
+      yield value;
+    }
+  } finally {
+    if (!complete) await Promise.resolve().then(() => reader.cancel?.()).catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 async function readResponseText(response, maxBytes, createLimitError) {

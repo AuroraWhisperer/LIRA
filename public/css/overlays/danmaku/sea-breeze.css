@@ -1,4 +1,4 @@
-/* 郁香海风: small identity labels, Song-style lettering and a fading reflection. */
+/* 海风倒影 / 海风散影: small identity labels, Song-style lettering and a fading reflection. */
 body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) {
   --danmaku-enter-animation: seaBreezeEntry 800ms linear;
   --danmaku-move-base-ms: 180;
@@ -170,21 +170,21 @@ body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-tags {
   opacity: var(--danmaku-enter-opacity);
-  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .5) ease-out backwards;
+  animation: danmakuEnterOpacity calc(var(--random-enter-duration, 800ms) * .5) ease-out backwards;
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-name {
   opacity: var(--danmaku-enter-opacity);
-  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .6) ease-out
+  animation: danmakuEnterOpacity calc(var(--random-enter-duration, 800ms) * .6) ease-out
     calc(var(--random-enter-duration, 800ms) * .1) backwards;
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-copy {
   opacity: var(--danmaku-enter-opacity);
-  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .65) ease-out
+  animation: danmakuEnterOpacity calc(var(--random-enter-duration, 800ms) * .65) ease-out
     calc(var(--random-enter-duration, 800ms) * .2) backwards;
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-amount {
   opacity: var(--danmaku-enter-opacity);
-  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .6) ease-out
+  animation: danmakuEnterOpacity calc(var(--random-enter-duration, 800ms) * .6) ease-out
     calc(var(--random-enter-duration, 800ms) * .35) backwards;
 }
 .sea-breeze-item[data-entrance-animation='none'] :is(.sea-breeze-tags, .sea-breeze-name, .sea-breeze-copy, .sea-breeze-amount) { animation: none; }
@@ -192,14 +192,6 @@ body[data-style] .sea-breeze-item[data-live-entry][data-entrance-animation='none
 @keyframes seaBreezeEntry {
   from { --sea-breeze-entered: 0; }
   to { --sea-breeze-entered: 1; }
-}
-@keyframes seaBreezeReveal {
-  from { --danmaku-enter-opacity: 0; }
-  to { --danmaku-enter-opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .sea-breeze-item[data-live-entry],
-  .sea-breeze-item[data-live-entry] :is(.sea-breeze-tags, .sea-breeze-name, .sea-breeze-copy, .sea-breeze-amount) { animation: none !important; }
 }
 
 /* Keep readable type inside the existing card and region dimensions. */

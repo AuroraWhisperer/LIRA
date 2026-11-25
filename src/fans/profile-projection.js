@@ -35,7 +35,7 @@ function createFanProfileProjection() {
       data: {
         type: data.type, decision: data.decision, excluded: data.excluded, archived: data.archived,
         startAt: data.startAt, endAt: data.endAt, observedAt: data.observedAt, precision: data.precision,
-        level: data.level, totalDays: data.totalDays, continuousDays: data.continuousDays,
+        level: data.level, status: data.status, totalDays: data.totalDays, continuousDays: data.continuousDays,
         asOf: data.asOf, date: data.date, cycleId: data.cycleId,
         name: data.name, annual: data.annual, advanceDays: data.advanceDays,
         reviewDate: data.reviewDate, completed: data.completed,

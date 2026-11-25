@@ -8,7 +8,7 @@ function registerFanProfileIpc({ ipcMain, controller, getMainWindow, getDesktopB
   const success = (result) => ({ ok: true, ...result });
   const failure = (error) => ({
     ok: false,
-    error: /[\u4e00-\u9fff]/.test(error.message || '') ? error.message : '档案操作失败，输入尚未保存，请重试。',
+    error: typeof error.publicMessage === 'string' && error.publicMessage ? error.publicMessage : '档案操作失败，输入尚未保存，请重试。',
     ...(error.existingId ? { existingId: error.existingId } : {}),
   });
   register(channel, (_event, request) => {

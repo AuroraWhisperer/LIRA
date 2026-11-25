@@ -5,9 +5,6 @@
 /* 播放页整体布局 */
 @import url('./playback/layout.css');
 
-/* Shared confirmation surface */
-@import url('./components/confirmation-dialog.css');
-
 /* 头部区域和信源切换 */
 @import url('./playback/header.css');
 
@@ -29,11 +26,9 @@
 /* 右侧滑出抽屉 */
 @import url('./playback/drawer.css');
 
-/* 桌面歌词浏览器源 */
-@import url('./playback/desktop-lyric.css');
-
 /* 播放队列弹窗 */
 @import url('./playback/queue-modal.css');
+@import url('./playback/playlist-picker.css');
 
 /* 全屏播放器 */
 @import url('./playback/fullscreen.css');
@@ -46,6 +41,3 @@
 
 /* 大播放器外观设置与样式变体 */
 @import url('./playback/appearance.css');
-
-/* 确认对话框 */
-@import url('./playback/dialogs.css');

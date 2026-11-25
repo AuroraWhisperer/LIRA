@@ -35,7 +35,7 @@ function readBilibiliProtoVarint(buffer, offset) {
   return null;
 }
 
-function decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {}) {
+function decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {}, selectedFields) {
   let offset = 0;
   const fields = {};
 
@@ -48,6 +48,7 @@ function decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {}) {
     const field = Math.floor(key / 8);
     const wireType = key % 8;
     if (!field || ![0, 1, 2, 5].includes(wireType)) return null;
+    const selected = !selectedFields || selectedFields.has(field);
 
     let value;
     if (wireType === 0) {
@@ -70,8 +71,9 @@ function decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {}) {
       offset = lengthResult.offset;
       if (!Number.isFinite(length) || length < 0 || offset + length > buffer.length) return null;
 
-      const chunk = buffer.subarray(offset, offset + length);
       offset += length;
+      if (!selected) continue;
+      const chunk = buffer.subarray(offset - length, offset);
       // Names and IDs may also be syntactically valid protobuf; known strings stay strings.
       const nested =
         depth < 5 && stringFields[field] !== true
@@ -80,6 +82,7 @@ function decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {}) {
       value = nested && Object.keys(nested).length > 0 ? nested : chunk.toString('utf8');
     }
 
+    if (!selected) continue;
     if (!fields[field]) fields[field] = [];
     fields[field].push(value);
   }
@@ -87,12 +90,12 @@ function decodeBilibiliProtoFields(buffer, depth = 0, stringFields = {}) {
   return fields;
 }
 
-function decodeBilibiliGiftV2Proto(value) {
+function decodeBilibiliGiftV2Proto(value, selectedFields) {
   const { cleanText } = require('../../shared/utils');
   try {
     const buffer = Buffer.from(cleanText(value), 'base64');
     if (buffer.length === 0) return null;
-    return decodeBilibiliProtoFields(buffer, 0, GIFT_V2_STRING_FIELDS);
+    return decodeBilibiliProtoFields(buffer, 0, GIFT_V2_STRING_FIELDS, selectedFields);
   } catch (_) {
     return null;
   }

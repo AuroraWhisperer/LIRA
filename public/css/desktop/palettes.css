@@ -73,13 +73,13 @@ html[data-client-theme='neutral'],
   --color-accent-light: #eef3fd;
   --color-success: #23754e;
   --color-success-light: #ebf6f0;
-  --color-success-dark: #17734a;
+  --color-success-dark: var(--neutral-success-text);
   --color-warning: #9a5b00;
   --color-warning-light: #fcf4e4;
   --color-warning-medium: #9a5b00;
-  --color-danger: #bd3027;
+  --color-danger: var(--neutral-danger-text);
   --color-danger-light: #fcefed;
-  --color-danger-medium: #bd3027;
+  --color-danger-medium: var(--neutral-danger-text);
   --color-danger-active: #f7e2df;
   --color-danger-border: #d89e98;
   --color-info: #2f62d4;

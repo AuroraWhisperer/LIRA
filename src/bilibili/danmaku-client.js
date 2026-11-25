@@ -52,7 +52,7 @@ class BilibiliDanmakuClient {
     this.messageHandlers = new MessageHandlers(
       {
         ...this.handlers,
-        onMessage: (danmaku) => this.deliverDanmaku(danmaku),
+        onMessage: (danmaku, simplified) => this.deliverDanmaku(danmaku, simplified),
         onLiveStatus: (isLive) => this.liveStatusMonitor.observe(isLive, this.resolvedRoomId || this.roomId),
       },
       this.userInfoService,
@@ -222,12 +222,12 @@ class BilibiliDanmakuClient {
     await this.onlineRankPoller.pollOnlineRank(this.roomRunContext);
   }
 
-  deliverDanmaku(danmaku) {
+  deliverDanmaku(danmaku, simplified) {
     logSongRequest('command-received', danmaku, {
       roomId: this.resolvedRoomId || this.roomId,
       clientGeneration: Number(this.options.clientGeneration) || 0,
-    });
-    return this.handlers.onMessage(danmaku);
+    }, simplified);
+    return this.handlers.onMessage(danmaku, simplified);
   }
 
   ensureUserInfo(uid, options = {}) {
@@ -270,8 +270,8 @@ class BilibiliDanmakuClient {
     this.messageHandlers.updateRoomRunContext(this.roomRunContext);
     this.historyPoller.updateRoomOwnerUid(roomInfo.uid);
 
-    const keepHistory = !isLive || this.options.alwaysHistory || options.alwaysHistory;
-    if (keepHistory) {
+    this.alwaysHistory = this.options.alwaysHistory || options.alwaysHistory;
+    if (!isLive || this.alwaysHistory) {
       this.historyPoller.start(this.roomRunContext);
     }
     this.onlineRankPoller.start(this.roomRunContext);
@@ -348,7 +348,8 @@ class BilibiliDanmakuClient {
     this.wsConnection.on('authenticated', () => {
       if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       this.reconnecting = false;
-      if (!keepHistory) {
+      const liveNow = this.liveStatusMonitor.isLive;
+      if (liveNow && !this.alwaysHistory) {
         this.historyPoller.stop();
       }
       this.report({
@@ -357,11 +358,11 @@ class BilibiliDanmakuClient {
         roomId: this.roomId,
         mode: 'bilibili',
         ownerName: this.ownerName,
-        message: isLive ? `已开播` : `未开播，历史消息监听中`,
+        message: liveNow ? '已开播' : '未开播，历史消息监听中',
       });
-      if (!isLive) {
+      if (!liveNow) {
         console.warn(
-          `[Bilibili] room ${roomInfo.roomId} is not live. live_status=${roomInfo.liveStatus}. History polling fallback is enabled.`,
+          `[Bilibili] room ${roomInfo.roomId} is not live. History polling fallback is enabled.`,
         );
       }
     });
@@ -475,6 +476,12 @@ class BilibiliDanmakuClient {
 
   handleLiveStatusChange(status) {
     if (this.stopped) return;
+    if (this.roomRunContext && !status.isLive && !this.historyPoller.timer) {
+      this.historyPoller.start(this.roomRunContext);
+    } else if (status.isLive && !this.alwaysHistory && !this.liveStatusMonitor.reconnectInFlight &&
+      this.wsConnection.ws?.readyState === 1 && this.wsConnection.connectionTrace?.authStatus === 'accepted') {
+      this.historyPoller.stop();
+    }
     this.handlers.onLiveStatus?.(status.isLive === true);
     if (status.ownerName) {
       this.ownerName = status.ownerName;

@@ -33,6 +33,7 @@ async function libraryFixture(t) {
       const { kind, library } = request.payload;
       if (window.holdSave && request.action === 'library-save') await new Promise(resolve => { window.finishLibrarySave = resolve; });
       if (window.holdRead && request.action === 'library-read') await new Promise(resolve => { window.finishLibraryRead = resolve; });
+      if (request.action === 'library-read' && window.unavailableLibrary === kind) return { ok: false, error: 'DAILY_BOT_UNAVAILABLE' };
       if (request.action === 'library-save') {
         if (window.saveFailure) return { ok: false, error: window.saveFailure };
         window.remoteLibraries[kind] = structuredClone(library);
@@ -95,10 +96,134 @@ test('daily libraries show all entries and keep edits and search local', async (
   assert.equal(await page.evaluate(() => window.remoteLibraries.fortune[0].text), '春风又至');
 });
 
+test('checkin undo skips unchanged writes and reconciles drafts against the in-flight save receipt', async (t) => {
+  const page = await libraryFixture(t);
+  await page.getByRole('button', { name: '编辑签到词库', exact: true }).click();
+  const field = page.getByRole('textbox', { name: '第 1 条祝福语', exact: true });
+  const original = await field.inputValue();
+  const writes = () => page.evaluate(() => window.libraryRequests.filter(x => x.action === 'library-save'));
+  const finish = () => page.evaluate(() => {
+    window.finishLibrarySave();
+    window.finishLibrarySave = null;
+  });
+
+  await field.fill('临时修改');
+  await field.fill(original);
+  await page.clock.runFor(600);
+  assert.equal((await writes()).length, 0);
+  assert.equal(await page.locator('#dailyLibrarySave').isDisabled(), true);
+
+  await page.evaluate(() => { window.holdSave = true; });
+  await field.fill('已提交的修改');
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => Boolean(window.finishLibrarySave));
+  await field.fill(original);
+  await finish();
+  await page.waitForFunction(() => window.remoteLibraries.checkin[0] === '已提交的修改');
+  assert.equal(await field.inputValue(), original);
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => Boolean(window.finishLibrarySave));
+  const [, undo] = await writes();
+  assert.equal(undo.payload.expectedVersion, 'b'.repeat(64));
+  assert.equal(undo.payload.library[0], original);
+
+  await field.fill('临时修改');
+  await field.fill(original);
+  await finish();
+  await page.clock.runFor(1200);
+  assert.equal((await writes()).length, 2);
+  assert.equal(await page.evaluate(() => window.remoteLibraries.checkin[0]), original);
+  assert.equal(await page.locator('#dailyLibrarySave').isDisabled(), true);
+});
+
+test('an undone draft keeps its read error until reopening the library recovers the remote change', async (t) => {
+  const page = await libraryFixture(t);
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  const open = (kind) => page.locator(`[data-fixed-open="${kind}"]`).click();
+  const field = page.getByLabel('第 1 条祝福语', { exact: true });
+  const status = page.locator('#dailyLibraryStatus');
+  await open('checkin');
+  const original = await field.inputValue();
+  await field.fill('临时文案');
+  await field.fill(original);
+  await page.keyboard.press('Escape');
+  await open('fortune');
+  await page.evaluate(() => {
+    window.unavailableLibrary = 'checkin';
+    window.remoteLibraries.checkin[0] = '云端的新祝福';
+    window.libraryVersion = 'c'.repeat(64);
+  });
+  await page.keyboard.press('Escape');
+  await open('checkin');
+  await page.clock.runFor(1200);
+  assert.equal(await status.isVisible(), true);
+  assert.match(await status.textContent(), /读取失败/);
+  assert.equal(await field.inputValue(), original);
+  assert.equal(await page.locator('#dailyLibrarySave').isDisabled(), true);
+  await page.keyboard.press('Escape');
+  await open('fortune');
+  assert.equal(await status.isVisible(), false, 'the other library has its own read state');
+  await page.evaluate(() => { window.unavailableLibrary = ''; });
+  await page.keyboard.press('Escape');
+  await open('checkin');
+  assert.equal(await field.inputValue(), '云端的新祝福');
+  assert.equal(await status.isVisible(), false);
+  assert.deepEqual(await page.evaluate(() => window.libraryRequests.slice(1).map(r => [r.action, r.payload.kind])), [
+    ['library-read', 'checkin'], ['library-read', 'fortune'], ['library-read', 'checkin'],
+    ['library-read', 'fortune'], ['library-read', 'checkin'],
+  ]);
+});
+
+test('refresh recovers a pending undo and preserves typing during a later conflicting read', async (t) => {
+  const page = await libraryFixture(t);
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.locator('[data-fixed-open="checkin"]').click();
+  const field = page.getByLabel('第 1 条祝福语', { exact: true });
+  const refresh = page.locator('#dailyLibraryRefresh');
+  const original = await field.inputValue();
+  await page.evaluate(() => { window.unavailableLibrary = 'checkin'; });
+  await refresh.click();
+  await field.fill('临时文案');
+  await field.fill(original);
+  await page.evaluate(() => {
+    window.unavailableLibrary = '';
+    window.remoteLibraries.checkin[0] = '云端的新祝福';
+    window.libraryVersion = 'c'.repeat(64);
+  });
+  await refresh.click();
+  assert.equal(await field.inputValue(), '云端的新祝福');
+  await page.evaluate(() => {
+    window.holdRead = true;
+    window.remoteLibraries.checkin[0] = '另一台设备再次修改';
+    window.libraryVersion = 'd'.repeat(64);
+  });
+  await refresh.click();
+  await field.fill('核对期间继续编辑');
+  await page.clock.runFor(600);
+  await page.evaluate(() => window.finishLibraryRead());
+  await page.locator('#dailyLibraryReload').waitFor();
+  assert.equal(await field.inputValue(), '核对期间继续编辑');
+  assert.equal(await field.evaluate(input => input === document.activeElement), true);
+  await page.clock.runFor(1200);
+  assert.equal(await page.evaluate(() => window.libraryRequests.filter(r => r.action === 'library-save').length), 0);
+  await page.evaluate(() => { window.holdRead = false; window.unavailableLibrary = 'checkin'; });
+  await refresh.click();
+  await page.locator('#dailyLibraryReload').click();
+  assert.equal(await field.inputValue(), '核对期间继续编辑', 'a failed recheck cannot discard the draft using a stale copy');
+  await page.evaluate(() => {
+    window.unavailableLibrary = '';
+    window.remoteLibraries.checkin[0] = '重新核对后的文案';
+    window.libraryVersion = 'e'.repeat(64);
+  });
+  await page.locator('#dailyLibraryReload').click();
+  assert.equal(await field.inputValue(), '重新核对后的文案');
+});
+
 test('library failures and conflicts preserve drafts, and edits during save remain dirty', async (t) => {
   const page = await libraryFixture(t);
   await page.getByRole('button', { name: '编辑签到词库', exact: true }).click();
   const field = page.getByRole('textbox', { name: '第 1 条祝福语', exact: true });
+  const original = await field.inputValue();
   await field.fill('我的草稿。');
   await page.evaluate(() => { window.saveFailure = 'DAILY_BOT_UNAVAILABLE'; });
   await saveEdits(page, '#dailyLibrarySave');
@@ -109,9 +234,10 @@ test('library failures and conflicts preserve drafts, and edits during save rema
     window.libraryVersion = 'c'.repeat(64);
     window.remoteLibraries.checkin[0] = '另一台设备的文案。';
   });
+  await field.fill(original);
   await saveEdits(page, '#dailyLibrarySave');
   await page.locator('#dailyLibraryReload').waitFor();
-  assert.equal(await field.inputValue(), '我的草稿。');
+  assert.equal(await field.inputValue(), original);
   assert.equal(await page.locator('#dailyLibrarySave').isDisabled(), true);
   await page.evaluate(() => { window.holdRead = true; });
   await page.locator('#dailyLibraryReload').click();

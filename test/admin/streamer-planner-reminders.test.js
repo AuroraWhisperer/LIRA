@@ -9,6 +9,7 @@ let createReminderSync;
 test.before(async () => {
   ({ createPlannerReminderSync: createReminderSync } = await loadModuleExports(
     path.join(__dirname, '../../public/js/admin/streamer-planner-reminders.js'),
+    { Date: class extends Date { static now() { return Date.parse('2026-10-02T09:00'); } } },
   ));
 });
 const event = { id: 'event-1', title: '学歌', detail: '', date: '2026-10-02', reminderTime: '20:00' };
@@ -57,8 +58,7 @@ test('duplicate snapshots share the pending sync and do not invalidate its resul
   const first = reminders.sync([event, { ...event, id: 'no-reminder', reminderTime: '' }]);
   await reminders.sync([{ ...event }]);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].length, 1);
-  assert.equal(calls[0][0].remindAt, new Date('2026-10-02T20:00:00').getTime());
+  assert.equal(JSON.parse(calls[0].agenda).localAt, '2026-10-02T20:00');
   assert.equal(reminders.getStatus(), 'loading');
   pending.resolve({ ok: true, supported: true });
   await first;

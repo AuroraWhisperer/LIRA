@@ -1,7 +1,9 @@
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement as node } from '../shared/dom-element.js';
 import { mixColor, parseHexColor } from '../shared/color-value.js';
 
 const ART = '/img/overlays/danmaku-christmas/';
-const GUARDS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 
 export function applyChristmasColors(document, options) {
   const wine = parseHexColor(options.bubbleColor === 'default' ? '#782632' : options.bubbleColor);
@@ -13,12 +15,6 @@ export function applyChristmasColors(document, options) {
   }
 }
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function ornament(document, name) {
   const image = node(document, 'img', `christmas-ornament christmas-${name}`);
@@ -42,10 +38,7 @@ function frame(document) {
   return svg;
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-}
+const amount = value => formatDanmakuAmount(value, 2);
 
 // Reuse canonical text/emote rendering; only this style's composition lives here.
 export function createChristmasMessageRenderer(options, render) {

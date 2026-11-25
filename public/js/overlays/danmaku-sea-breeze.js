@@ -1,13 +1,7 @@
+import { createTextElement as node } from '../shared/dom-element.js';
 import { getSuperChatColors } from './danmaku-superchat-renderer.js';
 
 const GUARDS = { 1: ['governor', '总督'], 2: ['admiral', '提督'], 3: ['captain', '舰长'] };
-
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = text;
-  return element;
-}
 
 function amount(value) {
   return Number.isFinite(value) && value >= 0

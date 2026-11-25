@@ -1,19 +1,14 @@
 'use strict';
 
 const { isDnsHostname } = require('../../shared/remote-url-policy');
-const SAFE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
-const SAFE_LICENSE_STATES = new Set([
-  'checking',
-  'needs_activation',
-  'needs_connection',
-  'authorizing',
-  'authorized',
-  'blocked',
-]);
+const { isSensitiveFieldName } = require('../../shared/sensitive-field-name');
+const { normalizeErrorCode, normalizeErrorIndex } = require('../license/remote-license-error');
+const { LicenseState } = require('../license/license-runtime-policy');
+const SAFE_LICENSE_STATES = new Set(Object.values(LicenseState));
 
 function safeErrorCode(error) {
   const value = String(error?.code || error?.message || 'LICENSE_ERROR');
-  return SAFE_ERROR_CODE_PATTERN.test(value) ? value : 'LICENSE_ERROR';
+  return value === value.trim() ? normalizeErrorCode(value) : 'LICENSE_ERROR';
 }
 
 function safeState(value) {
@@ -21,7 +16,7 @@ function safeState(value) {
 }
 
 function safeErrorIndex(value) {
-  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+  return normalizeErrorIndex(value);
 }
 
 function safeString(value, maxLength) {
@@ -73,24 +68,7 @@ function sanitizePublicUrl(value) {
 
 function hasCredentialQuery(url) {
   for (const key of url.searchParams.keys()) {
-    const normalized = key.toLowerCase().replace(/[_-]/g, '');
-    if (
-      normalized === 'authorization' ||
-      normalized === 'cookie' ||
-      normalized === 'password' ||
-      normalized === 'passwd' ||
-      normalized === 'key' ||
-      normalized === 'activationcode' ||
-      normalized === 'pairingcode' ||
-      normalized === 'fingerprint' ||
-      normalized === 'hardwareid' ||
-      normalized.includes('privatekey') ||
-      normalized.endsWith('token') ||
-      normalized.endsWith('secret') ||
-      normalized.endsWith('apikey') ||
-      normalized.endsWith('signature')
-    )
-      return true;
+    if (isSensitiveFieldName(key)) return true;
   }
   return false;
 }

@@ -1,14 +1,19 @@
 'use strict';
 
+const { ADMIN_PAGE_PATHS } = require('../shared/admin-page-paths');
+
 const { isAllowedExternal, isAllowedLocalUrl } = require('./external-url-policy');
-const ADMIN_PATHS = new Set(['/', '/admin', '/settings', '/songs']);
+const ADMIN_PATHS = new Set(ADMIN_PAGE_PATHS);
 
 function createDesktopRequestAuth({ desktopSession, getMainWindow, getBaseUrl, getToken }) {
   const attachedTokens = new Map();
   let disposed = false;
   let unbindWindow = () => {};
 
-  function isTrustedRequest(details) {
+  function isTrustedRequest(details, target) {
+    if (!target || target.username || target.password) return false;
+    if (!target.pathname.startsWith('/api/') && !(details.resourceType === 'mainFrame' && ADMIN_PATHS.has(target.pathname))
+      && !(details.resourceType === 'webSocket' && target.pathname === '/ws')) return false;
     const window = getMainWindow();
     if (!window || window.isDestroyed()) return false;
     const contents = window.webContents;
@@ -30,8 +35,6 @@ function createDesktopRequestAuth({ desktopSession, getMainWindow, getBaseUrl, g
       return false;
 
     const base = new URL(getBaseUrl());
-    const target = new URL(details.url);
-    if (target.username || target.password) return false;
     const sameOrigin = target.origin === base.origin;
     const source = frame.url ? new URL(frame.url) : null;
     const fromAdmin =
@@ -57,32 +60,31 @@ function createDesktopRequestAuth({ desktopSession, getMainWindow, getBaseUrl, g
     );
   }
 
-  function applyHeaders(details, headers) {
+  function applyHeaders(details, headers, target = URL.parse(details.url)) {
     const attached = attachedTokens.get(details.id);
     const token = disposed ? '' : getToken();
-    // A redirect can carry the header added to an earlier request leg. Strip
-    // it before rechecking the destination and requesting frame, even on dispose.
-    for (const name of Object.keys(headers)) {
-      if (
-        name.toLowerCase() === 'authorization' &&
-        ((attached && headers[name] === `Bearer ${attached}`) || (token && headers[name] === `Bearer ${token}`))
-      )
-        delete headers[name];
-    }
-    if (!token || disposed) return;
-    let trusted = false;
+    let trusted;
     try {
-      trusted = isTrustedRequest(details);
-    } catch (error) {
-      // A frame can disappear while Chromium is dispatching a request.
-      void error;
+      trusted = Boolean(token) && isTrustedRequest(details, target);
+    } catch {
+      trusted = false; // A frame can disappear while Chromium is dispatching a request.
     }
-    if (!trusted) return;
-    for (const name of Object.keys(headers)) {
-      if (name.toLowerCase() === 'authorization') delete headers[name];
+    let result = headers;
+    // A redirect can carry our bearer to an untrusted destination, even after disposal.
+    for (const name in headers) {
+      if (
+        Object.hasOwn(headers, name) && name.toLowerCase() === 'authorization' &&
+        (trusted || (attached && headers[name] === `Bearer ${attached}`) || (token && headers[name] === `Bearer ${token}`))
+      ) {
+        if (result === headers) result = { ...headers };
+        delete result[name];
+      }
     }
-    headers.Authorization = `Bearer ${token}`;
+    if (!trusted) return result;
     attachedTokens.set(details.id, token);
+    if (result === headers) result = { ...headers };
+    result.Authorization = `Bearer ${token}`;
+    return result;
   }
 
   const policy = {

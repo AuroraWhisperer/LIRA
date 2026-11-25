@@ -20,12 +20,17 @@ function fail(statusCode, message) {
 }
 
 function checkSize(value, limit) {
-  if (Buffer.byteLength(JSON.stringify(value), 'utf8') > limit) fail(413, '预览数据过大。');
+  const json = JSON.stringify(value);
+  if (Buffer.byteLength(json, 'utf8') > limit) fail(413, '预览数据过大。');
+  return json;
 }
 
 function checkConfig(value, component) {
-  checkSize(value, MAX_PREVIEW_CONFIG_BYTES);
-  if (component === 'canvas' && value.document !== undefined) checkSize(value.document, MAX_SCENE_BYTES);
+  const json = checkSize(value, MAX_PREVIEW_CONFIG_BYTES);
+  if (component === 'canvas' && value.document !== undefined && Buffer.byteLength(json) > MAX_SCENE_BYTES) {
+    checkSize(value.document, MAX_SCENE_BYTES);
+  }
+  return json;
 }
 
 // This relay owns no configuration or persistence. Only the originating desktop
@@ -220,10 +225,12 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   function stateOf(value, component) {
     if (!record(value) || !record(value.draft) || !record(value.saved)
       || !Number.isSafeInteger(value.generation)) fail(400, '预览状态无效。');
-    checkConfig(value.draft, component);
-    checkConfig(value.saved, component);
-    checkSize(value, MAX_PREVIEW_STATE_BYTES);
-    return copy({ draft: value.draft, saved: value.saved, generation: value.generation,
+    const draft = checkConfig(value.draft, component);
+    const saved = checkConfig(value.saved, component);
+    // Each null placeholder occupies four UTF-8 bytes in the original state envelope.
+    const headerBudget = MAX_PREVIEW_STATE_BYTES - Buffer.byteLength(draft) - Buffer.byteLength(saved) + 8;
+    value = JSON.parse(checkSize({ ...value, draft: null, saved: null }, headerBudget));
+    return { draft: JSON.parse(draft), saved: JSON.parse(saved), generation: value.generation,
       loaded: value.loaded === true, loading: value.loading === true, saving: value.saving === true,
       dirty: value.dirty === true, conflict: value.conflict === true, applied: value.applied === true,
       error: typeof value.error === 'string' ? value.error.slice(0, 500) : '',
@@ -231,7 +238,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
         presets: value.presets.map(({ id, title, dirty }) => ({ id, title, dirty: dirty === true })),
         activeSceneId: value.activeSceneId || null,
         activeSceneTitle: value.activeSceneTitle || '',
-      } : {}) });
+      } : {}) };
   }
 
   function publicState(session, { stateRevision, displayRevision } = {}) {
@@ -247,7 +254,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     prune();
     if (!PREVIEW_SESSION_TYPES.includes(component)) fail(400, '未知预览组件。');
     const initial = stateOf(state, component);
-    checkSize(display, 256 * 1024);
+    const displayJson = checkSize(display, 256 * 1024);
     for (const [id, session] of sessions) if (session.component === component) remove(id);
     const id = crypto.randomUUID();
     const token = crypto.randomBytes(32).toString('hex');
@@ -255,7 +262,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     const draftKey = crypto.createHash('sha256').update(JSON.stringify([
       scope, component, component === 'canvas' ? initial.saved.document?.id : null,
     ])).digest('hex');
-    sessions.set(id, { component, draftKey, state: initial, display: copy(display), owner: owner(),
+    sessions.set(id, { component, draftKey, state: initial, display: JSON.parse(displayJson), owner: owner(),
       stateRevision: 1, displayRevision: 1,
       tokenHash: crypto.createHash('sha256').update(token).digest(), touched: now(), ack: 0, sequence: 0, commands: [] });
     return { id, token, draftKey };
@@ -267,7 +274,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     const hasState = state !== undefined || incremental !== true;
     const hasDisplay = display !== undefined || incremental !== true;
     const next = hasState ? stateOf(state, session.component) : session.state;
-    if (hasDisplay) checkSize(display ?? null, 256 * 1024);
+    const displayJson = hasDisplay ? checkSize(display ?? null, 256 * 1024) : null;
     if (next.generation !== session.state.generation) {
       remove(id);
       fail(410, '配置来源已变化，请重新打开预览。');
@@ -277,7 +284,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if (hasState && session.component === 'canvas') session.draftKey = crypto.createHash('sha256').update(JSON.stringify([
       getOwner()?.scope || anonymousScope, 'canvas', next.saved.document?.id,
     ])).digest('hex');
-    if (hasDisplay) { session.display = copy(display ?? null); session.displayRevision++; }
+    if (hasDisplay) { session.display = JSON.parse(displayJson); session.displayRevision++; }
     const ackChanged = session.ack !== ack;
     session.ack = ack;
     session.commands = session.commands.filter((command) => command.sequence > ack);

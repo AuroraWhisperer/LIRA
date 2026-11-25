@@ -3,6 +3,7 @@
 import { eventBus, Events } from '../shared/event-bus.js';
 import { renderSongCooldownControls, renderSongCooldownValidity } from './song-cooldown-settings.js';
 import { createAutosave } from './settings-autosave.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 
 export function createSettingsForm({
   documentRef,
@@ -91,41 +92,28 @@ export function createSettingsForm({
     const songRequestForm = documentRef.getElementById('songRequestSettingsForm');
     const requestSaveButton = documentRef.getElementById('songRequestSettingsSave');
     const requestSaveState = documentRef.getElementById('songRequestSettingsSaveState');
-    let savingRequest = false;
     let requestDirty = false;
-    let requestSaveTimer;
-    let composingRequest = false;
-    const scheduleRequestSave = () => {
-      clearTimeout(requestSaveTimer);
-      if (!composingRequest) requestSaveTimer = setTimeout(() => void saveRequestSettings(), 500);
-    };
+    const requestAutosave = createAutosave({ root: songRequestForm, delay: 500,
+      canSave: () => requestDirty,
+      save: saveRequestSettings,
+    });
     const markRequestSettingDirty = ({ target }) => {
       target.dataset.preserveDirty = 'true';
       target.dataset.dirty = 'true';
       requestDirty = true;
-      if (requestSaveState) requestSaveState.textContent = '等待自动保存…';
+      renderSaveStatus(requestSaveState, 'pending');
       if (target.id === 'songCooldownMode') renderSongCooldownControls(documentRef);
       if (target.id === 'songCooldownValue') renderSongCooldownValidity(documentRef);
-      scheduleRequestSave();
+      requestAutosave.schedule();
     };
     songRequestForm.addEventListener('input', markRequestSettingDirty);
     documentRef.getElementById('songCooldownValue').addEventListener('blur', () => renderSongCooldownValidity(documentRef));
     songRequestForm.addEventListener('change', (event) => {
       if (event.target.tagName === 'SELECT') markRequestSettingDirty(event);
     });
-    songRequestForm.addEventListener('compositionstart', () => {
-      composingRequest = true;
-      clearTimeout(requestSaveTimer);
-    });
-    songRequestForm.addEventListener('compositionend', () => {
-      composingRequest = false;
-      if (requestDirty) scheduleRequestSave();
-    });
     async function saveRequestSettings() {
-      clearTimeout(requestSaveTimer);
-      if (savingRequest || !requestDirty || composingRequest) return;
       if (!songRequestForm.checkValidity()) {
-        if (requestSaveState) requestSaveState.textContent = '请补全或修正输入，修改后将自动保存';
+        renderSaveStatus(requestSaveState, 'pending', '请补全或修正输入，修改后将自动保存');
         return;
       }
       const updates = {
@@ -157,14 +145,12 @@ export function createSettingsForm({
         guardPriorityEnabled: value('guardPriorityEnabled'),
         songRequestBlacklist: value('songRequestBlacklist'),
       };
-      savingRequest = true;
       requestDirty = false;
-      let saved = false;
       if (requestSaveButton) {
         requestSaveButton.disabled = true;
         requestSaveButton.hidden = true;
       }
-      if (requestSaveState) requestSaveState.textContent = '保存中…';
+      renderSaveStatus(requestSaveState, 'saving');
       try {
         const result = await api('/api/settings', updates);
         for (const [key, savedValue] of Object.entries(updates)) {
@@ -177,24 +163,25 @@ export function createSettingsForm({
           userBlacklistEditor?.render(result.data.settings.songRequestUserBlacklist);
         }
         await reloadState();
-        saved = true;
-        if (requestSaveState) requestSaveState.textContent = requestDirty ? '等待自动保存…' : '已自动保存';
+        renderSaveStatus(requestSaveState, requestDirty ? 'pending' : 'saved', requestDirty ? '等待自动保存…' : '已自动保存');
       } catch {
-        clearTimeout(requestSaveTimer);
+        requestAutosave.cancel();
         requestDirty = true;
-        if (requestSaveState) requestSaveState.textContent = '保存失败，修改已保留，请重试';
+        renderSaveStatus(requestSaveState, 'error', '保存失败，修改已保留，请重试');
         if (requestSaveButton) requestSaveButton.hidden = false;
       } finally {
-        savingRequest = false;
         if (requestSaveButton) requestSaveButton.disabled = false;
-        if (saved && requestDirty) scheduleRequestSave();
       }
     }
     songRequestForm.addEventListener('submit', (event) => {
       event.preventDefault();
-      return saveRequestSettings();
+      requestAutosave.schedule();
+      return requestAutosave.flush();
     });
-    requestSaveButton?.addEventListener('click', saveRequestSettings);
+    requestSaveButton?.addEventListener('click', () => {
+      requestAutosave.schedule();
+      return requestAutosave.flush();
+    });
     const sprintForm = documentRef.getElementById('giftSprintForm');
     const sprintTarget = documentRef.getElementById('giftSprintTargetRmb');
     const sprintSave = sprintForm.querySelector('button[type="submit"]');
@@ -214,7 +201,7 @@ export function createSettingsForm({
             if (revision === sprintRevision) sprintTarget.dataset.dirty = 'false';
           }
         } catch (error) {
-          sprintStatus.textContent = '目标自动保存失败，修改已保留，请重试。';
+          renderSaveStatus(sprintStatus, 'error', '目标自动保存失败，修改已保留，请重试。');
           sprintStatus.hidden = sprintSave.hidden = false;
         }
       } });

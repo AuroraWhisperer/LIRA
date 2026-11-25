@@ -95,11 +95,11 @@
             <span id="plannerNoteCount" class="planner-count">0 条</span>
           </div>
           <form id="plannerNoteForm" class="planner-note-form" autocomplete="off">
-            <label class="planner-sr-only" for="plannerNoteBody">备忘内容</label>
+            <label class="sr-only" for="plannerNoteBody">备忘内容</label>
             <textarea id="plannerNoteBody" maxlength="2000" required placeholder="记一笔…"></textarea>
             <div class="planner-note-actions">
               <label class="planner-note-type-field">
-                <span class="planner-sr-only">备忘分类</span>
+                <span class="sr-only">备忘分类</span>
                 <select id="plannerNoteType" data-dropdown-variant="toolbox">
                   <option value="idea">随手记</option>
                   <option value="promise">观众约定</option>
@@ -149,7 +149,7 @@
             </div>
           </div>
           <form id="plannerTaskForm" class="planner-task-form" autocomplete="off">
-            <label class="planner-sr-only" for="plannerTaskTitle">待办内容</label>
+            <label class="sr-only" for="plannerTaskTitle">待办内容</label>
             <input id="plannerTaskTitle" type="text" maxlength="80" required placeholder="添加待办" />
             <button type="submit" class="planner-icon-button" aria-label="添加待办" title="添加待办">
               <svg class="planner-icon" aria-hidden="true">
@@ -190,7 +190,7 @@
           <div class="planner-event-fields">
             <input id="plannerEventDate" type="date" min="0001-01-01" max="9999-12-31" required />
             <label id="plannerEventTimeField" class="planner-event-time-field">
-              <span class="planner-sr-only">时间</span><input id="plannerEventTime" type="time" required aria-label="日程时间" />
+              <span class="sr-only">时间</span><input id="plannerEventTime" type="time" required aria-label="日程时间" />
             </label>
           </div>
         </div>

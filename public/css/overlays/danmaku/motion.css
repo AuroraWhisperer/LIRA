@@ -98,9 +98,6 @@ body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .draw-danmaku-feed[data-smooth-layout='true'] > .draw-danmaku-item[data-live-entry] {
-    animation: none !important;
-  }
   *,
   *::before,
   *::after {
@@ -108,7 +105,8 @@ body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .draw-danmaku-item.is-gift::after {
-    animation: none !important;
-  }
 }
+
+@keyframes danmakuEntryClock { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+
+@keyframes danmakuEnterOpacity { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }

@@ -1,5 +1,6 @@
 /* Danmaku overlay styles - ordered compatibility entrypoint. */
 @import url('../shared/display-fonts.css');
+@import url('../shared/visually-hidden.css');
 @import url('./danmaku/base.css');
 @import url('./danmaku/gifts.css');
 @import url('./danmaku/signal.css');
@@ -32,11 +33,13 @@
 @import url('./danmaku/twitter.css');
 @import url('./danmaku/spooky.css');
 @import url('./danmaku/notebook.css');
+@import url('./danmaku/pastel-scrapbook.css');
 @import url('./danmaku/glass.css');
 @import url('./danmaku/glowy.css');
 @import url('./danmaku/glass-bubble.css');
 @import url('./danmaku/animated-gradient.css');
 @import url('./danmaku/astral.css');
+@import url('./danmaku/charm-thread.css');
 @import url('./danmaku/christmas.css');
 @import url('./danmaku/christmas-letter.css');
 @import url('./danmaku/wireframe.css');
@@ -55,3 +58,19 @@
 @import url('./danmaku/horizontal-charm.css');
 @import url('./danmaku/coffee.css');
 @import url('./danmaku/preview.css');
+
+html:not([data-media-style]) body:not(.is-preview) :is(.glass-panel, .glowy-material, .neon-glass-panel),
+html:not([data-media-style]) body:not(.is-preview) .glass-bubble-surface::before {
+  backdrop-filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draw-danmaku-item,
+  .draw-danmaku-item *,
+  .draw-danmaku-item::before,
+  .draw-danmaku-item::after,
+  .draw-danmaku-item *::before,
+  .draw-danmaku-item *::after {
+    animation: none !important;
+  }
+}

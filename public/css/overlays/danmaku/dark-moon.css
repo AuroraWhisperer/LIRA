@@ -163,7 +163,7 @@ body[data-style='dark-moon'] .dark-moon-item .dark-moon-event-heading .dark-moon
 .dark-moon-sc-message .dark-moon-lining { display: none; }
 body[data-style='dark-moon'] .dark-moon-item.is-superchat .dark-moon-sc-message .dark-moon-copy { color: var(--danmaku-text-color, var(--moon-ink)); }
 
-.dark-moon-item[data-live-entry] .dark-moon-heading:not(.dark-moon-event-heading) { animation: darkMoonInk 220ms ease-out 50ms backwards, darkMoonName 350ms cubic-bezier(.16,1,.3,1) backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-heading:not(.dark-moon-event-heading) { animation: darkMoonInk 220ms ease-out 50ms backwards, darkMoonReveal 350ms cubic-bezier(.16,1,.3,1) backwards; }
 .dark-moon-item[data-live-entry] .dark-moon-seal { animation: darkMoonSeal 420ms cubic-bezier(.22,1,.36,1) backwards; }
 .dark-moon-item[data-live-entry] .dark-moon-panel::before { animation: darkMoonReveal 300ms cubic-bezier(.16,1,.3,1) 120ms backwards; }
 .dark-moon-item[data-live-entry] .dark-moon-copy { animation: darkMoonReveal 240ms ease-out 170ms backwards, darkMoonInk 180ms ease-out 170ms backwards; }
@@ -173,7 +173,7 @@ body[data-style='dark-moon'] .dark-moon-item.is-superchat .dark-moon-sc-message 
 .dark-moon-item[data-live-entry] .dark-moon-event-art { animation: darkMoonUnfold 500ms cubic-bezier(.25,.2,.23,1) backwards; }
 .dark-moon-item[data-live-entry] .dark-moon-event-heading { animation: darkMoonInk 230ms ease-out 600ms backwards; }
 .dark-moon-item[data-live-entry] .dark-moon-panel > .dark-moon-seal { animation-delay: 300ms; }
-.dark-moon-item[data-live-entry] .dark-moon-bookmark { animation: darkMoonRibbon 300ms cubic-bezier(.22,1,.36,1) 500ms backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-bookmark { animation: darkMoonReveal 300ms cubic-bezier(.22,1,.36,1) 500ms backwards; }
 .dark-moon-item[data-live-entry] .dark-moon-orbit { animation: darkMoonSeal 450ms ease-out 450ms backwards; }
 .dark-moon-item[data-live-entry].is-superchat .dark-moon-sc-message::before { animation: darkMoonReveal 300ms ease-out 500ms backwards; }
 .dark-moon-item[data-live-entry] .dark-moon-sc-message .dark-moon-copy { animation-delay: 650ms; }
@@ -184,17 +184,12 @@ body[data-style='dark-moon']:not([data-ambient-motion='off']) .dark-moon-item:no
 body[data-style='dark-moon']:not([data-ambient-motion='off']) .dark-moon-dot { animation: darkMoonGlint 4.6s ease-in-out -1.2s infinite; }
 @keyframes darkMoonEntry { from,to { --dark-moon-opacity: 1; } }
 @keyframes darkMoonInk { from { --dark-moon-opacity: 0; } to { --dark-moon-opacity: 1; } }
-@keyframes darkMoonName { from { --dark-moon-reveal: 100%; } to { --dark-moon-reveal: 0%; } }
 @keyframes darkMoonReveal { from { --dark-moon-reveal: 100%; } to { --dark-moon-reveal: 0%; } }
 @keyframes darkMoonSeal { from { --dark-moon-scale: .35; --dark-moon-turn: -35deg; --dark-moon-opacity: 0; } to { --dark-moon-scale: 1; --dark-moon-turn: 0deg; --dark-moon-opacity: 1; } }
 @keyframes darkMoonUnfold { from { --dark-moon-reveal: 50%; } to { --dark-moon-reveal: 0%; } }
-@keyframes darkMoonRibbon { from { --dark-moon-reveal: 100%; } to { --dark-moon-reveal: 0%; } }
 @keyframes darkMoonTwinkle { 0%,50%,100% { --dark-moon-scale: 1; --dark-moon-opacity: 1; } 25%,75% { --dark-moon-scale: .65; --dark-moon-opacity: .5; } }
 @keyframes darkMoonFloat { 0%,100% { --dark-moon-slide: 0px; } 50% { --dark-moon-slide: -.15em; } }
 @keyframes darkMoonGlint { 0%,100% { --dark-moon-opacity: .95; } 50% { --dark-moon-opacity: .35; } }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='dark-moon'] .dark-moon-item, body[data-style='dark-moon'] .dark-moon-item *, body[data-style='dark-moon'] .dark-moon-item *::before { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='dark-moon'] .draw-danmaku-item .dark-moon-copy {

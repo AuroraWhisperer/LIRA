@@ -38,6 +38,7 @@ export function applyDesktopLyricStyles(card, values) {
   card.style.setProperty('--preview-color', values.textColor);
   card.style.setProperty('--preview-sung-color', values.sungColor);
   card.style.setProperty('--preview-text-align', values.textAlign);
+  card.style.setProperty('--preview-follow-padding', `${values.alignPosition * 100}cqh`);
   card.style.setProperty('--preview-row-align', textAlignToFlex(values.textAlign));
   card.style.setProperty('--preview-row-origin', values.textAlign === 'justify' ? 'center' : values.textAlign);
   card.style.setProperty('--preview-letter-spacing', `${values.letterSpacing}em`);
@@ -69,6 +70,8 @@ export function applyDesktopLyricStyles(card, values) {
   card.style.setProperty('--preview-brightness', String(values.brightness));
   card.style.setProperty('--preview-contrast', String(values.contrast));
   card.style.setProperty('--preview-saturation', String(values.saturation));
+  card.classList.toggle('has-color-filter', values.globalOpacity !== 1 || values.brightness !== 1
+    || values.contrast !== 1 || values.saturation !== 1);
   card.classList.toggle('is-translation-hidden', !values.showTranslation);
   card.classList.toggle('is-roma-hidden', !values.showRoma);
   card.classList.toggle('is-text-justify', values.textAlign === 'justify');

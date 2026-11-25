@@ -125,14 +125,52 @@ test('admin subscribers retain full reads alongside overlay subscribers', async 
   assert.equal(messages(socket).at(-1).state.arbitrarySecret, 'private-root');
 });
 
-test('legacy game contexts retain their optional game snapshot when selecting state reads', (t) => {
+test('legacy game contexts retain their game baseline and skip unrelated hot snapshots', async (t) => {
   const reads = [];
-  const { socket } = overlayConnection(t, 'games', { context: { getState(fields) {
+  const { hub, socket } = overlayConnection(t, 'games', { context: { getState(fields) {
     reads.push(fields);
     return { games: { game: 'number-bomb', state: { min: 1, max: 10 } } };
   } } });
   assert.deepEqual(reads, [undefined]);
   assert.ok(Object.hasOwn(messages(socket)[0].state, 'games'));
+  hub.broadcastSnapshot({ getState() { assert.fail('a gift cannot change the game'); } }, 'bilibili:gift');
+  await new Promise(queueMicrotask);
+  assert.equal(messages(socket).length, 1);
+});
+
+test('lyrics skip gift-only snapshots but receive settings coalesced with a later gift', async t => {
+  const { hub, socket } = overlayConnection(t, 'lyrics');
+  let reads = 0;
+  const context = { getState() { reads++; return fullState; } };
+  socket.writes = [];
+  for (const reason of ['bilibili:gift', 'queue:next', 'songs:save', 'gift:wishes', 'superchat:delete']) {
+    hub.broadcastSnapshot(context, reason);
+  }
+  await new Promise(queueMicrotask);
+  assert.equal(reads, 0);
+  assert.equal(messages(socket).length, 0);
+  hub.broadcastSnapshot(context, 'settings');
+  hub.broadcastSnapshot(context, 'bilibili:gift');
+  await new Promise(queueMicrotask);
+  assert.equal(reads, 1);
+  assert.deepEqual(messages(socket)[0].state, require('../../src/server/overlay-projection').projectOverlayState('lyrics', fullState));
+});
+
+test('queue and gift snapshots reach their own consumers, including reason-only blindbox refresh', async t => {
+  for (const [scope, expected] of [['queue', 'queue:add'], ['gift-feed', 'bilibili:gift'], ['blindbox', 'bilibili:gift']]) {
+    const { hub, socket } = overlayConnection(t, scope);
+    socket.writes = [];
+    const context = { getState: () => fullState };
+    for (const reason of ['bilibili:gift', 'queue:add']) {
+      hub.broadcastSnapshot(context, reason);
+      await new Promise(queueMicrotask);
+    }
+    assert.deepEqual(messages(socket).map(frame => frame.reason), [expected]);
+    hub.broadcastSnapshot(context, 'component:styles');
+    hub.broadcastSnapshot(context, expected);
+    await new Promise(queueMicrotask);
+    assert.equal(JSON.stringify(messages(socket).at(-1)).includes('component:styles'), false);
+  }
 });
 
 test('a WebSocket context without an authentication owner fails closed', (t) => {
@@ -265,21 +303,52 @@ test('topic subscriptions do not grant cross-overlay increments or unknown broad
   assert.equal(socket.destroyed, false);
 });
 
-test('danmaku increments retain the explicit subscription requirement', (t) => {
-  const subscribed = overlayConnection(t, 'danmaku', { query: '&topic=danmaku' });
-  const unsubscribed = overlayConnection(t, 'danmaku');
-  for (const { hub, socket } of [subscribed, unsubscribed]) {
+test('only negotiated danmaku subscribers skip a pure gift baseline and mixed batches still reconcile', async (t) => {
+  for (const [query, expected] of [
+    ['&topic=danmaku&snapshot=danmaku-events-v1', ['danmaku:message']],
+    ['&topic=danmaku', ['danmaku:message', 'snapshot']],
+    ['&snapshot=danmaku-events-v1', ['snapshot']],
+  ]) {
+    let reads = 0;
+    const context = { getState() { reads++; return fullState; } };
+    const { hub, socket } = overlayConnection(t, 'danmaku', { query, context });
+    assert.equal(messages(socket)[0].state.danmakuFeed[0].id, 'one');
     socket.writes = [];
+    hub.broadcastSnapshot(context, 'bilibili:gift');
     hub.broadcast({ type: 'danmaku:message', item: { id: 'one', message: 'Public danmaku' } }, { topic: 'danmaku' });
+    await new Promise(queueMicrotask);
+    assert.deepEqual(messages(socket).map(payload => payload.type), expected);
+    assert.equal(reads, expected.includes('snapshot') ? 2 : 1);
+    socket.writes = [];
+    hub.broadcastSnapshot(context, 'live:status');
+    hub.broadcastSnapshot(context, 'bilibili:gift');
+    await new Promise(queueMicrotask);
+    assert.equal(messages(socket)[0].state.danmakuFeed[0].message, 'Public danmaku');
   }
-  assert.equal(messages(subscribed.socket)[0].type, 'danmaku:message');
-  assert.equal(messages(subscribed.socket)[0].item.message, 'Public danmaku');
-  assert.equal(messages(unsubscribed.socket).length, 0);
 });
 
-test('gift feed retains source revision and catalog invalidation without catalog data', (t) => {
-  const { hub, socket } = overlayConnection(t, 'gift-feed');
+test('gift overlays read only the revision unless an admin needs recent gifts in the same broadcast', async t => {
+  let recentReads = 0;
+  const context = { sessionToken: ADMIN_TOKEN, getState(fields, { includeRecentGifts = true } = {}) {
+    const gifts = { viewRevision: 'gift-source-version' };
+    if (includeRecentGifts) { recentReads++; gifts.recent = [{ gift_name: 'new' }]; }
+    return { gifts };
+  } };
+  const { hub, socket } = overlayConnection(t, 'gift-feed', { context });
   assert.equal(messages(socket)[0].state.gifts.viewRevision, 'gift-source-version');
+  hub.broadcastSnapshot(context, 'bilibili:gift');
+  await new Promise(queueMicrotask);
+  assert.equal(recentReads, 0);
+  const admin = new FakeSocket();
+  hub.handleUpgrade(context, webSocketUpgradeRequest({ url: '/ws?snapshot=music-events-v1',
+    headers: { authorization: `Bearer ${ADMIN_TOKEN}` } }), admin);
+  t.after(() => admin.destroy());
+  recentReads = 0;
+  hub.broadcastSnapshot(context, 'bilibili:gift');
+  await new Promise(queueMicrotask);
+  assert.equal(recentReads, 1);
+  assert.equal(messages(admin).at(-1).state.gifts.recent[0].gift_name, 'new');
+  assert.equal(messages(socket).at(-1).state.gifts.recent, undefined);
   hub.broadcast({ type: 'gift-catalog:update', snapshot: { secret: 'private-catalog' } });
   assert.equal(messages(socket).at(-1).type, 'gift-catalog:update');
   assert.equal(JSON.stringify(messages(socket)).includes('private-'), false);
@@ -379,7 +448,7 @@ test(
       { type: 'danmaku:message', item: { id: 'two', message: 'Live public message' } },
       { topic: 'danmaku' },
     );
-    hub.broadcastSnapshot(context, 'bilibili:gift');
+    hub.broadcastSnapshot(context, 'settings');
     await Promise.all(barrier);
     assert.ok(JSON.stringify(clients[0].received).includes('private-root'));
     assert.ok(JSON.stringify(clients[0].received).includes('private-increment'));

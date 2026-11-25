@@ -14,9 +14,7 @@ async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'verti
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
     <body data-style="${style}" data-scroll-direction="${direction}" data-stargazer-layout="${flowAxis}">
-      <div class="danmaku-signal-stage" style="width:640px;height:420px;transform:scale(${scale});transform-origin:top left">
-        <div id="feed" class="draw-danmaku-feed"></div>
-      </div>
+      <div class="danmaku-signal-stage" style="width:640px;height:420px;transform:scale(${scale});transform-origin:top left"></div>
     </body>` });
   t.after(() => fixture.close());
   const session = openBrowserSession();
@@ -31,13 +29,21 @@ async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'verti
   await page.goto(url);
   await page.evaluate(async ({ style, flowAxis }) => {
     const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
-    window.root = document.getElementById('feed');
-    window.feed = createDanmakuFeed(root, { style, flowAxis, fitWidth: !['celestial-horizontal', 'horizontal-charm'].includes(style), offscreenViewports: 0, autoScroll: false, maxItems: 8 });
-    feed.render([
-      { name: '云洲来信', message: '提督报到，这一段太好听了', guardLevel: 2 },
-      { name: '路过听一首', message: '刚进来，这首歌叫什么名字呀？' },
-      { name: '山间晚风', message: '戴上耳机听这一段真的好舒服。\n今天也辛苦啦，大家早点休息！' },
-    ]);
+    window.mountStyle = style => {
+      window.feed?.destroy();
+      document.body.dataset.style = style;
+      window.root = document.createElement('div');
+      root.id = 'feed';
+      root.className = 'draw-danmaku-feed';
+      document.querySelector('.danmaku-signal-stage').replaceChildren(root);
+      window.feed = createDanmakuFeed(root, { style, flowAxis, fitWidth: !['celestial-horizontal', 'horizontal-charm'].includes(style), offscreenViewports: 0, autoScroll: false, maxItems: 8 });
+      feed.render([
+        { name: '云洲来信', message: '提督报到，这一段太好听了', guardLevel: 2 },
+        { name: '路过听一首', message: '刚进来，这首歌叫什么名字呀？' },
+        { name: '山间晚风', message: '戴上耳机听这一段真的好舒服。\n今天也辛苦啦，大家早点休息！' },
+      ]);
+    };
+    mountStyle(style);
     window.freezeMoves = time => Array.from(root.children).forEach(node => node.getAnimations().forEach(animation => {
       animation.pause();
       animation.currentTime = time;
@@ -402,76 +408,88 @@ for (const [direction, scale] of [['up', 1], ['down', 0.63]]) {
   });
 }
 
-// Direction and canvas scale are shared feed branches covered by moonlit above;
-// one representative combination checks each style's own motion CSS.
-for (const style of styledMotion) {
-  test(`${style} keeps interrupted rows together without replaying entrances`, { timeout: 15000 }, async t => {
-    const scale = 0.63;
-    const page = await preview(t, 'down', scale, style);
-    const start = await page.evaluate(async () => {
-      const old = Array.from(root.children);
-      const tops = old.map(node => node.getBoundingClientRect().top);
-      feed.append({ id: 'new-chat', name: '新观众', message: '晚上好，这段好听！' });
-      feed.append({ id: 'new-sc', kind: 'superchat', name: '远方来信', price: 30,
-        message: '今晚也很开心。愿每个认真生活的人，都能遇到温柔的回应。' });
+test('mixed-height rows share a movement duration without restarting entrances on the next arrival', async t => {
+  const page = await preview(t, 'down', 0.63, 'ripploid');
+  const { durations, entranceTimes } = await page.evaluate(async () => {
+    feed.append({ message: '新消息' });
+    feed.append({ kind: 'superchat', price: 30, message: '第一行\n第二行' });
+    await new Promise(requestAnimationFrame);
+    freezeMoves(120);
+    const animations = Array.from(root.children).flatMap(node => node.getAnimations());
+    const entrances = animations.filter(animation => animation.animationName);
+    const durations = animations.filter(animation => !animation.animationName).map(animation => animation.effect.getTiming().duration);
+    feed.append({ kind: 'gift', giftName: '小花花', giftCount: 3, giftTotalPrice: 15 });
+    await new Promise(requestAnimationFrame);
+    return { durations, entranceTimes: entrances.map(animation => animation.currentTime) };
+  });
+  assert.ok(durations.length > 0 && durations.every(duration => duration === durations[0]));
+  assert.ok(entranceTimes.length > 0 && entranceTimes.every(time => time === 120));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length));
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => feed.render([{ message: '恢复的快照' }]));
+  assert.equal(await page.locator('[data-live-entry]').count(), 0);
+  await page.evaluate(() => feed.append({ message: '正常完成' }));
+  await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length && !node.hasAttribute('data-live-entry')));
+  await page.evaluate(() => feed.destroy());
+});
+
+test('fixed style sheets keep snapshots still, live cards apart and reduced-motion text visible', { timeout: 30000 }, async t => {
+  const scale = 0.63;
+  const page = await preview(t, 'down', scale);
+  for (const style of styledMotion) {
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const sample = await page.evaluate(async style => {
+      mountStyle(style);
+      await document.fonts.ready;
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      const snapshot = Array.from(root.children);
+      const initialTops = snapshot.map(node => node.getBoundingClientRect().top);
+      feed.append({ name: '新观众', message: '晚上好，这段好听！' });
+      feed.append({ kind: 'superchat', name: '远方来信', price: 30, message: '今晚也很开心。愿每个认真生活的人，都能遇到温柔的回应。' });
       await new Promise(requestAnimationFrame);
       freezeMoves(0);
-      const rowMotions = Array.from(root.children).flatMap(node => node.getAnimations())
-        .filter(animation => !animation.animationName);
-      return {
-        oldEntrances: old.flatMap(node => node.getAnimations()).filter(animation => animation.animationName).length,
-        deltas: old.map((node, i) => node.getBoundingClientRect().top - tops[i]),
-        durations: rowMotions.map(animation => animation.effect.getTiming().duration),
-      };
-    });
-    assert.equal(start.oldEntrances, 0, 'snapshot rows never replay a live entrance');
-    // Variable-width cards use rounded offsetWidth; allow half a layout pixel, as in the original feed.
-    assert.ok(start.deltas.every(delta => Math.abs(delta) < 0.5 * scale), `existing rows begin at their visible positions: ${start.deltas}`);
-    assert.ok(start.durations.length > 0 && start.durations.every(duration => duration === start.durations[0]),
-      'one duration keeps all moving rows in step');
-
-    const interrupted = await page.evaluate(async () => {
+      const startDeltas = snapshot.map((node, i) => node.getBoundingClientRect().top - initialTops[i]);
       freezeMoves(120);
-      const nodes = Array.from(root.children);
-      const before = nodes.map(node => node.getBoundingClientRect());
+      const previous = Array.from(root.children);
+      const before = previous.map(node => node.getBoundingClientRect());
       const viewport = root.getBoundingClientRect();
-      const entrances = nodes.flatMap(node => node.getAnimations()).filter(animation => animation.animationName);
-      feed.append({ id: 'new-gift', kind: 'gift', name: '星河', giftName: '小花花', giftCount: 3, giftTotalPrice: 15 });
+      feed.append({ kind: 'gift', giftName: '小花花', giftCount: 3, giftTotalPrice: 15 });
       await new Promise(requestAnimationFrame);
-      nodes.forEach(node => node.getAnimations().filter(animation => !animation.animationName).forEach(animation => {
-        animation.pause();
-        animation.currentTime = 0;
-      }));
-      const newest = root.lastElementChild;
-      newest.getAnimations().forEach(animation => { animation.pause(); animation.currentTime = 0; });
-      const boxes = Array.from(root.children).map(node => {
-        const rect = node.getBoundingClientRect();
-        return { top: rect.top, bottom: rect.bottom };
-      }).sort((a, b) => a.top - b.top);
-      return {
-        deltas: nodes.flatMap((node, i) => node.isConnected ? [node.getBoundingClientRect().top - before[i].top] : []),
-        removedVisible: nodes.some((node, i) => !node.isConnected
-          && before[i].bottom > viewport.top && before[i].top < viewport.bottom),
-        entranceTimes: entrances.map(animation => animation.currentTime),
+      for (const node of root.children) {
+        for (const animation of node.getAnimations().filter(animation => !animation.animationName)) {
+          animation.pause();
+          animation.currentTime = 0;
+        }
+      }
+      root.lastElementChild.getAnimations().forEach(animation => { animation.pause(); animation.currentTime = 0; });
+      const boxes = Array.from(root.children, node => node.getBoundingClientRect()).sort((a, b) => a.top - b.top);
+      const geometry = {
+        replayed: snapshot.some(node => node.getAnimations().some(animation => animation.animationName)),
+        lostVisibleRow: previous.some((node, i) => !node.isConnected && before[i].bottom > viewport.top && before[i].top < viewport.bottom),
+        jumps: startDeltas.concat(previous.flatMap((node, i) => node.isConnected ? [node.getBoundingClientRect().top - before[i].top] : [])),
         gaps: boxes.slice(1).map((box, i) => box.top - boxes[i].bottom),
       };
-    });
-    assert.equal(interrupted.removedVisible, false, 'retargeting never removes a visible message');
-    assert.ok(interrupted.deltas.every(delta => Math.abs(delta) < 0.5 * scale), `retargeting stays within layout rounding: ${interrupted.deltas}`);
-    assert.ok(interrupted.entranceTimes.every(time => time === 120), 'retargeting does not restart or cancel an entrance');
-    assert.ok(interrupted.gaps.every(gap => gap >= -0.2), `different-height arrivals never cross other cards: ${interrupted.gaps}`);
-
+      for (const node of root.children) {
+        for (const animation of node.getAnimations()) {
+          if (Number.isFinite(animation.effect.getComputedTiming().endTime)) animation.finish();
+        }
+      }
+      return geometry;
+    }, style);
+    assert.equal(sample.replayed, false, `${style} replayed a snapshot entrance`);
+    assert.equal(sample.lostVisibleRow, false, `${style} removed a visible row`);
+    // Variable-width cards use rounded offsetWidth. Allow half a layout pixel.
+    assert.ok(sample.jumps.every(delta => Math.abs(delta) < 0.5 * scale), `${style} jumped during arrival: ${sample.jumps}`);
+    assert.ok(sample.gaps.every(gap => gap >= -0.2), `${style} overlapped cards: ${sample.gaps}`);
+    await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length && !node.hasAttribute('data-live-entry')))
+      .catch(cause => { throw new Error(`${style} retained a completed entrance`, { cause }); });
+    await page.evaluate(async () => { feed.append({ message: '切换动态偏好' }); await new Promise(requestAnimationFrame); });
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length));
-    assert.ok(await page.evaluate(() => Array.from(root.children).every(node => getComputedStyle(node).opacity === '1')));
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.evaluate(() => feed.render([{ id: 'snapshot', name: '恢复消息', message: '内容完整，直接可读。' }]));
-    await page.waitForFunction(() => root.children.length === 1 && !root.firstElementChild.getAnimations().length);
-    assert.equal(await page.evaluate(() => root.firstElementChild.hasAttribute('data-live-entry')), false);
-    await page.evaluate(() => feed.append({ name: '正常完成', message: '读完之后，画面安静下来。' }));
-    await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length && !node.hasAttribute('data-live-entry')));
-    await page.evaluate(async () => { feed.append({ name: '结束', message: '动画中销毁' }); await new Promise(requestAnimationFrame); feed.destroy(); });
-    assert.equal(await page.locator('#feed > *').count(), 0);
-    assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
-  });
-}
+    await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length))
+      .catch(cause => { throw new Error(`${style} still animates with reduced motion`, { cause }); });
+    assert.ok(await page.evaluate(() => Array.from(root.children).every(node => getComputedStyle(node).opacity === '1')), style);
+  }
+  await page.evaluate(() => feed.destroy());
+});

@@ -25,7 +25,8 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
   function add(key, date, title, basis, advance = 0, extra = {}) {
     const state = statesByKey.get(key);
     const isResolved = ['handled', 'ignored'].includes(state?.status);
-    if (!date || date < earliest || date > horizon || (date > latest && !isResolved)) return;
+    const recentSnooze = state?.status === 'snoozed' && state.until >= earliest;
+    if (!date || (date < earliest && !recentSnooze) || date > horizon || (date > latest && !isResolved)) return;
     const scheduled = addDays(date, -advance);
     const snoozed = state?.status === 'snoozed' && state.until > today;
     result.push({
@@ -156,17 +157,20 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
           .map((r) => r.data.asOf),
       );
     }
-    const seen = new Set();
     // A revised baseline can move a handled milestone outside the short window.
     // Re-resolve those saved dates when the shared result includes history.
     const hasMilestoneHistory = states.some(state =>
       /^(total|continuous):/.test(state.key) && ['handled', 'ignored'].includes(state.status));
+    // Search revised crossing dates by metric and threshold. add() checks the
+    // full occurrence key, including the continuous cycle, before admitting an old date.
+    const snoozedRules = new Set(states.filter(state => state.status === 'snoozed' && state.until >= earliest)
+      .map(state => state.key.replace(/^continuous:.+:/, 'continuous:')));
     const summaries = new Map([[today, membership]]);
     function at(date) {
       if (!summaries.has(date)) summaries.set(date, summarize(date));
       return summaries.get(date);
     }
-    for (const date of summarize.milestoneDates(earliest, hasMilestoneHistory ? horizon : latest, now)) {
+    for (const date of summarize.milestoneDates(earliest, hasMilestoneHistory ? horizon : latest, now, snoozedRules)) {
       const current = at(date);
       const previous = at(addDays(date, -1));
       for (const type of ['total', 'continuous']) {
@@ -179,8 +183,7 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
           if (value === null || value < threshold || (prior !== null && prior >= threshold)) continue;
           if (type === 'continuous' && current.continuousAsOf !== date) continue;
           const key = type === 'total' ? `total:${threshold}` : `continuous:${current.cycleId}:${threshold}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
+          if (resultKeys.has(key)) continue;
           add(
             key,
             date,

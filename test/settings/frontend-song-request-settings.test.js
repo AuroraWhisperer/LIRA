@@ -58,6 +58,8 @@ test('song request edits autosave independently, serialize newer drafts and reta
           elements.set(id, {
             id,
             dataset: {},
+            classList: { toggle() {} },
+            setAttribute() {},
             querySelector: () => sprintSaveButton,
             checkValidity: () => valid,
             addEventListener(event, handler) {

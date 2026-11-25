@@ -351,31 +351,40 @@ test('canvas live data maps opening and game responses while preserving empty ga
     '/api/opening/config': { title: '合成开播画面' },
     '/api/games/session': { id: 'synthetic-game', game: 'number-bomb' },
   };
+  const requests = [];
+  const window = Object.assign(new EventTarget(), {
+    setTimeout(callback) { timers.set(++nextTimer, callback); return nextTimer; },
+    clearTimeout(id) { timers.delete(id); },
+  });
   const { prepareComponentPreviewCanvas } = await load('admin/component-preview-canvas-controller.js', {
-    AbortController,
-    window: {
-      setTimeout(callback) { timers.set(++nextTimer, callback); return nextTimer; },
-      clearTimeout(id) { timers.delete(id); },
-      removeEventListener() {},
+    AbortController, AbortSignal, window,
+    fetch: async url => {
+      requests.push(url);
+      return { ok: true, json: async () => ({ ok: true, data: data[url] }) };
     },
-    fetch: async url => ({ ok: true, json: async () => ({ ok: true, data: data[url] }) }),
   });
   const f = sceneRequest(documentOf([item('opening', 'independent', {}), item('games', 'independent', {})]));
   const canvas = await prepareComponentPreviewCanvas([], f.request);
   const emitted = [];
   const stop = canvas.startActualData(value => emitted.push(value));
   t.after(stop);
+  assert.equal(requests.length, 0);
+  stop.setActive(true);
   await new Promise(resolve => setImmediate(resolve));
   const latest = () => emitted.at(-1).previewData;
   assert.equal(latest().opening.title, '合成开播画面');
   assert.equal(latest().games.preview, true);
   assert.equal(latest().games.session.id, 'synthetic-game');
-
+  window.dispatchEvent(new CustomEvent('app:game-update', { detail: null }));
+  assert.equal(latest().games.session, null);
+  assert.equal(requests.length, 2);
+  stop.setActive(false);
+  assert.equal(timers.size, 0);
   data['/api/opening/config'] = null;
   data['/api/games/session'] = null;
-  const refreshes = [...timers.values()];
-  timers.clear();
-  await Promise.all(refreshes.map(refresh => refresh()));
+  stop.setActive(true);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(requests.length, 4);
   assert.equal(latest().opening, null);
   assert.equal(latest().games.preview, true);
   assert.equal(latest().games.session, null);

@@ -16,15 +16,32 @@ function fixture(t) {
 test('rotation retains recent diagnostics with a fixed aggregate budget across writers/restarts', (t) => {
   const { directory, file } = fixture(t);
   fs.writeFileSync(path.join(directory, 'unrelated.log'), 'preserve');
+  const options = { maxEntryBytes: 32, maxFileBytes: 64 };
+  const renames = t.mock.method(fs, 'renameSync');
+  const generations = [''];
+  const readGenerations = () => ['.2', '.1', ''].map((suffix) => fs.readFileSync(file + suffix, 'utf8'));
   for (let index = 0; index < 30; index += 1) {
-    assert.equal(appendBoundedFileSync(file, `${index}: ${'错'.repeat(8)}\n`, {
-      maxEntryBytes: 32, maxFileBytes: 64,
-    }).written, true);
+    const line = `${index}: ${'错'.repeat(8)}\n`;
+    renames.mock.resetCalls();
+    const result = appendBoundedFileSync(file, line, options);
+    if (!result.written) {
+      // Windows can refuse to replace .2 while a reader holds it open.
+      const error = renames.mock.calls.at(-1)?.error;
+      assert.ok(process.platform === 'win32' && error?.code === 'EPERM'
+        && error.path === `${file}.1` && error.dest === `${file}.2`, `entry ${index}: ${error?.message || result.reason}`);
+      assert.equal(result.reason, 'write-failed');
+      assert.equal(result.bytes, 0);
+      assert.deepEqual(readGenerations(), generations.slice(-3));
+      continue;
+    }
+    const newest = generations.length - 1;
+    if (Buffer.byteLength(generations[newest] + line) > options.maxFileBytes) generations.push(line);
+    else generations[newest] += line;
   }
+  assert.ok(generations.length > 3, 'rotation must replace an existing oldest archive');
   assert.deepEqual(fs.readdirSync(directory).sort(), ['test.log', 'test.log.1', 'test.log.2', 'unrelated.log']);
-  for (const suffix of ['', '.1', '.2']) assert.ok(fs.statSync(file + suffix).size <= 64);
-  assert.match(fs.readFileSync(file, 'utf8'), /29:/);
-  assert.doesNotMatch(fs.readFileSync(file + '.2', 'utf8'), /\uFFFD/);
+  for (const suffix of ['', '.1', '.2']) assert.ok(fs.statSync(file + suffix).size <= options.maxFileBytes);
+  assert.deepEqual(readGenerations(), generations.slice(-3));
   assert.equal(fs.readFileSync(path.join(directory, 'unrelated.log'), 'utf8'), 'preserve');
 });
 

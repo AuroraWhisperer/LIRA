@@ -27,7 +27,7 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
     const activeTheme = pendingTheme || currentTheme;
     for (const choice of choices) {
       choice.checked = choice.value === activeTheme;
-      choice.disabled = Boolean(pendingTheme) || !canApply;
+      choice.disabled = !canApply || (Boolean(pendingTheme) && !choice.checked);
     }
     if (currentNameEl) {
       const selectedChoice = choices.find((choice) => choice.value === activeTheme);

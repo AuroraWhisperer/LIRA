@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomUUID } = require('node:crypto');
 const { text, timestamp, identity, identityKey, profilePatch, recordData, recentNameHistory } = require('./validation');
 const { DAY_MS, dayOf, dayStart, addDays, zodiacFor } = require('./dates');
@@ -17,20 +19,20 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
   const project = createFanProfileProjection();
   function requireProfile(scope, id) {
     const profile = store.get(scope, text(id, '档案 ID', 100));
-    if (!profile) throw new Error('档案不存在或不属于当前账号。');
+    if (!profile) throw createPublicError('档案不存在或不属于当前账号。');
     requireAllowedIdentity(scope, profile.identity);
     return profile;
   }
 
   function requireAllowedIdentity(scope, person) {
     if (person && store.suppressed(scope, identityKey(person)))
-      throw new Error('该粉丝已加入黑名单，请先在档案设置中解除屏蔽。');
+      throw createPublicError('该粉丝已加入黑名单，请先在档案设置中解除屏蔽。');
   }
 
   function create(scope, input, automatic = false) {
     const patch = profilePatch(input);
     requireAllowedIdentity(scope, patch.identity);
-    if (!patch.alias && !automatic) throw new Error('请填写常用称呼。');
+    if (!patch.alias && !automatic) throw createPublicError('请填写常用称呼。');
     const at = now();
     return store.save(
       scope,
@@ -110,10 +112,10 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     let profile = requireProfile(scope, input.profileId);
     const records = store.records.list(scope, profile.id);
     const previous = input.id ? records.find((r) => r.id === input.id) : null;
-    if (input.id && !previous) throw new Error('记录不存在。');
-    if (previous && previous.revision !== input.revision) throw new Error('记录已更新，请重新打开后核对。');
+    if (input.id && !previous) throw createPublicError('记录不存在。');
+    if (previous && previous.revision !== input.revision) throw createPublicError('记录已更新，请重新打开后核对。');
     const kind = previous?.kind || input.kind;
-    if (kind === 'song' && previous) throw new Error('点歌已合并为汇总，不再保存或编辑逐次记录。');
+    if (kind === 'song' && previous) throw createPublicError('点歌已合并为汇总，不再保存或编辑逐次记录。');
     const data = recordData(kind, input.data || {});
     const occurredAt = timestamp(input.occurredAt || now());
     let record = {
@@ -138,7 +140,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         const confirmedContinuous =
           data.continuousDays ?? sameDate.find((r) => r.data.continuousDays !== null)?.data.continuousDays;
         if (confirmedTotal != null && confirmedContinuous != null && confirmedTotal < confirmedContinuous) {
-          throw new Error('同一截至日期的累计天数不能少于连续天数。');
+          throw createPublicError('同一截至日期的累计天数不能少于连续天数。');
         }
         if (!previous) {
           data.totalDays = confirmedTotal ?? null;
@@ -190,7 +192,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const profile = requireProfile(scope, input.profileId);
     const records = store.records.list(scope, profile.id);
     const pending = records.find((r) => r.id === input.id && r.kind === 'membership' && r.data.decision === 'pending');
-    if (!pending || !['adopt', 'keep'].includes(input.choice)) throw new Error('请选择待核实的依据和采用方式。');
+    if (!pending || !['adopt', 'keep'].includes(input.choice)) throw createPublicError('请选择待核实的依据和采用方式。');
     if (input.choice === 'adopt') {
       for (const old of records.filter((r) => pending.data.conflicts.includes(r.id))) {
         store.records.update(scope, profile.id, { ...old, data: { ...old.data, decision: 'superseded' } }, now());
@@ -245,6 +247,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const query = text(input.query, '搜索', 300).toLocaleLowerCase();
     const filters = Array.isArray(input.filters) ? input.filters : [];
     const at = now();
+    const today = dayOf(at);
+    const earliest = addDays(today, -REMINDER_HISTORY_DAYS);
     const profiles = store.list(scope);
     project.retain(scope, profiles);
     const candidates = profiles
@@ -288,9 +292,11 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
           medalLevel: Number.isSafeInteger(medalLevel) && medalLevel >= 0 ? medalLevel : null,
           lastInteraction: records.filter((r) => ['note', 'song', 'membership'].includes(r.kind))[0]?.occurredAt || '',
-          nextReminder:
-            reminders.find((r) => ['today', 'week'].includes(r.group) &&
-              (r.status === 'pending' || (r.status === 'snoozed' && r.until <= dayOf(at)))) || null,
+          nextReminder: reminders.find((r) => {
+            if (r.group === 'missed') return r.status === 'snoozed' && r.actionable && r.until >= earliest;
+            return ['today', 'week'].includes(r.group) &&
+              (r.status === 'pending' || (r.status === 'snoozed' && r.until <= today));
+          }) || null,
         };
       })
       .filter((profile) => {
@@ -315,11 +321,11 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
   }
 
   function execute(scope, action, input = {}) {
-    if (typeof scope !== 'string' || !scope) throw new Error('请先登录主播账号。');
+    if (typeof scope !== 'string' || !scope) throw createPublicError('请先登录主播账号。');
     // A full-size backup still needs room for its restore digests and conflict choice.
     const maxInputBytes = MAX_BACKUP_BYTES + (action === 'preview-restore' || action === 'restore' ? 1024 : 0);
     if (!input || typeof input !== 'object' || Array.isArray(input) || Buffer.byteLength(JSON.stringify(input), 'utf8') > maxInputBytes)
-      throw new Error('档案请求格式无效或过大。');
+      throw createPublicError('档案请求格式无效或过大。');
     return store.transaction(() => {
       switch (action) {
         case 'settings':
@@ -330,7 +336,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             typeof input.autoUpdate !== 'boolean' ||
             (input.autoSyncGuardRoster !== undefined && typeof input.autoSyncGuardRoster !== 'boolean')
           )
-            throw new Error('请选择自动更新方式。');
+            throw createPublicError('请选择自动更新方式。');
           const settings = {
             ...store.getScope(scope),
             ...accompanySettings({ ...store.getScope(scope), ...input }),
@@ -362,10 +368,10 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         case 'save': {
           const previous = requireProfile(scope, input.id);
           if (previous.revision !== input.revision)
-            throw new Error('档案已更新，请重新打开后核对；未保存的输入仍保留。');
+            throw createPublicError('档案已更新，请重新打开后核对；未保存的输入仍保留。');
           const patch = profilePatch(input);
           requireAllowedIdentity(scope, patch.identity);
-          if (!patch.alias && !previous.alias && !previous.platformName) throw new Error('请填写常用称呼。');
+          if (!patch.alias && !previous.alias && !previous.platformName) throw createPublicError('请填写常用称呼。');
           const profile = { ...previous, ...patch };
           if (identityKey(profile.identity) !== identityKey(previous.identity)) {
             delete profile.guardRoster;
@@ -401,9 +407,9 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         }
         case 'suppress': {
           const profile = requireProfile(scope, input.id);
-          if (profile.revision !== input.revision) throw new Error('档案已更新，请重新打开后核对。');
+          if (profile.revision !== input.revision) throw createPublicError('档案已更新，请重新打开后核对。');
           const key = identityKey(profile.identity);
-          if (!key) throw new Error('请先绑定 B 站账号，再加入黑名单。');
+          if (!key) throw createPublicError('请先绑定 B 站账号，再加入黑名单。');
           store.suppress(scope, key);
           project.drop(scope, profile.id);
           return true;
@@ -414,7 +420,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             return { key, identity: JSON.parse(key), name: profile?.platformName || profile?.alias || '' };
           });
         case 'unsuppress':
-          if (input.confirm !== true) throw new Error('请确认解除该粉丝的屏蔽。');
+          if (input.confirm !== true) throw createPublicError('请确认解除该粉丝的屏蔽。');
           store.unsuppress(scope, identityKey(identity(input.identity)));
           return true;
         case 'resolve-membership':
@@ -447,7 +453,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           const profile = detail(scope, input.profileId);
           const item = profile.reminders.find((r) => r.key === input.key);
           if (!item || !['handled', 'ignored', 'snoozed'].includes(input.status))
-            throw new Error('提醒事项或处理方式无效。');
+            throw createPublicError('提醒事项或处理方式无效。');
           store.saveState(scope, profile.id, item.key, {
             ...item,
             status: input.status,
@@ -458,12 +464,12 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         }
         case 'delete':
           if (input.confirm !== true || typeof input.suppress !== 'boolean')
-            throw new Error('请确认删除和自动建档选项。');
+            throw createPublicError('请确认删除和自动建档选项。');
           store.remove(scope, input.id, input.suppress);
           project.drop(scope, input.id);
           return true;
         case 'delete-all': {
-          if (input.confirm !== true) throw new Error('请确认清除全部档案。');
+          if (input.confirm !== true) throw createPublicError('请确认清除全部档案。');
           const deletedCount = store.removeAll(scope);
           project.retain(scope, []);
           return { deletedCount };
@@ -492,7 +498,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     importGuardRoster: createGuardRosterImporter({
       store,
       create,
-      observe: facts.observe,
+      observedProfile: facts.observedProfile,
+      saveObservation: facts.saveObservation,
     }),
     consumeFacts: facts.consume,
     observeIdentity: facts.observe,
@@ -500,8 +507,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
       return store.transaction(() => {
         const profile = requireProfile(scope, id);
         if (profile.archived || profile.identity?.type !== 'uid' || identityKey(person) !== identityKey(profile.identity))
-          throw new Error('档案身份或状态已变化，请重新打开后补充。');
-        if (!Array.isArray(names)) throw new Error('曾用名格式无效。');
+          throw createPublicError('档案身份或状态已变化，请重新打开后补充。');
+        if (!Array.isArray(names)) throw createPublicError('曾用名格式无效。');
         const seen = new Set([profile.platformName, ...(profile.excludedFormerNames || []),
           ...(profile.nameHistory || []).map(item => item.name)]);
         const added = [];

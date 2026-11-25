@@ -17,7 +17,7 @@ export function createTemperatureController({ getCities, onChange }) {
     if (pendingCities.has(city.id)) return pendingCities.get(city.id);
     const previous = states.get(city.id);
     states.set(city.id, { ...previous, loading: true });
-    onChange();
+    onChange(city.id);
     const pending = (async () => {
       try {
         const headers = {};
@@ -30,11 +30,11 @@ export function createTemperatureController({ getCities, onChange }) {
         const payload = await readApiResponse(response, '温度更新失败');
         if (disposed || !getCities().some(item => item.id === city.id)) return;
         states.set(city.id, { data: payload.data, loading: false, failed: false });
-        onChange();
+        onChange(city.id);
       } catch {
         if (!disposed && getCities().some(item => item.id === city.id)) {
           states.set(city.id, { ...previous, loading: false, failed: true });
-          onChange();
+          onChange(city.id);
         }
       } finally {
         pendingCities.delete(city.id);
@@ -44,17 +44,21 @@ export function createTemperatureController({ getCities, onChange }) {
     return pending;
   }
 
+  async function refreshCities(cities) {
+    const queue = [...cities];
+    await Promise.all(Array.from({ length: 2 }, async () => {
+      while (queue.length && !disposed) {
+        const city = queue.shift();
+        if (getCities().some(item => item.id === city.id)) await fetchCity(city);
+      }
+    }));
+  }
+
   async function refresh() {
     if (disposed || refreshing) return;
     refreshing = true;
-    const queue = [...getCities()];
     try {
-      await Promise.all(Array.from({ length: 2 }, async () => {
-        while (queue.length && !disposed) {
-          const city = queue.shift();
-          if (getCities().some(item => item.id === city.id)) await fetchCity(city);
-        }
-      }));
+      await refreshCities(getCities());
     } finally {
       refreshing = false;
     }
@@ -73,9 +77,10 @@ export function createTemperatureController({ getCities, onChange }) {
       if (disposed || started) return;
       started = true;
       schedule();
-      void refresh();
+      return refresh();
     },
     refreshCity(city) { if (started && !disposed) void fetchCity(city); },
+    refreshCities,
     destroy() {
       disposed = true;
       clearTimeout(timer);

@@ -101,9 +101,9 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | --- | --- | --- | --- |
 | A1 | [查看原图](../../public/img/usage-guide/A/client-login-window.webp) | 可保留 | 注册页、字段、主按钮齐全；发布时解释 1–4 对应步骤。 |
 | A2 | [查看原图](../../public/img/usage-guide/A/client-login-existing-mode.webp) | 可保留 | 登录已有账号选中态及短效登录码清楚。 |
-| A3 | [查看原图](../../public/img/usage-guide/A/client-login-username-help.webp) | 放大重点 | 浮层已拍到；整窗留白较多，手册缩放后规则文字偏小。 |
-| A4 | [查看原图](../../public/img/usage-guide/A/client-login-password-help.webp) | 放大重点 | 密码规则浮层完整；建议保留注册标题并放大规则区。 |
-| A5 | [查看原图](../../public/img/usage-guide/A/client-login-activation-code.webp) | 可保留 | 局部仍有注册 LIRA 标题；激活码框与说明已突出。 |
+| A3 | [查看原图](../images/usage-guide/A/client-login-username-help.webp) | 放大重点 | 浮层已拍到；整窗留白较多，手册缩放后规则文字偏小。 |
+| A4 | [查看原图](../images/usage-guide/A/client-login-password-help.webp) | 放大重点 | 密码规则浮层完整；建议保留注册标题并放大规则区。 |
+| A5 | [查看原图](../images/usage-guide/A/client-login-activation-code.webp) | 可保留 | 局部仍有注册 LIRA 标题；激活码框与说明已突出。 |
 | A6 | [查看原图](../../public/img/usage-guide/A/client-login-preparing.webp) | 演示可用 | 准备中与进度可辨；保留演示标记，不称为真实初始化验证。 |
 | A7 | [查看原图](../../public/img/usage-guide/A/client-login-failed-retry.webp) | 演示可用 | 错误信息与重试连接齐全；属于连接错误。 |
 | A7b | [查看原图](../../public/img/usage-guide/A/client-preparation-failed.webp) | 演示可用 | 准备未完成与重试/返回登录齐全；应与 A7 区分。 |
@@ -129,8 +129,8 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | C4 | [查看原图](../../public/img/usage-guide/C/playback-player-bar.webp) | 补标签/上下文 | 未播放控制栏；图标需说明，折叠入口不在此局部图中。 |
 | C6 | [查看原图](../images/usage-guide/C/playback-queue-drawer.webp) | 可保留 | 队列、导入、清空、移除可见；拖动操作仍需文字说明；不能替代播放内容抽屉。 |
 | C7 | [查看原图](../images/usage-guide/C/playback-desktop-lyric-preview.webp) | 需补播放态/定位 | 空白等待播放；来自点歌→桌面歌词设置，不能当全屏歌词效果。 |
-| D1 | [查看原图](../../public/img/usage-guide/D/gift-page-overview.webp) | 改范围名称 | 只拍礼物页上半部；下半部可用 D9/D10 接续。 |
-| D2 | [查看原图](../../public/img/usage-guide/D/gift-auto-thanks.webp) | 演示/补上下文 | 开关和服务器运行提示齐全；无可编辑答谢模板。 |
+| D1 | [查看原图](../images/usage-guide/D/gift-page-overview.webp) | 改范围名称 | 只拍礼物页上半部；下半部可用 D9/D10 接续。 |
+| D2 | [查看原图](../images/usage-guide/D/gift-auto-thanks.webp) | 演示/补上下文 | 开关和服务器运行提示齐全；无可编辑答谢模板。 |
 | D3 | [查看原图](../images/usage-guide/D/gift-danmaku-query.webp) | 演示/可合并 | 与 D2 范围高度重复，主要增加标注；明确礼物页入口。 |
 | D4 | [查看原图](../../public/img/usage-guide/D/gift-recent-and-all.webp) | 补上下文 | 最近礼物和查看全部完整；说明来自礼物页。 |
 | D5 | [查看原图](../../public/img/usage-guide/D/gift-history-drawer.webp) | 补选中态 | 筛选和列表齐全，但选中 0 条、导出按钮未启用；最好展示选中后的下一步。 |
@@ -177,7 +177,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | F6 | [查看原图](../../public/img/usage-guide/F/gift-wishes-overlay.webp) | 示例效果可用 | 卡片和文字状态齐全；兜底图标使礼物难区分，正式示例可补礼物名/正常图片。 |
 | S1 | [查看原图](../images/usage-guide/S/server-manage-login.webp) | 修正入口文案 | 实际链接是使用重置码；图内无浏览器地址栏，图注要明确网页登录入口。 |
 | S1b | [查看原图](../../public/img/usage-guide/S/server-password-reset.webp) | 可保留 | 重置字段及返回登录齐全；修正“忘记密码按钮”说法。 |
-| S2 | [查看原图](../../public/img/usage-guide/S/server-manage-overview.webp) | 可保留 | 主播中心标题、四个分区与退出登录均可辨。 |
+| S2 | [查看原图](../images/usage-guide/S/server-manage-overview.webp) | 可保留 | 主播中心标题、四个分区与退出登录均可辨。 |
 | S3 | [查看原图](../../public/img/usage-guide/S/server-manage-gift-ledger.webp) | 补上下文 | 筛选、列表、分页齐全；失去侧栏后应注明主播中心→礼物流水。 |
 | S4 | [查看原图](../../public/img/usage-guide/S/server-manage-analytics.webp) | 示例可用 | 有导航、概览和趋势；与 S4b 配套说明构成。 |
 | S4b | [查看原图](../images/usage-guide/S/server-manage-gift-composition.webp) | 补上下文 | 构成卡完整；样例只有普通礼物，无法说明多类型对比效果。 |

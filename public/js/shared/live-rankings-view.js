@@ -1,4 +1,5 @@
 import { RANKING_FLAGS, rankingDefaults, selectRankingRows, rankingCountdown, rankingCurrentNote } from './live-rankings.js';
+import { normalizeBilibiliAvatarUrl as avatarSource } from './bilibili-avatar.js';
 
 const scoreFormatter = new Intl.NumberFormat('zh-CN');
 const formatScore = value => Number.isFinite(value) ? scoreFormatter.format(value) : '—';
@@ -11,14 +12,8 @@ function element(tag, className, text = '') {
 function write(node, value) { if (node.textContent !== value) node.textContent = value; }
 function writeAttribute(node, name, value) { if (node.getAttribute(name) !== value) node.setAttribute(name, value); }
 function setHidden(node, hidden) { if (node.hidden !== hidden) node.hidden = hidden; }
-function avatarSource(value) {
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' && url.hostname.endsWith('.hdslb.com') && !url.username && !url.password ? url.href : '';
-  } catch { return ''; }
-}
 
-export function createRankingsView(host, { scrollable = false, now = Date.now, onConfigure } = {}) {
+export function createRankingsView(host, { scrollable = false, statusExternallyRendered = false, now = Date.now, onConfigure } = {}) {
   const cards = new Map();
   let snapshot;
   let config = rankingDefaults();
@@ -129,11 +124,16 @@ export function createRankingsView(host, { scrollable = false, now = Date.now, o
     });
     for (const [key, view] of card.rows) if (!keep.has(key)) { view.root.remove(); card.rows.delete(key); }
     setHidden(card.mineList, !board.current || config.range === 'nearby' && rows.some(row => row.roomId === board.current.roomId));
-    setHidden(card.empty, rows.length > 0 || capacity === 0);
+    const globalStatus = statusExternallyRendered && (!snapshot?.status || snapshot.status === 'loading'
+      || ['unavailable', 'stale'].includes(snapshot.status) && !board.rows.length && board.message === snapshot.message);
+    setHidden(card.empty, rows.length > 0 || capacity === 0 || globalStatus);
     write(card.empty, board.status === 'loading' ? '正在读取榜单…' : board.status === 'unavailable' ? board.message
       : config.range === 'nearby' ? board.eligible === false ? '本房间暂不参与此榜' : board.current?.rank
         ? 'B 站暂未返回附近名次' : `本房间未进入前 ${board.limit} 名，暂无附近排名`
         : board.status === 'stale' ? '榜单连接暂不可用，正在重试' : '本轮暂时无人上榜');
+    const hideNote = globalStatus || !board.current && !card.empty.hidden && ['loading', 'unavailable', 'stale'].includes(board.status);
+    write(card.note, hideNote ? '' : rankingCurrentNote(board));
+    setHidden(card.note, !card.note.textContent);
     card.page = page;
     card.capacity = capacity;
     const start = rows[0]?.rank;
@@ -154,9 +154,9 @@ export function createRankingsView(host, { scrollable = false, now = Date.now, o
       card.countdown.classList.toggle('is-ending', board.endsAt > time && board.endsAt - time <= 60000);
       const age = board.updatedAt ? Math.max(0, time - board.updatedAt) : Infinity;
       const delayed = board.status === 'stale' || age > 2000 && board.status === 'ready';
-      write(card.status, board.status === 'loading' ? '连接中' : board.status === 'unavailable' ? board.message
-        : delayed ? `更新延迟${Number.isFinite(age) ? ` · ${Math.floor(age / 1000)} 秒前的数据` : ' · 正在重试'}`
+      write(card.status, card.rows.size && delayed ? `更新延迟${Number.isFinite(age) ? ` · ${Math.floor(age / 1000)} 秒前的数据` : ' · 正在重试'}`
           : '');
+      setHidden(card.status, !card.status.textContent);
       card.status.classList.toggle('is-delayed', delayed);
       const page = scrollable || config.range !== 'all' ? 0 : Math.floor((time - pageStarted) / (config.pageSeconds * 1000));
       if (page !== card.page) renderRows(card, page);
@@ -184,7 +184,6 @@ export function createRankingsView(host, { scrollable = false, now = Date.now, o
       write(card.title, board.title);
       if (card.configure) writeAttribute(card.configure, 'aria-label', `配置${board.title}直播画面`);
       if (board.current) updateRow(card.mine, board.current, board, true);
-      write(card.note, rankingCurrentNote(board));
       const page = scrollable || config.range !== 'all' ? 0 : Math.floor((now() - pageStarted) / (config.pageSeconds * 1000));
       renderRows(card, page);
     }

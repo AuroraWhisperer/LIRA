@@ -89,6 +89,9 @@ test('WeSing browser client selects its preference, saves settings and follows o
   assert.equal(windowListeners.has('app:lyric-state'), false, 'global lyric output can belong to another player');
   windowListeners.get('app:wesing-state')({ detail: { lyricState: { lineText: '全民歌词' } } });
   assert.equal(service.status.lyricState.lineText, '全民歌词');
+  windowListeners.get('app:wesing-state')({ detail: { status: 'empty', qrcReady: false, lyricState: { status: 'empty' } } });
+  assert.match(elements.get('weSingLyricHint').textContent, /尚未找到本地歌词/);
+  assert.doesNotMatch(elements.get('weSingLyricHint').textContent, /启动全民/);
 });
 
 test('WeSing status pushes do not request online streams', async () => {
@@ -164,11 +167,14 @@ test('playback state accepts WeSing as a persisted source', async () => {
 });
 
 test('WeSing lyric-offset preview survives older live status while saving', async () => {
+  let measurements = 0;
   const range = {
     value: '-1500',
     min: '-3000',
     max: '3000',
     style: { setProperty() {} },
+    matches: () => true,
+    getBoundingClientRect() { measurements++; return { width: 320 }; },
   };
   const number = { value: '-1500' };
   const document = {
@@ -182,12 +188,17 @@ test('WeSing lyric-offset preview survives older live status while saving', asyn
     { document, window: {}, performance: { now: () => 0 } },
   );
   const service = new WeSingService();
+  const samples = [];
+  service.lyricRenderer = { setState(state) { samples.push(state.currentMs); } };
 
   service.pendingLyricOffsetMs = 700;
   service.applyStatus({ lyricOffsetMs: -1500 });
 
   assert.equal(range.value, '700');
   assert.equal(number.value, '700');
+  service.applyStatus({ lyricState: { currentMs: 1250 } });
+  assert.deepEqual(samples, [0, 1250]);
+  assert.equal(measurements, 1);
 });
 
 for (const outcome of ['success', 'failure']) {

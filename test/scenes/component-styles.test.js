@@ -109,9 +109,23 @@ test('standard ZIP previews without installation, commits atomically and recogni
   assert.deepEqual((await f.request('list')).data, []);
   const committed = await f.request('install', { id: preview.data.id, target: 'suite' });
   assert.equal(committed.status, 200, committed.error);
+  const store = createComponentStyleStore(f.dataDir);
+  const index = path.join(store.root, 'index.json');
+  const originalStat = fs.statSync(index, { bigint: true });
   const second = await f.request('inspect?target=suite', bytes);
   assert.equal((await f.request('install', { id: second.data.id, target: 'suite' })).data.alreadyInstalled, true);
+  const after = fs.statSync(index, { bigint: true });
+  assert.equal(after.ino, originalStat.ino);
+  assert.equal(after.mtimeNs, originalStat.mtimeNs);
   assert.equal((await f.request('list')).data.length, 1);
+  const installed = store.directory(committed.data.id);
+  const media = path.join(installed, path.basename(committed.data.styles[0].config.mediaStyle.src));
+  fs.unlinkSync(media);
+  const repair = await f.request('inspect?target=suite', bytes);
+  const repaired = await f.request('install', { id: repair.data.id, target: 'suite' });
+  assert.equal(repaired.status, 200, repaired.error);
+  assert.equal(repaired.data.id, committed.data.id);
+  assert.deepEqual(fs.readFileSync(media), png);
   const cancelled = await f.request('inspect?target=suite', bytes);
   await f.request('cancel', { id: cancelled.data.id });
   assert.ok(!fs.existsSync(createComponentStyleStore(f.dataDir).directory(cancelled.data.id, true)));
@@ -377,10 +391,18 @@ test('exported Moonlit ZIP installs eight native styles, validates resources and
   const { createMoonlitZip } = require('../../scripts/package-moonlit-suite');
   const { normalizeResourceStyle } = require('../../public/js/shared/component-resource-style.js');
   const f = await fixture(t);
-  const preview = await f.request('inspect?target=suite', createMoonlitZip());
+  const archive = createMoonlitZip();
+  const preview = await f.request('inspect?target=suite', archive);
   assert.equal(preview.status, 200, preview.error);
   assert.equal(preview.data.styles.length, 8);
   assert.equal((await f.request('install', { id: preview.data.id, target: 'suite' })).status, 200);
+  const queue = preview.data.styles.find(style => style.type === 'queue');
+  assert.deepEqual(new Set(Object.keys(queue.config.resourceStyle.resources)), new Set([
+    '/img/overlays/opening-moon-fan/flowers-ne.webp',
+    '/img/overlays/queue-moonlit/moon-lake-frame-hd-v4.webp',
+  ]));
+  const installed = createComponentStyleStore(f.dataDir).directory(preview.data.id);
+  const referencedMedia = new Set();
   for (const style of preview.data.styles) {
     assert.deepEqual(normalizeSceneConfig(style.type, style.config), style.config);
     const resource = style.config.resourceStyle;
@@ -392,13 +414,16 @@ test('exported Moonlit ZIP installs eight native styles, validates resources and
     assert.throws(() => normalizeResourceStyle(style.type, { ...resource, preset: '__proto__' }, style.config));
     assert.equal((await f.request('remove', { id: style.id })).status, 200);
     for (const src of [resource.preview, ...Object.values(resource.resources)]) {
+      referencedMedia.add(path.posix.basename(src));
       const response = await fetch(`${f.origin}${src}`, { method: 'HEAD' });
       assert.equal(response.status, 200, src);
       if (src.endsWith('.svg')) assert.match(response.headers.get('content-security-policy'), /sandbox; default-src 'none'/);
       if (src.endsWith('.woff2')) assert.equal(response.headers.get('content-type'), 'font/woff2');
     }
   }
-  const restored = await f.request('inspect?target=suite', createMoonlitZip());
+  assert.deepEqual(new Set(fs.readdirSync(installed).filter(name => name !== 'package.json')), referencedMedia,
+    'Every installed media file must belong to at least one suite member.');
+  const restored = await f.request('inspect?target=suite', archive);
   const result = await f.request('install', { id: restored.data.id, target: 'suite' });
   assert.equal(result.data.restored, true);
   assert.equal((await f.request('list')).data[0].styles.length, 8);

@@ -1,6 +1,7 @@
 'use strict';
 
 const { performance } = require('node:perf_hooks');
+const { isDeepStrictEqual } = require('node:util');
 const { findCurrentLyricLine } = require('./lyric-parser');
 const { normalizeLyricState } = require('./lyric-state');
 const {
@@ -20,6 +21,8 @@ const { createWeSingDiagnostics } = require('./wesing-diagnostics');
 
 const PLAYBACK_REFRESH_DELAY_MS = 1000;
 const AUTOMATIC_REFRESH_INTERVAL_MS = 3000;
+const RECONCILE_INTERVAL_MS = 30000;
+const DRIVE_DISCOVERY_INTERVAL_MS = 30 * 60 * 1000;
 
 function createWeSingCapture(options = {}) {
   const now = typeof options.now === 'function' ? options.now : () => performance.now();
@@ -49,7 +52,13 @@ function createWeSingCapture(options = {}) {
   let pendingCacheDiscovery = null;
   let pendingAutomaticRefresh = null;
   let lastAutomaticRefreshAt = -Infinity;
+  let nextDiscoveryAt = 0;
+  let nextDriveDiscoveryAt = 0;
+  let unsavedCachePath = '';
+  let nextEmptyLookupAt = 0;
   let observedSongMid = '';
+  let lastEmitted;
+  let lastLyrics;
 
   const state = {
     active: false,
@@ -113,6 +122,7 @@ function createWeSingCapture(options = {}) {
           state.lyricOffsetMs = lyricOffsetMs;
         }
         if (pathChanged) {
+          unsavedCachePath = '';
           stopQrcWatcher();
           cacheReader.clear();
           cachePath = nextCachePath;
@@ -163,6 +173,8 @@ function createWeSingCapture(options = {}) {
     pendingCacheDiscovery = null;
     pendingAutomaticRefresh = null;
     lastAutomaticRefreshAt = -Infinity;
+    nextDriveDiscoveryAt = 0;
+    unsavedCachePath = '';
     refreshVersion += 1;
     cacheReader.clear();
     resolveFallbackLyrics?.clear?.();
@@ -189,7 +201,7 @@ function createWeSingCapture(options = {}) {
       return getStatus();
     }
     if (version !== lifecycleVersion || !state.active) return getStatus();
-    await refresh();
+    await refresh({ discoverDrives: false });
     return getStatus();
   }
 
@@ -215,22 +227,28 @@ function createWeSingCapture(options = {}) {
     }
   }
 
-  function discoverCachePath(readCache) {
+  async function discoverCachePath(readCache, includeDriveRoots) {
     const title = state.trackTitle;
-    if (!pendingCacheDiscovery || pendingCacheDiscovery.title !== title || pendingCacheDiscovery.cachePath !== cachePath) {
-      const requestedCachePath = cachePath;
-      const discovery = Promise.resolve()
-        .then(() => options.discoverCachePath({ cachePath: requestedCachePath, title, readCache }))
-        .catch(() => '')
-        .finally(() => {
-          if (pendingCacheDiscovery?.promise === discovery) pendingCacheDiscovery = null;
-        });
-      pendingCacheDiscovery = { title, cachePath: requestedCachePath, promise: discovery };
+    const previous = pendingCacheDiscovery;
+    if (previous && previous.title === title && previous.cachePath === cachePath) {
+      if (!includeDriveRoots || previous.includeDriveRoots) return previous.promise;
+      const version = lifecycleVersion;
+      const match = await previous.promise;
+      if ((match && match !== previous.cachePath) || version !== lifecycleVersion || title !== state.trackTitle || previous.cachePath !== cachePath) return match;
+      return discoverCachePath(readCache, true);
     }
-    return pendingCacheDiscovery.promise;
+    const requestedCachePath = cachePath;
+    const discovery = Promise.resolve()
+      .then(() => options.discoverCachePath({ cachePath: requestedCachePath, title, readCache, includeDriveRoots }))
+      .catch(() => '')
+      .finally(() => {
+        if (pendingCacheDiscovery?.promise === discovery) pendingCacheDiscovery = null;
+      });
+    pendingCacheDiscovery = { title, cachePath: requestedCachePath, includeDriveRoots, promise: discovery };
+    return discovery;
   }
 
-  async function refresh({ discover = true, automatic = false } = {}) {
+  async function refresh({ discover = true, automatic = false, discoverDrives = true } = {}) {
     if (!automatic && state.active && state.supported && !startMonitor()) return getStatus();
     const version = lifecycleVersion;
     const requestedTitle = state.trackTitle;
@@ -248,15 +266,24 @@ function createWeSingCapture(options = {}) {
     let snapshot = await readCache(requestedCachePath);
     let cacheReady = snapshot.cacheReady;
     if (!isCurrent()) return getStatus();
-    if ((!cacheReady || state.platformDetected) && discover && state.active && state.supported && typeof options.discoverCachePath === 'function') {
-      const detectedPath = await discoverCachePath(readCache);
+    if (discover && state.active && state.supported && typeof options.discoverCachePath === 'function' &&
+        (!automatic || (state.platformDetected && (unsavedCachePath || now() >= nextDiscoveryAt)))) {
+      nextDiscoveryAt = now() + RECONCILE_INTERVAL_MS;
+      const includeDriveRoots = discoverDrives && (!automatic || now() >= nextDriveDiscoveryAt);
+      const retryPath = automatic && unsavedCachePath;
+      unsavedCachePath = '';
+      if (includeDriveRoots && !retryPath) nextDriveDiscoveryAt = now() + DRIVE_DISCOVERY_INTERVAL_MS;
+      const detectedPath = retryPath || await discoverCachePath(readCache, includeDriveRoots);
       if (!isCurrent()) return getStatus();
       if (detectedPath && (detectedPath !== cachePath || !cacheReady)) {
         const update = cachePathQueue.then(async () => {
           if (!isCurrent()) return false;
           const verifiedPath = await ensureWeSingCacheDirectory(detectedPath);
           if (!isCurrent()) return false;
-          if (typeof options.saveCachePath === 'function') await options.saveCachePath(verifiedPath);
+          if (typeof options.saveCachePath === 'function') {
+            try { await options.saveCachePath(verifiedPath); }
+            catch (error) { if (isCurrent()) unsavedCachePath = verifiedPath; throw error; }
+          }
           if (!isCurrent()) return false;
           stopQrcWatcher();
           cacheReader.clear();
@@ -281,11 +308,16 @@ function createWeSingCapture(options = {}) {
     const matchingSnapshot = requestedTitle === state.trackTitle ? snapshot : undefined;
     if (automatic && previousCachePath === cachePath && previousCacheReady === cacheReady) {
       if (state.status !== 'loading') {
-        if (state.trackTitle && !state.qrcReady) {
+        if (matchingSnapshot?.logEntry && matchingSnapshot.logEntry.mid !== observedSongMid) {
+          await refreshSongIdentity(matchingSnapshot.logEntry);
+        } else if (state.trackTitle && !state.qrcReady && now() >= nextEmptyLookupAt) {
           pendingRefresh = refreshLyrics(state.trackTitle, matchingSnapshot);
           await pendingRefresh;
-        } else {
-          await refreshSongIdentity(matchingSnapshot?.logEntry);
+        } else if (state.status === 'empty' && cacheReady && matchingSnapshot?.logEntry) {
+          // A direct mid costs one file probe and recovers late downloads even if fs.watch missed them.
+          const revision = refreshVersion;
+          const local = await cacheReader.loadLyrics({ cachePath, title: requestedTitle, logEntry: matchingSnapshot.logEntry }).catch(() => null);
+          if (local?.lines.length && isCurrent() && revision === refreshVersion) await refreshLyrics(requestedTitle, matchingSnapshot, false, local);
         }
       }
       return getStatus();
@@ -311,7 +343,10 @@ function createWeSingCapture(options = {}) {
 
   function scheduleAutomaticRefresh(timestamp, immediate) {
     if (!state.supported || typeof options.discoverCachePath !== 'function') return;
-    if (immediate) lastAutomaticRefreshAt = -Infinity;
+    if (immediate) {
+      lastAutomaticRefreshAt = -Infinity;
+      nextDiscoveryAt = 0;
+    }
     if (pendingAutomaticRefresh || timestamp - lastAutomaticRefreshAt < AUTOMATIC_REFRESH_INTERVAL_MS) return;
     lastAutomaticRefreshAt = timestamp;
     const version = lifecycleVersion;
@@ -372,6 +407,7 @@ function createWeSingCapture(options = {}) {
       resetPlaybackClock(timestamp);
     }
     if (titleChanged) {
+      unsavedCachePath = '';
       cancelPlaybackRefresh();
       playbackRefreshPending = Boolean(title);
       loadingTrackTitle = '';
@@ -456,7 +492,7 @@ function createWeSingCapture(options = {}) {
     await refreshLyrics(title, { logEntry: entry });
   }
 
-  async function refreshLyrics(title, snapshot, forceOnline = false) {
+  async function refreshLyrics(title, snapshot, forceOnline = false, localDownload) {
     if (!state.active) return;
     const version = ++refreshVersion;
     state.status = 'loading';
@@ -470,12 +506,13 @@ function createWeSingCapture(options = {}) {
       durationMs: state.durationMs,
       resolveFallbackLyrics,
       forceOnline,
-      loadLyrics: cacheReader.loadLyrics,
+      loadLyrics: localDownload ? () => localDownload : cacheReader.loadLyrics,
       logEntry: snapshot?.logEntry,
       readLogEntry: (path, title) => cacheReader.read(path, title).then((value) => value.logEntry),
     });
     if (!state.active || version !== refreshVersion || title !== state.trackTitle) return;
     observedSongMid = songMid || '';
+    nextEmptyLookupAt = result?.lines.length ? 0 : now() + RECONCILE_INTERVAL_MS;
     if (!result) {
       lyrics = [];
       lyricArtists = [];
@@ -514,6 +551,11 @@ function createWeSingCapture(options = {}) {
       durationMs > 0
         ? Math.min(durationMs, Math.max(0, state.currentMs + lyricOffsetMs))
         : Math.max(0, state.currentMs + lyricOffsetMs);
+    const status = getLyricStatus();
+    const previous = state.lyricState;
+    if (lastLyrics === lyrics && previous.trackTitle === state.trackTitle && previous.currentMs === lyricCurrentMs &&
+        previous.durationMs === durationMs && previous.playing === state.playing && previous.status === status) return;
+    lastLyrics = lyrics;
     const currentLine = findCurrentLyricLine(lyrics, lyricCurrentMs);
     state.lyricState = normalizeLyricState({
       trackTitle: state.trackTitle,
@@ -525,7 +567,7 @@ function createWeSingCapture(options = {}) {
       durationMs,
       progress: durationMs > 0 ? lyricCurrentMs / durationMs : 0,
       playing: state.playing,
-      status: getLyricStatus(),
+      status,
     });
   }
 
@@ -537,6 +579,7 @@ function createWeSingCapture(options = {}) {
   }
 
   function resetLyrics() {
+    nextEmptyLookupAt = 0;
     refreshVersion += 1;
     resolveFallbackLyrics?.clear?.();
     lyrics = [];
@@ -590,11 +633,14 @@ function createWeSingCapture(options = {}) {
   }
 
   function emit() {
+    if (isDeepStrictEqual(lastEmitted, state)) return;
+    lastEmitted = { ...state };
     onState(getStatus());
   }
 
   function getStatus() {
-    return JSON.parse(JSON.stringify(state));
+    const lyric = state.lyricState;
+    return { ...state, lyricState: { ...lyric, artists: [...lyric.artists], words: lyric.words.map((word) => ({ ...word })) } };
   }
 
   async function waitForRefresh() {

@@ -165,10 +165,15 @@ export function preferredPlatforms(currentSource, selectedSource) {
  * @returns {string} 格式化后的时间字符串
  */
 export function formatTime(seconds) {
-  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const value = Number(seconds);
+  const total = Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
   const minutes = Math.floor(total / 60);
   const rest = total % 60;
   return `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+}
+
+export function formatTimeMs(milliseconds) {
+  return formatTime(Number(milliseconds) / 1000);
 }
 
 /**

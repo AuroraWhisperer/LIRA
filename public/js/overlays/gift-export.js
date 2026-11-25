@@ -1,9 +1,11 @@
 import { BANNER_WIDTH, BANNER_HEIGHT, BANNER_GAP, createGiftBanner, createGiftArtworkResolver, readyGiftImages } from '../shared/gift-banner.js';
+import { setRoomGuardState } from '../shared/bilibili-room-guard.js';
 
 let config;
 let artwork;
 
 window.initializeGiftExport = (snapshot) => {
+  setRoomGuardState(snapshot.roomGuard);
   config = { ...snapshot.config, sheen: false };
   artwork = createGiftArtworkResolver(snapshot.catalog);
 };

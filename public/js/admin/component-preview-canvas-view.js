@@ -1,3 +1,4 @@
+import { MAX_NON_TEXT_BOX_SCENE_ITEMS } from './scene-template.js';
 import { createInitialPreviewItem } from './component-preview-definitions.js';
 import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { createSceneDocumentModel } from './scene-document-model.js';
@@ -246,7 +247,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   function add(component, config, { name, size } = {}) {
     const id = crypto.randomUUID();
     edit((document) => {
-      if (component.id !== 'text-box' && document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('一个场景最多添加 32 个非文本框组件。');
+      if (component.id !== 'text-box' && document.items.filter(item => item.type !== 'text-box').length >= MAX_NON_TEXT_BOX_SCENE_ITEMS) throw new Error(`一个场景最多添加 ${MAX_NON_TEXT_BOX_SCENE_ITEMS} 个非文本框组件。`);
       const item = createInitialPreviewItem(component, document, { id, config, name, size, selectedSize });
       document.items.push(item);
     });

@@ -12,6 +12,11 @@ const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modu
 const { createDom } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
+const panelGlobals = {
+  MutationObserver: class { observe() {} disconnect() {} },
+  setTimeout,
+  clearTimeout,
+};
 
 test('display overlay URLs use explicit settings capabilities without the legacy registry', async () => {
   const { documentRef } = createDom();
@@ -23,6 +28,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
   const copyButton = { addEventListener() {}, removeEventListener() {} };
   const window = { addEventListener() {} };
   const { display } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/display.js'), {
+    ...panelGlobals,
     window,
     location: { protocol: 'http:', hostname: 'localhost', port: '3012' },
     document: {
@@ -66,6 +72,7 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
       },
     };
     const { display } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/display.js'), {
+      ...panelGlobals,
       URL,
       window: {
         liraLicense: bridge,
@@ -78,6 +85,7 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
       document: {
         readyState: 'loading',
         addEventListener() {},
+        removeEventListener() {},
         getElementById: (id) => nodes.get(id) || null,
         querySelectorAll: () => [],
         querySelector(selector) {
@@ -144,7 +152,6 @@ test('song board applies the saved font size within its bounds', async () => {
       getElementById: () => null,
     },
   };
-  vm.runInNewContext(fs.readFileSync(path.join(ROOT_DIR, 'public/js/overlays/overlay-utils.js'), 'utf8'), sandbox);
   const evaluate = await loadModuleScope(path.join(ROOT_DIR, 'public/js/overlays/songs.js'), sandbox);
   const applyTheme = evaluate('applyTheme');
   for (const [input, expected] of [['36', 36], ['4', 10], ['99', 80]]) {

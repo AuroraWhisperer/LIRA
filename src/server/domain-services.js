@@ -78,7 +78,7 @@ function createDomainServices(options) {
     list: (options) => songService.listSongs(songStore, options),
     find: (songName, artist) => songService.findSong(songStore, songName, artist),
     findUniqueNameMatch: (songName) => songService.findUniqueSongNameMatch(
-      songStore, songName, settingsStore.getSettings().songRequestMatchMode,
+      songStore, songName, settingsStore.getSettings(['songRequestMatchMode']).songRequestMatchMode,
     ),
     listCategories: () => songService.listCategories(songStore),
     listTags: () => songService.listTags(songStore),
@@ -128,9 +128,9 @@ function createDomainServices(options) {
     localOvertimeGiftCatalog = options.dataDir
       ? createGiftSaleCatalogService({
           dataDir: options.dataDir,
-          getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
+          getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings(['roomId']).roomId),
           getBlindBoxConfig:
-            options.giftSaleGetBlindBoxConfig || (() => settingsStore.getSettings().giftBlindBoxConfig),
+            options.giftSaleGetBlindBoxConfig || (() => settingsStore.getSettings(['giftBlindBoxConfig']).giftBlindBoxConfig),
           fetchJson: options.giftSaleFetchJson,
         })
       : createUnavailableGiftSaleCatalogService();
@@ -149,7 +149,7 @@ function createDomainServices(options) {
             imageBaseUrl: options.remoteGiftCatalog.imageBaseUrl,
             getBlindBoxCustomConfigV2: () => {
               try {
-                const value = JSON.parse(settingsStore.getSettings().giftBlindBoxCustomConfigV2 || 'null');
+                const value = JSON.parse(settingsStore.getSettings(['giftBlindBoxCustomConfigV2']).giftBlindBoxCustomConfigV2 || 'null');
                 return Array.isArray(value) ? value : [];
               } catch (_) {
                 return [];
@@ -194,12 +194,12 @@ function createDomainServices(options) {
       store: giftWishStore,
       gifts,
       catalog: overtimeGiftCatalog,
-      getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
+      getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings(['roomId']).roomId),
     });
 
     const superChatContext = { store: superChatStore };
     const superChatUndo = createSuperChatUndo({ store: superChatStore,
-      getScope: () => JSON.stringify([options.getSceneOwner?.(), settingsStore.getSettings().roomId]) });
+      getScope: () => JSON.stringify([options.getSceneOwner?.(), settingsStore.getSettings(['roomId']).roomId]) });
     const superChats = {
       getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
       add: (input) => superChatService.addSuperChatItem(superChatContext, input),

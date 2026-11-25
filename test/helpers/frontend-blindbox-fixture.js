@@ -18,8 +18,13 @@ async function createBlindboxFixture({
   authAvailable = true,
   mappingState = { mode: 'v2', applied: true, customCount: 1 },
   catalogResponse,
+  recentList,
+  mappingVisible = true,
+  cachedSale = {},
 } = {}) {
-  const container = { innerHTML: '', querySelectorAll: () => [] };
+  const mappingObservers = new Set();
+  const container = { innerHTML: '', isConnected: true, closest: () => mappingVisible ? null : container,
+    querySelectorAll: () => [] };
   const textarea = { value: '[]' };
   const status = { textContent: '' };
   const listToggle = {
@@ -57,6 +62,7 @@ async function createBlindboxFixture({
           giftBlindBoxCustomConfigV2: textarea,
           blindBoxMappingStatus: status,
           blindBoxListToggle: listToggle,
+          giftRecentList: recentList,
         }[id] || null
       );
     },
@@ -102,6 +108,7 @@ async function createBlindboxFixture({
         }),
       );
     }
+    if (url === '/api/overtime/gifts') return Promise.resolve(response({ ok: true, data: cachedSale }));
     if (url === '/api/overtime/gifts/refresh') {
       return new Promise((resolve) => refreshRequests.push({ resolve, options }));
     }
@@ -115,7 +122,13 @@ async function createBlindboxFixture({
       document,
       window,
       AbortController,
-      MutationObserver: class { disconnect() {} },
+      clearTimeout,
+      setTimeout,
+      MutationObserver: class {
+        constructor(callback) { this.callback = callback; }
+        observe(target) { if (target === container) mappingObservers.add(this.callback); }
+        disconnect() { mappingObservers.delete(this.callback); }
+      },
       fetch,
       CustomEvent: class {
         constructor(type, { detail }) {
@@ -132,6 +145,10 @@ async function createBlindboxFixture({
 
   return {
     container,
+    setMappingVisible(visible) {
+      mappingVisible = visible;
+      for (const sync of mappingObservers) sync();
+    },
     textarea,
     status,
     listToggle,

@@ -66,8 +66,7 @@ function createModelClient(options = {}) {
     });
     if (previous && !previous.thinkingWithTools) forgetChatHistory(previousKey);
     const id = result.id || `chat_${crypto.randomUUID()}`;
-    const thinkingToolChain = thinkingWithTools || previous?.thinkingWithTools;
-    if (!thinkingToolChain || result.functionCalls.length) {
+    if (result.functionCalls.length) {
       const assistant = toAssistantHistoryMessage(rawMessage, thinkingWithTools || config.modelProvider === 'kimi');
       if (assistant) {
         rememberChatHistory(historyKey(id), { messages: [...body.messages, assistant], thinkingWithTools }, request.signal);

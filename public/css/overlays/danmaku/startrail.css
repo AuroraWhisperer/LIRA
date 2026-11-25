@@ -228,11 +228,6 @@ body[data-style='startrail'][data-ambient-motion='off'] .startrail-dust { animat
 }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='startrail'] .draw-danmaku-item { --danmaku-entry-inset: 0px; }
-  body[data-style='startrail'] .startrail-star,
-  body[data-style='startrail'] .startrail-dust,
-  body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .startrail-head,
-  body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .draw-danmaku-body,
-  body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .startrail-tail { animation: none; }
 }
 
 /* Keep readable type inside the existing card and region dimensions. */

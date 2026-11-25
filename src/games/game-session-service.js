@@ -477,8 +477,10 @@ function normalizeViewer(input = {}, fallback = null) {
 }
 
 function extractNumber(message) {
-  const match = String(message || '').match(/\b(\d{1,3})\b/);
-  return match ? Number(match[1]) : null;
+  // Ellipses separate words from guesses. A single decimal point is part of the number.
+  const text = String(message || '').replace(/[.．]{3,}/gu, '…');
+  const match = text.match(/(?<![-−－.．０-９])\b\d{1,3}\b(?![０-９]|[.．][\d０-９])/u);
+  return match ? Number(match[0]) : null;
 }
 
 function extractCoordinate(message) {

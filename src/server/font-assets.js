@@ -1,6 +1,7 @@
 'use strict';
 
 const { sendJson } = require('./http-utils');
+const { matchesPublicAsset, publicAssetHeaders } = require('./public-asset');
 
 function statusSignature(state) {
   return `${state.status}:${state.completed || 0}:${state.completedAt || ''}`;
@@ -46,15 +47,17 @@ async function serveFontAsset(library, req, res, url) {
     else sendJson(res, 200, { status: snapshot.status, completed: snapshot.completed, completedAt: snapshot.completedAt });
     return true;
   }
-  const font = stylesheet ? null : await library.readFont(match[1]);
+  const font = stylesheet ? null : await library.readFont(match[1], hash =>
+    req.method !== 'HEAD' && !matchesPublicAsset(req, `"${hash}"`));
   if (!stylesheet && !font) {
     sendJson(res, 404, { ok: false, error: '字体尚未下载' });
     return true;
   }
   const body = stylesheet ? Buffer.from(library.stylesheet()) : font.bytes;
+  if (font && publicAssetHeaders(req, res, `"${font.sha256}"`, url.searchParams.get('v') === font.sha256)) return true;
   res.writeHead(200, {
     'Content-Type': stylesheet ? 'text/css; charset=utf-8' : `font/${font.format}`,
-    'Content-Length': body.length,
+    'Content-Length': font?.size ?? body.length,
   });
   res.end(req.method === 'HEAD' ? undefined : body);
   return true;

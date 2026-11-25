@@ -166,6 +166,7 @@ function ribbonTriangle(ctx, silk, a, b, c, second, textureX) {
 }
 
 function drawRibbon(ctx, silk, layer, frame, back) {
+  if (frame.ribbon === 0) return;
   const cloth = layer.getContext('2d');
   cloth.setTransform(0.5, 0, 0, 0.5, 0, 0);
   cloth.clearRect(0, 0, WIDTH, HEIGHT);
@@ -343,20 +344,22 @@ function drawPetals(ctx, materials, frame, quality) {
 
 function trackedText(ctx, text, x, y, spacing, maxWidth = Infinity) {
   const chars = Array.from(text);
-  const total = chars.reduce((sum, char) => sum + ctx.measureText(char).width, 0)
+  const widths = chars.map(char => ctx.measureText(char).width);
+  const total = widths.reduce((sum, width) => sum + width, 0)
     + Math.max(0, chars.length - 1) * spacing;
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(Math.min(1, maxWidth / Math.max(1, total)), 1);
   let cursor = -total / 2;
-  for (const char of chars) {
+  for (const [index, char] of chars.entries()) {
     ctx.fillText(char, cursor, 0);
-    cursor += ctx.measureText(char).width + spacing;
+    cursor += widths[index] + spacing;
   }
   ctx.restore();
 }
 
 function drawCopy(ctx, assets, frame, config) {
+  if (frame.lettering === 0 && frame.detail === 0) return;
   ctx.save();
   ctx.globalAlpha = frame.lettering;
   const title = config.title ?? '月渡花汀';

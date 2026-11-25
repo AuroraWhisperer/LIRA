@@ -159,9 +159,20 @@ function createDynamicLotteryAuth({
     }
     const job = { abort: new AbortController(), window: null, promise: null };
     loginJob = job;
+    function assertLoginCurrent(selected) {
+      if (job.abort.signal.aborted) fail('LOTTERY_SESSION_CHANGED');
+      assertCurrent(selected);
+    }
+    async function persist(selected) {
+      const check = () => assertLoginCurrent(selected);
+      check();
+      await selected.store.persist(check);
+      check();
+      return true;
+    }
     job.promise = run(async () => {
       const selected = await getAccount();
-      if (job.abort.signal.aborted) fail('LOTTERY_SESSION_CHANGED');
+      assertLoginCurrent(selected);
       if (!safeStorage.isEncryptionAvailable()) fail('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
       if ((await readState(selected)).loggedIn) return { selected };
       invalidateSession();
@@ -172,13 +183,11 @@ function createDynamicLotteryAuth({
           loginUrl: 'https://passport.bilibili.com/login',
           allowedHosts: ['bilibili.com'],
         },
-        getBilibiliAuthState: () => run(() => readState(selected)),
-        persistBilibiliCookieSnapshot: () =>
-          run(async () => {
-            if (job.abort.signal.aborted) return;
-            assertCurrent(selected);
-            await selected.store.persist();
-          }),
+        getBilibiliAuthState: () => run(() => {
+          assertLoginCurrent(selected);
+          return readState(selected);
+        }),
+        persistBilibiliCookieSnapshot: () => run(() => persist(selected)),
       };
       return {
         selected,
@@ -198,13 +207,20 @@ function createDynamicLotteryAuth({
       };
     })
       .then(async ({ selected, completion }) => {
-        if (completion) await completion;
+        const result = await completion;
         return run(async () => {
-          if (job.abort.signal.aborted) fail('LOTTERY_SESSION_CHANGED');
-          assertCurrent(selected);
-          await selected.store.persist();
+          assertLoginCurrent(selected);
+          let state = result?.state;
+          if (result?.snapshot !== true) {
+            // No window, or its final save failed. Read state after this save.
+            await persist(selected);
+            state = null;
+          }
+          // A failed final state lookup in the shared window has no UID field.
+          if (typeof state?.uid !== 'string') state = await selected.store.getAuthState();
+          assertLoginCurrent(selected);
           selected.warning = '';
-          return readState(selected);
+          return { ...state, warning: '' };
         });
       })
       .finally(() => {

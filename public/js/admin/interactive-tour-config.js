@@ -127,7 +127,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '设置直播画面中的组件',
     kicker: '第 6 步 · 认识组件',
     content:
-      '左侧菜单从上到下是<strong class="lira-tour-keyword">弹幕姬、礼物姬、音乐展示、实时榜单、文本框、加班机、时钟、开播动画、弹幕投票和观众评分</strong>。「礼物姬」下有「礼物许愿」「心动盲盒」等页面，「音乐展示」下可选「直播歌词」或「歌曲信息」。点组名可收起或展开。选好组件后，在右侧调整样式并预览。下一步用<strong class="lira-tour-keyword">直播画布</strong>组合多个组件。',
+      '左侧按用途分组，点组名可收起或展开。选好组件后，在右侧调整样式并预览。下一步用<strong class="lira-tour-keyword">直播画布</strong>组合多个组件。',
     note: '发送弹幕、机器人回复和 AI 设置在「百宝箱 → 弹幕互动」；礼物数据仍在顶部「礼物」页。现在可以先认识入口，继续下一步。',
     targetPage: 'liveComponentsPage',
     targetTab: '[data-other-feature="liveDanmakuFeature"]',
@@ -178,7 +178,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '新手引导已看完',
     kicker: '可以开始使用了',
     content:
-      '你已经看完常用功能。如果刚才跳过了登录、导入等步骤，请在使用对应功能前完成设置。<br><br>还有功能不会用时，打开<strong class="lira-tour-keyword">「百宝箱 → 使用文档」</strong>即可。',
+      '你已经看完常用功能。如果刚才跳过了登录、导入等步骤，请在使用对应功能前完成设置。',
     targetPage: null,
     targetTab: null,
     targetSelector: null,

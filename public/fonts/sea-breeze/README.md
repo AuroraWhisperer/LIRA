@@ -1,4 +1,4 @@
-# 郁香海风与线框星事共用宋体
+# 海风倒影与银环线框共用宋体
 
 `sea-breeze-serif.woff2` 已加入软件字体库，供所有组件选择；内置 `sea-breeze`、`sea-breeze-random` 与 `wireframe` 默认使用它显示中文消息、昵称与身份牌。西文优先使用系统 Times New Roman；更换字体后沿用用户选择。
 

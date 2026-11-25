@@ -315,8 +315,9 @@ test('host words follow the current round and ignore late reads after a round ch
   const response = data => ({ ok: true, status: 200, text: async () => JSON.stringify({ ok: true, data }) });
   const games = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/games.js'), {
     document: { hidden: false, getElementById: node, querySelector: node, querySelectorAll: () => [],
-      createElement: tag => new FakeNode(tag), addEventListener() {} },
+      createElement: tag => new FakeNode(tag), addEventListener() {}, removeEventListener() {} },
     window: { addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener() {} },
+    MutationObserver: class { observe() {} disconnect() {} },
     location: { protocol: 'http:', host: '127.0.0.1', origin: 'http://127.0.0.1' },
     performance: { now: () => 0 }, setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     fetch: async url => {

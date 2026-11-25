@@ -72,6 +72,7 @@ export function refreshSharedFonts() {
   if (!registeredSelects.size) return false;
   const families = sharedFacesByFamily();
   let changed = false;
+  const loads = [];
   for (const font of SHARED_FONTS) {
     const faces = families.get(font.family) || [];
     const previous = fontReadiness.get(font.id);
@@ -83,13 +84,16 @@ export function refreshSharedFonts() {
     if (!faces.length) continue;
     // Let the browser resolve the current CSS face, including Unicode subsets.
     // A fallback-only result must never count as an available shared font.
-    void document.fonts.load(`16px ${font.value}`, font.sample || font.label).then(loaded => {
+    loads.push(document.fonts.load(`16px ${font.value}`, font.sample || font.label).then(loaded => {
       if (fontReadiness.get(font.id) !== readiness) return;
       readiness.ready = loaded.length > 0 && loaded.every(face => face.status === 'loaded');
-      refreshRegisteredSelects();
-    }, () => {});
+      return readiness.ready;
+    }));
   }
   if (changed) refreshRegisteredSelects();
+  if (loads.length) void Promise.allSettled(loads).then(results => {
+    if (results.some(result => result.status === 'fulfilled' && result.value)) refreshRegisteredSelects();
+  });
   return changed;
 }
 

@@ -75,14 +75,15 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   await page.waitForResponse(response => response.url().endsWith('/api/component-styles/config') && response.ok());
   assert.equal(saved('queue').identityQueueFontSize, '54');
   for (const style of styles) assert.deepEqual(saved(style.type).resourceStyle, style.config.resourceStyle);
-  await page.reload(); await mountResourceStylePage(page);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await mountResourceStylePage(page, { waitForInitialLoad: false });
   const reopened = await open('航海旗帜');
   assert.equal(await reopened.getByLabel('显示观众头像', { exact: true }).isChecked(), false);
   assert.equal(await reopened.getByLabel('昵称字号', { exact: true }).inputValue(), '60');
   assert.deepEqual(errors, []);
 });
 
-test('resource settings pause polling under hidden pages and resume without losing drafts', { timeout: 30000 }, async t => {
+test('resource settings stay idle until a hidden page returns and reconcile without losing edits', { timeout: 30000 }, async t => {
   const directory = createScratchDirectory('resource-visibility-electron-');
   let app;
   t.after(async () => { await app?.close(); removeScratchDirectory(directory); });
@@ -120,22 +121,22 @@ test('resource settings pause polling under hidden pages and resume without losi
     const fontSize = page.locator('#resource-polling-test [data-component-parameter="desktopLyricFontSize"]');
     await fontSize.fill('54'); await fontSize.dispatchEvent('change');
     await page.clock.fastForward(1000);
-    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1);
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 0);
     await page.evaluate(() => window.resourcePollingTest.ancestor.classList.remove('active'));
     await page.clock.fastForward(2000);
-    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1, 'Inactive main pages must stop polling.');
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 0);
     await page.evaluate(() => {
       window.resourcePollingTest.ancestor.classList.add('active');
       window.resourcePollingTest.subpage.hidden = true;
     });
     await page.clock.fastForward(2000);
-    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1, 'Hidden subpages must stop polling.');
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 0);
     await page.evaluate(() => { window.resourcePollingTest.subpage.hidden = false; });
     await page.clock.fastForward(1000);
-    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 2);
-    assert.equal(await fontSize.inputValue(), '54', 'Resuming polling must preserve the edited value.');
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1);
+    assert.equal(await fontSize.inputValue(), '54');
     await page.evaluate(() => { window.resourcePollingTest.panel.dispose(); window.resourcePollingTest.ancestor.remove(); });
     await page.clock.fastForward(2000);
-    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 2, 'Disposed panels must stop polling.');
+    assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1);
   }
 });

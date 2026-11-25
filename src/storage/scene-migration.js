@@ -63,4 +63,22 @@ function migrateSceneDeletion(db) {
   }
 }
 
-module.exports = { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion };
+function migrateSceneBodyTokens(db) {
+  for (const [table, body] of [['component_scenes', 'published_json'], ['danmaku_appearances', 'config_json']]) {
+    if (!db.prepare(`PRAGMA table_info(${table})`).all().some(column => column.name === 'body_token')) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN body_token TEXT NOT NULL DEFAULT '';
+        UPDATE ${table} SET body_token = hex(randomblob(16));`);
+    }
+    // A restored row can carry the previous token even when it has different JSON.
+    const renew = `UPDATE ${table} SET body_token = hex(randomblob(16)) WHERE rowid = NEW.rowid;`;
+    db.exec(`
+      CREATE TRIGGER IF NOT EXISTS ${table}_body_insert AFTER INSERT ON ${table}
+      BEGIN ${renew} END;
+      CREATE TRIGGER IF NOT EXISTS ${table}_body_update AFTER UPDATE OF ${body} ON ${table}
+      WHEN NEW.${body} IS NOT OLD.${body} OR NEW.body_token IS NOT OLD.body_token
+      BEGIN ${renew} END;
+    `);
+  }
+}
+
+module.exports = { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion, migrateSceneBodyTokens };

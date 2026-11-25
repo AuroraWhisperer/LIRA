@@ -5,12 +5,7 @@ const { normalizeDynamicLink } = require('./link');
 const { createLotteryProvider } = require('./provider');
 const { createCollectionService } = require('./collection-service');
 const { createDrawService } = require('./draw-service');
-const { lotteryError, normalizeRules, buildCandidatePool, assertSameContext } = require('./rules');
-
-function publicCode(error) {
-  const code = error?.code;
-  return typeof code === 'string' && /^LOTTERY_[A-Z_]{1,64}$/u.test(code) ? code : 'LOTTERY_OPERATION_FAILED';
-}
+const { lotteryError, publicCode, normalizeRules, buildCandidatePool, assertSameContext } = require('./rules');
 
 function createDynamicLotteryService({
   store,
@@ -93,10 +88,10 @@ function createDynamicLotteryService({
     job.promise = Promise.resolve()
       .then(() => operation(job))
       .catch((error) => {
-        const code = publicCode(error);
+        const code = publicCode(error, job.signal);
         lastError = { identity: scope, code };
-        if (['LOTTERY_BILIBILI_CHALLENGE', 'LOTTERY_BILIBILI_RATE_LIMITED'].includes(code))
-          pauseRequests(scope.streamerId, code);
+        if (['LOTTERY_BILIBILI_CHALLENGE', 'LOTTERY_BILIBILI_RATE_LIMITED'].includes(error?.code))
+          pauseRequests(scope.streamerId, error.code);
         if (job.taskId && drawStore.getRound(job.taskId)) {
           drawStore.setStatus(ownedTask(job.taskId, scope), 'paused', code, clock.nowMs());
         }

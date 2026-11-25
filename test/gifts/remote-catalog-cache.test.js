@@ -8,6 +8,7 @@ const test = require('node:test');
 const { CACHE_FILE_NAME } = require('../../src/bilibili/gift/remote-catalog-cache');
 const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
 const { QUIET_LOGGER, UPDATED_AT, createRemoteGiftCatalogCache } = require('../helpers/remote-catalog-fixture');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 const CATALOG_LIMIT = 32 * 1024 * 1024;
 
@@ -119,10 +120,11 @@ test('persists and coalesces remote catalog refreshes', async () => {
   }
 });
 
-test('uses the persisted etag for 304 and keeps the previous gifts', async () => {
+test('uses the persisted etag for 304 and keeps the previous gifts', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-'));
   try {
     let calls = 0;
+    let now = Date.parse(UPDATED_AT);
     let receivedEtag = '';
     const fetchRemote = async (request) => {
       calls += 1;
@@ -137,28 +139,141 @@ test('uses the persisted etag for 304 and keeps the previous gifts', async () =>
           gifts: [{ id: '200', name: '保留礼物', priceRaw: 2000, coinType: 'gold' }],
         };
       }
-      return { notModified: true, etag: '"catalog-9"' };
+      return { notModified: true, etag: calls === 2 ? '"catalog-9"' : '"catalog-9-new"' };
     };
     const cache = createRemoteGiftCatalogCache({
       dataDir,
       logger: QUIET_LOGGER,
       fetchRemote,
+      now: () => now,
       minRefreshMs: 1,
       imageBaseUrl: 'https://api.lirahub.cn',
     });
 
     const first = await cache.refresh({ force: true });
+    const revision = cache.getRevision();
+    const commits = t.mock.method(fs, 'renameSync');
     const second = await cache.refresh({ force: true });
     assert.equal(first.gifts[0].id, '200');
+    assert.equal(cache.getRevision(), revision);
+    assert.equal(commits.mock.callCount(), 0);
     assert.equal(second.cached, true);
     assert.equal(second.gifts[0].id, '200');
     assert.equal(receivedEtag, '"catalog-9"');
     assert.equal(calls, 2);
+    now += 1000;
+    await cache.refresh({ force: true });
+    assert.equal(commits.mock.callCount(), 1);
+    assert.equal(cache.getRevision(), revision);
     const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
-    assert.equal(persisted.etag, '"catalog-9"');
+    assert.equal(persisted.etag, '"catalog-9-new"');
+    assert.equal(persisted.checkedAt, new Date(now).toISOString());
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
+});
+
+test('normal-clock 304s persist restart throttling without replacing the gift rows', async t => {
+  const dataDir = createScratchDirectory('catalog-check-time-', t);
+  let now = Date.parse(UPDATED_AT);
+  let requests = 0;
+  const options = { dataDir, logger: QUIET_LOGGER, now: () => now, fetchRemote: async ({ etag }) => {
+    requests++;
+    if (etag === '"v1"') return { notModified: true, etag };
+    return { ok: true, version: '1', updatedAt: UPDATED_AT, etag: '"v1"',
+      gifts: Array.from({ length: 2000 }, (_, i) => ({ id: String(i + 1), name: `合成礼物 ${i + 1}`, priceRaw: 100, coinType: 'gold' })) };
+  } };
+  let cache = createRemoteGiftCatalogCache(options);
+  await cache.refresh();
+  const writes = t.mock.method(fs, 'writeFileSync');
+  const commits = t.mock.method(fs, 'renameSync');
+  for (const interval of [5 * 60000, 12 * 3600000]) {
+    now += interval;
+    await cache.refresh();
+    cache.stop();
+    cache = createRemoteGiftCatalogCache(options);
+    assert.equal((await cache.refresh()).gifts.length, 2000);
+  }
+  const bytes = writes.mock.calls.map(call => Buffer.byteLength(call.arguments[1]));
+  const catalogCommits = commits.mock.calls.filter(call => call.arguments[1] === cache.cachePath).length;
+  t.diagnostic(`304 writes (bytes) ${bytes.join(', ')}; renames ${commits.mock.callCount()}, full catalog ${catalogCommits}; requests including cold load ${requests}`);
+  assert.equal(requests, 3);
+  assert.equal(catalogCommits, 0);
+  assert.equal(bytes.length, 2);
+  assert.ok(bytes.every(size => size < 1024));
+});
+
+test('restart uses the restored catalog when its check file is missing, corrupt, future or from another generation', async t => {
+  const dataDir = createScratchDirectory('catalog-restore-check-', t);
+  let now = Date.parse(UPDATED_AT);
+  let calls = 0;
+  let reply = { version: 'old', updatedAt: UPDATED_AT, etag: '"same"', gifts: [{ id: '1', name: '旧礼物', priceRaw: 100, coinType: 'gold' }] };
+  const options = { dataDir, logger: QUIET_LOGGER, now: () => now, fetchRemote: async () => { calls++; return reply; } };
+  const cache = createRemoteGiftCatalogCache(options);
+  await cache.refresh();
+  const file = cache.cachePath;
+  const old = JSON.parse(fs.readFileSync(file));
+  now += 300000;
+  reply = { ...reply, version: 'new' };
+  await cache.refresh();
+  const current = JSON.parse(fs.readFileSync(file));
+  now += 300000;
+  reply = { notModified: true, etag: '"same"' };
+  await cache.refresh();
+  cache.stop();
+  const checkFile = `${file}.check.json`;
+  const valid = fs.readFileSync(checkFile, 'utf8');
+  const future = { ...JSON.parse(valid), checkedAt: new Date(now + 60000).toISOString() };
+  const legacy = { ...old };
+  delete legacy.cacheGeneration;
+  for (const [main, check] of [[old, valid], [current, '{broken'], [current, JSON.stringify(future)], [current, null], [legacy, valid]]) {
+    fs.writeFileSync(file, JSON.stringify(main));
+    if (check === null) fs.rmSync(checkFile, { force: true });
+    else fs.writeFileSync(checkFile, check);
+    const restored = createRemoteGiftCatalogCache(options);
+    assert.equal(restored.getSnapshot().version, main.version);
+    const before = calls;
+    assert.equal((await restored.refresh()).version, main.version);
+    assert.equal(calls, before + 1);
+    restored.stop();
+    await createRemoteGiftCatalogCache(options).refresh();
+    assert.equal(calls, before + 1, 'successful validation survives restart, including legacy files');
+  }
+});
+
+test('a failed check-file commit and a 304 after stop leave the offline catalog usable and due for retry', async t => {
+  const dataDir = createScratchDirectory('catalog-failed-check-', t);
+  let now = Date.parse(UPDATED_AT);
+  let release;
+  let calls = 0;
+  const options = { dataDir, logger: QUIET_LOGGER, now: () => now, fetchRemote: ({ etag }) => {
+    calls++;
+    if (!etag) return { version: 'one', etag: '"one"', gifts: [{ id: '1', name: '保留', priceRaw: 100, coinType: 'gold' }] };
+    return new Promise(resolve => { release = () => resolve({ notModified: true, etag }); });
+  } };
+  const cache = createRemoteGiftCatalogCache(options);
+  await cache.refresh();
+  const main = fs.readFileSync(cache.cachePath);
+  const checkFile = `${cache.cachePath}.check.json`;
+  now += 300000;
+  const rename = fs.renameSync;
+  const commits = t.mock.method(fs, 'renameSync', (from, to) => {
+    if (to === checkFile) throw Object.assign(new Error('locked'), { code: 'EBUSY' });
+    return rename(from, to);
+  });
+  const failed = cache.refresh();
+  release();
+  assert.equal((await failed).version, 'one');
+  assert.equal(commits.mock.callCount(), 1);
+  commits.mock.restore();
+  const restored = createRemoteGiftCatalogCache(options);
+  const late = restored.refresh();
+  assert.equal(calls, 3);
+  restored.stop();
+  release();
+  assert.equal((await late).version, 'one');
+  assert.equal(fs.existsSync(checkFile), false);
+  assert.deepEqual(fs.readFileSync(cache.cachePath), main);
 });
 
 test('keeps a usable persisted snapshot when a refresh fails', async () => {

@@ -176,9 +176,6 @@ body[data-style='spooky'] .spooky-event[data-live-entry] .spooky-event-head { an
 @keyframes spookyStickerEnter { from { --spooky-layer-opacity: 0; --spooky-layer-rotate: -9deg; } to { --spooky-layer-opacity: 1; --spooky-layer-rotate: 0deg; } }
 @keyframes spookyPortraitEnter { from { --spooky-layer-opacity: 0; --spooky-layer-rotate: -20deg; } to { --spooky-layer-opacity: 1; --spooky-layer-rotate: 0deg; } }
 @keyframes spookyExpand { from { --spooky-layer-opacity: 0; clip-path: inset(0 calc(100% - 95px) 0 0); } to { --spooky-layer-opacity: 1; clip-path: inset(0 -25px -25px -15px); } }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='spooky'] .spooky-item, body[data-style='spooky'] .spooky-item * { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='spooky'] .draw-danmaku-item .spooky-copy {

@@ -146,15 +146,16 @@ test(
                 return `DetailPrint ${message}`;
               },
             );
+          if (scenario.endsWith('-slow-discovery')) {
+            // Advance the installer's elapsed time during discovery. Helpers still
+            // receive real exit events and must finish within the normal deadline.
+            functions = functions.replace(/System::Call 'kernel32::GetTickCount\(\) i\.(R[12])'/g,
+              (call, register) => `${call}\n    IntOp $${register} $${register} + $fixtureDiscoveryOffset`);
+          }
           if (scenario === 'audio-component-slow-discovery') {
-            // Process discovery can consume the former entire exit budget before
-            // a healthy helper has even received its first shutdown event.
             functions = functions.replace('Function ${LIRA_PROCESS_PREFIX}liraFindAudioProcess', [
               'Function ${LIRA_PROCESS_PREFIX}liraFindAudioProcess',
-              '    StrCmp $fixtureDiscoveryDelayed 1 fixtureDiscoveryDone',
-              '    StrCpy $fixtureDiscoveryDelayed 1',
-              '    Sleep 10500',
-              '    fixtureDiscoveryDone:',
+              '    StrCpy $fixtureDiscoveryOffset 10500',
             ].join('\n'));
           }
           if (scenario === 'audio-multiple-slow-discovery') {
@@ -164,9 +165,7 @@ test(
               '    StrCpy $fixtureFirstAudioPid $liraProcessId',
               '    fixtureCompareAudioPid:',
               '    StrCmp $liraProcessId $fixtureFirstAudioPid fixtureAudioDelayDone',
-              '    StrCmp $fixtureSecondAudioDelayed 1 fixtureAudioDelayDone',
-              '    StrCpy $fixtureSecondAudioDelayed 1',
-              '    Sleep 10500',
+              '    StrCpy $fixtureDiscoveryOffset 10500',
               '    fixtureAudioDelayDone:',
               openEvent,
             ].join('\n'));
@@ -191,17 +190,15 @@ test(
             `!define FIXTURE_APPDATA "${quote(path.join(root, 'roaming'))}"`,
             `!define FIXTURE_TEMP "${quote(root)}"`,
             'Var fixtureRetries',
-            'Var fixtureDiscoveryDelayed',
+            'Var fixtureDiscoveryOffset',
             'Var fixtureFirstAudioPid',
-            'Var fixtureSecondAudioDelayed',
             functions,
             'Function .onInit',
             `StrCpy $INSTDIR "${quote(newInstallDir)}"`,
             `StrCpy $liraPreviousInstallDir "${quote(installDir)}"`,
             'StrCpy $fixtureRetries 0',
-            'StrCpy $fixtureDiscoveryDelayed 0',
+            'StrCpy $fixtureDiscoveryOffset 0',
             'StrCpy $fixtureFirstAudioPid ""',
-            'StrCpy $fixtureSecondAudioDelayed 0',
             `SetSilent ${silent ? 'silent' : 'normal'}`,
             'Call liraWaitForAppExit',
             // Do not show the unrelated preservation banner in fixtures.

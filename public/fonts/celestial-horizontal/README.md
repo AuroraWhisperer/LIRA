@@ -1,6 +1,6 @@
 # 天穹横栏字体
 
-默认消费者为 `public/css/overlays/danmaku/celestial-horizontal.css`，Cinzel 与 Montserrat 同时加入软件字体库，供所有组件选择。共享资源任务负责 CDN 下载、校验与本地缓存，完整文件不进入安装包；OFL 许可保留。Montserrat 300 与渐变气泡的 400／700 归入同一包，保留原字体族名 `Celestial Cinzel`、`Celestial Montserrat` 与本地 URL，按实际字形需要解码。
+默认消费者为 `public/css/overlays/danmaku/celestial-horizontal.css`，Cinzel 与 Montserrat 同时加入软件字体库，供所有组件选择。共享资源任务负责 CDN 下载、校验与本地缓存，完整文件不进入安装包；OFL 许可保留。Montserrat 300 与虹边气泡的 400／700 归入同一包，保留原字体族名 `Celestial Cinzel`、`Celestial Montserrat` 与本地 URL，按实际字形需要解码。
 
 原站 [Celestial Horizontal Chat](https://meldstudio.co/gallery/celestial-horizontal-chat/) 使用 Cinzel 700 昵称和 Montserrat 300 正文。本目录保留 Google Fonts 分发的两个 Latin WOFF2 子集，原样保存，2026-11-07 获取：
 

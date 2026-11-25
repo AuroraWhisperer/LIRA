@@ -4,6 +4,14 @@ import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
 import { formatDateTime } from '../../shared/display-format.js';
 
 const renderedBodies = new WeakMap();
+const rowFields = ['createdAt', 'giftName', 'num', 'totalPrice', 'userName', 'isBlindBox', 'blindProfit', 'blindBoxName'];
+
+function sameHistoryRows(previous, items) {
+  return Array.isArray(previous) && previous.length === items.length && items.every((item, index) => {
+    const old = previous[index];
+    return item?.eventId === old?.eventId && rowFields.every(key => item?.gift?.[key] === old?.gift?.[key]);
+  });
+}
 
 // View snapshots are read-only; request, pagination and clearing state belong to history.js.
 export function renderHistoryLoadingView(view) {
@@ -72,11 +80,15 @@ export function renderGiftHistoryView(view) {
   if (total) total.hidden = false;
   setText('giftHistoryState', retentionText || (items.length === 0 ? '暂无礼物记录' : '已加载'));
   get('giftHistoryState')?.classList.toggle('sr-only', !retentionText);
-  setHistoryBody(
-    items.length === 0
-      ? `<tr><td colspan="7" class="empty"><strong>${detailStart ? '当前范围没有可用明细' : '暂无礼物记录'}</strong>${detailStart ? '' : '<span>收到礼物后，记录会显示在这里。</span>'}</td></tr>`
-      : items.map(renderGiftHistoryRow).join(''),
-  );
+  if (!items.length) {
+    setHistoryBody(`<tr><td colspan="7" class="empty"><strong>${detailStart ? '当前范围没有可用明细' : '暂无礼物记录'}</strong>${detailStart ? '' : '<span>收到礼物后，记录会显示在这里。</span>'}</td></tr>`);
+  } else {
+    const body = get('giftHistoryBody');
+    if (body && !sameHistoryRows(renderedBodies.get(body), items)) {
+      body.innerHTML = items.map(renderGiftHistoryRow).join('');
+      renderedBodies.set(body, items);
+    }
+  }
   renderGiftHistorySortView(view);
   updatePaginationView(false, view);
 }

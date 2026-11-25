@@ -2,32 +2,27 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+function subscribe(channel, withPayload = true) {
+  return (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = withPayload ? (_event, value) => callback(value) : () => callback();
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+
 contextBridge.exposeInMainWorld('playbackOutput', {
   invoke: (request) => ipcRenderer.invoke('playback-output:invoke', request),
-  onFault: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, fault) => callback(fault);
-    ipcRenderer.on('playback-output:fault', listener);
-    return () => ipcRenderer.removeListener('playback-output:fault', listener);
-  },
+  onFault: subscribe('playback-output:fault'),
 });
 
 contextBridge.exposeInMainWorld('audioAssistant', {
   invoke: (request) => ipcRenderer.invoke('audio-assistant:invoke', request),
   getComponentState: () => ipcRenderer.invoke('audio-component:get-state'),
   retryComponent: () => ipcRenderer.invoke('audio-component:retry'),
-  onComponentState: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on('audio-component:state', listener);
-    return () => ipcRenderer.removeListener('audio-component:state', listener);
-  },
-  onState: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on('audio-assistant:state', listener);
-    return () => ipcRenderer.removeListener('audio-assistant:state', listener);
-  },
+  onComponentState: subscribe('audio-component:state'),
+  onState: subscribe('audio-assistant:state'),
 });
 
 contextBridge.exposeInMainWorld('plannerReminders', {
@@ -52,15 +47,10 @@ contextBridge.exposeInMainWorld('giftExport', {
   settings: (options) => ipcRenderer.invoke('gift-export:settings', options),
   prepare: (selection) => ipcRenderer.invoke('gift-export:prepare', selection),
   configure: (options) => ipcRenderer.invoke('gift-export:configure', options),
-  save: (id) => ipcRenderer.invoke('gift-export:save', { id }),
+  save: (id, roomGuard) => ipcRenderer.invoke('gift-export:save', roomGuard ? { id, roomGuard } : { id }),
   cancel: (id) => ipcRenderer.invoke('gift-export:cancel', id),
   openFolder: (id) => ipcRenderer.invoke('gift-export:open-folder', { id }),
-  onProgress: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, value) => callback(value);
-    ipcRenderer.on('gift-export:progress', listener);
-    return () => ipcRenderer.removeListener('gift-export:progress', listener);
-  },
+  onProgress: subscribe('gift-export:progress'),
 });
 
 contextBridge.exposeInMainWorld('weeklySchedule', {
@@ -74,12 +64,7 @@ contextBridge.exposeInMainWorld('songAssistantDesktop', {
   getInfo: () => ipcRenderer.invoke('desktop:get-info'),
   getResourceIntegrityState: () => ipcRenderer.invoke('desktop:get-resource-integrity-state'),
   checkResourceIntegrity: () => ipcRenderer.invoke('desktop:check-resource-integrity'),
-  onResourceIntegrityState: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on('desktop:resource-integrity-state', listener);
-    return () => ipcRenderer.removeListener('desktop:resource-integrity-state', listener);
-  },
+  onResourceIntegrityState: subscribe('desktop:resource-integrity-state'),
   checkForUpdates: () => ipcRenderer.invoke('desktop:check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('desktop:download-update'),
   installUpdate: () => ipcRenderer.invoke('desktop:install-update'),
@@ -92,27 +77,9 @@ contextBridge.exposeInMainWorld('songAssistantDesktop', {
   openGithub: () => ipcRenderer.invoke('desktop:open-github'),
   setAutoUpdate: (enabled) => ipcRenderer.invoke('desktop:set-auto-update', enabled),
   reportGiftDisplay: (gift) => ipcRenderer.invoke('desktop:gift-display', gift),
-  onShowUpdatePage: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-
-    const listener = () => callback();
-    ipcRenderer.on('desktop:show-update-page', listener);
-    return () => ipcRenderer.removeListener('desktop:show-update-page', listener);
-  },
-  onUpdateState: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on('desktop:update-state', listener);
-    return () => ipcRenderer.removeListener('desktop:update-state', listener);
-  },
-  onWindowMaximized: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-
-    const listener = (_event, isMaximized) => callback(isMaximized);
-    ipcRenderer.on('desktop:window-maximized', listener);
-    return () => ipcRenderer.removeListener('desktop:window-maximized', listener);
-  },
+  onShowUpdatePage: subscribe('desktop:show-update-page', false),
+  onUpdateState: subscribe('desktop:update-state'),
+  onWindowMaximized: subscribe('desktop:window-maximized'),
 });
 
 contextBridge.exposeInMainWorld('musicAPI', {
@@ -127,13 +94,7 @@ contextBridge.exposeInMainWorld('musicAPI', {
   resolveLocalMediaUrls: (paths) => ipcRenderer.invoke('music:resolve-local-media-urls', paths),
   savePlaybackState: (clientId, payload) => ipcRenderer.invoke('playback:save-state', { clientId, payload }),
   confirmShutdownFlush: () => ipcRenderer.invoke('playback:flush-ack'),
-  onPrepareShutdown: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-
-    const listener = () => callback();
-    ipcRenderer.on('app:prepare-shutdown', listener);
-    return () => ipcRenderer.removeListener('app:prepare-shutdown', listener);
-  },
+  onPrepareShutdown: subscribe('app:prepare-shutdown', false),
 });
 
 contextBridge.exposeInMainWorld('bilibiliAuth', {
@@ -161,24 +122,14 @@ contextBridge.exposeInMainWorld('liraLicense', {
   setGiftInteraction: (key, enabled) => ipcRenderer.invoke('license:set-gift-interaction', { key, enabled }),
   setGiftThanksTemplates: (templates) => ipcRenderer.invoke('license:set-gift-thanks-templates', templates),
   setGiftThanksReplies: (replies) => ipcRenderer.invoke('license:set-gift-thanks-replies', replies),
-  onGiftInteractionStateChanged: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on('license:gift-interaction-state-changed', listener);
-    return () => ipcRenderer.removeListener('license:gift-interaction-state-changed', listener);
-  },
+  onGiftInteractionStateChanged: subscribe('license:gift-interaction-state-changed'),
   getState: () => ipcRenderer.invoke('license:get-state'),
   activate: (payload) => ipcRenderer.invoke('license:activate', payload),
   retry: () => ipcRenderer.invoke('license:retry'),
   getGiftCatalogState: () => ipcRenderer.invoke('license:get-gift-catalog-state'),
   getFontLibraryState: () => ipcRenderer.invoke('license:get-font-library-state'),
   retryFontLibrary: () => ipcRenderer.invoke('license:retry-font-library'),
-  onFontLibraryStateChanged: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, state) => callback(state);
-    ipcRenderer.on('license:font-library-state-changed', listener);
-    return () => ipcRenderer.removeListener('license:font-library-state-changed', listener);
-  },
+  onFontLibraryStateChanged: subscribe('license:font-library-state-changed'),
   retryGiftCatalog: () => ipcRenderer.invoke('license:retry-gift-catalog'),
   getProfile: () => ipcRenderer.invoke('license:get-profile'),
   getOverlaySettings: () => ipcRenderer.invoke('license:get-overlay-settings'),
@@ -213,16 +164,6 @@ contextBridge.exposeInMainWorld('liraLicense', {
       fileName,
     }),
   deleteSongPageBackground: () => ipcRenderer.invoke('license:delete-song-page-background'),
-  onStateChanged: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, snapshot) => callback(snapshot);
-    ipcRenderer.on('license:state-changed', listener);
-    return () => ipcRenderer.removeListener('license:state-changed', listener);
-  },
-  onGiftCatalogStateChanged: (callback) => {
-    if (typeof callback !== 'function') return () => {};
-    const listener = (_event, snapshot) => callback(snapshot);
-    ipcRenderer.on('license:gift-catalog-state-changed', listener);
-    return () => ipcRenderer.removeListener('license:gift-catalog-state-changed', listener);
-  },
+  onStateChanged: subscribe('license:state-changed'),
+  onGiftCatalogStateChanged: subscribe('license:gift-catalog-state-changed'),
 });

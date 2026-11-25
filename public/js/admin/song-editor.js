@@ -94,7 +94,6 @@ export function createSongEditor({ value, setValue, api, toast, onSaved }) {
     const error = length > 1000 ? '点歌价格过长，请缩短后保存（上限 1000）。' : '';
     input.setCustomValidity(error);
     document.getElementById('songPriceLength').textContent = `${length} / 1000${error ? ' · 超出长度，请修正' : ''}`;
-    document.getElementById('songPricePreview').textContent = input.value.trim();
   }
 
   function resetSongForm() {

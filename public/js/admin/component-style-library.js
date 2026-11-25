@@ -1,4 +1,5 @@
 import { previewElement } from './component-preview-elements.js';
+import { refreshOnPanelReturn } from './panel-visibility.js';
 import { requestComponentStyles, loadComponentStyleCss } from './component-style-api.js';
 import { editComponentMediaFile } from './component-style-editor.js';
 import { formatByteLimit, formatBytes } from '../shared/display-format.js';
@@ -113,32 +114,19 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
     finally { importing = false; importButton.disabled = false; if (add) add.disabled = false; }
   }
   function confirmRemovePack(pack) {
-    const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', '删除套装');
-    const confirm = previewElement('button', 'danger', '删除整套'); const cancel = previewElement('button', 'secondary', '取消');
-    confirm.type = cancel.type = 'button';
-    const message = previewElement('p', 'hint'); message.setAttribute('role', 'status');
-    let removing = false;
-    cancel.addEventListener('click', () => dialog.close());
-    dialog.addEventListener('cancel', event => { if (removing) event.preventDefault(); });
-    confirm.addEventListener('click', async () => {
-      confirm.disabled = cancel.disabled = removing = true;
-      try {
-        await request('remove-pack', { id: pack.id, signal: requests.signal });
-        dialog.close(); await refresh(); report(`已删除「${pack.name}」套装，已有场景保留原效果。`);
-      } catch (error) { message.textContent = error.message; }
-      finally { confirm.disabled = cancel.disabled = removing = false; }
-    });
-    dialog.addEventListener('close', () => dialog.remove(), { once: true });
-    dialog.append(previewElement('h2', '', `删除「${pack.name}」？`),
-      previewElement('p', '', `版本 ${pack.version} · ${pack.styles.length} 个组件样式，将一起从样式库移除。`),
-      previewElement('p', 'hint', '已有场景继续使用原来的素材，不会立即清理磁盘文件。重新导入原安装包可恢复整套。'),
-      confirm, cancel, message);
-    document.body.append(dialog); dialog.showModal();
-    editor = { dispose: () => { if (!removing) dialog.close(); } };
+    confirmRemoval({ label: '删除套装', buttonLabel: '删除整套', name: pack.name,
+      description: `版本 ${pack.version} · ${pack.styles.length} 个组件样式，将一起从样式库移除。`,
+      hint: '已有场景继续使用原来的素材，不会立即清理磁盘文件。重新导入原安装包可恢复整套。',
+      action: 'remove-pack', id: pack.id, success: `已删除「${pack.name}」套装，已有场景保留原效果。` });
   }
   function confirmRemoveStyle(style) {
-    const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', '删除样式');
-    const confirm = previewElement('button', 'danger', '删除样式'); const cancel = previewElement('button', 'secondary', '取消');
+    confirmRemoval({ label: '删除样式', buttonLabel: '删除样式', name: style.name,
+      description: '将从样式库移除；已有场景保留原效果。需要恢复时，可重新导入原素材文件。',
+      action: 'remove', id: style.id, success: '已从样式库移除，现有场景仍可使用。' });
+  }
+  function confirmRemoval({ label, buttonLabel, name, description, hint, action, id, success }) {
+    const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', label);
+    const confirm = previewElement('button', 'danger', buttonLabel); const cancel = previewElement('button', 'secondary', '取消');
     confirm.type = cancel.type = 'button'; cancel.autofocus = true;
     const message = previewElement('p', 'hint'); message.setAttribute('role', 'status');
     let removing = false;
@@ -147,23 +135,26 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
     confirm.addEventListener('click', async () => {
       confirm.disabled = cancel.disabled = removing = true;
       try {
-        await request('remove', { id: style.id, signal: requests.signal });
-        dialog.close(); await refresh(); report('已从样式库移除，现有场景仍可使用。');
+        await request(action, { id, signal: requests.signal });
+        dialog.close(); await refresh(); report(success);
       } catch (error) { message.textContent = error.message; }
       finally { confirm.disabled = cancel.disabled = removing = false; }
     });
     dialog.addEventListener('close', () => dialog.remove(), { once: true });
-    dialog.append(previewElement('h2', '', `删除「${style.name}」？`),
-      previewElement('p', '', '将从样式库移除；已有场景保留原效果。需要恢复时，可重新导入原素材文件。'),
-      confirm, cancel, message);
+    dialog.append(previewElement('h2', '', `删除「${name}」？`), previewElement('p', '', description));
+    if (hint) dialog.append(previewElement('p', 'hint', hint));
+    dialog.append(confirm, cancel, message);
     document.body.append(dialog); dialog.showModal();
-    editor = { dispose: () => dialog.close() };
+    editor = { dispose: () => { if (!removing) dialog.close(); } };
   }
+  let renderedPacks;
   async function refresh() {
     const current = ++revision;
     try {
       const packs = await request('list', { signal: requests.signal });
       if (closed || current !== revision) return;
+      const signature = JSON.stringify(packs);
+      if (signature === renderedPacks) return;
       list.replaceChildren();
       const cards = [];
       for (const pack of packs) {
@@ -227,15 +218,13 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
           : '套装整体导入、更新和删除；点击组件卡片可单独选用。单个样式请从对应组件「＋ 添加样式」添加。';
         status.hidden = inline;
       }
-    } catch (error) { if (!closed) report(error); }
+      renderedPacks = signature;
+    } catch (error) { if (!closed) { renderedPacks = undefined; report(error); } }
   }
-  if (!inline || renderList) window.addEventListener('focus', () => {
-    if (root.closest('dialog')?.open) void refresh();
-  }, { signal: requests.signal });
   renderList?.({ list, cards: [], add });
-  void refresh();
+  const stopRefresh = refreshOnPanelReturn(host, refresh);
   if (initialFile) void inspectArchive(initialFile);
-  return { refresh, importArchive: inspectArchive, dispose() { closed = true; requests.abort(); editor?.dispose(); add?.remove(); root.remove(); } };
+  return { refresh, importArchive: inspectArchive, dispose() { closed = true; stopRefresh(); requests.abort(); editor?.dispose(); add?.remove(); root.remove(); } };
 }
 
 export function openComponentStyleLibrary(options) {

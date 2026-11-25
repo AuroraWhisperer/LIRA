@@ -15,6 +15,7 @@ export function createOvertimeStatusView({
   let anchorRemainingMs = 0;
   let localAnchorMs = 0;
   let clockTimer = null;
+  let clockVisible = true;
   let lastClockValue = '';
   let busy = false;
 
@@ -107,7 +108,7 @@ export function createOvertimeStatusView({
 
   function syncClockLoop() {
     stopClockLoop();
-    updateClock();
+    if (clockVisible) updateClock();
   }
 
   function stopClockLoop() {
@@ -117,9 +118,14 @@ export function createOvertimeStatusView({
 
   return {
     renderState,
+    renderConsumerStatus,
     getState: () => overtimeState,
     syncClockLoop,
     stopClockLoop,
+    setClockVisible(visible) {
+      clockVisible = visible;
+      syncClockLoop();
+    },
     setBusy(value) {
       busy = value;
       renderControls();

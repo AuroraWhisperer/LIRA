@@ -1,19 +1,11 @@
 'use strict';
 
 const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
+const { createNavigationCancellation } = require('./navigation-cancellation');
 
 function registerGiftExportIpc({ ipcMain, controller, getMainWindow, getDesktopBaseUrl }) {
   const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
-  let owner = null;
-  const cancel = () => controller.cancel();
-  const navigation = (_event, _url, inPlace, mainFrame) => {
-    if (mainFrame && !inPlace) cancel();
-  };
-  function unbind() {
-    owner?.removeListener('did-start-navigation', navigation);
-    owner?.removeListener('destroyed', cancel);
-    owner = null;
-  }
+  const cancellation = createNavigationCancellation(() => controller.cancel());
   const methods = {
     settings: 'settings',
     prepare: 'prepare',
@@ -26,12 +18,7 @@ function registerGiftExportIpc({ ipcMain, controller, getMainWindow, getDesktopB
     register(`gift-export:${channel}`, async (_event, input) => {
       const win = getMainWindow();
       try {
-        if (owner !== win.webContents) {
-          unbind();
-          owner = win.webContents;
-          owner.on('did-start-navigation', navigation);
-          owner.on('destroyed', cancel);
-        }
+        cancellation.bind(win.webContents);
         const data = await controller[method](input, (progress) => {
           if (!win.isDestroyed()) win.webContents.send('gift-export:progress', progress);
         });
@@ -39,13 +26,13 @@ function registerGiftExportIpc({ ipcMain, controller, getMainWindow, getDesktopB
       } catch (error) {
         return {
           ok: false,
-          error: /[\u4e00-\u9fff]/.test(error.message || '') ? error.message : '礼物导出失败，请重新打开预览。',
+          error: typeof error.publicMessage === 'string' && error.publicMessage ? error.publicMessage : '礼物导出失败，请重新打开预览。',
         };
       }
     });
   }
   return () => {
-    unbind();
+    cancellation.unbind();
     controller.dispose();
     for (const channel of Object.keys(methods)) ipcMain.removeHandler(`gift-export:${channel}`);
   };

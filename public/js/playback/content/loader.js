@@ -2,6 +2,7 @@
 // 内容加载器 - 负责加载主页内容、歌单等
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import { getHomeActionTitle } from '../utils.js';
 
 /** 可缓存的 action 列表 */
@@ -18,12 +19,11 @@ export class ContentLoader {
     /** 后台刷新完成回调： ({action, items, itemType, changed}) => void */
     this.onBackgroundUpdate = options.onBackgroundUpdate || null;
 
-    // 防止同一 action 并发后台刷新
-    this._bgRefreshing = new Map();
+    // 同键读取共用网络任务，抽屉代次只决定哪个调用方接收结果。
+    this._pendingRequests = new Map();
+    this._platformGenerations = new Map();
     this._requestGeneration = 0;
     this._activeRequest = null;
-    this._cacheRequestGenerations = new Map();
-    this._platformGenerations = new Map();
   }
 
   /**
@@ -39,7 +39,7 @@ export class ContentLoader {
   }
 
   _createRequest(action, options = {}) {
-    const playlistId = String(options.playlistId || '');
+    const playlistId = action === 'playlist-tracks' ? String(options.playlistId || '') : '';
     const platform = String(this.state?.selectedSource || '');
     const cacheKey = this._cacheKey(action, playlistId, platform);
     const generation = ++this._requestGeneration;
@@ -48,7 +48,6 @@ export class ContentLoader {
       title: getHomeActionTitle(action),
       playlistId,
       platform,
-      platformGeneration: this._platformGenerations.get(platform) || 0,
       cacheKey,
       generation,
       homeGeneration: options.requestGeneration,
@@ -63,28 +62,28 @@ export class ContentLoader {
     );
   }
 
-  _writeCache(request, result) {
-    if (!CACHEABLE_ACTIONS.has(request.action) || !this.cacheManager) return false;
-    if (this._cacheRequestGenerations.get(request.cacheKey) !== request.generation) return false;
-    this.cacheManager.set(request.cacheKey, {
-      items: result.items,
-      itemType: result.itemType,
-      action: result.action,
-    });
-    return true;
+  _fetchRequest(request, forceRefresh = false) {
+    if (!CACHEABLE_ACTIONS.has(request.action)) return this._fetchByAction(request);
+    const pending = this._pendingRequests.get(request.cacheKey);
+    if (pending && !forceRefresh) return pending.promise;
+
+    const task = { request };
+    this._pendingRequests.set(request.cacheKey, task);
+    task.promise = this._fetchAndCache(request);
+    return task.promise;
   }
 
-  async _fetchRequest(request) {
-    if (CACHEABLE_ACTIONS.has(request.action)) {
-      this._cacheRequestGenerations.set(request.cacheKey, request.generation);
-    }
+  async _fetchAndCache(request) {
+    const key = request.cacheKey;
     try {
       const result = await this._fetchByAction(request);
-      return { result, cacheWritten: this._writeCache(request, result) };
-    } finally {
-      if (this._cacheRequestGenerations.get(request.cacheKey) === request.generation) {
-        this._cacheRequestGenerations.delete(request.cacheKey);
+      if (this._pendingRequests.get(key)?.request === request && this.cacheManager) {
+        this.cacheManager.set(key, { items: result.items, itemType: result.itemType, action: result.action });
+        this._publishCachedUpdate(request, result);
       }
+      return result;
+    } finally {
+      if (this._pendingRequests.get(key)?.request === request) this._pendingRequests.delete(key);
     }
   }
 
@@ -130,20 +129,22 @@ export class ContentLoader {
         request.cachedResult = cachedResult;
 
         // 后台静默刷新：返回缓存数据的同时，异步请求最新数据
-        void this._backgroundRefresh(request);
+        if (!this._pendingRequests.has(request.cacheKey)) {
+          void this._fetchRequest(request).catch(() => { /* 刷新失败仍显示缓存，下次打开重试。 */ });
+        }
 
         return { ...cachedResult, fromCache: true };
       }
     }
 
     // —— 缓存未命中 或 强制刷新，走 API ——
-    const { result, cacheWritten } = await this._fetchRequest(request);
-    if (!this._isCurrentRequest(request)) {
-      if (cacheWritten) this._publishCachedUpdate(request, result);
+    try {
+      const result = await this._fetchRequest(request, forceRefresh);
+      return this._isCurrentRequest(request) ? result : { stale: true };
+    } catch (error) {
+      if (this._isCurrentRequest(request)) throw error;
       return { stale: true };
     }
-
-    return result;
   }
 
   /**
@@ -153,34 +154,12 @@ export class ContentLoader {
    */
   async _fetchByAction(request) {
     if (request.action === 'liked') {
-      return this._fetchLikedTracksAll(request.title, request.platform, request.platformGeneration);
+      return this._fetchLikedTracksAll(request);
     }
     if (request.action === 'playlist-tracks') {
       return this._fetchPlaylistTracks(request.title, request.playlistId, request.platform);
     }
     return this._fetchGeneric(request.action, request.title, request.platform);
-  }
-
-  /**
-   * 后台静默刷新（stale-while-revalidate）
-   * 不阻塞 UI，静默更新缓存；数据有变化时触发 onBackgroundUpdate 回调
-   * @param {Object} request - 固定的平台、缓存键和请求代际
-   */
-  async _backgroundRefresh(request) {
-    const bgKey = request.cacheKey;
-
-    // 防止同一 action 并发刷新
-    if (this._bgRefreshing.has(bgKey)) return;
-    this._bgRefreshing.set(bgKey, request);
-
-    try {
-      const { result, cacheWritten } = await this._fetchRequest(request);
-      if (cacheWritten) this._publishCachedUpdate(request, result);
-    } catch (_) {
-      // 后台刷新失败静默处理，不影响已有缓存
-    } finally {
-      if (this._bgRefreshing.get(bgKey) === request) this._bgRefreshing.delete(bgKey);
-    }
   }
 
   /**
@@ -200,11 +179,11 @@ export class ContentLoader {
   /**
    * 分页循环加载"我喜欢"的全部歌曲（API 请求）
    * 每次请求 100 首，直到 API 返回不足 100 首为止
-   * @param {string} title - 显示标题
-   * @param {string} [platform] - 请求所属的平台
+   * @param {Object} request - 当前分页任务的平台、标题和缓存键
    * @returns {Promise<Object>} 加载结果
    */
-  async _fetchLikedTracksAll(title, platform = this.state?.selectedSource || '', platformGeneration = this._platformGenerations.get(platform) || 0) {
+  async _fetchLikedTracksAll(request) {
+    const { title, platform, cacheKey } = request;
     const BATCH_SIZE = 100;
     let offset = 0;
     const allTracks = [];
@@ -212,7 +191,6 @@ export class ContentLoader {
     const loadingSession = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     while (true) {
-      if ((this._platformGenerations.get(platform) || 0) !== platformGeneration) break;
       const response = await fetch('/api/music/home', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -226,11 +204,9 @@ export class ContentLoader {
       });
 
       const payload = await this.readJsonResponse(response, '加载我喜欢失败');
-      if ((this._platformGenerations.get(platform) || 0) !== platformGeneration) break;
+      if (this._pendingRequests.get(cacheKey)?.request !== request) break;
 
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || '加载我喜欢失败');
-      }
+      assertApiResponse(response, payload, '加载我喜欢失败');
 
       const tracks = Array.isArray(payload.data && payload.data.tracks) ? payload.data.tracks : [];
 
@@ -276,9 +252,7 @@ export class ContentLoader {
     });
 
     const payload = await this.readJsonResponse(response, '打开歌单失败');
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || '打开歌单失败');
-    }
+    assertApiResponse(response, payload, '打开歌单失败');
 
     const items = Array.isArray(payload.data && payload.data.tracks) ? payload.data.tracks : [];
 
@@ -310,9 +284,7 @@ export class ContentLoader {
 
     const payload = await this.readJsonResponse(response, '加载内容失败');
 
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || '加载内容失败');
-    }
+    assertApiResponse(response, payload, '加载内容失败');
 
     const data = payload.data || {};
 
@@ -344,14 +316,22 @@ export class ContentLoader {
     this._activeRequest = null;
   }
 
+  invalidateCachedContent(platform, action, playlistId) {
+    const key = this._cacheKey(action, playlistId, platform);
+    this._pendingRequests.delete(key);
+    if (this._activeRequest?.cacheKey === key) this.clearHomeContent();
+    this.cacheManager?.remove(key);
+  }
+
+  getPlatformGeneration(platform) {
+    return this._platformGenerations.get(platform) || 0;
+  }
+
   invalidatePlatform(platform) {
-    this._platformGenerations.set(platform, (this._platformGenerations.get(platform) || 0) + 1);
+    this._platformGenerations.set(platform, this.getPlatformGeneration(platform) + 1);
     const prefix = `${platform}:`;
-    for (const key of this._cacheRequestGenerations.keys()) {
-      if (key.startsWith(prefix)) this._cacheRequestGenerations.delete(key);
-    }
-    for (const key of this._bgRefreshing.keys()) {
-      if (key.startsWith(prefix)) this._bgRefreshing.delete(key);
+    for (const key of this._pendingRequests.keys()) {
+      if (key.startsWith(prefix)) this._pendingRequests.delete(key);
     }
     if (this._activeRequest?.platform === platform) this.clearHomeContent();
   }

@@ -120,6 +120,20 @@ function storageFixture(quota = Infinity) {
   } };
 }
 
+test('overwriting a playlist skips reading its old body and persists the replacement', async () => {
+  const { localStorage } = storageFixture();
+  const { CacheManager } = await loadCacheManager({ localStorage });
+  const cache = new CacheManager();
+  const key = 'qq:playlist-tracks:changing';
+  cache.set(key, { items: ['a', 'b'] });
+  const reads = [];
+  const getItem = localStorage.getItem;
+  localStorage.getItem = (key) => { reads.push(key); return getItem(key); };
+  cache.set(key, { items: ['b'] });
+  assert.ok(!reads.includes(`playbackCache:v2:${key}`));
+  assert.deepEqual(Array.from(new CacheManager().get(key).items), ['b']);
+});
+
 test('persistent playlist caches stay bounded and expire across restart without revisiting old keys', async () => {
   const { values, localStorage } = storageFixture();
   let now = 1000;

@@ -3,11 +3,13 @@
 // 与 music-auth-manager.js 同模式，但管理 bilibili.com 的 cookies。
 'use strict';
 
+const { BILIBILI_AUTH_COOKIES } = require('../shared/bilibili-auth-cookies');
+
 const fs = require('node:fs');
 const path = require('node:path');
 const { safeStorage, session } = require('electron');
-const { toSerializableCookie, toElectronCookieDetails } = require('./cookie-details');
-const { writeAtomicFile } = require('./atomic-file');
+const { matchesCookieDomains } = require('./cookie-details');
+const { persistCookieSnapshot, restoreCookieSnapshot, getCookieSnapshotMetadata } = require('./cookie-snapshot');
 const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 
 const BILIBILI_LOGIN_CONFIG = {
@@ -27,7 +29,7 @@ const BILIBILI_LOGIN_CONFIG = {
     'account.bilibili.com',
   ],
   cookieDomains: ['.bilibili.com', 'bilibili.com', '.live.bilibili.com', 'live.bilibili.com'],
-  keyCookies: ['DedeUserID', 'SESSDATA', 'bili_jct'],
+  keyCookies: BILIBILI_AUTH_COOKIES,
 };
 
 function getBilibiliAuthDir(dataDir) {
@@ -42,68 +44,27 @@ function removeLegacyCookieExport(dataDir) {
   fs.rmSync(path.join(getBilibiliAuthDir(dataDir), 'cookies.txt'), { force: true });
 }
 
-function isAllowedBilibiliCookie(cookie) {
-  const config = BILIBILI_LOGIN_CONFIG;
-  const domain = String(cookie.domain || '').toLowerCase();
-  return config.cookieDomains.some((allowed) => {
-    const cleanAllowed = allowed.toLowerCase();
-    const hostAllowed = cleanAllowed.replace(/^\./, '');
-    return domain === cleanAllowed || domain === hostAllowed || domain.endsWith(`.${hostAllowed}`);
-  });
-}
-
 async function getAllowedBilibiliCookies() {
   const loginSession = session.fromPartition(BILIBILI_LOGIN_CONFIG.partition);
   const cookies = await loginSession.cookies.get({});
-  return cookies.filter((cookie) => isAllowedBilibiliCookie(cookie));
+  return cookies.filter((cookie) => matchesCookieDomains(cookie, BILIBILI_LOGIN_CONFIG.cookieDomains));
 }
 
 async function persistBilibiliCookieSnapshot(dataDir) {
   const cookies = await getAllowedBilibiliCookies();
-  const payload = {
-    savedAt: new Date().toISOString(),
-    cookies: cookies.map(toSerializableCookie),
-  };
-
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('系统加密存储不可用，登录状态无法安全备份；本次登录仅保留在当前应用中。');
-  }
-
-  const authDir = getBilibiliAuthDir(dataDir);
-  fs.mkdirSync(authDir, { recursive: true });
-  const encrypted = safeStorage.encryptString(JSON.stringify(payload));
-  writeAtomicFile(getBilibiliCookieSnapshotPath(dataDir), encrypted.toString('base64'));
-
+  const snapshot = persistCookieSnapshot(getBilibiliCookieSnapshotPath(dataDir), cookies, safeStorage);
   removeLegacyCookieExport(dataDir);
-
-  return { savedAt: payload.savedAt, cookieCount: payload.cookies.length };
+  return snapshot;
 }
 
 async function restoreBilibiliCookieSnapshot(dataDir) {
   removeLegacyCookieExport(dataDir);
-  const snapshotPath = getBilibiliCookieSnapshotPath(dataDir);
-  if (!fs.existsSync(snapshotPath)) return null;
-  if (!safeStorage.isEncryptionAvailable()) return null;
-
-  try {
-    const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
-    const payload = JSON.parse(safeStorage.decryptString(encrypted));
-    const loginSession = session.fromPartition(BILIBILI_LOGIN_CONFIG.partition);
-    for (const cookie of Array.isArray(payload.cookies) ? payload.cookies : []) {
-      await loginSession.cookies.set(toElectronCookieDetails(cookie));
-    }
-    return {
-      savedAt: payload.savedAt || '',
-      cookieCount: Array.isArray(payload.cookies) ? payload.cookies.length : 0,
-    };
-  } catch (_) {
-    return null;
-  }
+  return restoreCookieSnapshot(getBilibiliCookieSnapshotPath(dataDir),
+    () => session.fromPartition(BILIBILI_LOGIN_CONFIG.partition), safeStorage);
 }
 
-async function getBilibiliSessionState() {
+function sessionStateFromCookies(cookies) {
   const config = BILIBILI_LOGIN_CONFIG;
-  const cookies = await getAllowedBilibiliCookies();
   const cookieNames = new Set(cookies.map((c) => c.name));
   const presentKeyCookies = config.keyCookies.filter((name) => cookieNames.has(name));
   const allKeyCookiesPresent = config.keyCookies.every((name) => cookieNames.has(name));
@@ -117,20 +78,14 @@ async function getBilibiliSessionState() {
     keyCookieNames: presentKeyCookies, hasSessdata: !!sessdata };
 }
 
+async function getBilibiliSessionState() {
+  return sessionStateFromCookies(await getAllowedBilibiliCookies());
+}
+
 async function getBilibiliAuthState(dataDir) {
   const state = await getBilibiliSessionState();
 
-  let snapshotMeta = { exists: false, savedAt: '' };
-  const snapshotPath = getBilibiliCookieSnapshotPath(dataDir);
-  if (fs.existsSync(snapshotPath) && safeStorage.isEncryptionAvailable()) {
-    try {
-      const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
-      const payload = JSON.parse(safeStorage.decryptString(encrypted));
-      snapshotMeta = { exists: true, savedAt: payload.savedAt || '' };
-    } catch (_) {
-      snapshotMeta.exists = true;
-    }
-  }
+  const snapshotMeta = getCookieSnapshotMetadata(getBilibiliCookieSnapshotPath(dataDir), safeStorage);
 
   return {
     ...state,
@@ -141,7 +96,10 @@ async function getBilibiliAuthState(dataDir) {
 }
 
 async function getBilibiliCookieHeader() {
-  const cookies = await getAllowedBilibiliCookies();
+  return cookieHeaderFromCookies(await getAllowedBilibiliCookies());
+}
+
+function cookieHeaderFromCookies(cookies) {
   return cookies
     .filter((c) => c.name && c.value)
     .map((c) => `${c.name}=${c.value}`)
@@ -154,15 +112,15 @@ async function getBilibiliUid() {
   return dede ? Number(dede.value) : 0;
 }
 
-async function getBilibiliAccountProfile(dataDir) {
-  const state = await getBilibiliAuthState(dataDir);
+async function getBilibiliAccountProfile() {
+  const cookies = await getAllowedBilibiliCookies();
+  const state = sessionStateFromCookies(cookies);
   if (!state.loggedIn || !state.uid) {
     return { uid: Number(state.uid) || 0, name: '', avatarUrl: '' };
   }
 
-  const cookieHeader = await getBilibiliCookieHeader();
   const client = new BilibiliApiClient('0', {
-    cookieHeader,
+    cookieHeader: cookieHeaderFromCookies(cookies),
     uid: state.uid,
   });
   let profile;

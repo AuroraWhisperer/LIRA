@@ -357,7 +357,7 @@ export function createPlaybackControls(deps) {
             key: 'playback-queue-empty',
             title: '播放队列为空',
             message: `搜索${sourceName}歌曲并添加到播放队列`,
-            className: 'playback-empty-queue-toast',
+            className: 'toast-with-icon playback-empty-queue-toast',
             duration: 4200,
           });
         } else {
@@ -393,7 +393,7 @@ export function createPlaybackControls(deps) {
     const useHistory = playbackState.queueType !== 'playlist' || playbackState.mode === 'shuffle';
     const historyTrack = useHistory ? playbackState.history.at(-1) : null;
     const playlistIndex = queueManager.getPreviousPlaylistIndex(historyTrack);
-    const previousTrack = historyTrack || playbackState.normalQueueTracks[playlistIndex];
+    const previousTrack = playbackState.normalQueueTracks[playlistIndex] || historyTrack;
     if (previousTrack) {
       await playPlaybackTrack(previousTrack, {
         fromHistory: true,

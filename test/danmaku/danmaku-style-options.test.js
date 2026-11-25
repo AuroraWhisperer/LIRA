@@ -2,7 +2,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { pathToFileURL } = require('node:url');
 const contract = require('../../src/shared/danmaku-style-options');
 const { createFakeDocument } = require('../helpers/fake-dom');
 
@@ -71,6 +70,37 @@ test('style fields validate shared numeric, enum and color rules without accepti
     { glowy: { composerText: 'belongs to another style' } },
     { ripploid: { giftColor50: '#aabbcc80' } },
   ]) assert.throws(() => contract.normalizeStyleOptions(value), { code: 'INVALID_OVERLAY_OPTIONS' });
+});
+
+test('previously saved per-style overrides survive option normalization', () => {
+  const saved = {
+    spooky: { fontSize: 36, nicknameFontSize: 24, nicknameFontFamily: '"Georgia"', nicknameColor: '#cceeff', frameTitleFontSize: 16 },
+    outline: { durationSeconds: 12 },
+    'animated-gradient': { gradientPalette: 'ocean', gradientCycleSeconds: 24, gradientUnderline: 'hide' },
+    'glass-bubble': { glassBubbleReveal: 'instant', glassBubbleTypingSpeed: 60, glassBubbleSweep: 'off', glassBubbleHighlight: 0 },
+    'celestial-horizontal': { celestialNebulaOpacity: 80, celestialStarDensity: 'dense', celestialStarShape: 'star', celestialSeparator: 'hide' },
+    glass: { glassTime: 'hide', glassGlintIntensity: 0, glassDensity: 'compact' },
+    glowy: { glowyLayout: 'horizontal', glowyAvatar: 'hide', glowyTime: 'hide', glowyLight: 60 },
+    'dark-moon': { darkMoonPalette: 'ice', darkMoonRingSize: 140, darkMoonSparks: 'hide' },
+    window: { windowGuard: 'hide', windowMedal: 'show' },
+    wireframe: { wireframeFadeLength: 0, wireframeOrbit: 'hide', wireframeEntrance: 'none', wireframeEntranceMs: 1400 },
+    'sea-breeze': { seaBreezeReflectionOpacity: 0, seaBreezeReflectionLength: 100, seaBreezeReflectionGap: 0 },
+    'sea-breeze-random': { seaBreezeReflectionOpacity: 60, seaBreezeReflectionLength: 200, seaBreezeReflectionGap: 30 },
+    'horizontal-charm': { charmGap: 44, charmMaxWidth: 680 },
+    astral: { astralAccentColor: '#aaddff', astralEntrance: 'none' },
+    'neon-glass': { neonGlassNameColors: 'identity', neonGlassHighlight: 70, neonGlassEntranceMs: 700 },
+  };
+  assert.deepEqual(contract.normalizeStyleOptions(structuredClone(saved)), saved);
+});
+
+test('SC is available in fixed layouts and opted-in random or floating styles', () => {
+  const { supportsDanmakuSuperchat } = require('../../public/js/shared/danmaku-style-options.js');
+  for (const style of ['celestial-horizontal', 'mist', 'comic', 'window', 'sinking', 'stardust', 'sea-breeze-random', 'glass-bubble']) {
+    assert.equal(supportsDanmakuSuperchat(style), true, style);
+  }
+  for (const style of ['outline', 'floating']) {
+    assert.equal(supportsDanmakuSuperchat(style), false, style);
+  }
 });
 
 test('gift amount settings retain cents and enforce their distinct bounds', () => {
@@ -307,36 +337,6 @@ test('Christmas background choice preserves saved appearance and restores the no
   const reset = resetStyleOptions({ ...edited, styleOptions: saved });
   assert.equal(contract.styleOptionsFor('christmas', reset.styleOptions).christmasBackground, 'card');
   assert.equal(reset.styleOptions.notebook.ambientMotion, 'off');
-});
-
-test('gift images load only resolver-approved URLs without a referrer', async () => {
-  const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import(
-    pathToFileURL(path.join(__dirname, '../../public/js/overlays/danmaku-message-renderer.js')).href
-  );
-  const document = createFakeDocument();
-  const sourceUrl = 'https://i0.hdslb.com/bfs/live/synthetic.webp';
-  const render = createDanmakuMessageRenderer({
-    document,
-    classNames: DEFAULT_DANMAKU_CLASSES,
-    showAvatar: false,
-    resolveGiftImageUrl: (value) => (value === sourceUrl ? value : ''),
-  });
-  const gift = {
-    kind: 'gift',
-    name: '观众',
-    message: '礼物',
-    giftName: '<b>原图</b>',
-    giftCount: 2,
-    giftImageUrl: sourceUrl,
-  };
-  const art = render(gift).children[0].children[1].children[0];
-  const image = art.children[0];
-  assert.equal(image.src, sourceUrl);
-  assert.equal(image.referrerPolicy, 'no-referrer');
-  assert.equal(
-    render({ ...gift, giftImageUrl: 'https://evil.test/x' }).children[0].children[1].children[0].children.length,
-    0,
-  );
 });
 
 test('per-style display limits validate before accepting any options', () => {

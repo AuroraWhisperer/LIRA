@@ -2,6 +2,7 @@
 // 本机工作台：日历、备忘与待办。
 'use strict';
 
+import { isPanelVisible, observePanelVisibility } from './panel-visibility.js';
 import {
   STAGES,
   NOTE_STAGE,
@@ -44,16 +45,20 @@ export const todo = (() => {
   });
 
   const byId = (id) => document.getElementById(id);
+  const editedEvents = new WeakSet();
   let fanCalendar;
+  const reminderLimitHint = '待提醒日程最多 1000 条。请取消部分日程的提醒并保存，当前仍按上次同步的日程提醒。';
 
   function storeState() {
-    if (storage.write(moduleState.planner)) void reminders.sync(moduleState.planner.events);
+    if (storage.write(moduleState.planner)) void reminders.sync(moduleState.planner.events, editedEvents);
   }
 
   function handleReminderStatus(status, previousStatus) {
-    if (status === 'error' && previousStatus !== 'error') {
+    if (status === 'limit' && previousStatus !== 'limit') {
+      toast(reminderLimitHint, { key: 'planner-reminders', update: true, type: 'error' });
+    } else if (status === 'error' && previousStatus !== 'error') {
       toast('日程提醒没设好，请重新保存一次日程。', { key: 'planner-reminders', update: true, type: 'error' });
-    } else if (status === 'ready' && previousStatus === 'error') {
+    } else if (status === 'ready' && (previousStatus === 'error' || previousStatus === 'limit')) {
       toast('日程提醒已恢复。LIRA 运行时会按时提醒你。', { key: 'planner-reminders', update: true, type: 'success' });
     }
     updateReminderFields();
@@ -203,6 +208,7 @@ export const todo = (() => {
     });
     if (!event) return null;
     moduleState.planner.events[index] = event;
+    editedEvents.add(event);
     moduleState.selectedDate = event.date;
     moduleState.month = event.date.slice(0, 7);
     commit();
@@ -275,13 +281,17 @@ export const todo = (() => {
     time.required = !allDay;
     byId('plannerEventTimeField').hidden = allDay;
     const reminderStatus = reminders.getStatus();
-    reminder.disabled = storage.getStatus().readFailed || reminderStatus !== 'ready';
+    const canRemoveReminder = reminderStatus === 'limit' && moduleState.planner.events.some(
+      event => event.id === moduleState.editingEventId && event.reminderTime,
+    );
+    reminder.disabled = storage.getStatus().readFailed || (reminderStatus !== 'ready' && !canRemoveReminder);
     byId('plannerEventReminderTimeField').hidden = !allDay || !reminder.checked;
     byId('plannerEventReminderTime').required = allDay && reminder.checked;
     const messages = {
       loading: '正在检查系统通知…',
       unsupported: '请在支持系统通知的 LIRA 桌面应用中设置提醒。',
       error: '提醒未能同步，请重新保存日程后重试。',
+      limit: reminderLimitHint,
     };
     byId('plannerEventReminderHint').textContent = messages[reminderStatus] ||
       (reminder.checked
@@ -461,19 +471,15 @@ export const todo = (() => {
     moduleState.initialized = true;
     const panel = byId('otherDailyTodoFeature');
     fanCalendar = createFanCalendar({
-      isVisible: () => !panel.hidden,
+      isVisible: () => isPanelVisible(panel),
       onChange: () => {
         const view = viewSnapshot();
         renderTodoCalendar(view);
         renderTodoAgenda(view);
       },
     });
-    const observer = new MutationObserver(() => {
-      if (!panel.hidden) void fanCalendar.refresh();
-    });
-    observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
-    window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
-    void fanCalendar.refresh();
+    const stop = observePanelVisibility(panel, fanCalendar.syncVisibility);
+    window.addEventListener('pagehide', stop, { once: true });
   }
 
   return {

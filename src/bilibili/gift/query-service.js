@@ -36,16 +36,17 @@ const GIFT_RANGES = Object.freeze({
   all: null,
   today: 0,
 });
-function getGiftSnapshot(context) {
-  const sourceScope = resolveGiftSourceScope(context);
-  const recent = context.queryStore.listRecent({ sourceScope, limit: 30 }).map(normalizeGiftRow);
+function getGiftSnapshot(context, { includeRecent = true } = {}) {
+  const recent = includeRecent
+    ? context.queryStore.listRecent({ sourceScope: resolveGiftSourceScope(context), limit: 30 }).map(normalizeGiftRow)
+    : undefined;
   let viewRevision = null;
   try {
     viewRevision = getGiftViewRevision(context);
   } catch (error) {
     if (error.code !== 'GIFT_SOURCE_UNAVAILABLE') throw error;
   }
-  return { recent, viewRevision };
+  return includeRecent ? { recent, viewRevision } : { viewRevision };
 }
 
 function getGiftHistory(context, options = {}) {

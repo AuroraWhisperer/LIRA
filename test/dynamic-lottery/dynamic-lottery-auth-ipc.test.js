@@ -61,6 +61,8 @@ test('all dedicated auth IPC requires the actual main window, main frame and exa
     assert.equal((await handler(f.event)).error, 'IPC_SOURCE_INVALID');
     f.frame.url = 'http://127.0.0.1:3001/admin';
     assert.equal((await handler(f.event)).error, 'IPC_SOURCE_INVALID');
+    f.frame.url = 'http://127.0.0.1:3000/license';
+    assert.equal((await handler(f.event)).error, 'IPC_SOURCE_INVALID');
     f.frame.url = 'http://127.0.0.1:3000/admin';
   }
   assert.deepEqual(f.calls, []);

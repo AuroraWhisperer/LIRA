@@ -9,6 +9,7 @@ function createHardwareFingerprint(options = {}) {
   const platform = options.platform || process.platform;
   const execFile = options.execFile || childProcess.execFile;
   const timeoutMs = Number(options.timeoutMs) || 2500;
+  let complete = null;
 
   async function readCommand(command, args) {
     return new Promise((resolve) => {
@@ -19,6 +20,7 @@ function createHardwareFingerprint(options = {}) {
   }
 
   async function collect() {
+    if (complete) return { ...complete };
     const values = {
       machineGuidHash: '',
       smbiosUuidHash: '',
@@ -55,7 +57,10 @@ function createHardwareFingerprint(options = {}) {
         void error;
       }
     }
-    return { version: 1, ...values };
+    const fingerprint = { version: 1, ...values };
+    // A partial read is usable by the protocol, but a later call should retry the missing identifier.
+    if (Object.values(values).every(Boolean)) complete = fingerprint;
+    return { ...fingerprint };
   }
 
   return { collect };

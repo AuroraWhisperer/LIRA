@@ -80,8 +80,8 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
     }
     observe() {}
     disconnect() {}
-    trigger() {
-      this.callback();
+    trigger(target) {
+      this.callback(target && [{ target }]);
     }
   }
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
@@ -194,11 +194,15 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   assertClearLayout();
   const retainedNode = root.children.at(-1);
   const retainedPosition = retainedNode.style.getPropertyValue('left');
+  let widthReads = 0;
+  const naturalWidth = retainedNode.offsetWidth;
+  Object.defineProperty(retainedNode, 'offsetWidth', { get() { widthReads++; return naturalWidth; } });
   collisionFeed.append({ id: 'newest', name: '最新消息', message: '新弹幕' });
+  assert.equal(widthReads, 0, 'an ordinary append reuses the settled occupied boxes, including during eviction');
   if (root.children.includes(retainedNode)) assert.equal(retainedNode.style.getPropertyValue('left'), retainedPosition);
   assertClearLayout();
   root.children.at(-1).offsetHeight = 90;
-  resizeObservers.at(-1).trigger();
+  resizeObservers.at(-1).trigger(root.children.at(-1));
   assertClearLayout();
   root.clientWidth = 220;
   root.clientHeight = 140;

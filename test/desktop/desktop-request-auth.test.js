@@ -28,7 +28,7 @@ function fixture() {
     getToken: () => token,
   });
   function request(overrides = {}, headers = {}) {
-    auth.applyHeaders(
+    return auth.applyHeaders(
       {
         id: 1,
         url: `${BASE}/api/settings`,
@@ -41,7 +41,6 @@ function fixture() {
       },
       headers,
     );
-    return headers;
   }
   return {
     auth,

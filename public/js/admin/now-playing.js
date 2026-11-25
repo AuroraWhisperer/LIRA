@@ -86,11 +86,11 @@ export function initNowPlaying() {
       widget.renderer.updateState(track);
       widget.empty.hidden = !hidden;
       widget.empty.textContent = !track?.trackTitle && config.nowPlayingHideWhenEmpty
-        ? '等待播放，也可以切换到示例歌曲调试样式。'
-        : track?.trackTitle && !track.playing && config.nowPlayingHideOnPause ? '歌曲已暂停，组件按设置隐藏。' : '显示内容已关闭。';
+        ? '暂无歌曲'
+        : track?.trackTitle && !track.playing && config.nowPlayingHideOnPause ? '暂停时隐藏' : '显示内容已关闭。';
     }
     elements.PreviewStatus.textContent = sample ? '示例歌曲，仅用于调试样式。'
-      : !track?.trackTitle ? '尚未捕捉到歌曲。' : track.playing ? '正在播放 · 已跟随当前歌曲' : '歌曲已暂停';
+      : !track?.trackTitle ? '尚未捕捉到歌曲，可切换到示例歌曲调试样式。' : track.playing ? '正在播放 · 已跟随当前歌曲' : '歌曲已暂停，可切换到示例歌曲调试样式。';
     elements.SourceStatus.textContent = `当前跟随：${SOURCE_LABELS[source] || '正在检测'}`;
   }
 
@@ -101,7 +101,6 @@ export function initNowPlaying() {
       button.setAttribute('aria-pressed', String(button.dataset.nowPlayingStyle === state.draft.style));
     }
     elements.Save.disabled = !state.loaded || !state.dirty || state.saving;
-    elements.Save.textContent = state.saving ? '正在保存…' : '保存外观';
     elements.Reload.disabled = !account || state.loading || state.saving;
     elements.Discard.disabled = !state.dirty || state.saving;
     for (const button of actionButtons) button.disabled = !state.loaded || state.saving;

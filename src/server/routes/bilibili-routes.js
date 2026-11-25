@@ -82,7 +82,7 @@ const routes = {
       context.bilibili.updateStatus({
         connected: false,
         enabled: true,
-        roomId: normalizeRoomInput(context.settings.get().roomId),
+        roomId: normalizeRoomInput(context.settings.get(['roomId']).roomId),
         mode: 'bilibili',
         message,
       });

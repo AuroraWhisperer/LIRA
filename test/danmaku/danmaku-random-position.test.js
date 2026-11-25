@@ -1,10 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
 const path = require('node:path');
 
-const source = fs.readFileSync(path.join(__dirname, '../../public/js/overlays/danmaku-random-position.js'), 'utf8');
-const modulePromise = import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const modulePromise = import(pathToFileURL(path.join(__dirname, '../../public/js/overlays/danmaku-random-position.js')));
 const item = (id, previousPosition) => ({ width: 120, height: 42, entry: { item: { id }, previousPosition } });
 const distance = (point, target) => Math.hypot(point.left + 60 - target.x, point.top + 21 - target.y);
 

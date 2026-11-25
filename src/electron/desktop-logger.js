@@ -1,17 +1,14 @@
 'use strict';
 
 const { redactCredentials } = require('../shared/log-redaction');
-const { appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS } = require('../shared/log-size-limit');
+const { appendBoundedFileSync, NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS, NORMAL_ENTRY_BYTES, ERROR_ENTRY_BYTES,
+  NORMAL_FILE_BYTES, ERROR_FILE_MULTIPLIER, ERROR_LOG_DIRECTORY } = require('../shared/log-size-limit');
 const path = require('node:path');
 const { formatLogLine } = require('./terminal-log');
 const { createHash } = require('node:crypto');
 const { createLogRateLimit } = require('../shared/log-rate-limit');
 
-const NORMAL_ENTRY_BYTES = 2 * 1024;
-const ERROR_ENTRY_BYTES = 16 * 1024;
-const MAX_FILE_BYTES = 1024 * 1024;
-
-function createDesktopLogger({ getLogFile, runId = '', maxFileBytes = MAX_FILE_BYTES, now = Date.now }) {
+function createDesktopLogger({ getLogFile, runId = '', maxFileBytes = NORMAL_FILE_BYTES, now = Date.now }) {
   let sequence = 0;
   const normalBudget = createLogRateLimit({ now });
   const errorBudget = createLogRateLimit({ now });
@@ -51,9 +48,9 @@ function createDesktopLogger({ getLogFile, runId = '', maxFileBytes = MAX_FILE_B
     });
     const filePath = getLogFile();
     if (!filePath) return;
-    appendBoundedFileSync(isError ? path.join(path.dirname(filePath), 'errors', path.basename(filePath)) : filePath, line, {
+    appendBoundedFileSync(isError ? path.join(path.dirname(filePath), ERROR_LOG_DIRECTORY, path.basename(filePath)) : filePath, line, {
       maxEntryBytes: isError ? ERROR_ENTRY_BYTES : NORMAL_ENTRY_BYTES,
-      maxFileBytes: isError ? maxFileBytes * 3 : maxFileBytes,
+      maxFileBytes: isError ? maxFileBytes * ERROR_FILE_MULTIPLIER : maxFileBytes,
       maxAgeMs: isError ? ERROR_LOG_AGE_MS : NORMAL_LOG_AGE_MS,
     });
   }

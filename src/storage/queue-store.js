@@ -94,6 +94,7 @@ function createQueueStore(
       songDb.exec('BEGIN IMMEDIATE');
       try {
         const scope = resolveRequestScope(input.fanScope);
+        if (scope !== null && input.cooldownKey) checkCooldown?.(readSongCooldown(input.cooldownKey, scope));
         if (checkRequesterCount) {
           const { count } = songDb.prepare(`SELECT COUNT(*) AS count FROM queue
             JOIN requests ON requests.queue_id = queue.id
@@ -116,7 +117,6 @@ function createQueueStore(
             DO UPDATE SET accepted_count = accepted_count + 1`).run(...key);
         }
         if (scope !== null && input.cooldownKey) {
-          checkCooldown?.(readSongCooldown(input.cooldownKey, scope));
           songDb.prepare(`INSERT INTO song_cooldowns (owner_scope, song_key, accepted_at_ms) VALUES (?, ?, ?)
             ON CONFLICT (owner_scope, song_key) DO UPDATE SET accepted_at_ms = excluded.accepted_at_ms`)
             .run(scope, input.cooldownKey, input.acceptedAt);

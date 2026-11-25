@@ -34,6 +34,7 @@ const groups = {
     'admin/component-preview-recovery',
     'admin/interactive-tour',
     'admin/frontend-usage-guide-search-browser',
+    'admin/live-rankings-view-browser',
     'admin/world-clock-browser',
     'bots/daily-bot-frontend',
     'bots/fixed-reply-frontend',

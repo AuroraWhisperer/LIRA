@@ -60,6 +60,7 @@ function createShutdownHarness(options = {}) {
   let lifecycle;
   let closePromise = null;
   let publishUpdate;
+  let updateState = {};
   let logFile;
   const clock = createClock();
   const ready = Promise.withResolvers();
@@ -440,8 +441,10 @@ function createShutdownHarness(options = {}) {
     },
     './update-manager': {
       configureAutoUpdater({ onStateChange }) { publishUpdate = onStateChange; },
+      getUpdateState: () => updateState,
       async checkForUpdates() {
         const state = { status: 'dev-disabled', canDownload: false, canInstall: false };
+        updateState = state;
         publishUpdate(state);
         return state;
       },
@@ -529,7 +532,7 @@ function createShutdownHarness(options = {}) {
     get shutdownPromise() { return lifecycle.isShuttingDown() ? lifecycle.requestShutdown() : null; },
     get closePromise() { return closePromise; },
     get logDirectory() { return path.dirname(logFile()); },
-    publishUpdate: value => publishUpdate(value),
+    publishUpdate: value => { updateState = value; publishUpdate(value); },
     clock,
     remoteIdle,
     cloudIdle,

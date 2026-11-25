@@ -8,6 +8,19 @@ const { readResponseBytes, readResponseText } = require('../../src/shared/respon
 
 const tooLarge = () => Object.assign(new Error('Response exceeds budget.'), { code: 'TOO_LARGE' });
 
+test('reader cleanup releases the lock when cancellation is absent or throws synchronously', async () => {
+  for (const cancel of [undefined, () => { throw new Error('synthetic cancellation failure'); }]) {
+    let released = false;
+    const response = { body: { getReader: () => ({
+      read: async () => ({ done: false, value: Uint8Array.of(1, 2) }),
+      cancel,
+      releaseLock: () => { released = true; },
+    }) } };
+    await assert.rejects(readResponseBytes(response, 1, tooLarge), { code: 'TOO_LARGE' });
+    assert.equal(released, true);
+  }
+});
+
 test('response budget cancels a chunked body before consuming the remaining stream', async () => {
   let pulls = 0;
   let cancelled = false;

@@ -51,9 +51,11 @@ export function createGameResult({ onAction, resolveAvatarUrl }) {
       const result = byId('gameResult');
       if (result.hidden || result.dataset.winner !== winner) return;
       if (!profile.avatarUrl) return;
+      const source = resolveAvatarUrl(profile.avatarUrl);
+      if (!source) return;
       const avatar = byId('gameResultAvatar');
       avatar.alt = avatarLabel;
-      avatar.src = resolveAvatarUrl(profile.avatarUrl);
+      avatar.src = source;
       avatar.hidden = false;
     } catch (_) {
       if (requestId !== profileRequest) return;

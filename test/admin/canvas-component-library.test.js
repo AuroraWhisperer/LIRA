@@ -51,7 +51,7 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     assert.deepEqual(childRequests, [], 'sandboxed renderers never request management or overlay APIs'); });
   const url = await openCanvasDesktop(desktop, fixture);
   await desktop.route('**/api/games/session', route => route.fulfill({ json: { ok: true, data: activeGame } }));
-  await desktop.route('**/api/gifts/wishes', route => route.fulfill({ json: { ok: true, data: data['gift-wishes'] } }));
+  await desktop.route('**/api/gifts/wishes?includeSession=0', route => route.fulfill({ json: { ok: true, data: data['gift-wishes'] } }));
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const cases = [
@@ -177,6 +177,8 @@ test('canvas games follow the live session and clear stopped games', { timeout: 
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const samples = sceneExtraPreviewData('games').sessions;
+  const notifySession = () => desktop.evaluate(value => window.dispatchEvent(
+    new CustomEvent('app:game-update', { detail: value })), session);
   const add = async game => {
     await page.getByRole('button', { name: '添加组件', exact: true }).click();
     await page.locator('[data-category="直播小游戏"]').click();
@@ -189,19 +191,24 @@ test('canvas games follow the live session and clear stopped games', { timeout: 
   assert.equal(await bomb.locator('#bombNumbers button').count(), 0, 'An idle canvas never invents a sample round.');
   session = structuredClone(samples['number-bomb']);
   session.state = { min: 1, max: 100, lastGuess: null, turn: 'host', winner: null };
+  await notifySession();
   await bomb.locator('#bombNumbers button.is-safe').last().waitFor();
   session.state = { min: 51, max: 100, lastGuess: 50, turn: 'viewer', winner: null };
+  await notifySession();
   await bomb.locator('#bombNumbers .is-picked').filter({ hasText: /^50$/ }).waitFor();
   unavailable = true;
+  await desktop.evaluate(async () => (await import('/js/shared/event-bus.js')).eventBus.emit('ws:connected'));
   await bomb.getByText('等待主播开局', { exact: true }).waitFor();
   unavailable = false;
   await bomb.locator('#numberBombView').waitFor();
   session = structuredClone(samples.gomoku);
   session.state.board = session.state.board.map(row => row.map(value => value === 1 ? 'black' : value === 2 ? 'white' : null));
+  await notifySession();
   const gomoku = await add('gomoku');
   await gomoku.locator('#gomokuBoard .has-white').waitFor();
   await bomb.getByText('等待主播开局', { exact: true }).waitFor();
   session = null;
+  await notifySession();
   await gomoku.getByText('等待主播开局', { exact: true }).waitFor();
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();

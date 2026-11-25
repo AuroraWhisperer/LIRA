@@ -18,7 +18,7 @@ export function renderTrackMenu(track, index, action = '') {
         ${action === 'radio'
           ? `<button type="button" role="menuitem" data-playback-home-track-action="radio" data-playback-home-track-index="${index}" title="切换到电台队列并播放">电台</button>`
           : `<button type="button" role="menuitem" data-playback-home-track-action="requested" data-playback-home-track-index="${index}">插队</button>`}
-        <button type="button" role="menuitem" data-playback-home-track-action="play" data-playback-home-track-index="${index}" title="从这首开始播放整个列表，替换当前播放队列">播放</button>
+        <button type="button" role="menuitem" data-playback-home-track-action="play" data-playback-home-track-index="${index}" title="从这首歌开始播放">播放</button>
         ${canAddTrackToPlaylist(track) && !canRemove
           ? `<button type="button" role="menuitem" data-playback-home-track-action="add-to-playlist" data-playback-home-track-index="${index}">添加到歌单</button>`
           : ''}

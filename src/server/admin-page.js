@@ -2,11 +2,13 @@
 // Admin 页面固定片段组合，生产与测试共用同一顺序。
 'use strict';
 
+const { ADMIN_PAGE_PATHS } = require('../shared/admin-page-paths');
+
 const fs = require('node:fs');
 const path = require('node:path');
 const { CLIENT_THEMES, DEFAULT_CLIENT_THEME_ID } = require('../shared/client-theme');
 
-const ADMIN_PAGE_ROUTES = new Set(['/', '/admin', '/settings', '/songs']);
+const ADMIN_PAGE_ROUTES = new Set(ADMIN_PAGE_PATHS);
 const composedHtmlCache = new Map();
 const ADMIN_FRAGMENT_INCLUDE_PATTERN =
   /<!--\s*admin-fragment:\s*(pages\/admin\/(?:[a-z0-9-]+\/)*[a-z0-9-]+\.html)\s*-->/g;

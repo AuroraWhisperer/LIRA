@@ -5,8 +5,7 @@
   padding: 0 2px;
 }
 
-.playback-head-inner,
-.playback-player {
+.playback-head-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -1,6 +1,7 @@
 'use strict';
 
 function createAiStateStore(db) {
+  let blacklistLookup;
   function readConfiguration() {
     return db.prepare('SELECT key, value, is_secret FROM ai_configuration').all().map(row => ({
       key: row.key,
@@ -53,7 +54,8 @@ function createAiStateStore(db) {
   }
 
   function isBlacklisted(uid) {
-    return Boolean(db.prepare('SELECT 1 FROM ai_blacklist WHERE uid = ?').get(uid));
+    blacklistLookup ??= db.prepare('SELECT 1 FROM ai_blacklist WHERE uid = ?');
+    return Boolean(blacklistLookup.get(uid));
   }
 
   function upsertBlacklistEntry(entry) {
@@ -99,6 +101,8 @@ function createAiStateStore(db) {
   }
 
   function pruneExpired(timestamp) {
+    if (!db.prepare(`SELECT 1 FROM ai_viewer_context WHERE expires_at <= ?
+      UNION ALL SELECT 1 FROM ai_query_cache WHERE expires_at <= ? LIMIT 1`).get(timestamp, timestamp)) return;
     db.prepare('DELETE FROM ai_viewer_context WHERE expires_at <= ?').run(timestamp);
     db.prepare('DELETE FROM ai_query_cache WHERE expires_at <= ?').run(timestamp);
   }

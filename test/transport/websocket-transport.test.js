@@ -271,11 +271,15 @@ test('music-event snapshot negotiation preserves legacy snapshots and reconnect 
   hub.handleUpgrade(context, upgradeRequest('/ws?snapshot=music-events-v1'), modern);
   hub.handleUpgrade(context, upgradeRequest(), legacy);
   assert.equal(read(modern).state.lyricTimeline.lines[0], 'original');
+  hub.broadcastSnapshot(context, 'component:styles');
   hub.broadcastSnapshot(context, 'bilibili:gift');
   await new Promise(resolve => queueMicrotask(resolve));
   assert.equal(read(legacy).type, 'snapshot');
+  assert.equal(read(legacy).reason, 'bilibili:gift');
+  assert.equal(Object.hasOwn(read(legacy), 'reasons'), false);
   assert.equal(read(legacy).state.lyricTimeline.lines[0], 'original');
   assert.equal(read(modern).type, 'snapshot:patch');
+  assert.deepEqual(read(modern).reasons, ['component:styles', 'bilibili:gift']);
   assert.equal(Object.hasOwn(read(modern).state, 'lyricTimeline'), false);
   assert.equal(read(modern).state.gifts.count, 1);
   legacy.emit('close');

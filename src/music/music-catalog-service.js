@@ -26,7 +26,7 @@ function createMusicCatalogService(options = {}) {
   };
 }
 
-async function searchMusicTracks(registry, body) {
+async function searchMusicTracks(registry, body, { includeCovers = true } = {}) {
   const input = body && typeof body === 'object' ? body : {};
   const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
   const keyword = cleanText(input.keyword || input.query || input.songName).slice(0, 120);
@@ -37,7 +37,7 @@ async function searchMusicTracks(registry, body) {
   return {
     source: platform,
     keyword,
-    tracks: await provider.searchTracks(keyword, { limit }),
+    tracks: await provider.searchTracks(keyword, { limit, includeCovers }),
   };
 }
 

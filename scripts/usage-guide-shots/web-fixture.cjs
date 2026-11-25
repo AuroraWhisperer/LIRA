@@ -1,6 +1,6 @@
 'use strict';
 
-// Serve the sibling repository's real web UI with synthetic, in-memory responses.
+// Serve the sibling repository's streamer song-page screenshot with in-memory responses.
 // This does not load its application/configuration, databases or credentials.
 const http = require('node:http');
 const fs = require('node:fs');
@@ -98,18 +98,6 @@ async function start(serverRoot = path.resolve(__dirname, '../../../lira-server'
     '/api/auth/session': { actor: { type: 'streamer' }, homePath: '/manage' },
     '/api/streamer/me': { streamer },
     '/api/streamer/room-avatar': { avatarUrl: null },
-    '/api/streamer/cloud-settings': {
-      initialized: true,
-      revision: 1,
-      values: { roomId: '', enableBilibili: false, queueLimit: 50 },
-    },
-    '/api/streamer/overlay-settings': {
-      style: 'signal',
-      fullscreenDurationSeconds: 6,
-      styleOptions: {},
-      overlayUrl: 'https://demo.example.test/overlay/EXAMPLE000000000',
-    },
-    '/api/streamer/bilibili-credentials': { loggedIn: false, initialized: true, revision: 1 },
     '/api/streamer/song-page/background': { background: null },
     '/api/streamer/song-page/appearance': { appearance },
     '/api/streamer/song-page/title': {
@@ -119,32 +107,6 @@ async function start(serverRoot = path.resolve(__dirname, '../../../lira-server'
     },
     '/api/streamer/songs': { songs, initialized: true, revision: 1, updatedAt: at },
     '/api/streamer/gift-events': { asOf: at, range: '30d', partial: false, events, hasMore: false, nextBefore: null },
-    '/api/admin/me': { admin: { id: 1, username: '示例管理员', role: 'super_admin' } },
-    '/api/admin/streamers': { streamers: [streamer] },
-    '/api/admin/monitors': { monitors: [] },
-    '/api/admin/devices': {
-      devices: [
-        {
-          id: 'demo-device-0001',
-          streamer_id: 1,
-          streamer_name: '示例主播',
-          display_name: '示例主播',
-          name: '示例电脑',
-          platform: 'win32',
-          app_version: '5.0.3',
-          status: 'active',
-          last_seen_at: at,
-        },
-      ],
-    },
-    '/api/admin/activation-codes': { activationCodes: [] },
-    '/api/admin/audit-logs': { logs: [] },
-    '/api/admin/overview': {},
-    '/api/admin/history': { events: [] },
-    '/api/admin/streamers/1/settings': { streamer, credentials: { configured: false } },
-    '/api/admin/streamers/1/password-reset-codes': { passwordResetCodes: [] },
-    '/api/admin/streamers/1/devices': { devices: [] },
-    '/api/admin/streamers/1/recent-danmaku': { danmaku: [] },
   };
   const publicRoot = path.join(serverRoot, 'public');
   const server = http.createServer((request, response) => {
@@ -155,35 +117,14 @@ async function start(serverRoot = path.resolve(__dirname, '../../../lira-server'
     };
     if (url.pathname.startsWith('/api/')) {
       if (request.method !== 'GET') return send({ error: 'SCREENSHOT_FIXTURE_ONLY' }, 405);
-      if (url.pathname === '/api/auth/session' && /\/(login|password-reset)/.test(request.headers.referer || ''))
-        return send({ error: 'CONSOLE_AUTH_REQUIRED' }, 401);
       if (url.pathname === '/api/streamer/song-page/qr') return send(qr, 200, 'image/svg+xml');
-      if (url.pathname.endsWith('/gift-statistics')) return send(statistics(url.searchParams.get('range') || '30d'));
-      if (url.pathname.startsWith('/api/public/')) {
-        const kind = url.pathname.split('/').at(-1);
-        return send(
-          {
-            songs: { songs, pageTitle: '示例主播的歌单' },
-            status: { streamer, live: { liveStatus: 0 } },
-            profile: { owner: null, roomId: null, pageTitle: '示例主播的歌单' },
-            appearance: { appearance },
-          }[kind] || {},
-        );
-      }
+      if (url.pathname === '/api/streamer/gift-statistics') return send(statistics(url.searchParams.get('range') || '30d'));
       return defaults[url.pathname] ? send(defaults[url.pathname]) : send({ error: 'NOT_FOUND' }, 404);
     }
-    const documents = {
-      '/': 'song/index.html',
-      '/login': 'admin/login.html',
-      '/password-reset': 'admin/password-reset.html',
-      '/manage': 'streamer/manage.html',
-      '/admin': 'admin/index.html',
-    };
-    const asset = url.pathname.match(/^\/(admin|manage|site|song|shared|overlay)\/assets\/(.+)$/);
-    const relative =
-      documents[url.pathname] ||
-      (!asset && url.pathname.startsWith('/admin/') && 'admin/index.html') ||
-      (asset && `${asset[1] === 'manage' ? 'streamer' : asset[1]}/${asset[2]}`);
+    const asset = url.pathname.match(/^\/(manage|site|song|shared)\/assets\/(.+)$/);
+    const relative = url.pathname === '/manage'
+      ? 'streamer/manage.html'
+      : asset && `${asset[1] === 'manage' ? 'streamer' : asset[1]}/${asset[2]}`;
     if (!relative) return send('Not found', 404, 'text/plain');
     const file = path.resolve(publicRoot, relative);
     if (!file.startsWith(publicRoot + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile())

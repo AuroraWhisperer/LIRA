@@ -146,8 +146,8 @@ test('wheel spin locks use monotonic elapsed time through wall clock changes', (
     wallNow: () => wallMs,
     monotonicNow: () => monotonicMs,
     broadcast: (payload) => published.push(payload),
-    setTimeout(callback) {
-      const timer = { callback, unref() {} };
+    setTimeout(callback, delay) {
+      const timer = { callback, delay, unref() {} };
       tasks.add(timer);
       return timer;
     },
@@ -168,15 +168,25 @@ test('wheel spin locks use monotonic elapsed time through wall clock changes', (
     assert.throws(() => wheel.spin(), { statusCode: 409 });
     assert.throws(() => wheel.configure(entries), { statusCode: 409 });
   }
-  monotonicMs = 4800;
+  monotonicMs = started.spin.durationMs - 0.5;
   const [timer] = tasks;
   tasks.delete(timer);
+  const beforeFinish = published.length;
   timer.callback();
+  assert.equal(published.length, beforeFinish);
+  const [retry] = tasks;
+  assert.equal(retry.delay, 1);
+  monotonicMs += retry.delay;
+  tasks.delete(retry);
+  retry.callback();
   assert.equal(wheel.getState().spin, null);
+  assert.equal(published.length, beforeFinish + 1);
   assert.equal(published.at(-1).state.spin, null);
   assert.deepEqual(wheel.getState().lastResult, started.lastResult);
   assert.doesNotThrow(() => wheel.configure(entries));
   wheel.spin();
+  retry.callback();
+  assert.ok(published.at(-1).state.spin);
   wheel.dispose();
   assert.equal(tasks.size, 0);
 });

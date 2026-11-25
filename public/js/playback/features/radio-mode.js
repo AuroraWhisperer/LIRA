@@ -2,6 +2,7 @@
 // 电台模式模块
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import { QueueManager } from '../queue/manager.js';
 
 import * as PlaybackUtils from '../utils.js';
@@ -64,7 +65,7 @@ export function createRadioMode(deps) {
       });
       const payload = await readJsonResponse(response, '补充电台队列失败');
       if (!isActiveSession(session)) return;
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '补充电台队列失败');
+      assertApiResponse(response, payload, '补充电台队列失败');
 
       const tracks = Array.isArray(payload.data && payload.data.tracks)
         ? payload.data.tracks.map(PlaybackUtils.normalizeOnlineTrack)

@@ -8,10 +8,18 @@ function migrateDanmakuAppearance(db) {
 }
 
 function createDanmakuAppearanceStore(db) {
+  const read = db.prepare(`SELECT body_token, CASE WHEN body_token = ? THEN NULL ELSE config_json END AS config_json
+    FROM danmaku_appearances WHERE owner_scope = ?`);
+  let cached;
   return {
     get(scope) {
-      const row = db.prepare('SELECT config_json FROM danmaku_appearances WHERE owner_scope = ?').get(scope);
-      return row ? JSON.parse(row.config_json) : null;
+      const token = cached && cached.scope === scope ? cached.token : null;
+      const row = read.get(token, scope);
+      if (!row) { cached = null; return null; }
+      if (row.body_token === token) return structuredClone(cached.config);
+      const config = JSON.parse(row.config_json);
+      if (!db.isTransaction) cached = { scope, token: row.body_token, config };
+      return structuredClone(config);
     },
     set(scope, config) {
       db.prepare(`INSERT INTO danmaku_appearances (owner_scope, config_json) VALUES (?, ?)

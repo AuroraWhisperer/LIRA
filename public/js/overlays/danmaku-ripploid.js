@@ -1,5 +1,5 @@
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const GUARD_LABELS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+import { GUARD_LABELS } from '../shared/bilibili-guard-labels.js';
 const GUARD_SCRIPT = Object.freeze({ 1: 'Governor', 2: 'Admiral', 3: 'Captain' });
 const GUARD_COLOR = Object.freeze({ 1: 'governor', 2: 'admiral', 3: 'captain' });
 const PRICE_TIERS = Object.freeze([0, 50, 100, 500, 1000, 2000]);

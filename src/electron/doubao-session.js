@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { writeAtomicFile } = require('./atomic-file');
 const { toSerializableCookie, toElectronCookieDetails } = require('./cookie-details');
 const { requestDoubaoText } = require('./doubao-page');
 const { doubaoError, parseDoubaoReply, readDoubaoConversation } = require('../ai/doubao-client');
@@ -35,6 +36,8 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
   let needsVerification = false;
   let disposed = false;
   let loggingOut = false;
+  let restoring = false;
+  let lastSnapshot = null;
 
   accountSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
   accountSession.setPermissionCheckHandler(() => false);
@@ -72,6 +75,7 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
     if (snapshotRemovalRevision !== revision) return;
     try {
       fs.rmSync(snapshotPath, { force: true });
+      lastSnapshot = null;
       snapshotRemovalRevision = null;
     } catch {
       console.warn('[Doubao] Unable to remove the signed-out account snapshot.');
@@ -85,20 +89,23 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
     const currentRevision = revision;
     const cookies = (await accountSession.cookies.get({})).filter(isDoubaoCookie).map(toSerializableCookie);
     if (disposed || loggingOut || currentRevision !== revision) return;
-    const encrypted = safeStorage.encryptString(JSON.stringify({ version: 1, cookies }));
-    fs.mkdirSync(path.dirname(snapshotPath), { recursive: true });
-    const temporaryPath = `${snapshotPath}.tmp`;
-    try {
-      fs.writeFileSync(temporaryPath, encrypted, { mode: 0o600 });
-      fs.renameSync(temporaryPath, snapshotPath);
-    } finally {
-      fs.rmSync(temporaryPath, { force: true });
+    const text = JSON.stringify({ version: 1, cookies });
+    const digest = crypto.createHash('sha256').update(text).digest('hex');
+    if (digest === lastSnapshot?.digest) {
+      const stat = fs.statSync(snapshotPath, { throwIfNoEntry: false });
+      if (stat && stat.ino === lastSnapshot.stat.ino && stat.ctimeMs === lastSnapshot.stat.ctimeMs
+        && stat.size === lastSnapshot.stat.size && stat.mtimeMs === lastSnapshot.stat.mtimeMs) return;
     }
+    const encrypted = safeStorage.encryptString(text);
+    fs.mkdirSync(path.dirname(snapshotPath), { recursive: true });
+    writeAtomicFile(snapshotPath, encrypted);
+    lastSnapshot = { digest, stat: fs.statSync(snapshotPath) };
   }
 
   function cookieChanged(_event, cookie) {
     if (disposed || loggingOut || !isDoubaoCookie(cookie)) return;
-    authWork = authWork.then(refreshAuth).catch(() => {});
+    if (restoring) return;
+    if (LOGIN_COOKIE_NAMES.has(cookie.name)) authWork = authWork.then(refreshAuth).catch(() => {});
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveTimer = null;
@@ -109,24 +116,33 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
 
   function initialize() {
     initialized ||= (async () => {
+      let replayed = false;
       if (fs.existsSync(snapshotPath) && safeStorage.isEncryptionAvailable()) {
         const current = await accountSession.cookies.get({ url: ORIGIN });
         if (!current.some(cookie => LOGIN_COOKIE_NAMES.has(cookie.name) && cookie.value)) {
           try {
-            const saved = JSON.parse(safeStorage.decryptString(fs.readFileSync(snapshotPath)));
+            const stat = fs.statSync(snapshotPath);
+            const text = safeStorage.decryptString(fs.readFileSync(snapshotPath));
+            const saved = JSON.parse(text);
             if (saved.version === 1 && Array.isArray(saved.cookies)) {
+              lastSnapshot = { digest: crypto.createHash('sha256').update(text).digest('hex'), stat };
+              restoring = true;
               for (const cookie of saved.cookies.filter(isDoubaoCookie)) {
                 if (cookie.expirationDate && cookie.expirationDate <= Date.now() / 1000) continue;
                 await accountSession.cookies.set(toElectronCookieDetails(cookie));
               }
+              replayed = true;
             }
           } catch {
             console.warn('[Doubao] Unable to restore encrypted account snapshot.');
+          } finally {
+            restoring = false;
           }
         }
       }
       await authWork;
       await refreshAuth();
+      if (replayed) await persist().catch(() => {});
     })();
     return initialized;
   }
@@ -285,6 +301,7 @@ function createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir, get
       needsVerification = false;
       snapshotRemovalRevision = revision;
       fs.rmSync(snapshotPath, { force: true });
+      lastSnapshot = null;
       snapshotRemovalRevision = null;
     } finally { loggingOut = false; }
     return getStatus();

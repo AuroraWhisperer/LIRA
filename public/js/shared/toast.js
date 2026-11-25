@@ -21,7 +21,7 @@ export function createToastStack({
   let inTopLayer = false;
   const reduced = () => windowRef?.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const announcer = documentRef.createElement('div');
-  announcer.className = 'toast-announcer';
+  announcer.className = 'sr-only';
   announcer.setAttribute('role', 'status');
   announcer.setAttribute('aria-live', 'polite');
   announcer.setAttribute('aria-atomic', 'true');

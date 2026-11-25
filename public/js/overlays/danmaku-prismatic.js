@@ -1,3 +1,5 @@
+import { hashCodePoints } from '../shared/string-hash.js';
+import { GUARD_LABELS } from '../shared/bilibili-guard-labels.js';
 import { HONOR_BADGES } from './danmaku-bilibili-badges.js';
 import { getGuardIcon, setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
@@ -23,8 +25,7 @@ export function decoratePrismaticMessage(bubble, item) {
   bubble.dataset.roomGuard = [1, 2, 3].includes(guard) ? String(guard) : '0';
   if (bubble.dataset.roomGuard === '0' || item.kind === 'gift') return;
   const seed = [item.id, item.timestamp, item.uid, item.name, item.message].join('|');
-  let hash = 2166136261;
-  for (const character of seed) hash = Math.imul(hash ^ character.codePointAt(0), 16777619);
+  let hash = hashCodePoints(seed);
   const next = () => {
     hash = Math.imul(hash ^ (hash >>> 16), 2246822507);
     hash = Math.imul(hash ^ (hash >>> 13), 3266489909);
@@ -64,7 +65,7 @@ export function createPrismaticIdentity(document, item, name, classNames, resolv
   if (item.kind !== 'gift') {
     const medal = item.roomMedal;
     const guardLevel = Number(medal?.guardLevel ?? item.roomGuardLevel);
-    const guard = image(getGuardIcon(guardLevel), 'prismatic-guard', ({ 1: '总督', 2: '提督', 3: '舰长' })[guardLevel], guardLevel);
+    const guard = image(getGuardIcon(guardLevel), 'prismatic-guard', (GUARD_LABELS)[guardLevel], guardLevel);
     if (medal?.name && Number.isSafeInteger(medal.level) && medal.level > 0) {
       const badge = document.createElement('span');
       badge.className = 'prismatic-medal';
@@ -107,7 +108,7 @@ export function createPrismaticGuardCard(document, item, classNames, createAvata
   const copy = document.createElement('p');
   copy.className = 'prismatic-guard-copy';
   const action = { open: '开通', renew: '续费' }[item.guardAction] || '感谢支持';
-  copy.textContent = `${action}${{ 1: '总督', 2: '提督', 3: '舰长' }[item.giftGuardLevel]}`;
+  copy.textContent = `${action}${GUARD_LABELS[item.giftGuardLevel]}`;
   if (Number.isSafeInteger(item.guardAccompanyDays) && item.guardAccompanyDays >= 0) {
     copy.textContent += `，已陪伴主播 ${item.guardAccompanyDays} 天`;
   }

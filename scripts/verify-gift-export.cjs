@@ -133,6 +133,7 @@ const server = http.createServer((req, res) => {
   const controller = createGiftExportController({
     app: { getPath: () => root },
     BrowserWindow,
+    nativeImage,
     dialog: {},
     shell: {},
     getBaseUrl: () => baseUrl,
@@ -201,9 +202,11 @@ const server = http.createServer((req, res) => {
     console.log('PASS: combined transparent and separate white PNGs');
     const long = await controller.prepare({ count: 40 });
     assert.equal(long.files.length, 2);
-    const longResult = await controller.save({ id: long.id });
+    const longResult = await controller.save({ id: long.id, roomGuard: { roomId: '123', count: 1001 } });
     assert.equal(longResult.ok, true, longResult.error);
     assert.equal(longResult.saved, 2);
+    assert.ok(requestedAssets.has('/img/admin/gifts/bilibili-guard-captain-thousand.webp'));
+    assert.ok(requestedAssets.has('/img/overlays/danmaku-harbor/captain-frame.png'));
     const tall = fs.readFileSync(path.join(longResult.directory, '礼物_001.png'));
     assert.equal(tall.readUInt32BE(20), 6224);
     assert.ok(

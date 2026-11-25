@@ -47,9 +47,11 @@ const SEA_BREEZE = {
   nickname: '.sea-breeze-name > strong', badge: '.sea-breeze-medal, .sea-breeze-role', amount: '.sea-breeze-amount',
 };
 const DANMAKU_TEXT_TARGETS = Object.freeze({
+  'pastel-scrapbook': { nickname: '.scrapbook-name', amount: '.scrapbook-amount' },
   coffee: { nickname: '.coffee-heading > strong',
     amount: '.coffee-price', timestamp: '.coffee-time', event: '.coffee-event-note' },
   astral: { nickname: '.astral-name', badge: '.astral-role', amount: '.astral-amount', event: '.astral-event-label' },
+  'charm-thread': { nickname: '.thread-name', amount: '.thread-amount', event: '.thread-event' },
   'celestial-horizontal': { nickname: '.celestial-name', amount: '.celestial-amount' },
   'horizontal-charm': { nickname: '.charm-name', badge: '.charm-role', amount: '.charm-amount', event: '.charm-event-label' },
   'neon-glass': { nickname: '.neon-glass-name', amount: '.neon-glass-amount' },
@@ -120,8 +122,10 @@ const DANMAKU_TEXT_TARGETS = Object.freeze({
 
 // Authored CSS sizes, measured on real message types and rounded to a tenth of a pixel.
 const TEXT_SIZE_DEFAULTS = {
+  'pastel-scrapbook': { nickname: 27, amount: 27 },
   coffee: { nickname: 20, amount: 16, timestamp: 13, event: 16 },
   astral: { nickname: 21, badge: 15, amount: 17.8, event: 16.7 },
+  'charm-thread': { nickname: 17, amount: 15, event: 14 },
   'celestial-horizontal': { nickname: 23, amount: 26 },
   'horizontal-charm': { nickname: 19, badge: 14, amount: 20.4, event: 14 },
   'neon-glass': { nickname: 24, amount: 20.4 },
@@ -1013,10 +1017,16 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#eeeadd',
   },
   astral: {
-    scrollDirection: true, defaultEdgeFade: 'none', label: 'Astral 星笺',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '星芒笺',
     minFontSize: 12, maxFontSize: 48, defaultFontSize: 22,
     background: true, giftImage: false, ambientMotion: true, astralOptions: true,
     defaultTextColor: '#ffffff',
+  },
+  'charm-thread': {
+    label: '垂丝挂链', scrollDirection: true, defaultEdgeFade: 'none',
+    minFontSize: 16, maxFontSize: 40, defaultFontSize: 24,
+    background: true, defaultBackgroundOpacity: 90, bubbleColor: true, defaultBubbleColor: '#29263e',
+    giftImage: false, threadOptions: true, defaultTextColor: '#fbf7ff',
   },
   'celestial-horizontal': {
     layout: 'horizontal', label: '天穹横栏',
@@ -1025,13 +1035,13 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultBubbleColor: '#ffd700', defaultTextColor: '#f0f8ff',
   },
   'horizontal-charm': {
-    layout: 'horizontal', label: 'Charm · 轻语横栏',
+    layout: 'horizontal', label: '轻语横栏',
     minFontSize: 12, maxFontSize: 36, defaultFontSize: 24,
     background: true, giftImage: false, bubbleColor: true, charmOptions: true,
     defaultTextColor: '#51465f',
   },
   'neon-glass': {
-    scrollDirection: true, label: 'Neon Glass · 霓光玻璃',
+    scrollDirection: true, label: '晶透胶囊',
     minFontSize: 16, maxFontSize: 40, defaultFontSize: 24,
     background: true, giftImage: false, bubbleColor: true, neonGlassOptions: true,
     defaultTextColor: '#ffffff',
@@ -1047,7 +1057,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   signal: {
     scrollDirection: true,
-    label: '青墨笺',
+    label: '夜航讯号',
     minFontSize: 18,
     maxFontSize: 48,
     background: true,
@@ -1065,7 +1075,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   ranked: {
     scrollDirection: true,
-    label: '经典样式',
+    label: '经典气泡',
     minFontSize: 20,
     maxFontSize: 44,
     background: true,
@@ -1083,7 +1093,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   identity: {
     scrollDirection: true,
-    label: '灵动弹幕',
+    label: '融影名片',
     minFontSize: 18,
     maxFontSize: 42,
     background: true,
@@ -1092,7 +1102,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   sketch: {
     scrollDirection: true,
-    label: '绿萌简笔画',
+    label: '森间手绘',
     minFontSize: 18,
     maxFontSize: 48,
     defaultFontSize: 32,
@@ -1124,7 +1134,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   snowfox: {
     scrollDirection: true,
-    label: '雪狐物语',
+    label: '雪狐童话',
     minFontSize: 18,
     maxFontSize: 48,
     defaultFontSize: 31,
@@ -1135,7 +1145,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   ripploid: {
     scrollDirection: true,
-    label: 'RIPPLOID',
+    label: '先锋票根',
     minFontSize: 18,
     maxFontSize: 48,
     defaultFontSize: 28,
@@ -1147,19 +1157,19 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#f5f5f5',
   },
   christmas: {
-    scrollDirection: true, defaultEdgeFade: 'none', label: '圣诞绮笺',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '圣诞华灯',
     minFontSize: 18, maxFontSize: 40, defaultFontSize: 28,
     background: true, giftImage: false, bubbleColor: true, ambientMotion: true, christmasOptions: true,
     defaultBubbleColor: '#782632', defaultTextColor: '#fff1d8',
   },
   stargazer: {
-    scrollDirection: true, defaultEdgeFade: 'both', label: 'Stargazer · 星旅',
+    scrollDirection: true, defaultEdgeFade: 'both', label: '星河漫旅',
     minFontSize: 16, maxFontSize: 36, defaultFontSize: 28,
     background: true, giftImage: false, ambientMotion: true, stargazerOptions: true,
     defaultTextColor: '#f7edff',
   },
   wireframe: {
-    scrollDirection: true, defaultEdgeFade: 'none', label: '线框星事',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '银环线框',
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 26,
     background: true, giftImage: false, wireframeOptions: true, defaultTextColor: '#ffffff',
   },
@@ -1168,31 +1178,36 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     minFontSize: 18, maxFontSize: 40, defaultFontSize: 28,
     background: true, giftImage: false, defaultTextColor: '#725244',
   },
+  'pastel-scrapbook': {
+    scrollDirection: true, defaultEdgeFade: 'none', label: '拼贴手账',
+    minFontSize: 16, maxFontSize: 48, defaultFontSize: 27,
+    background: true, giftImage: false, defaultTextColor: '#f3b1cb',
+  },
   notebook: {
-    scrollDirection: true, defaultEdgeFade: 'none', label: '手账风',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '折角便签',
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 29,
     background: false, giftImage: false, ambientMotion: true, defaultTextColor: '#3e3e3d',
   },
   glowy: {
-    scrollDirection: true, defaultEdgeFade: 'none', label: 'Glowy 流光玻璃',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '暗夜霓光',
     minFontSize: 16, maxFontSize: 40, defaultFontSize: 25,
     background: true, giftImage: false, bubbleColor: true, ambientMotion: true, glowyOptions: true,
     defaultBubbleColor: '#a58aff', defaultTextColor: '#f5f5fa',
   },
   glass: {
-    scrollDirection: true, defaultScrollDirection: 'down', defaultEdgeFade: 'none', label: 'Glass 玻璃通知',
+    scrollDirection: true, defaultScrollDirection: 'down', defaultEdgeFade: 'none', label: '磨砂通知',
     minFontSize: 16, maxFontSize: 40, defaultFontSize: 33,
     background: true, defaultBackgroundOpacity: 20, giftImage: false, bubbleColor: true, ambientMotion: true, glassOptions: true,
     defaultBubbleColor: '#70c2fe', defaultTextColor: '#ffffff',
   },
   'animated-gradient': {
-    scrollDirection: true, defaultEdgeFade: 'none', label: '渐变气泡',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '虹边气泡',
     minFontSize: 16, maxFontSize: 40, defaultFontSize: 25,
     background: true, giftImage: false, ambientMotion: true, gradientOptions: true,
     defaultTextColor: '#242424',
   },
   spooky: {
-    scrollDirection: true, defaultEdgeFade: 'none', label: '幽灵便笺',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '万圣幽灵',
     minFontSize: 16, maxFontSize: 36, defaultFontSize: 25,
     background: false, giftImage: false, spookyOptions: true,
     defaultTextColor: '#fce6fa',
@@ -1202,7 +1217,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     composerText: true,
     twitterOptions: true,
     defaultEdgeFade: 'none',
-    label: '仿推特 3.0',
+    label: '推文动态',
     minFontSize: 18,
     maxFontSize: 40,
     defaultFontSize: 27,
@@ -1250,12 +1265,12 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#fffaf2',
   },
   'sea-breeze': {
-    scrollDirection: true, defaultEdgeFade: 'none', label: '郁香海风',
+    scrollDirection: true, defaultEdgeFade: 'none', label: '海风倒影',
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 32,
     background: false, giftImage: false, seaBreezeAlignment: true, seaBreezeOptions: true, defaultTextColor: '#ffffff',
   },
   'sea-breeze-random': {
-    layout: 'fullscreen-random', label: '郁香海风 · 随机', fullscreenSuperchat: true,
+    layout: 'fullscreen-random', label: '海风散影', fullscreenSuperchat: true,
     entranceAnimation: true, defaultEntranceMs: 800,
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 32,
     background: false, giftImage: false, seaBreezeOptions: true, defaultTextColor: '#ffffff',
@@ -1271,7 +1286,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#1d1d1f',
   },
   comic: {
-    layout: 'fullscreen-random', label: '漫画对白', fullscreenSuperchat: true,
+    layout: 'fullscreen-random', label: '漫画分镜', fullscreenSuperchat: true,
     minFontSize: 18, maxFontSize: 42, defaultFontSize: 26, defaultFontFamily: 'serif',
     background: true, giftImage: false, comicOptions: true, defaultTextColor: '#292626',
   },
@@ -1281,7 +1296,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     background: true, giftImage: false, ambientMotion: true, windowOptions: true, defaultTextColor: '#344650',
   },
   stardust: {
-    layout: 'fullscreen-random', label: '星尘 2.0', fullscreenSuperchat: true,
+    layout: 'fullscreen-random', label: '落星尘', fullscreenSuperchat: true,
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 28, defaultFontFamily: 'serif',
     defaultDurationSeconds: 12, defaultExitMs: 1000,
     background: false, giftImage: false, ambientMotion: true, stardustOptions: true, defaultTextColor: '#f2f5f7',
@@ -1328,7 +1343,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   floating: {
     layout: 'floating',
-    label: '浮光掠影',
+    label: '掠影',
     minFontSize: 18,
     maxFontSize: 40,
     background: true,
@@ -1448,7 +1463,7 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   ...Object.fromEntries(Object.entries(TWITTER_COLOR_DEFAULTS).map(([key, value], index) => [key, {
     label: ['＜50 元', '50～99.99 元', '100～999.99 元', '≥1000 元'][index], type: 'color', alpha: true, default: value, capability: 'twitterOptions', group: 'twitterColors',
   }])),
-  spookyTheme: { label: '便笺配色', type: 'select', default: 'default', capability: 'spookyOptions', choices: [['default', 'Default · 紫色'], ['autumn', 'Autumn · 秋日'], ['graveyard', 'Graveyard · 灰紫'], ['moonlight', 'Moonlight · 月光']] },
+  spookyTheme: { label: '主题配色', type: 'select', default: 'default', capability: 'spookyOptions', choices: [['default', 'Default · 紫色'], ['autumn', 'Autumn · 秋日'], ['graveyard', 'Graveyard · 灰紫'], ['moonlight', 'Moonlight · 月光']] },
   spookyFrame: { label: '消息区外框', type: 'select', default: 'show', capability: 'spookyOptions', choices: [['show', '显示'], ['hide', '隐藏']] },
   ...Object.fromEntries(SPOOKY_COLOR_KEYS.filter(key => key !== 'textColor').map((key, index) => [key, {
     label: ['外框底色', '消息底色', '事件卡底色', '装饰强调色'][index], type: 'color', alpha: true, allowDefault: true, default: 'default', capability: 'spookyOptions', group: 'spookyColors',
@@ -1469,6 +1484,14 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   astralAccentColor: { label: '星芒颜色', type: 'color', alpha: true, default: '#f7e68b', capability: 'astralOptions', group: 'astral' },
   astralEntrance: { label: '入场方式', type: 'select', default: 'layered', capability: 'astralOptions', group: 'astral',
     choices: [['layered', '描框与星芒点亮'], ['none', '直接显示']] },
+  threadAlign: { label: '弹幕对齐', type: 'select', default: 'left', capability: 'threadOptions', group: 'threadBasic',
+    choices: [['left', '左对齐'], ['right', '右对齐']], help: '昵称和气泡贴齐同一侧，细链挂在这一侧的外缘。' },
+  threadCharm: { label: '挂件图案', type: 'select', default: 'role', capability: 'threadOptions', group: 'threadBasic',
+    choices: [['role', '跟随房间身份'], ['butterfly', '蝶扣'], ['moon', '月牙'], ['lotus', '莲花'], ['star', '四芒星']] },
+  threadEntrance: { label: '挂链入场', type: 'select', default: 'layered', capability: 'threadOptions', group: 'threadAdvanced',
+    choices: [['layered', '牵线、落扣、流光'], ['none', '直接显示']] },
+  threadEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 300, max: 1200, default: 800, unit: 'ms',
+    capability: 'threadOptions', group: 'threadAdvanced', disabledWhen: ['threadEntrance', 'none'] },
   gradientPalette: { label: '渐变配色', type: 'select', default: 'original', capability: 'gradientOptions', group: 'gradient',
     choices: [['original', '原作流彩'], ['sunset', '落日暖霞'], ['ocean', '海盐青蓝'], ['lavender', '薰衣草紫']], help: '联动昵称牌、事件标签和气泡彩边，正文颜色单独保留。' },
   gradientCycleSeconds: { label: '流转周期', type: 'number', input: 'range', min: 6, max: 24, default: 10, unit: '秒', capability: 'gradientOptions', group: 'gradient',
@@ -1515,7 +1538,7 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
     help: '相对于正文字号的高度，固定款和随机款分别保存。' },
   seaBreezeReflectionGap: { label: '倒影距离', type: 'number', input: 'range', min: -20, max: 30, default: -9, unit: 'px', capability: 'seaBreezeOptions', group: 'seaBreeze',
     help: '负值让倒影靠近正文，正值增加间隔。' },
-  stargazerPalette: { label: '星旅配色', type: 'select', default: 'mixed', capability: 'stargazerOptions', group: 'stargazer',
+  stargazerPalette: { label: '星河配色', type: 'select', default: 'mixed', capability: 'stargazerOptions', group: 'stargazer',
     choices: [['mixed', '紫金混排'], ['purple', '紫色'], ['gold', '金色'], ['chat-purple', '紫色消息 · 金色事件'], ['chat-gold', '金色消息 · 紫色事件'], ['custom', '自定义单色']] },
   stargazerColor: { label: '自定义星光色', type: 'color', default: '#c04efe', capability: 'stargazerOptions', group: 'stargazer',
     help: '在自定义单色模式中同步调整边缘、昵称、图标与渐变。' },

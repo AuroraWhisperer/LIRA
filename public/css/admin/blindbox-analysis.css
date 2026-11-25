@@ -326,6 +326,22 @@ body.blind-analysis-open .playback-player-panel {
   white-space: nowrap;
 }
 
+.blind-analysis-table th:has(button) {
+  padding: 0;
+}
+
+.blind-analysis-table th button {
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
 .blind-analysis-table th:first-child,
 .blind-analysis-table td:first-child {
   text-align: left;

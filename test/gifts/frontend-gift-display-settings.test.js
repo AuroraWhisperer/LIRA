@@ -22,11 +22,10 @@ async function openSettings(t, { tabs = false } = {}) {
       visibleRows: 3,
       scrollSpeed: 26,
     };
+    window.displayReads = [];
     window.displaySaves = [];
     window.fetch = async (url, options = {}) => {
-      if (url === '/api/overtime/gifts/catalog') {
-        return { ok: true, json: async () => ({ ok: true, data: { gifts: [] } }) };
-      }
+      if ((options.method ?? 'GET') === 'GET') window.displayReads.push(url);
       if (url !== '/api/gifts/display-settings') throw new Error(`Unexpected fetch: ${url}`);
       if (options.method === 'POST') {
         if (window.failDisplaySave) return { ok: false, json: async () => ({ ok: false, error: 'offline' }) };
@@ -168,12 +167,13 @@ test('gift range endpoints synchronize both ways and save exact cent boundaries'
   assert.deepEqual(await page.evaluate(() => window.displaySaves[0].thresholds), [12525, 60050, 120050]);
 });
 
-test('gift pages keep display drafts across navigation', async (t) => {
+test('gift display reads only its settings and keeps the draft across navigation', async (t) => {
   const page = await openSettings(t, { tabs: true });
   await page.locator('#giftFeedRows').fill('5');
   await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).click();
   await page.getByRole('tab', { name: '全屏礼物感谢', exact: true }).press('ArrowRight');
   assert.equal(await page.locator('#giftFeedRows').inputValue(), '5');
+  assert.deepEqual(await page.evaluate(() => window.displayReads), ['/api/gifts/display-settings']);
   await saveEdits(page);
   await page.waitForFunction(() => window.displaySaves.length === 1);
   assert.equal(await page.evaluate(() => window.savedDisplay.visibleRows), 5);

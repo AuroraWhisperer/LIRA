@@ -1,3 +1,4 @@
+import { createRichTextSelection } from './rich-text-selection.js';
 import { GIFT_THANKS_TOKENS, splitGiftThanksTemplate } from '../shared/gift-thanks-templates.js';
 
 function content(value, documentRef) {
@@ -27,40 +28,12 @@ export function createGiftThanksTextEditor(editor, changed) {
   const documentRef = editor.ownerDocument;
   const lifetime = new AbortController();
   const selection = () => documentRef.defaultView.getSelection();
-  let savedRange = null;
+  const selectionState = createRichTextSelection(editor, '[data-thanks-token]');
+  const { currentRange, select, restore, expand } = selectionState;
   const disabled = () => editor.contentEditable !== 'true';
-  function currentRange() {
-    const selected = selection();
-    if (!selected.rangeCount) return null;
-    const range = selected.getRangeAt(0);
-    return editor.contains(range.commonAncestorContainer) ? range : null;
-  }
-  function select(range) {
-    selection().removeAllRanges();
-    selection().addRange(range);
-    savedRange = range.cloneRange();
-  }
-  function expand(range) {
-    for (const edge of ['start', 'end']) {
-      const node = range[`${edge}Container`];
-      const token = (node.nodeType === 1 ? node : node.parentElement)?.closest('[data-thanks-token]');
-      if (token && editor.contains(token)) {
-        if (edge === 'start') range.setStartBefore(token);
-        else range.setEndAfter(token);
-      }
-    }
-    return range;
-  }
   function insert(value) {
     if (disabled()) return;
-    editor.focus({ preventScroll: true });
-    const range = savedRange && editor.contains(savedRange.commonAncestorContainer)
-      ? savedRange.cloneRange() : documentRef.createRange();
-    if (!savedRange || !editor.contains(range.commonAncestorContainer)) {
-      range.selectNodeContents(editor);
-      range.collapse(false);
-    }
-    select(expand(range));
+    select(expand(restore()));
     // DOM-built HTML keeps token insertion in Chromium's native undo history.
     documentRef.execCommand('insertHTML', false, content(value.replace(/[\r\n]+/gu, ' '), documentRef).innerHTML);
   }
@@ -77,13 +50,13 @@ export function createGiftThanksTextEditor(editor, changed) {
         range.collapse(true);
         select(range);
       }
-      savedRange = range.cloneRange();
+      selectionState.savedRange = range.cloneRange();
     }
     changed();
   });
   listen('blur', () => {
     const range = currentRange();
-    if (range) savedRange = range.cloneRange();
+    if (range) selectionState.savedRange = range.cloneRange();
   });
   listen('click', event => {
     const token = event.target.closest('[data-thanks-token]');
@@ -113,7 +86,7 @@ export function createGiftThanksTextEditor(editor, changed) {
   listen('paste', event => {
     event.preventDefault();
     const range = currentRange();
-    if (range) savedRange = range.cloneRange();
+    if (range) selectionState.savedRange = range.cloneRange();
     insert(event.clipboardData.getData('text/plain'));
   });
   listen('drop', event => event.preventDefault());
@@ -122,7 +95,7 @@ export function createGiftThanksTextEditor(editor, changed) {
     read: () => read(editor),
     setValue(value) {
       editor.replaceChildren(...content(value, documentRef).childNodes);
-      savedRange = null;
+      selectionState.savedRange = null;
     },
     setDisabled(value) {
       editor.contentEditable = String(!value);

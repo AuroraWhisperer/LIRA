@@ -41,12 +41,12 @@ export function initGames() {
       });
     }),
   );
-  window.addEventListener('app:game-update', (event) => {
+  const updateGame = event => {
     sessionRequest += 1;
     renderSession(event.detail);
     drawAdmin.refreshHostState().catch(reportPanelRefreshFailure);
-  });
-  window.addEventListener('app:game-patch', (event) => {
+  };
+  const patchGame = event => {
     const patch = event.detail;
     if (patch.sessionId !== activeGameSession?.sessionId) {
       refreshSession().then(drawAdmin.refreshHostState).catch(reportPanelRefreshFailure);
@@ -62,11 +62,13 @@ export function initGames() {
       state: { ...patch.state, canvas: activeGameSession.state.canvas },
     });
     if (phaseChanged) drawAdmin.refreshHostState().catch(reportPanelRefreshFailure);
-  });
-  eventBus.on('ws:connected', () => {
+  };
+  window.addEventListener('app:game-update', updateGame);
+  window.addEventListener('app:game-patch', patchGame);
+  const offReconnect = eventBus.on('ws:connected', () => {
     refreshSession().then(drawAdmin.refreshHostState).catch(reportPanelRefreshFailure);
   });
-  eventBus.on(Events.STATE_LOADED, ({ state }) => {
+  const offState = eventBus.on(Events.STATE_LOADED, ({ state }) => {
     const liveStatus = state?.liveStatus || {};
     const connectionKey = liveStatus.connected === true && liveStatus.roomId ? `${liveStatus.roomId}` : '';
     const connectionChanged = connectionKey !== lastLiveConnectionKey;
@@ -97,13 +99,17 @@ export function initGames() {
     interactions.reset();
     interactions.load().catch(showError);
   });
-  window.addEventListener('app:shutdown', () => {
+  eventBus.once('app:shutdown', () => {
+    window.removeEventListener('app:game-update', updateGame);
+    window.removeEventListener('app:game-patch', patchGame);
+    offReconnect();
+    offState();
+    drawAdmin.dispose();
     interactions.dispose();
     offInteractions?.();
     window.removeEventListener('app:interaction-update', receiveInteraction);
-  }, { once: true });
+  });
   syncViewerMode();
-  window.addEventListener('app:shutdown', drawAdmin.dispose, { once: true });
   Promise.all([
     requestViewerRefresh({ notify: false }),
     refreshSession().then(drawAdmin.refreshHostState),

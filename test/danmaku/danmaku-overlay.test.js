@@ -59,7 +59,7 @@ test('fixed danmaku overlay subscribes with the encoded token and renders snapsh
     clearTimeout() {},
   });
   ready();
-  assert.deepEqual(sockets.map((socket) => socket.url), ['ws://127.0.0.1:3000/ws?token=synthetic%20token%261&topic=danmaku']);
+  assert.deepEqual(sockets.map((socket) => socket.url), ['ws://127.0.0.1:3000/ws?token=synthetic%20token%261&topic=danmaku&snapshot=danmaku-events-v1']);
   const emoteUrl = 'https://i0.hdslb.com/bfs/live/emote.png';
   sockets[0].listeners.open();
   sockets[0].listeners.message({ data: JSON.stringify({ type: 'snapshot', state: {
@@ -69,7 +69,7 @@ test('fixed danmaku overlay subscribes with the encoded token and renders snapsh
   } }) });
   const images = allNodes(element('danmakuFeed')).filter((node) => node.src);
   assert.deepEqual(images.map((node) => node.src),
-    [`/api/bilibili/avatar?url=${encodeURIComponent(emoteUrl)}&token=synthetic%20token%261`]);
+    [`/api/bilibili/avatar?url=${encodeURIComponent(emoteUrl)}&token=synthetic+token%261`]);
 });
 
 test('fixed danmaku overlay reports disconnected whenever its own socket is down', async () => {

@@ -314,6 +314,8 @@ test('IPC checks exact frame and origin, sanitizes responses/events and removes 
     assert.doesNotMatch(JSON.stringify(await handler(event)), /cookie|token|secret/);
     frame.url = 'https://evil.test/admin';
     assert.equal((await handler(event)).error, 'IPC_SOURCE_INVALID');
+    frame.url = 'http://127.0.0.1:3000/license';
+    assert.equal((await handler(event)).error, 'IPC_SOURCE_INVALID');
     frame.url = 'http://127.0.0.1:3000/admin';
   }
   changed(state);
@@ -350,9 +352,18 @@ test('preload exposes explicit boolean intents and removable state subscription 
   );
   bridge.setGiftThanksTemplates(DEFAULT_GIFT_THANKS_TEMPLATES);
   assert.equal(JSON.stringify(calls[1]), JSON.stringify(['license:set-gift-thanks-templates', DEFAULT_GIFT_THANKS_TEMPLATES]));
-  const unsubscribe = bridge.onGiftInteractionStateChanged(() => {});
+  let delivered;
+  const unsubscribe = bridge.onGiftInteractionStateChanged((...values) => { delivered = values; });
   assert.equal(listeners.size, 1);
+  const state = { status: 'confirmed' };
+  listeners.get('license:gift-interaction-state-changed')({ sender: 'privileged-event' }, state);
+  assert.deepEqual(delivered, [state]);
   unsubscribe();
+  assert.equal(listeners.size, 0);
+  const stopShutdown = exposed.get('musicAPI').onPrepareShutdown((...values) => { delivered = values; });
+  listeners.get('app:prepare-shutdown')({ sender: 'privileged-event' }, 'ignored');
+  assert.deepEqual(delivered, []);
+  stopShutdown();
   assert.equal(listeners.size, 0);
 });
 
@@ -369,7 +380,7 @@ async function uiFixture() {
       removeEventListener: (name) => listeners.delete(name),
     };
   }
-  const ids = ['giftStatsQueryEnabled', 'giftInteractionControls', 'giftInteractionStatus', 'giftInteractionRefresh'];
+  const ids = ['danmakuQueryToggle', 'danmakuGiftThanksToggle', 'danmakuQueryControls', 'danmakuQueryStatus', 'danmakuGiftThanksStatus', 'dailyBotRefresh'];
   const elements = Object.fromEntries(ids.map((id) => [id, element()]));
   const windowRef = element();
   const toasts = [];
@@ -428,20 +439,20 @@ async function uiFixture() {
 
 test('renderer keeps logged-out control clickable, rolls back failed changes and warns when turning off is unconfirmed', async () => {
   const ui = await uiFixture();
-  assert.equal(ui.elements.giftStatsQueryEnabled.disabled, false);
-  await ui.click('giftStatsQueryEnabled', true);
-  assert.equal(ui.elements.giftStatsQueryEnabled.checked, false);
+  assert.equal(ui.elements.danmakuQueryToggle.disabled, false);
+  await ui.click('danmakuQueryToggle', true);
+  assert.equal(ui.elements.danmakuQueryToggle.checked, false);
   ui.emit({ status: 'confirmed', values: flags(true, true) });
   const pending = deferred();
   ui.bridge.setGiftInteraction = () => pending.promise;
-  await ui.click('giftStatsQueryEnabled', false);
-  assert.equal(ui.elements.giftStatsQueryEnabled.checked, true);
-  assert.equal(ui.elements.giftStatsQueryEnabled.disabled, true);
+  await ui.click('danmakuQueryToggle', false);
+  assert.equal(ui.elements.danmakuQueryToggle.checked, true);
+  assert.equal(ui.elements.danmakuQueryToggle.disabled, true);
   pending.resolve({ ok: false, status: 'unconfirmed', values: flags(true, true) });
   await new Promise(setImmediate);
   assert.equal(ui.toasts.at(-1), '关闭还没同步，服务器可能仍在运行。');
   ui.emit({ status: 'confirmed', values: flags() });
-  assert.equal(ui.elements.giftStatsQueryEnabled.checked, false);
+  assert.equal(ui.elements.danmakuQueryToggle.checked, false);
   ui.dispose();
 });
 
@@ -449,12 +460,12 @@ test('renderer preserves a newer account snapshot when an older change response 
   const ui = await uiFixture();
   const pending = deferred();
   ui.bridge.setGiftInteraction = () => pending.promise;
-  await ui.click('giftStatsQueryEnabled', true);
+  await ui.click('danmakuQueryToggle', true);
   ui.emit({ status: 'confirmed', values: flags(), error: null });
   pending.resolve({ ok: true, status: 'confirmed', values: flags(false, true), error: null });
   await new Promise(setImmediate);
-  assert.equal(ui.elements.giftStatsQueryEnabled.checked, false);
-  assert.equal(ui.elements.giftStatsQueryEnabled.disabled, false);
+  assert.equal(ui.elements.danmakuQueryToggle.checked, false);
+  assert.equal(ui.elements.danmakuQueryToggle.disabled, false);
   assert.equal(ui.toasts.length, 0);
   ui.dispose();
 });

@@ -62,7 +62,7 @@ test('desktop font refresh preserves the previous stylesheet until load and igno
   assert.equal(listeners.size, 0);
 });
 
-test('browser source polls only during downloads and stops after completion or navigation', async t => {
+test('browser source polls during downloads and stops after completion or navigation', async t => {
   let requests = 0;
   const states = [{ status: 'downloading', completed: 0 }, { status: 'ready', completed: 1 }];
   const { clock, documentRef, dispose } = await fixture(t, undefined, async url => {
@@ -93,36 +93,39 @@ test('browser source polls only during downloads and stops after completion or n
   assert.equal(navigating.documentRef.head.children.length, 0);
 });
 
-test('browser sources wait for a manual retry after resource failure and stop reading when ready', async t => {
-  const changed = Promise.withResolvers();
-  const requests = [];
-  const f = await fixture(t, undefined, async (url, options = {}) => {
-    requests.push({ url, signal: options.signal });
-    const state = requests.length === 1 ? { status: 'error', completed: 0, completedAt: 'failed' }
-      : requests.length === 2 ? await changed.promise : { status: 'ready', completed: 1, completedAt: 'recovered' };
-    return { ok: true, json: async () => state };
+for (const initialStatus of ['idle', 'error']) {
+  test(`browser sources wait for ${initialStatus} fonts to start and stop reading when ready`, async t => {
+    const changed = Promise.withResolvers();
+    const requests = [];
+    const completedAt = initialStatus === 'error' ? 'failed' : '';
+    const f = await fixture(t, undefined, async (url, options = {}) => {
+      requests.push({ url, signal: options.signal });
+      const state = requests.length === 1 ? { status: initialStatus, completed: 0, completedAt }
+        : requests.length === 2 ? await changed.promise : { status: 'ready', completed: 1, completedAt: 'recovered' };
+      return { ok: true, json: async () => state };
+    });
+    await settle();
+    f.clock.tick(2000);
+    await settle();
+    assert.equal(requests.length, 2);
+    assert.equal(new URL(requests[1].url, 'http://local.test').searchParams.get('after'), `${initialStatus}:0:${completedAt}`);
+    f.clock.tick(120000);
+    await settle();
+    assert.equal(requests.length, 2, 'An in-flight local wait does not start duplicate requests.');
+    changed.resolve({ status: 'checking', completed: 0 });
+    await settle();
+    f.clock.tick(2000);
+    await settle();
+    assert.equal(requests.length, 3);
+    assert.equal(f.documentRef.head.children.length, 1);
+    f.documentRef.head.children[0].fire('load');
+    f.clock.tick(60000);
+    await settle();
+    assert.equal(requests.length, 3);
+    f.dispose();
+    assert.equal(requests[1].signal.aborted, true);
   });
-  await settle();
-  f.clock.tick(2000);
-  await settle();
-  assert.equal(requests.length, 2);
-  assert.equal(new URL(requests[1].url, 'http://local.test').searchParams.get('after'), 'error:0:failed');
-  f.clock.tick(120000);
-  await settle();
-  assert.equal(requests.length, 2, 'An in-flight local wait does not start duplicate requests.');
-  changed.resolve({ status: 'checking', completed: 0 });
-  await settle();
-  f.clock.tick(2000);
-  await settle();
-  assert.equal(requests.length, 3);
-  assert.equal(f.documentRef.head.children.length, 1);
-  f.documentRef.head.children[0].fire('load');
-  f.clock.tick(60000);
-  await settle();
-  assert.equal(requests.length, 3);
-  f.dispose();
-  assert.equal(requests[1].signal.aborted, true);
-});
+}
 
 test('failed font stylesheets retry the same state and stop retrying after disposal', async t => {
   const listeners = new Set();

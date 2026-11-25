@@ -6,23 +6,30 @@ const DEFAULT_RECONNECT_BASE_DELAY_MS = 800;
 const DEFAULT_RECONNECT_MAX_DELAY_MS = 30000;
 const DEFAULT_RECONNECT_EXPONENT_MAX = 6;
 
+export function snapshotReasons(payload) {
+  return Array.isArray(payload.reasons) ? [...new Set([...payload.reasons, payload.reason])] : [payload.reason];
+}
+
 /**
  * Build the WebSocket URL used by browser-source overlays.
  * @param {Object} [options]
  * @param {Location} [options.locationRef]
  * @param {string} [options.token]
  * @param {string} [options.topic] Subscription topic, e.g. the danmaku overlay.
+ * @param {string} [options.snapshot] Optional snapshot mode negotiated with the local hub.
  * @returns {string}
  */
 export function buildOverlaySocketUrl({
   locationRef = globalThis.location,
   token = globalThis.window?.__API_TOKEN__,
   topic = '',
+  snapshot = '',
 } = {}) {
   const protocol = locationRef?.protocol === 'https:' ? 'wss:' : 'ws:';
   const query = [];
   if (token) query.push(`token=${encodeURIComponent(String(token))}`);
   if (topic) query.push(`topic=${encodeURIComponent(String(topic))}`);
+  if (snapshot) query.push(`snapshot=${encodeURIComponent(String(snapshot))}`);
   return `${protocol}//${locationRef?.host || ''}/ws${query.length ? `?${query.join('&')}` : ''}`;
 }
 
@@ -39,6 +46,7 @@ export function buildOverlaySocketUrl({
  * @param {number} [options.reconnectMaxDelayMs]
  * @param {number} [options.reconnectExponentMax]
  * @param {string} [options.topic] Subscription topic appended to the socket URL.
+ * @param {string} [options.snapshot] Snapshot mode used on every connection.
  * @param {boolean} [options.closeOnError] Close the current socket on a connection error so the close path reconnects.
  * @param {Function} [options.WebSocketClass]
  * @param {Function} [options.setTimeoutFn]
@@ -59,6 +67,7 @@ export function createOverlaySocket(options = {}) {
     locationRef,
     token,
     topic = '',
+    snapshot = '',
     closeOnError = false,
     WebSocketClass = globalThis.WebSocket,
     setTimeoutFn = globalThis.setTimeout,
@@ -137,7 +146,7 @@ export function createOverlaySocket(options = {}) {
     const generation = ++connectionGeneration;
     let candidate;
     try {
-      candidate = new WebSocketClass(buildOverlaySocketUrl({ locationRef, token, topic }));
+      candidate = new WebSocketClass(buildOverlaySocketUrl({ locationRef, token, topic, snapshot }));
     } catch (error) {
       onError?.(error);
       scheduleReconnect();

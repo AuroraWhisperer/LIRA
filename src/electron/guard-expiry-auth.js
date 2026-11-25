@@ -2,6 +2,8 @@
 
 const { randomUUID } = require('node:crypto');
 const { openBilibiliLoginWindow } = require('./bilibili-login-window');
+const { BILIBILI_AUTH_COOKIES } = require('../shared/bilibili-auth-cookies');
+const { readAuthorizedIdentity } = require('./authorized-identity');
 
 const fail = (code) => Object.assign(new Error(code), { code });
 
@@ -25,10 +27,9 @@ function createGuardExpiryAuth({ session, licenseManager, BrowserWindow, shell, 
   let queue = Promise.resolve();
 
   function identity() {
-    if (disposed || !licenseManager.isAuthorized()) throw fail('LICENSE_NOT_AUTHORIZED');
-    const scope = licenseManager.getCloudSyncIdentity();
-    if (!scope?.streamerId) throw fail('LICENSE_NOT_AUTHORIZED');
-    return `${scope.streamerId}:${licenseManager.getAuthorizationGeneration()}`;
+    const scope = readAuthorizedIdentity(licenseManager);
+    if (disposed || !scope) throw fail('LICENSE_NOT_AUTHORIZED');
+    return JSON.stringify([scope.origin, String(scope.streamerId), scope.generation]);
   }
 
   function assertCurrent(owner) {
@@ -94,7 +95,7 @@ function createGuardExpiryAuth({ session, licenseManager, BrowserWindow, shell, 
     async function authState() {
       const values = new Map((await cookies()).map((entry) => [entry.name, entry.value]));
       const uid = values.get('DedeUserID') || '';
-      return { loggedIn: /^[1-9]\d{0,19}$/u.test(uid) && ['SESSDATA', 'bili_jct'].every((key) => Boolean(values.get(key))), uid };
+      return { loggedIn: /^[1-9]\d{0,19}$/u.test(uid) && BILIBILI_AUTH_COOKIES.every((key) => Boolean(values.get(key))), uid };
     }
     try {
       const result = await openLogin({

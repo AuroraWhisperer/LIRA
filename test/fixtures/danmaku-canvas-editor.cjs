@@ -1,6 +1,6 @@
 'use strict';
 
-// Isolated Electron host: real admin HTML, preload, request auth and overlay IPC.
+// Isolated Electron host: real editor markup, preload, request auth and overlay IPC.
 if (process.versions.electron) run().catch((error) => {
   console.error(error);
   require('electron').app.exit(1);
@@ -23,7 +23,7 @@ async function run() {
   const { createOvertimeStore } = require('../../src/storage/overtime-store');
   const { createOvertimeService } = require('../../src/overtime');
   const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
-  const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+  const { migrateTestSongDb } = require('../helpers/song-database');
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
   const { createCloudDisplayBuffer } = require('../../src/scenes/cloud-display-buffer');
@@ -32,10 +32,12 @@ async function run() {
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
   const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
   const { createDanmakuAppearance } = require('../../src/server/danmaku-appearance');
-  const { createDanmakuAppearanceStore, migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
+  const { createDanmakuAppearanceStore } = require('../../src/storage/danmaku-appearance-store');
   const { getComponentPreviewOwner } = require('../../src/electron/scene-cloud-controller');
   const { HEARTBEAT_INTERVAL_MS } = require('../../src/electron/license/license-runtime-policy');
   const { createHarness } = require('../helpers/license-manager-harness');
+  const { readAdminFragmentHtml } = require('../helpers/admin-html');
+  const { createDesktopEditorPage } = require('../helpers/desktop-editor-page');
   const directory = process.argv[2];
   if (!directory || !path.isAbsolute(directory)) throw new Error('An isolated absolute test directory is required.');
   fs.mkdirSync(directory, { recursive: true });
@@ -57,6 +59,16 @@ async function run() {
   await manager.bootstrap();
   const token = 'synthetic-canvas-parent-secret';
   const root = path.resolve(__dirname, '../..');
+  const serveEditorPage = createDesktopEditorPage(directory, `
+    <section id="liveComponentsPage" class="live-components-page">
+      ${readAdminFragmentHtml('pages/admin/live-components/danmaku.html')}
+    </section>
+    <button type="button" data-tab="overlayPage">浏览器源</button>
+    ${readAdminFragmentHtml('pages/admin/song/overlay-addresses.html')}`, [
+    'admin/live-components', 'admin/component-preview', 'admin/component-styles',
+    'admin/gift-guard-thanks', 'shared/gift-wish-card', 'admin/gift-wishes', 'admin/heart-box-collection',
+    'admin/text-box', 'admin/toolbox/clock', 'admin/overtime', 'admin/desktop-lyric-preview',
+  ]);
   const openingSettings = {};
   let overtime;
   const getState = () => ({ settings: { ...DEFAULT_SETTINGS, ...openingSettings }, nowPlayingConfig: readNowPlayingConfig(openingSettings),
@@ -69,11 +81,7 @@ async function run() {
   let saved = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
     overlayUrl: 'https://canvas.example.test/overlay/syntheticKey_123' };
   const db = new DatabaseSync(path.join(directory, 'canvas-test.db'));
-  migrateScenes(db);
-  migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db);
-  migrateSceneDeletion(db);
-  migrateDanmakuAppearance(db);
+  migrateTestSongDb(db);
   const appearance = createDanmakuAppearance({ store: createDanmakuAppearanceStore(db),
     getOwner: () => getComponentPreviewOwner(manager), loadLegacy: async () => saved });
   const danmakuAppearance = { read: appearance.read, save(input) {
@@ -123,6 +131,7 @@ async function run() {
       bilibili: { configure() {} }, broadcastSnapshot(reason) { hub.broadcastSnapshot({ getState }, reason); },
       system: { dataDir: directory, pickComponentWebFile, getState } }),
     servePageOrAsset(req, res, url) {
+      if (url.pathname === '/admin') return serveEditorPage(req, res, url, token);
       if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');
         res.end(`import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
@@ -132,13 +141,8 @@ async function run() {
           import { initCanvasOverlaySource } from './canvas-overlay-source.js';
           const panel = document.getElementById('liveDanmakuFeature');
           const sources = document.getElementById('overlayPage');
-          const sourceTab = document.querySelector('[data-tab="overlayPage"]');
-          const componentPage = document.getElementById('liveComponentsPage');
-          componentPage.replaceChildren(panel);
-          componentPage.className = 'live-components-page';
-          document.body.replaceChildren(componentPage, sourceTab, sources);
+          sources.classList.add('active');
           panel.hidden = sources.hidden = false; panel.style.display = sources.style.display = "block";
-          document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
           const ids = { overlayUrl:'danmakuOverlayUrl', styleChip:'danmakuStyleChip', styleSaveState:'danmakuStyleSaveState',
             fullscreenDurationField:'danmakuFullscreenDurationField', fullscreenDuration:'danmakuFullscreenDurationSeconds',
             openOverlayButton:'danmakuOpenOverlayBtn', previewOverlayButton:'danmakuPreviewOverlayBtn' };

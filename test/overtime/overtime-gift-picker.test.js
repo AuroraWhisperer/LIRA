@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createFixture, createGifts, deferred, flush, nodeText, openPicker, optionNodes } = require('../helpers/overtime-gift-picker-fixture');
 
-test('blank global activation renders the full local catalog and filters in place', async () => {
+test('global picker pages the local catalog and searches every unselected gift in place', async () => {
   const globalGifts = createGifts(3000);
   globalGifts[2999].name = '星光礼物 Gift 2999';
   const fixture = await createFixture({
@@ -22,7 +22,12 @@ test('blank global activation renders the full local catalog and filters in plac
   assert.equal(fixture.state.fetchCalls[0].url, '/api/overtime/gifts/catalog');
   assert.equal(fixture.state.fetchCalls[0].options?.method || 'GET', 'GET');
   assert.equal(fixture.state.fetchCalls[0].options?.body, undefined);
-  assert.equal(optionNodes(fixture).length, 2999);
+  const firstOption = optionNodes(fixture)[0];
+  assert.equal(optionNodes(fixture).length, 80);
+  await fixture.elements.results.children.at(-1).dispatchEvent('click');
+  assert.equal(optionNodes(fixture).length, 160);
+  assert.equal(optionNodes(fixture)[0], firstOption);
+  assert.equal(fixture.document.activeElement, optionNodes(fixture)[80]);
   assert.equal(
     optionNodes(fixture).some((node) => nodeText(node).includes('Gift 0000')),
     false,
@@ -31,21 +36,29 @@ test('blank global activation renders the full local catalog and filters in plac
   assert.equal(image.loading, 'lazy');
   assert.equal(image.decoding, 'async');
 
+  fixture.elements.search.value = 'gift-10';
+  await fixture.elements.search.dispatchEvent('input');
+  fixture.clock.tick(80);
   fixture.elements.search.value = 'gift-2999';
   await fixture.elements.search.dispatchEvent('input');
+  fixture.clock.tick(99);
+  assert.equal(optionNodes(fixture)[0], firstOption);
+  fixture.clock.tick(1);
   assert.equal(optionNodes(fixture).length, 1);
   assert.match(nodeText(optionNodes(fixture)[0]), /Gift 2999/);
 
   for (const query of ['星光', 'gIfT 2999']) {
     fixture.elements.search.value = query;
     await fixture.elements.search.dispatchEvent('input');
+    fixture.clock.tick(100);
     assert.equal(optionNodes(fixture).length, 1);
     assert.match(nodeText(optionNodes(fixture)[0]), /Gift 2999/);
   }
 
   fixture.elements.search.value = '';
   await fixture.elements.search.dispatchEvent('input');
-  assert.equal(optionNodes(fixture).length, 2999);
+  fixture.clock.tick(100);
+  assert.equal(optionNodes(fixture).length, 80);
 
   fixture.elements.search.value = 'gift-2998';
   const requestCount = fixture.state.fetchCalls.length;
@@ -75,7 +88,13 @@ test('blank global activation renders the full local catalog and filters in plac
   await fixture.elements.globalSearchButton.dispatchEvent('click');
   fixture.elements.search.value = 'does-not-exist';
   await fixture.elements.search.dispatchEvent('input');
+  fixture.clock.tick(100);
   assert.match(nodeText(fixture.elements.results), /全部礼物中没有匹配项/);
+  fixture.elements.search.value = '';
+  await fixture.elements.search.dispatchEvent('keydown', { key: 'Enter' });
+  await fixture.elements.results.children.at(-1).dispatchEvent('click');
+  await optionNodes(fixture)[80].dispatchEvent('click');
+  assert.equal(fixture.state.addedGifts[0].id, globalGifts[81].id);
 });
 
 test('global picker distinguishes an unavailable cache from a valid empty cache', async () => {
@@ -123,6 +142,7 @@ test('off-sale global gifts remain selectable and are added through the rule edi
 
   fixture.elements.search.value = 'gift-off-sale';
   await fixture.elements.search.dispatchEvent('input');
+  fixture.clock.tick(100);
   assert.equal(optionNodes(fixture).length, 1);
   assert.equal(nodeText(optionNodes(fixture)[0]), 'Off SaleID gift-off-sale · ¥2.00');
   await optionNodes(fixture)[0].dispatchEvent('click');

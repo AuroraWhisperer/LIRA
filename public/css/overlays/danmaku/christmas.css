@@ -1,4 +1,4 @@
-/* 圣诞绮笺：文字留在原栅格层，入场和微光只绘制各自图层。 */
+/* 圣诞华灯：文字留在原栅格层，入场和微光只绘制各自图层。 */
 @property --christmas-opacity { syntax: '<number>'; inherits: false; initial-value: 1; }
 @property --christmas-reveal { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
 @property --christmas-sway { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
@@ -187,9 +187,6 @@ body[data-style='christmas'] .draw-danmaku-item.christmas-item[data-live-entry] 
 :is(.christmas-heading,.christmas-copy,.christmas-pendant,.christmas-bow,.christmas-wreath) { opacity: var(--christmas-opacity); }
 :is(.christmas-pendant,.christmas-bow,.christmas-wreath) { rotate: var(--christmas-sway); }
 :is(.christmas-bow,.christmas-wreath) { scale: var(--christmas-scale); }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='christmas'] .christmas-item, body[data-style='christmas'] .christmas-item * { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='christmas'] .draw-danmaku-item .christmas-copy {

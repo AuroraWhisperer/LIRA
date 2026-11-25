@@ -1,6 +1,6 @@
 # 月渡花汀：来源、路径与版本决策
 
-核对日期：2026-10-06。工作区为 `D:/Work/Live`，关联服务器工作区为 `D:/Work/lira-server`。这是本次整理时的快照；后续制作应重新核对当前源码，不能把本表当成永远有效的部署状态。
+核对日期：2026-10-06（本地仓库 `D:/Work/Live`，服务端仓库 `D:/Work/lira-server`）。本表仅记录当日快照，后续继续开发前请先核对最新源码，不要直接当成当前线上状态。
 
 ## 参考视频与图片
 
@@ -14,13 +14,13 @@
 | 最初冰蓝古风截图 | 开播的画法、色彩和精细度 | `cbe32f7f-…/image-1.png` |
 | 用户后续浅淡壁纸截图 | 静态与动态背景的颜色强度 | 静态壁纸对话中的浅色版本 |
 
-本次未重新播放外站视频，上述时间点来自已读取的用户消息；同时查看了本地参考图与最终静帧。截图用于理解结构和节奏，原画来源记录表明本项目美术为另行生成和加工，没有把视频截图作为运行素材。
+上述时间点摘自历史对话记录（整理时未重播外站视频），同时核对了本地参考图与成品静帧。参考截图仅用于分析构图与节奏，本项目全部美术素材均另行生成与加工，未直接使用视频截图。
 
-**30 张本地参考图全部找到并复制。** 完整原绝对路径、图片说明、关联对话和归档文件见 [参考截图索引](../../../archive/moonlit-suite/reference-index.md)；逐文件散列见 [归档清单](../../../archive/moonlit-suite/manifest.json)。其中既有外部样式参考，也有用户指出问题时截取的中间版本，不能全部当作目标图。
+**30 张本地参考图全部找到并复制。** 完整原绝对路径、图片说明、关联对话和归档文件见[参考截图索引](../../../archive/moonlit-suite/reference-index.md)；逐文件散列见[归档清单](../../../archive/moonlit-suite/manifest.json)。其中既有外部样式参考，也有用户指出问题时截取的中间版本，不能全部当作目标图。
 
 ## 对话索引
 
-读取了下列 11 个对话的全部可返回页；摘录保留可见用户消息、最终回复、被查看的附件路径和图像生成请求。分叉对话可能重复早期内容，一些中途指令只体现在后续成片或最终回复中；摘录不是完整原始事件日志。
+以下 11 个对话的摘录整理自历史聊天记录，保留了当时的用户提问、最终回复、附件路径和图像生成请求。分支对话可能包含重复的前情，部分中途调整只体现在后续成片或终稿回复里，因此摘录并非完整的原始操作日志。
 
 在 Codex 中可用 `codex://threads/<ID>` 定位。标题保留应用中的原名。
 
@@ -58,9 +58,9 @@
 
 当前 2K 合成还需要 `moonlit-background-rebuild/source/` 的图集与叶片。最新感谢的构建器仍依赖 `moonlit-thanks/assets/` 和 `danmaku-moonlit/revision-v2-before/`；这些虽是旧目录，却是实际构建输入，已保留。礼物许愿 v4 也仍读取 `qa/revision-v2/banner-before.webp` 和 `qa/revision-v4/banner-before.webp.json`，不能只留 v4 文件名就删除前序材料。
 
-## 正式源码与资源的 owner
+## 正式源码与资源归属
 
-正式资源仍在原地址加载；归档中的 `public/` 只是当日快照。2026-10-06 已从正式目录删除四个不再使用的旧背景文件（约 21.79 MiB），清单见[背景素材说明](../../../public/img/overlays/backgrounds/README.md#已淘汰资源)。指南预览和新版制作流程不依赖这些文件；归档中的新版原画、分层循环与成片继续保留，旧对话和源码快照仅作历史依据。
+月渡花汀套装清单以原素材路径作为 `resources` 的键，导入后组件从本机 `/component-media/` 地址加载对应文件。归档中的 `public/` 只是当日快照。2026-10-06 已从正式目录删除四个不再使用的旧背景文件（约 21.79 MiB），清单见[背景素材说明](../../../public/img/overlays/backgrounds/README.md#已淘汰资源)。指南预览和新版制作流程不依赖这些文件；归档中的新版原画、分层循环与成片继续保留，旧对话和源码快照仅作历史依据。
 
 | 责任 | 当前入口 |
 | --- | --- |
@@ -71,34 +71,12 @@
 | 开播原画说明 | [opening-moon-fan/README.md](../../../public/img/overlays/opening-moon-fan/README.md) |
 | 时钟运行与样式 | [clock.js](../../../public/js/overlays/clock.js)、[moonlit-fan.css](../../../public/css/overlays/clock/moonlit-fan.css) |
 | 弹幕主题 | [danmaku-moonlit.js](../../../public/js/overlays/danmaku-moonlit.js)、[moonlit.css](../../../public/css/overlays/danmaku/moonlit.css)、[素材来源](../../../public/img/overlays/danmaku-moonlit/provenance.json) |
-| 礼物许愿主题 | [gift-wish-moonlit.js](../../../public/js/shared/gift-wish-moonlit.js)、[gift-wish-moonlit.css](../../../public/css/shared/gift-wish-moonlit.css)、[原画 sidecar](../../../public/img/shared/gift-wish-moonlit.webp.json) |
+| 礼物许愿主题 | [gift-wish-moonlit.js](../../../public/js/shared/gift-wish-moonlit.js)、[gift-wish-moonlit.css](../../../public/css/shared/gift-wish-moonlit.css)、[原画元数据](../../../public/img/shared/gift-wish-moonlit.webp.json) |
 | 当前正式礼物边框主题注册 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：当前仅 `woodland-bloom`，没有月伞感谢 |
 
-服务器弹幕的历史同步位置是 `D:/Work/lira-server/public/overlay/moonlit/`。本次没有复制服务器工程或验证线上发布，继续跨端修改前须读取那边的说明和实际文件。
+服务器弹幕的历史同步位置是 `D:/Work/lira-server/public/overlay/moonlit/`。本次未复制服务器工程或验证线上发布，继续跨端修改前须先核对服务端说明与实际文件。
 
-现有契约详见 [Overlay 实现参考](../../reference/frontend/overlays.md) 与 [组件/浏览器源使用指南](../component-sources.md)。本指南负责美术制作和材料导航，不复制完整业务接口定义。
-
-## 哪些意见已经变成最终方向
-
-下表用于快速判断哪个版本仍适用。每轮为何修改、哪些话来自用户、哪些只是实现结果，见 [实际调试复盘](iteration-history.md)。各部件在不同对话中迭代，不能把本表当成一份从开始就确定的需求清单。
-
-| 过程中的版本或意见 | 最后采用 / 当前状态 |
-| --- | --- |
-| 开播最初“6 秒入场 + 24 秒待机” | 被约 15 秒完整往复替代 |
-| 原画更繁密、挂饰更多 | 用户要求收回到中等密度，保留亭台/月亮/倒影、减少挂饰 |
-| 壁纸直接用浓色原画 | 改为浅银蓝低对比，保留结构细节 |
-| 背景轻微漂移、旧图局部扭曲 | 被新原画分层重制替代，最终 2K / 60fps |
-| 动态背景 1080p 版本 | 旧合成成片已从正式目录删除；分层制作材料保留在归档，当前产品地址指向 HQ 1440p WebM |
-| 礼物许愿零散小花冠 | 最终 v4：贴圆白山茶、墨蓝枝叶、如意纹、折扇起点 |
-| 时钟只有浅底深字 | 增加深底浅字与自动交替 |
-| 弹幕灰底取消 | 后续明确保留更深的小身份底框 |
-| 礼物纸面一度改为向右展开 | 用户随后纠正为向左；装饰等纸面完成后向右 |
-| 消息礼物双横带 / 无卷轴的探索 | 后续弹幕 v6 回到分离纸面与滚轴的方案；不要覆盖当前版本 |
-| 卷轴中加入淡山水暗纹和微光 | 有独立预览，尚未作为正式样式接入 |
-| 全屏感谢第一层玉饰 | 用户明确放弃；旧原画只保留溯源 |
-| 全屏感谢侧架、绢带和底部铭牌 | 最新月伞花汀换成纸伞和连续水岸，中央透明 |
-| 全屏称谓“新总督上任” | 去掉“新”，称谓文楷、字号错落 |
-| 全屏称谓加身份色 | 最后对话仅建议“月白主体 + 少量身份色”；**未确认实施**，不能当作既成事实 |
+现有契约详见[直播画面实现参考](../../reference/frontend/overlays.md)与[组件与浏览器源使用指南](../component-sources.md)；各部件的历史修订与最终敲定过程见[实际调试复盘](iteration-history.md)。
 
 ## 历史实施记录
 

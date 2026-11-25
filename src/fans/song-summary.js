@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { dayOf, addDays, dateValue } = require('./dates');
 
 const SONG_STATS_DAYS = 30;
@@ -38,7 +40,7 @@ function summarizeSongs(records, at) {
       const eligible = !data.excluded && !/^random(?::|$)/.test(record.original?.source || '');
       const amount = summary ? data.count : Number(eligible);
       count += amount;
-      if (!Number.isSafeInteger(count)) throw new Error('点歌累计次数超出可保存范围。');
+      if (!Number.isSafeInteger(count)) throw createPublicError('点歌累计次数超出可保存范围。');
       const recentDates = summary ? data.recentDates : amount ? [dayOf(record.occurredAt)] : [];
       for (const date of recentDates) dates.add(date);
       const counts = summary ? data.dailyCounts : amount && !data.excludeFromStats
@@ -68,7 +70,7 @@ function summarizeSongs(records, at) {
 }
 
 function validateSongSummary(data) {
-  const fail = () => { throw new Error('备份中的点歌汇总无效。'); };
+  const fail = () => { throw createPublicError('备份中的点歌汇总无效。'); };
   if (!Number.isSafeInteger(data.count) || data.count < 0 || !Array.isArray(data.recentDates) ||
       data.recentDates.length > Math.min(3, data.count) || !Array.isArray(data.dailyCounts)) fail();
   let previous = '';

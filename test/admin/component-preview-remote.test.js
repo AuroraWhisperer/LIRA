@@ -91,6 +91,37 @@ test('legacy relays keep prompt pending reads without overlap and return to idle
   assert.equal(timers.size, 0);
 });
 
+test('a malformed successful response retries without closing the preview connection', async () => {
+  const timers = new Map();
+  let timerId = 0;
+  let requests = 0;
+  const { createBrowserPreviewConnection } = await loadModuleExports(entry, {
+    structuredClone, AbortController, AbortSignal, crypto: require('node:crypto'),
+    window: { setTimeout(fn, delay) { timers.set(++timerId, { fn, delay }); return timerId; },
+      clearTimeout(id) { timers.delete(id); } },
+    fetch: async (_url, options) => {
+      if (++requests === 1) return { ok: true, status: 200, json: async () => { throw new SyntaxError('temporary non-JSON response'); } };
+      const command = JSON.parse(options.body);
+      return { ok: true, status: 200, json: async () => ({ ok: true, data: {
+        component: 'clock', state: state(), attachmentId: command.attachmentId, ack: 0, sequence: 0,
+      } }) };
+    },
+  });
+  const connection = createBrowserPreviewConnection({ id: 'test', token: 'synthetic', component: 'clock' });
+  try {
+    const starting = connection.start().then(() => null, error => error);
+    await new Promise(setImmediate);
+    const retry = [...timers].find(([, timer]) => timer.delay === 1000);
+    assert.ok(retry, 'malformed HTTP 200 remains a temporary transport failure');
+    timers.delete(retry[0]);
+    retry[1].fn();
+    assert.equal(await starting, null);
+    assert.equal(connection.controller.getState().loaded, true);
+    assert.equal(requests, 3, 'retry the initial read and attach once');
+  } finally { connection.detach(); }
+  assert.equal(timers.size, 0);
+});
+
 test('idle browser reads remain pending and an ACK arriving before the command receipt still completes flush', async t => {
   const { createComponentPreviewSessions } = require('../../src/server/component-preview-sessions');
   t.mock.timers.enable({ apis: ['setTimeout'] });

@@ -1,15 +1,9 @@
 'use strict';
 
+import { escapeHtml as escapeText } from './html-escape.js';
 let confirmationId = 0;
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+const escapeHtml = value => escapeText(String(value ?? ''));
 
 function renderList(label, items, className) {
   if (!Array.isArray(items) || items.length === 0) return '';

@@ -353,7 +353,7 @@ test('liked tracks continue past fifty full pages', async () => {
     readJsonResponse: async (result) => result.payload,
   });
 
-  const result = await loader._fetchLikedTracksAll('Liked');
+  const result = await loader.loadHomeContent('liked');
 
   assert.equal(result.items.length, 5100);
   assert.equal(requestCount, 52);
@@ -378,7 +378,7 @@ test('liked tracks stop when a provider repeats a full page', async () => {
     readJsonResponse: async (result) => result.payload,
   });
 
-  const result = await loader._fetchLikedTracksAll('Liked');
+  const result = await loader.loadHomeContent('liked');
 
   assert.equal(result.items.length, 100);
   assert.equal(requestCount, 2);

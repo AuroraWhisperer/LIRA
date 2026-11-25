@@ -1,15 +1,10 @@
+import { createTextElement as node } from '../shared/dom-element.js';
 import { setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
 const ROLES = Object.freeze({ 1: 'governor', 2: 'admiral', 3: 'captain' });
-const LABELS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+import { GUARD_LABELS as LABELS } from '../shared/bilibili-guard-labels.js';
 const RANKS = Object.freeze({ 1: 'I', 2: 'II', 3: 'III' });
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function decoration(document, className) {
   const element = node(document, 'span', className);

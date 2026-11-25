@@ -11,7 +11,10 @@ function canonical(value) {
   return JSON.stringify(value);
 }
 function digest(value) {
-  return crypto.createHash('sha256').update(canonical(value)).digest('hex');
+  return digestCanonical(canonical(value));
+}
+function digestCanonical(json) {
+  return crypto.createHash('sha256').update(json).digest('hex');
 }
 function invalid(code = 'DAILY_BOT_INVALID_REQUEST') {
   throw Object.assign(new Error(code), { code });
@@ -97,13 +100,18 @@ function validateLibrary(kind, library) {
     }
   }
 }
-function sanitizeLibrary(value, kind, cached) {
-  if (value?.kind !== kind || !/^[a-f0-9]{64}$/.test(value?.version) || typeof value.unchanged !== 'boolean')
+function sanitizeLibrary(value, kind, { cached, submitted } = {}) {
+  if (value?.kind !== kind || typeof value?.version !== 'string' || !/^[a-f0-9]{64}$/.test(value.version) ||
+      typeof value.unchanged !== 'boolean')
     invalid('DAILY_BOT_INVALID_RESPONSE');
-  const library = value.unchanged ? cached?.library : value.library;
+  let library = value.library;
+  if (value.unchanged) {
+    if (Object.hasOwn(value, 'library') || (submitted === undefined && cached?.version !== value.version))
+      invalid('DAILY_BOT_INVALID_RESPONSE');
+    library = submitted ?? cached.library;
+  }
   try { validateLibrary(kind, library); } catch { invalid('DAILY_BOT_INVALID_RESPONSE'); }
-  if (digest(library) !== value.version || (value.unchanged && cached?.version !== value.version))
-    invalid('DAILY_BOT_INVALID_RESPONSE');
+  if (digest(library) !== value.version) invalid('DAILY_BOT_INVALID_RESPONSE');
   return { kind, version: value.version, library: structuredClone(library) };
 }
-module.exports = { canonical, digest, invalid, exact, sanitizeTakeover, sanitizeSettings, validateLibrary, sanitizeLibrary };
+module.exports = { canonical, digest, digestCanonical, invalid, exact, sanitizeTakeover, sanitizeSettings, validateLibrary, sanitizeLibrary };

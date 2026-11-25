@@ -30,7 +30,7 @@
 
 .playback-search-panel .form-grid.three {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 140px 76px auto;
+  grid-template-columns: minmax(180px, 1fr) 76px auto;
   align-items: end;
   gap: 10px;
   flex-shrink: 0;

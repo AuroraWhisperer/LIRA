@@ -1,6 +1,6 @@
 'use strict';
 
-// Isolated desktop host with production admin HTML, preload, request auth and daily-bot IPC.
+// Isolated desktop host with production editor markup, preload, request auth and daily-bot IPC.
 if (process.versions.electron) run().catch((error) => {
   console.error(error);
   require('electron').app.exit(1);
@@ -13,6 +13,8 @@ async function run() {
   app.disableHardwareAcceleration();
   const { createHttpServer } = require('../../src/server/http-server');
   const { servePageOrAsset } = require('../../src/server/page-assets');
+  const { readAdminFragmentHtml } = require('../helpers/admin-html');
+  const { createDesktopEditorPage } = require('../helpers/desktop-editor-page');
   const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
@@ -32,6 +34,11 @@ async function run() {
   app.setPath('sessionData', directory);
   app.setPath('crashDumps', path.join(directory, 'crashes'));
   await app.whenReady();
+  const personaMode = process.argv[3] === 'ai-personas';
+  const serveEditorPage = createDesktopEditorPage(directory, readAdminFragmentHtml(
+    personaMode ? 'pages/admin/toolbox/danmaku-ai.html' : 'pages/admin/toolbox/danmaku.html',
+  ), ['admin/toolbox/ai-assistant', 'admin/toolbox/danmaku-editors', 'admin/toolbox/danmaku-fixed-replies',
+    'admin/toolbox/toolbox-responsive', 'admin/toolbox/interactions']);
   const token = 'synthetic-daily-library-desktop';
   const listeners = new Set();
   const snapshot = { state: 'authorized', streamer: { accountName: 'library-test' } };
@@ -194,14 +201,12 @@ async function run() {
     inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}),
     createApiContext: () => ({ sessionToken: token }),
     servePageOrAsset(req, res, url) {
+      if (url.pathname === '/admin') return serveEditorPage(req, res, url, token);
       if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');
-        if (process.argv[3] === 'ai-personas') {
+        if (personaMode) {
           res.end(`import { createPersonaControls } from './ai-assistant-personas.js';
             import './contextual-help.js';
-            const panel = document.getElementById('xiaomiAiSection');
-            document.body.replaceChildren(panel);
-            document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
             document.getElementById('xiaomiAiModelProvider').value = 'custom';
             const config = { personaId: 'general', modelProvider: 'custom', personas: [
               { id: 'general', name: '通用人格', builtin: true, description: '已保存的说明', prompt: '已保存的角色指南内容，长度足够用于实际表单校验。' },
@@ -227,8 +232,6 @@ async function run() {
           const panel = document.getElementById('otherDanmakuFeature');
           panel.hidden = false;
           panel.classList.add('active');
-          document.body.replaceChildren(panel);
-          document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
           initDanmakuTabs();
           ${process.argv[3] === 'gift-thanks' ? '' : 'initDanmakuDailyBots(); initDanmakuCloudReplies(); initDanmakuQueryReplies(); initDanmakuWelcome();'}
           ${process.argv[3] === 'viewer-names' || layoutMode ? 'initDanmakuViewerNames();' : ''}

@@ -6,13 +6,29 @@ internal static class NativeChecks
 {
   static async Task Main(string[] args)
   {
+    PlaybackPcmChecks.Run();
+    if (args is ["--playback-pcm"]) return;
     CheckWindowsCompatibility();
     await InstallationExitChecks.Run(args[0], args[1]);
     await CheckIdleSession(args[1]);
+    await CheckSeparationFailure(args[1]);
     await DeviceInputChecks.Run(args[1]);
     // Construction verifies the packaged model hash and runs a warm-up inference.
     using (var model = new StemModel())
-      Console.WriteLine("Packaged lira.onnx model loaded and inference completed.");
+    {
+      float[] ProcessTrack()
+      {
+        var tone = new SignalGenerator(48000, 2) { Frequency = 440, Gain = 0.25, Type = SignalGeneratorType.Sin };
+        using var dsp = new DspSource(tone) { StrengthPercent = -100, OutputVolume = 1 };
+        dsp.PrepareSeparation(model);
+        var samples = new float[16384];
+        if (dsp.Read(samples, 0, samples.Length) != samples.Length || samples.All(value => value == 0))
+          throw new Exception("No separated audio.");
+        return samples;
+      }
+      if (!ProcessTrack().SequenceEqual(ProcessTrack())) throw new Exception("The previous track affected the reused model.");
+      Console.WriteLine("Two independent tracks produced identical audio with one verified model.");
+    }
     CheckOutputVolume();
     Console.WriteLine(JsonSerializer.Serialize(CheckBypassAndPitch()));
     var current = new SongIdentity("first", "test", "", 1);
@@ -36,6 +52,78 @@ internal static class NativeChecks
       if (ProcessCapture.SupportsWindowsVersion(version))
         throw new Exception($"Process capture must reject Windows {version} before changing audio routes.");
     Console.WriteLine("Windows compatibility checks passed: Windows 10 2004+, Windows 11 and older version rejection.");
+  }
+
+  sealed class BrokenOutput(ManualResetEventSlim stopping) : IWavePlayer
+  {
+    public WaveFormat OutputWaveFormat => WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+    public PlaybackState PlaybackState => PlaybackState.Playing;
+    public float Volume { get; set; }
+    public event EventHandler<StoppedEventArgs> PlaybackStopped { add {} remove {} }
+    public void Init(IWaveProvider source) {}
+    public void Play() {}
+    public void Pause() {}
+    public void Stop() {}
+    public void Dispose() { stopping.Set(); throw new IOException("fixture output shutdown"); }
+  }
+
+  sealed class WaitingInput(ManualResetEventSlim entered, ManualResetEventSlim release) : ISampleProvider
+  {
+    public WaveFormat WaveFormat => WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
+    public int Read(float[] buffer, int offset, int count)
+    {
+      entered.Set();
+      if (!release.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException();
+      Array.Clear(buffer, offset, count);
+      return count;
+    }
+  }
+
+  static async Task CheckSeparationFailure(string scratch)
+  {
+    string root = Path.Combine(Path.GetFullPath(scratch), "audio-model-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(root);
+    string? previousDirectory = Environment.GetEnvironmentVariable("LIRA_AUDIO_DATA_DIR");
+    try
+    {
+      Environment.SetEnvironmentVariable("LIRA_AUDIO_DATA_DIR", root);
+      using var entered = new ManualResetEventSlim();
+      using var release = new ManualResetEventSlim();
+      using var stopping = new ManualResetEventSlim();
+      using var session = new AudioSession(action => action());
+      void Configure(object value) => session.Configure(JsonSerializer.SerializeToElement(value));
+      Configure(new { source = "file", strength = 0 });
+      var dsp = new DspSource(new WaitingInput(entered, release));
+      var engine = System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(AudioEngine));
+      const System.Reflection.BindingFlags fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+      typeof(AudioEngine).GetField("dsp", fields)!.SetValue(engine, dsp);
+      typeof(AudioEngine).GetField("output", fields)!.SetValue(engine, new BrokenOutput(stopping));
+      typeof(AudioSession).GetField("engine", fields)!.SetValue(session, engine);
+      using (File.Open(Path.Combine(AppContext.BaseDirectory, "vendor", "lira.onnx"), FileMode.Open, FileAccess.Read, FileShare.None))
+      {
+        try { Configure(new { strength = 70, volume = 180 }); throw new Exception("Locked model was accepted"); }
+        catch (IOException) {}
+        Configure(new { volume = 33, semitones = 2 });
+        var saved = AssistantSettings.Load(Path.Combine(root, "settings.json"));
+        if (saved.Strength != 0 || saved.Volume != 33 || dsp.StrengthPercent != 0 || dsp.Semitones != 2) throw new Exception("Failed separation changed controls");
+      }
+      Configure(new { strength = 70 });
+      var samples = new float[2048];
+      var callback = Task.Run(() => dsp.Read(samples, 0, samples.Length));
+      try
+      {
+        if (!entered.Wait(TimeSpan.FromSeconds(10))) throw new TimeoutException("DSP did not start");
+        var shutdown = Task.Run(session.Dispose);
+        if (!stopping.Wait(TimeSpan.FromSeconds(10)) || shutdown.IsCompleted) throw new Exception("Model shutdown crossed the active DSP callback");
+        release.Set();
+        if (await callback != samples.Length) throw new Exception("Active DSP callback did not drain");
+        await shutdown;
+        if (dsp.Read(samples, 0, samples.Length) != 0) throw new Exception("Late output callback reached the closed DSP");
+      }
+      finally { release.Set(); }
+      Console.WriteLine("Locked model rejected, volume and pitch saved, model retry succeeded, throwing output drained active DSP and late read returned zero.");
+    }
+    finally { Environment.SetEnvironmentVariable("LIRA_AUDIO_DATA_DIR", previousDirectory); Directory.Delete(root, true); }
   }
 
   static async Task CheckIdleSession(string scratch)

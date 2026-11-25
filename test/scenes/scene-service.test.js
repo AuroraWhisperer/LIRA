@@ -6,7 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID, createHash } = require('node:crypto');
-const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
+const { migrateTestSongDb } = require('../helpers/song-database');
+const { trackBodyReads } = require('../helpers/sqlite-body-reads');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { createSceneService } = require('../../src/scenes/scene-service');
 const { MAX_SCENE_BYTES, normalizeSceneDocument } = require('../../src/scenes/scene-contract');
@@ -38,9 +39,7 @@ function fixture(t, persistent = false) {
     db.close();
     if (directory) fs.rmSync(directory, { recursive: true, force: true });
   });
-  migrateScenes(db);
-  migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db); migrateSceneDeletion(db);
+  migrateTestSongDb(db);
   const store = createSceneStore(db);
   const state = {
     owner: { scope: 'https://server.test/streamer-a', epoch: 1 },
@@ -79,9 +78,7 @@ function fixture(t, persistent = false) {
     restart() {
       db.close();
       db = new DatabaseSync(filename);
-      migrateScenes(db);
-      migrateComponentOutputSizes(db);
-  migrateCanvasPresets(db); migrateSceneDeletion(db);
+      migrateTestSongDb(db);
       return createSceneService({ ...ports, store: createSceneStore(db) });
     },
   };
@@ -151,20 +148,24 @@ test('output authorization rechecks current capability without reparsing drafts 
   const parse = JSON.parse;
   let parses = 0;
   t.mock.method(JSON, 'parse', (text, ...args) => { if (text === published) parses++; return parse(text, ...args); });
-  const prepare = f.db.prepare.bind(f.db);
-  const reads = [];
-  t.mock.method(f.db, 'prepare', sql => { reads.push(sql); return prepare(sql); });
-  for (let n = 0; n < 240; n++) f.service.getOutputAccess({ ...source, version: 1 });
+  const reads = trackBodyReads(t, f.db, 'published_json');
+  const addRequest = f.db.prepare("INSERT INTO queue (song_name, created_at, updated_at) VALUES ('song', 'test', 'test')");
+  for (let n = 0; n < 240; n++) {
+    addRequest.run();
+    f.service.getOutputAccess({ ...source, version: 1 });
+  }
   for (let n = 0; n < 20; n++) assert.equal(f.service.getOutput({ ...source, version: 1 }).document, null);
   assert.equal(parses, 1);
-  assert.equal(reads.length, 280, 'each access still reads current authority, with an extra post-display check');
-  assert.ok(reads.every(sql => !/draft_json|encrypted|SELECT \*/.test(sql)));
+  assert.ok(reads.largestBind < Buffer.byteLength(published), 'cache checks must not bind the publication');
+  assert.equal(reads.queries.length, 280, 'each access still reads current authority, with an extra post-display check');
+  assert.ok(reads.queries.every(sql => !/draft_json|encrypted|SELECT \*/.test(sql)));
   const output = f.service.getOutput({ ...source, version: 0 });
   output.document.items[0].appearance.config.color = 'caller mutation';
   assert.equal(f.service.getOutput({ ...source, version: 0 }).document.items[0].appearance.config.color, 'white');
   assert.throws(() => { f.store.getOutput(f.state.owner.scope, id).publishedDocument.title = 'corrupt'; }, TypeError);
   f.db.prepare('UPDATE component_scenes SET capability_hash = ? WHERE id = ?').run('0'.repeat(64), id);
   expectError(() => f.service.getOutputAccess({ ...source, version: 1 }), 'SCENE_ACCESS_DENIED', 403);
+  assert.equal(reads.returnedBytes, Buffer.byteLength(published));
 });
 
 test('publication reuse follows actual stored JSON through rollback, external writes and deletion', t => {
@@ -180,10 +181,20 @@ test('publication reuse follows actual stored JSON through rollback, external wr
   assert.equal(read().document.title, 'uncommitted');
   f.db.exec('ROLLBACK');
   assert.equal(read().document.title, initial.title);
+  f.db.prepare('UPDATE component_scenes SET published_json = ? WHERE id = ?').run(JSON.stringify({ ...initial, title: 'local' }), id);
+  assert.equal(read().document.title, 'local');
   const second = new DatabaseSync(f.db.prepare('PRAGMA database_list').get().file);
   try {
+    const reads = trackBodyReads(t, f.db, 'published_json');
+    second.exec("INSERT INTO queue (song_name, created_at, updated_at) VALUES ('external song', 'test', 'test')");
+    assert.equal(read().document.title, 'local');
+    assert.equal(reads.returnedBytes, 0);
     second.prepare('UPDATE component_scenes SET published_json = ? WHERE id = ?').run(JSON.stringify({ ...initial, title: 'external' }), id);
     assert.equal(read().document.title, 'external', 'same version with different stored content invalidates the parsed snapshot');
+    second.exec('CREATE TEMP TABLE restored AS SELECT * FROM component_scenes');
+    second.prepare('UPDATE restored SET published_json = ? WHERE id = ?').run(JSON.stringify({ ...initial, title: 'restored' }), id);
+    second.prepare('INSERT OR REPLACE INTO component_scenes SELECT * FROM restored WHERE id = ?').run(id);
+    assert.equal(read().document.title, 'restored', 'a restored whole row cannot reuse the prior cached body');
     second.prepare('DELETE FROM component_scenes WHERE id = ?').run(id);
     expectError(read, 'SCENE_NOT_FOUND', 404);
   } finally { second.close(); }

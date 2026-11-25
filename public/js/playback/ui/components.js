@@ -16,6 +16,8 @@ export function renderCurrentCover(coverElement, track) {
   if (!coverElement) return;
 
   const coverUrl = String((track && track.coverUrl) || '').trim();
+  const current = coverElement.firstElementChild;
+  if (coverUrl ? current?.getAttribute('src') === coverUrl : current?.localName === 'svg') return;
 
   coverElement.classList.toggle('has-image', Boolean(coverUrl));
 
@@ -286,7 +288,6 @@ export function renderHomeTrackRow(track, index, context, action = '') {
 
   const showRadioButton = action === 'radio';
   const canAddToPlaylist = PlaybackUtils.canAddTrackToPlaylist(track);
-  const playHint = context === 'search' ? '立即播放这首歌' : '从这首开始播放整个列表，替换当前播放队列';
 
   return `
     <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
@@ -298,7 +299,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
             ? `<button type="button" data-${dataPrefix}-action="radio" data-${dataPrefix}-index="${index}" title="切换到电台队列并播放">电台</button>`
             : `<button type="button" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}" title="插入到当前播放歌曲之后">插队</button>`
         }
-        <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="${playHint}">播放</button>
+        <button type="button" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="立即播放这首歌">播放</button>
         ${
           canAddToPlaylist
             ? `<button type="button" data-${dataPrefix}-action="add-to-playlist" data-${dataPrefix}-index="${index}" title="添加到音乐歌单">歌单</button>`

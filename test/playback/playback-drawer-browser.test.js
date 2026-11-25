@@ -22,7 +22,7 @@ test('closed playback drawer leaves Tab order and restores its trigger', async (
     assert.equal(url.hostname, 'playback.test');
     if (url.pathname === '/') return route.fulfill({
       contentType: 'text/html; charset=utf-8',
-      body: `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/playback/drawer.css"><button id="opener">歌单</button>${drawerHtml}<button id="after">其他操作</button>`,
+      body: `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/components/drawer.css"><link rel="stylesheet" href="/css/playback/drawer.css"><button id="opener">歌单</button>${drawerHtml}<button id="after">其他操作</button>`,
     });
     const file = path.resolve(publicRoot, '.' + url.pathname);
     assert.ok(file.startsWith(publicRoot + path.sep));

@@ -309,6 +309,7 @@ async function createSessionFixture(t, modelClient, waitForDelivery, serviceOpti
     },
     sendReply: (input) => runtime.getDanmakuSender().send({ ...input, waitForRateLimit: true }),
     waitForDelivery: waitForDelivery === true ? verifier.waitForDelivery : waitForDelivery,
+    trackDelivery: verifier.trackSend,
     random: () => 0,
   });
   t.after(async () => {

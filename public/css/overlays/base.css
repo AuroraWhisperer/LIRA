@@ -1,5 +1,6 @@
 /* Overlay styles - ordered compatibility entrypoint. */
 @import url('../shared/display-fonts.css');
+@import url('./body.css');
 @import url('./base/foundation-and-classic.css');
 @import url('./base/identity.css');
 @import url('./base/storybook.css');
@@ -8,3 +9,23 @@
 @import url('./base/cherry-ribbon.css');
 @import url('./base/golden-lily.css');
 @import url('./base/songs.css');
+
+/* Shared guard identity colors override illustrated medal palettes. */
+.neon-vinyl-row.guard-1,
+.cherry-ribbon-row.guard-1,
+.golden-lily-row.guard-1 {
+  --identity-bg: #f25f72;
+  --medal-bg: #f25f72;
+}
+.neon-vinyl-row.guard-2,
+.cherry-ribbon-row.guard-2,
+.golden-lily-row.guard-2 {
+  --identity-bg: #8d67e8;
+  --medal-bg: #8d67e8;
+}
+.neon-vinyl-row.guard-3,
+.cherry-ribbon-row.guard-3,
+.golden-lily-row.guard-3 {
+  --identity-bg: #4b91e8;
+  --medal-bg: #4b91e8;
+}

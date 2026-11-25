@@ -66,8 +66,9 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
   const timers = new Map();
   let timerId = 0;
   let clock = 0;
+  let datesFormatted = 0;
   let dialog;
-  const document = {
+  const document = Object.assign(new EventTarget(), {
     body: {
       children: [],
       appendChild(node) {
@@ -77,8 +78,6 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
     getElementById: (id) => elements.get(id) || null,
     querySelector: () => null,
     querySelectorAll: (selector) => (selector === '#giftHistoryDrawer th[data-sort]' ? headers : []),
-    addEventListener() {},
-    removeEventListener() {},
     createElement() {
       const nodes = new Map(
         ['.lira-confirm-dialog', '.lira-confirm-cancel', '.lira-confirm-confirm'].map((selector) => [
@@ -95,7 +94,7 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
       };
       return dialog;
     },
-  };
+  });
   const ledger = await loadModuleExports(path.join(__dirname, '../..', 'public/js/admin/gifts/history.js'), {
     document,
     location: {},
@@ -103,6 +102,7 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
     AbortController,
     AbortSignal,
     Date: class extends Date {
+      constructor(...args) { super(...args); datesFormatted++; }
       static now() {
         return clock;
       }
@@ -140,10 +140,12 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
     runTimer,
     get: (id) => elements.get(id),
     body: () => elements.get('giftHistoryBody').innerHTML,
+    datesFormatted: () => datesFormatted,
     dialog: () => dialog,
     click: (id) => elements.get(id).handlers.click(),
     open: () => elements.get('giftHistoryOpenBtn').handlers.click(),
     close: () => ledger.closeGiftHistoryDrawer(),
+    setHidden(hidden) { document.hidden = hidden; document.dispatchEvent(new Event('visibilitychange')); },
     elapse(ms) {
       clock += ms;
     },

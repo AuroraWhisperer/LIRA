@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { writeAtomicFile } = require('../atomic-file');
 
 const SAFE_FIELDS = [
   'schemaVersion',
@@ -40,12 +41,7 @@ function createLicenseStateStore(options = {}) {
     });
     if (!next.deviceId || !next.publicKeyPem) throw new Error('LICENSE_STATE_INVALID');
     fs.mkdirSync(licenseDir, { recursive: true });
-    const tempPath = `${statePath}.${process.pid}.tmp`;
-    fs.writeFileSync(tempPath, JSON.stringify(next, null, 2), {
-      encoding: 'utf8',
-      mode: 0o600,
-    });
-    fs.renameSync(tempPath, statePath);
+    writeAtomicFile(statePath, JSON.stringify(next, null, 2));
     return next;
   }
 

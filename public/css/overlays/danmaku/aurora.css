@@ -103,8 +103,9 @@ body[data-style='aurora'] .draw-danmaku-item::after { content: none; }
   opacity: var(--aurora-sheen, .55);
 }
 .aurora-paper::after {
-  inset: 0;
-  background: linear-gradient(112deg, transparent 34%, rgb(255 255 255 / 85%) 46%, var(--aurora-tint) 51%, transparent 63%) 110% 0 / 280% 100% no-repeat;
+  inset: 0 auto 0 -198%;
+  width: 280%;
+  background: linear-gradient(112deg, transparent 34%, rgb(255 255 255 / 85%) 46%, var(--aurora-tint) 51%, transparent 63%);
   opacity: calc(var(--aurora-sheen, .55) * .65);
   animation: auroraPearl 11s ease-in-out var(--aurora-phase, 0s) infinite;
 }
@@ -174,7 +175,7 @@ body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .dra
 }
 body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .draw-danmaku-body p {
   opacity: var(--danmaku-enter-opacity);
-  animation: auroraText calc(var(--aurora-entry-duration) * 15 / 26) ease-out calc(var(--aurora-entry-duration) / 4) both;
+  animation: danmakuEnterOpacity calc(var(--aurora-entry-duration) * 15 / 26) ease-out calc(var(--aurora-entry-duration) / 4) both;
 }
 .aurora-pin {
   position: absolute;
@@ -221,7 +222,7 @@ body[data-aurora-charm='moon'] .aurora-charm::after {
   -webkit-mask: radial-gradient(circle at 72% 30%, transparent 0 42%, #000 44%);
   mask: radial-gradient(circle at 72% 30%, transparent 0 42%, #000 44%);
 }
-body[data-aurora-charm='none'] .aurora-charm { visibility: hidden; }
+body[data-aurora-charm='none'] .aurora-charm { visibility: hidden; animation: none; }
 body[data-style='aurora'] .draw-danmaku-gift {
   display: flex;
   flex-wrap: wrap;
@@ -270,21 +271,13 @@ body[data-style='aurora'][data-ambient-motion='off'] .aurora-paper::after { anim
   from { --danmaku-enter-opacity: 0; --danmaku-enter-y: -5px; }
   to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
-@keyframes auroraText { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 @keyframes auroraPearl {
-  0%, 16% { background-position: 110% 0; }
-  62%, 100% { background-position: -10% 0; }
+  0%, 16% { transform: translateX(0); }
+  62%, 100% { transform: translateX(77.142857%); }
 }
 @keyframes auroraSway {
   0%, 100% { transform: rotate(calc(-1 * var(--aurora-sway, 5deg))); }
   50% { transform: rotate(var(--aurora-sway, 5deg)); }
-}
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='aurora'] [data-live-entry][data-aurora-entrance] :is(.aurora-arrival, .draw-danmaku-identity, .draw-danmaku-body p),
-  body[data-style='aurora'] .aurora-charm,
-  body[data-style='aurora'] .aurora-paper::after {
-    animation: none;
-  }
 }
 
 /* Keep readable type inside the existing card and region dimensions. */

@@ -1,5 +1,6 @@
 'use strict';
 
+import { bindTabNavigation } from '../shared/tab-navigation.js';
 import { initDesktopNotificationSettings } from './desktop-notification-settings.js';
 
 const initializedPanels = new WeakSet();
@@ -11,7 +12,7 @@ export function initClientSettings({ documentRef = document, storage } = {}) {
   initDesktopNotificationSettings({ documentRef });
   const tabs = [...root.querySelectorAll('[data-client-settings-tab]')];
 
-  function selectTab(selected, focus = false) {
+  function selectTab(selected) {
     for (const tab of tabs) {
       const active = tab === selected;
       tab.setAttribute('aria-selected', String(active));
@@ -19,23 +20,9 @@ export function initClientSettings({ documentRef = document, storage } = {}) {
       documentRef.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
     }
     root.querySelector('.client-settings-content').scrollTop = 0;
-    if (focus) selected.focus();
   }
 
-  for (const tab of tabs) {
-    tab.addEventListener('click', () => selectTab(tab));
-    tab.addEventListener('keydown', (event) => {
-      const index = tabs.indexOf(tab);
-      let next;
-      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-      else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
-      else if (event.key === 'Home') next = 0;
-      else if (event.key === 'End') next = tabs.length - 1;
-      else return;
-      event.preventDefault();
-      selectTab(tabs[next], true);
-    });
-  }
+  bindTabNavigation(tabs, selectTab);
 
   // Restore the old update-page destination after it joins client settings.
   let restoreAbout = false;

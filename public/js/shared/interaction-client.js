@@ -1,39 +1,47 @@
 // Each socket epoch establishes its runtime from a fresh HTTP snapshot.
-export function createInteractionClient({ onState, onHost = () => {}, fetchState }) {
+export function createInteractionClient({ onState, fetchState, countdown }) {
   let epoch = 0;
   let request = 0;
   let runtimeId = null;
   let revision = -1;
   let queued = null;
-  function apply(next) {
+  let queuedAt;
+  const readClock = () => countdown && { atMs: performance.now(), wallMs: Date.now() };
+  function accept(next, received, requested) {
     if (!next || next.runtimeId !== runtimeId || !Number.isInteger(next.revision) || next.revision < revision)
       return false;
     revision = next.revision;
-    onState(next);
+    countdown?.sync(next.session, received?.atMs, received?.wallMs, requested);
     return true;
   }
   function receive(next) {
     if (!runtimeId) {
-      if (!queued || queued.runtimeId !== next?.runtimeId || next.revision > queued.revision) queued = next;
+      if (!queued || queued.runtimeId !== next?.runtimeId || next.revision > queued.revision) {
+        queued = next;
+        queuedAt = readClock();
+      }
       return;
     }
-    apply(next);
+    if (accept(next)) onState(next);
   }
   async function load(host = false) {
     const generation = epoch;
     const ticket = ++request;
+    const requested = readClock();
     const next = await fetchState(host);
-    if (generation !== epoch || ticket !== request) return;
+    if (generation !== epoch || ticket !== request) return false;
     if (!runtimeId) {
       runtimeId = next.runtimeId;
       revision = -1;
     }
-    const accepted = apply(next);
-    if (queued) {
-      apply(queued);
-      queued = null;
-    }
-    if (host && accepted && next.revision === revision) onHost(next);
+    const accepted = accept(next, readClock(), requested);
+    let state = accepted ? next : null;
+    if (accept(queued, queuedAt)) state = queued;
+    queued = null;
+    if (!state) return false;
+    const hostState = host && accepted && next.revision === revision ? next : null;
+    onState(state, hostState);
+    return true;
   }
   function reset() {
     epoch += 1;

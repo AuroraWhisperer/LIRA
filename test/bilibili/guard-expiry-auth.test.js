@@ -13,12 +13,13 @@ function fixture(t, openLogin) {
   const events = new EventEmitter();
   const sessions = [];
   const uploads = [];
-  const identity = { authorized: true, generation: 1, streamerId: 1 };
+  const identity = { authorized: true, generation: 1, streamerId: 1, origin: 'https://lira.example' };
   let account = { ...empty };
   const licenseManager = {
     isAuthorized: () => identity.authorized,
     getCloudSyncIdentity: () => ({ streamerId: identity.streamerId }),
     getAuthorizationGeneration: () => identity.generation,
+    getRemoteBaseUrl: () => identity.origin,
     onStateChanged(fn) { events.on('state', fn); return () => events.off('state', fn); },
     getGuardExpiryAccountInternal: async () => account,
     async updateGuardExpiryAccountInternal(input, options) {
@@ -115,6 +116,19 @@ test('invalid source and missing authorization fail before session access', (t) 
   f.identity.authorized = false;
   assert.throws(() => f.auth.login(), /LICENSE_NOT_AUTHORIZED/);
   assert.equal(f.sessions.length, 0);
+});
+
+test('changing the authenticated server cancels a pending guard account upload', async t => {
+  const f = fixture(t, ({ signal }) => new Promise(resolve => {
+    signal.addEventListener('abort', () => resolve({ state: { loggedIn: true } }), { once: true });
+  }));
+  const pending = f.auth.login();
+  await settle();
+  f.identity.origin = 'https://other.example';
+  f.events.emit('state');
+  await assert.rejects(pending, /GUARD_EXPIRY_SOURCE_CHANGED/);
+  assert.equal(f.uploads.length, 0);
+  assert.equal(f.sessions[0].cleared, true);
 });
 
 test('account requests preserve authorization and cancellation and identify older servers', async () => {

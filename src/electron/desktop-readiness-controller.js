@@ -14,6 +14,7 @@ function createDesktopReadinessController({
 }) {
   let active = false;
   let disposed = false;
+  let windowReady = false;
   let recoveryGeneration = 0;
   const initialRoute =
     licenseManager.getState() === LicenseState.AUTHORIZED && runtime.isGiftCatalogInitialized() ? 'admin' : 'license';
@@ -27,7 +28,7 @@ function createDesktopReadinessController({
   let unsubscribeLicense = null;
 
   function resumeAuthorizedWork(startup) {
-    audioComponent?.initialize().catch(error => writeLog('audio-component', error));
+    if (windowReady) prepareAudio();
     runtime.initializeFontLibrary?.()?.catch?.(error => writeLog('font-library', error));
     const generation = recoveryGeneration;
     const authorizationGeneration = licenseManager.getAuthorizationGeneration();
@@ -47,6 +48,16 @@ function createDesktopReadinessController({
       }
     });
     Promise.all([giftStart, resume]).catch((error) => writeLog('license-resume', error));
+  }
+
+  function prepareAudio() {
+    audioComponent?.initialize().catch(error => writeLog('audio-component', error));
+  }
+
+  function onWindowReady() {
+    if (disposed || windowReady) return;
+    windowReady = true;
+    if (active && licenseManager.getState() === LicenseState.AUTHORIZED) prepareAudio();
   }
 
   function onCatalogChanged(snapshot) {
@@ -112,7 +123,7 @@ function createDesktopReadinessController({
     unsubscribeLicense?.();
   }
 
-  return { initialRoute, start, dispose };
+  return { initialRoute, start, onWindowReady, dispose };
 }
 
 function refreshGiftCatalog(runtime, reason, writeLog) {

@@ -142,12 +142,11 @@ function mountTrigger(view, head, fields, actions) {
   head.append(switchLabel);
 
   const thresholdLabel = element('label', 'gift-effect-field');
-  const thresholdTitle = element('span', 'gift-effect-field-label', '触发金额 ');
-  const help = element('lira-help', '', '单次送礼结算总金额达到该数值时触发（填 0 则所有付费礼物都触发）；不同特效各自独立判断。');
-  thresholdTitle.append(help);
+  const thresholdTitle = element('span', 'gift-effect-field-label', '触发金额');
   const thresholdControl = element('span', 'lira-number-field gift-effect-threshold');
   const threshold = element('input'); threshold.type = 'number'; threshold.min = '0'; threshold.step = '0.01'; threshold.inputMode = 'decimal';
   threshold.setAttribute('aria-label', '触发金额（元及以上）');
+  threshold.setAttribute('aria-describedby', 'giftEffectThresholdHelp');
   const unit = element('span', 'lira-number-field-unit', '元及以上'); unit.setAttribute('aria-hidden', 'true');
   thresholdControl.append(threshold, unit);
   thresholdLabel.append(thresholdTitle, thresholdControl);

@@ -255,6 +255,31 @@ test('A09: an old guard observation neither proves active status nor an expiry d
   assert.equal(p.reminders.length, 0);
 });
 
+test('past membership requires positive evidence that has already taken effect', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const past = () => f.run('list', { filters: ['past'] }).profiles.map(profile => profile.id);
+  f.record(p.id, 'membership', { type: 'observation', status: 'inactive', level: 3, observedAt: NOW });
+  assert.equal(f.detail(p.id).membership.observedLevel, null);
+  f.record(p.id, 'membership', { type: 'baseline', totalDays: 0, asOf: '2026-09-17' });
+  f.record(p.id, 'membership', interval('2026-09-19', '2026-09-30'));
+  assert.deepEqual(past(), []);
+  f.record(p.id, 'membership', { type: 'observation', level: 2, observedAt: '2026-09-16T04:00:00Z' });
+  assert.deepEqual(past(), [p.id]);
+});
+
+test('a later zero baseline preserves past membership only while the positive baseline is adopted', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const baseline = (continuousDays, asOf) => f.record(p.id, 'membership', { type: 'baseline', continuousDays, asOf });
+  baseline(12, '2026-09-03');
+  baseline(0, '2026-09-17');
+  const past = () => f.run('list', { filters: ['past'] }).profiles;
+  assert.equal(past()[0]?.membership.continuousDays, 0);
+  baseline(0, '2026-09-03');
+  assert.equal(past().length, 0);
+});
+
 test('A21: confirmed future validity counts only elapsed Shanghai days and predicts future milestones', (t) => {
   const f = fanFixture(t);
   const p = f.create();
@@ -418,6 +443,42 @@ test('A13: reopening lists only recent missed reminders and keeps handling durab
   assert.equal(reminders.find((r) => r.key === 'birthday:2026').group, 'missed');
 });
 
+test('a snooze on the last missed day survives midnight and expires seven days after its promised date', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const anniversary = f.record(p.id, 'anniversary', { name: '初次见面', date: '2026-09-11' });
+  f.record(p.id, 'membership', { type: 'baseline', totalDays: 30, asOf: '2026-09-11' });
+  const keys = [`anniversary:${anniversary.id}`, 'total:30'];
+  for (const key of keys) f.run('reminder-state', { profileId: p.id, key, status: 'snoozed' });
+  const due = () => f.run('reminders').filter(item => item.actionable).map(item => item.key).sort();
+  assert.deepEqual(due(), []);
+  f.setNow('2026-09-18T16:00:00Z');
+  f.restart();
+  assert.deepEqual(due(), keys);
+  assert.equal(f.run('calendar').length, 0);
+  f.run('reminder-state', { profileId: p.id, key: keys[0], status: 'handled' });
+  f.setNow('2026-09-26T04:00:00Z');
+  assert.deepEqual(due(), ['total:30']);
+  f.setNow('2026-09-27T04:00:00Z');
+  assert.deepEqual(due(), []);
+});
+
+test('a revised milestone outside the window can still be handled by its snoozed key', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const data = { type: 'baseline', asOf: '2026-09-11', totalDays: 30, continuousDays: 30 };
+  const base = f.record(p.id, 'membership', data);
+  const handle = status => f.run('reminder-state', { profileId: p.id, key: 'total:30', status });
+  handle('snoozed');
+  f.setNow('2026-09-19T04:00:00Z');
+  f.restart();
+  f.record(p.id, 'membership', { ...data, asOf: '2026-09-10' }, { id: base.id, revision: base.revision });
+  const due = f.run('reminders').filter(item => item.actionable);
+  assert.deepEqual(due.map(item => [item.key, item.date, item.until]), [['total:30', '2026-09-10', '2026-09-19']]);
+  handle('handled');
+  assert.equal(f.run('reminders').find(item => item.key === 'total:30').group, 'history');
+});
+
 test('reminder page and profile summaries show only the next seven Beijing days across year boundaries', (t) => {
   const f = fanFixture(t);
   f.setNow('2026-12-24T15:59:59.000Z');
@@ -460,6 +521,11 @@ test('expired snoozes return to the profile summary while future snoozes and han
   f.setNow('2026-09-19T04:00:00.000Z');
   assert.equal(summary().key, 'birthday:2026');
   assert.equal(summary().actionable, true);
+  f.run('reminder-state', { profileId: p.id, key: 'birthday:2026', status: 'snoozed' });
+  f.setNow('2026-09-19T16:00:00.000Z');
+  assert.equal(summary()?.key, 'birthday:2026');
+  f.setNow('2026-09-27T04:00:00.000Z');
+  assert.equal(summary()?.until, '2026-09-20');
   f.run('reminder-state', { profileId: p.id, key: 'birthday:2026', status: 'handled' });
   assert.equal(summary(), null);
 });

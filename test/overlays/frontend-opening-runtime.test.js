@@ -29,6 +29,7 @@ function createDom() {
   const nodes = new Map();
   const timers = new Map();
   let nextTimer = 0;
+  let now = 0;
   function element() {
     const attributes = new Map();
     const classes = new Set();
@@ -110,6 +111,7 @@ function createDom() {
   stage.classList.add('is-disabled');
   return {
     document, window, timers, motion, svg, stage,
+    advance(ms) { now += ms; },
     async tick(delay) {
       const timer = [...timers].find(([, value]) => value.delay === delay);
       assert.ok(timer, `expected a ${delay}ms timer`);
@@ -121,7 +123,8 @@ function createDom() {
       return {
         document, window, fetch: (url, options) => String(url).includes('/api/component-styles/list')
           ? Promise.resolve(reply([])) : fetch(url, options), URL, URLSearchParams, AbortController,
-        performance,
+        performance, Date: class extends Date { static now() { return now; } },
+        MutationObserver: class { observe() {} disconnect() {} },
         location: new URL(`http://127.0.0.1:3000/opening${search}`),
         matchMedia: () => motion,
         setTimeout: window.setTimeout,
@@ -483,6 +486,8 @@ test('opening ignores unrelated settings while hidden and keeps configuration, m
   await flush();
   assert.equal(reads, 1);
   dom.document.hidden = true;
+  await dom.document.dispatch('visibilitychange');
+  await dom.window.dispatch('focus');
   for (let index = 0; index < 20; index++) {
     await dom.window.dispatch('app:settings-state', { detail: { ...settings, requestPrice: String(index + 2) } });
     await flush();
@@ -500,8 +505,14 @@ test('opening ignores unrelated settings while hidden and keeps configuration, m
   dom.document.hidden = false;
   assert.equal(reads, 3);
   assert.equal(dom.document.getElementById('openingCharacterName').textContent, remote.characterName);
+  await dom.document.dispatch('visibilitychange');
+  await flush();
+  assert.equal(reads, 4);
   await dom.window.dispatch('focus');
-  assert.equal(reads, 4, 'focus still checks local media and externally saved configuration');
+  await dom.window.dispatch('focus');
+  assert.equal(reads, 4);
+  await dom.tick(3000);
+  assert.equal(reads, 5, 'repeated focus reconciles local media once');
 });
 
 test('opening retains related settings received during a refresh or while local edits await saving', async () => {
@@ -575,6 +586,7 @@ test('opening focus refresh preserves newer edits and permits restoring a value 
   module.initStartAnimation();
   await flush();
   holdRead = true;
+  dom.advance(3000);
   const refreshing = dom.window.dispatch('focus');
   const title = dom.document.getElementById('openingTitle');
   title.value = '客户端新输入';
@@ -586,7 +598,9 @@ test('opening focus refresh preserves newer edits and permits restoring a value 
   assert.equal(writes[0].openingTitle, '客户端新输入');
   holdRead = false;
   remote = config({ title: '画布修改' });
+  dom.advance(3000);
   await dom.window.dispatch('focus');
+  await flush();
   assert.equal(title.value, '画布修改');
   title.value = '客户端新输入';
   await dom.document.getElementById('openingAnimationForm').dispatch('input', { target: title });

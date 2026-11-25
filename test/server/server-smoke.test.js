@@ -286,7 +286,7 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
     shutdownApplication = serverModule.shutdownApplication;
     const app = await serverModule.startServer({
       host: '127.0.0.1',
-      startPort: 38471,
+      startPort: 0,
     });
 
     _testToken = serverModule.getApiToken();

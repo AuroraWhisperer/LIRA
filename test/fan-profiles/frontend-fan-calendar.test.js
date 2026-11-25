@@ -40,9 +40,12 @@ test('calendar requests are shared, scoped to the active account and discarded o
   await unchanged;
   assert.equal(rendered.length, renderedCount, 'unchanged polls must not recreate calendar nodes');
   visible = false;
+  calendar.syncVisibility();
+  assert.equal(cleared, true);
   await calendar.refresh();
   assert.equal(requests.length, 3);
   visible = true;
+  calendar.syncVisibility();
   const failed = calendar.refresh();
   replies[3]({ ok: false });
   await failed;

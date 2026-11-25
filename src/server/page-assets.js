@@ -8,7 +8,25 @@ const { composeComponentPreviewHtml } = require('./component-preview-page');
 const { OVERLAY_PAGES, getOverlayScope, createOverlayToken } = require('./access-policy');
 const { createOverlayBootstrap } = require('./overlay-bootstrap');
 const { serveStaticVideo } = require('./static-video');
+const { servePublicFile } = require('./public-asset');
 const { sendJson, contentType, verifyToken } = require('./http-utils');
+
+const STATIC_ROUTES = new Map([
+  ['/license', 'pages/license.html'],
+  ['/scene', 'pages/overlays/scene.html'],
+  ['/text-box', 'pages/overlays/text-box.html'],
+  ['/live-rankings', 'pages/overlays/live-rankings.html'],
+  ['/background', 'pages/overlays/background.html'],
+  ['/imported-danmaku', 'pages/overlays/imported-danmaku.html'],
+  ['/component-preview', 'pages/component-preview.html'],
+  ['/weekly-schedule-export', 'pages/weekly-schedule-export.html'],
+  ['/c', 'pages/component-preview.html'],
+  ['/img/usage-guide/F/public-overlay-blindbox.webp', 'img/component-previews/blindbox-default.webp'],
+  ['/img/overlays/danmaku-previews/gifts/flower.webp', 'img/overlays/gift-feed/flower.webp'],
+  ['/img/overlays/danmaku-previews/gifts/cheer.webp', 'img/overlays/gift-feed/cheer.webp'],
+  ['/img/overlays/danmaku-previews/gifts/call.webp', 'img/overlays/gift-feed/call.webp'],
+  ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
+]);
 
 function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession, getClientTheme, fontLibraryEnabled = false) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -21,19 +39,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
   }
 
   const isAdminPage = isAdminPageRoute(requestUrl.pathname);
-  const pageMap = new Map([
-    ['/license', 'pages/license.html'],
-    ['/scene', 'pages/overlays/scene.html'],
-    ['/text-box', 'pages/overlays/text-box.html'],
-    ['/live-rankings', 'pages/overlays/live-rankings.html'],
-    ['/background', 'pages/overlays/background.html'],
-    ['/imported-danmaku', 'pages/overlays/imported-danmaku.html'],
-    ['/component-preview', 'pages/component-preview.html'],
-    ['/weekly-schedule-export', 'pages/weekly-schedule-export.html'],
-    ['/c', 'pages/component-preview.html'],
-    ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
-  ]);
-  const assetPath = pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
+  const assetPath = STATIC_ROUTES.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
   const resolvedPath = isAdminPage
     ? path.join(publicDir, 'pages', 'admin', 'shell-start.html')
     : path.resolve(publicDir, assetPath);
@@ -99,10 +105,6 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
       addFrameProtectionHeaders(res, relativePath === 'pages/overlays/scene.html' ? '/scene'
         : relativePath === 'pages/overlays/text-box.html' ? '/text-box'
         : relativePath === 'pages/overlays/background.html' ? '/background' : overlayScope ? `/${overlayScope}` : requestUrl.pathname);
-    } else {
-      // Sandboxed overlays have opaque origins. Only public static assets may
-      // be read cross-origin; API data and HTML use their own access policy.
-      res.setHeader('Access-Control-Allow-Origin', '*');
     }
 
     res.writeHead(200, {
@@ -137,6 +139,10 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
   if (path.extname(resolvedPath).toLowerCase() === '.webm') {
     serveStaticVideo(resolvedPath, req, res);
     return;
+  }
+  if (!isHtml) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    return servePublicFile(resolvedPath, req, res, contentType(resolvedPath));
   }
   fs.readFile(resolvedPath, sendContent);
 }

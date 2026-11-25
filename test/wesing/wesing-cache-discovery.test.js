@@ -64,19 +64,19 @@ test('WeSing cache presence stops after finding QRC data without statting the re
 });
 
 test('WeSing discovery only probes the configured profile locations and drive-root cache names', () => {
-  const drivePaths = [...'CDEFGHIJKLMNOPQRSTUVWXYZ'].map((drive) => `${drive}:\\WeSingCache`);
+  const fixedRoots = ['C:\\', 'E:\\'];
   for (const userDirectory of ['C:\\Users\\Test User', 'E:\\用户资料\\小明']) {
     const environment = {
       APPDATA: path.join(userDirectory, 'AppData', 'Roaming'),
       LOCALAPPDATA: path.join(userDirectory, 'AppData', 'Local'),
     };
-    assert.deepEqual(getWeSingCacheCandidates(environment), [
+    assert.deepEqual(getWeSingCacheCandidates(environment, fixedRoots), [
       path.join(environment.APPDATA, 'Tencent', 'WeSing', 'WeSingCache'),
       path.join(environment.LOCALAPPDATA, 'Tencent', 'WeSing', 'WeSingCache'),
-      ...drivePaths,
+      ...fixedRoots.map(root => path.join(root, 'WeSingCache')),
     ]);
   }
-  assert.deepEqual(getWeSingCacheCandidates({}), drivePaths, 'missing profile variables must not create relative candidates');
+  assert.deepEqual(getWeSingCacheCandidates({}), [], 'no profile or enumerated fixed disks means no guessed candidates');
 });
 
 test('WeSing follows the cache with the current song instead of a valid stale directory', async (t) => {
@@ -134,6 +134,61 @@ test('WeSing reuses unchanged log parsing and detects appended, truncated, repla
   assert.equal((await reader.read(cachePath, '同名歌曲')).logEntry, null);
   assert.equal((await reader.read(cachePath, '新歌')).logEntry.mid, 'newest');
   assert.equal(reads, 5, 'each changed file is parsed once, including a cached title mismatch');
+});
+
+test('WeSing scans small log appends incrementally and completes split UTF-16 records', async (t) => {
+  const cachePath = cacheFixture(t, 'incremental');
+  const log = path.join(cachePath, 'Log', 'WeSing', 'WeSing.log');
+  const record = mid => Buffer.from(`"StartKSong" {"mid":"${mid}","songname":"夜曲"}\r\n`, 'utf16le');
+  fs.writeFileSync(log, record('old'));
+  fs.appendFileSync(log, 'tick\r\n'.repeat(87382), 'utf16le');
+  const reader = createWeSingCacheReader();
+  const open = fs.promises.open;
+  let bytes = 0;
+  t.mock.method(fs.promises, 'open', async (...args) => {
+    const handle = await open(...args);
+    const read = handle.read.bind(handle);
+    handle.read = async (...params) => {
+      const result = await read(...params);
+      bytes += result.bytesRead;
+      return result;
+    };
+    return handle;
+  });
+  assert.equal((await reader.read(cachePath)).logEntry.mid, 'old');
+  const coldBytes = bytes;
+  assert.ok(coldBytes >= 1024 * 1024);
+  bytes = 0;
+  const next = record('new');
+  fs.appendFileSync(log, next.subarray(0, 13));
+  assert.equal((await reader.read(cachePath)).logEntry.mid, 'old');
+  fs.appendFileSync(log, next.subarray(13));
+  assert.equal((await reader.read(cachePath, '夜曲')).logEntry.mid, 'new');
+  assert.ok(bytes < 512, `small appends read ${bytes} bytes`);
+  t.diagnostic(`UTF-16 log: cold ${coldBytes} bytes, two appends ${bytes} bytes`);
+  fs.appendFileSync(log, 'tick\r\n'.repeat(350000), 'utf16le');
+  assert.equal((await reader.read(cachePath)).logEntry, null, 'an old record outside the scan window expires');
+});
+
+test('WeSing retries the same fingerprint after a short read of the new tail anchor', async (t) => {
+  const cachePath = cacheFixture(t, 'short-anchor');
+  const file = path.join(cachePath, 'Log', 'WeSing', 'WeSing.log');
+  fs.writeFileSync(file, '"StartKSong" {"mid":"fixture","songname":"fixture"}\r\n', 'utf16le');
+  const reader = createWeSingCacheReader();
+  assert.equal((await reader.read(cachePath)).logEntry.mid, 'fixture');
+  fs.appendFileSync(file, 'tick\n', 'utf16le');
+  const open = fs.promises.open;
+  let anchors = 0;
+  t.mock.method(fs.promises, 'open', async (...args) => {
+    const handle = await open(...args);
+    const read = handle.read.bind(handle);
+    handle.read = (buffer, offset, length, position) =>
+      read(buffer, offset, length === 64 && ++anchors === 2 ? 13 : length, position);
+    return handle;
+  });
+  assert.equal((await reader.read(cachePath)).logEntry, null);
+  assert.equal(anchors, 2);
+  assert.equal((await reader.read(cachePath)).logEntry.mid, 'fixture');
 });
 
 test('WeSing reuses parsed QRC files without sharing mutable results and detects file replacement', async (t) => {

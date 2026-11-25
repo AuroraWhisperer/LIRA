@@ -5,6 +5,81 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { FakeNode, createFakeDocument } = require('../helpers/fake-dom');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createInteractionSessionService } = require('../../src/games/interaction-session-service');
+const { projectOverlayResponse, projectWebSocketPayload } = require('../../src/server/overlay-projection');
+const { createInteractionClient } = require('../../public/js/shared/interaction-client.js');
+const { createPollCountdown, interactionStatus } = require('../../public/js/shared/interaction-view.js');
+
+test('a poll keeps the same voting and display deadline across clock changes and delayed receipts', async (t) => {
+  let serverMs = 8000;
+  let rendererMs = 400;
+  let wallMs = 1_800_000_000_000;
+  t.mock.method(performance, 'now', () => rendererMs);
+  t.mock.method(Date, 'now', () => wallMs);
+  const source = { ready: true, roomId: '1', accountUid: '2', ownerUid: '3', connectionKey: '4' };
+  let receiveVote;
+  const service = createInteractionSessionService({
+    now: () => serverMs, wallNow: Date.now, getSourceState: () => source,
+    subscribe(fn) { receiveVote = fn; return () => {}; }, setTimeout: () => 1, clearTimeout() {},
+  });
+  t.after(() => service.dispose());
+  const countdown = createPollCountdown();
+  const read = Promise.withResolvers();
+  let session;
+  const client = createInteractionClient({ countdown, fetchState: () => read.promise, onState: state => { session = state.session; } });
+  const status = () => interactionStatus(session, countdown.remainingMs());
+  const load = client.load();
+  const empty = service.getState();
+  const start = service.start({ kind: 'poll', options: ['唱歌'], durationSeconds: 60 });
+  client.receive(projectWebSocketPayload({ type: 'overlay', scope: 'interactions' }, { type: 'interaction:update', state: start }).state);
+  serverMs += 10_000;
+  rendererMs += 10_000;
+  wallMs += 70_000;
+  read.resolve(empty);
+  await load;
+  assert.match(status(), /00:50$/);
+  receiveVote({ ...source, source: 'danmaku', receivedAt: serverMs, uid: '7', message: '唱歌' });
+  wallMs -= 120_000;
+  const fresh = projectOverlayResponse('interactions', '/api/interactions/session', service.getState());
+  assert.equal(fresh.session.remainingMs, 50_000);
+  client.receive(fresh);
+  client.receive(start);
+  assert.match(status(), /00:50$/);
+  serverMs += 50_000;
+  rendererMs += 50_000;
+  assert.match(status(), /00:00$/);
+  receiveVote({ ...source, source: 'danmaku', receivedAt: serverMs, uid: '8', message: '唱歌' });
+  client.receive(service.getState());
+  assert.equal(session.phase, 'finished');
+  assert.equal(session.participants, 1);
+});
+
+test('the first poll snapshot accounts for time in transit, even if the local clock changes during the read', async (t) => {
+  let elapsed = 0;
+  let adjustment = 0;
+  t.mock.method(performance, 'now', () => elapsed);
+  t.mock.method(Date, 'now', () => 1_800_000_000_000 + elapsed + adjustment);
+  const service = createInteractionSessionService({
+    now: () => elapsed, wallNow: Date.now, getSourceState: () => ({ ready: true }),
+    subscribe: () => () => {}, setTimeout: () => 1, clearTimeout() {},
+  });
+  t.after(() => service.dispose());
+  service.start({ kind: 'poll', options: ['唱歌'], durationSeconds: 60 });
+  for (const jump of [0, 60_000, -60_000]) {
+    elapsed = 0;
+    adjustment = 0;
+    const read = Promise.withResolvers();
+    const countdown = createPollCountdown();
+    const client = createInteractionClient({ countdown, fetchState: () => read.promise, onState() {} });
+    const loading = client.load();
+    const snapshot = projectOverlayResponse('interactions', '/api/interactions/session', service.getState());
+    elapsed = 10_000;
+    adjustment = jump;
+    read.resolve(snapshot);
+    await loading;
+    assert.equal(countdown.remainingMs(), service.getState().session.remainingMs);
+  }
+});
 
 test('live poll updates preserve row nodes and scroll position while showing zero and small percentages', async () => {
   const { renderPollRows } = await loadModuleExports(

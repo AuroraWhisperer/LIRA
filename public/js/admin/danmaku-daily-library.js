@@ -10,7 +10,23 @@ const ERRORS = {
   DAILY_BOT_TAKEOVER_REQUIRED: '旧数据正在导入，完成后可编辑词库。',
   DAILY_BOT_BUSY: '上一项操作尚未完成，请稍后重试。',
 };
-const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, search: '', notice: '', conflict: false, failed: false });
+const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, search: '', notice: '', readError: '', conflict: false, failed: false });
+
+function matchesConfirmed(library, confirmed) {
+  return library.length === confirmed.length && library.every((item, index) =>
+    typeof item === 'string' ? item.trim() === confirmed[index]
+      : Object.keys(FIELDS).every(field => item[field].trim() === confirmed[index][field]));
+}
+
+function settleUndo(data) {
+  if (!data.dirty || data.conflict || !data.confirmed || !matchesConfirmed(data.items, data.confirmed.library)) return false;
+  // The draft matches its base. Only a successful cloud response clears a read error.
+  data.items = structuredClone(data.confirmed.library);
+  data.dirty = false;
+  data.failed = false;
+  data.notice = '';
+  return true;
+}
 
 export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   const element = (suffix) => documentRef.getElementById(`dailyLibrary${suffix}`);
@@ -34,8 +50,8 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     element('Reload').disabled = !enabled || busy;
     element('Reload').hidden = !data.conflict;
     element('Add').disabled = !data.items || data.items.length >= 1000;
-    element('Status').textContent = data.notice || (data.dirty ? '有未保存的修改' : data.items ? '已与云端确认' : '展开时读取词库');
-    element('Status').parentElement.hidden = Boolean(data.items && !data.failed && !data.conflict);
+    element('Status').textContent = data.notice || data.readError || (data.dirty ? '有未保存的修改' : data.items ? '已与云端确认' : '展开时读取词库');
+    element('Status').parentElement.hidden = Boolean(data.items && !data.readError && !data.failed && !data.conflict);
   }
   function changed(data) {
     data.edit++;
@@ -109,28 +125,42 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   async function read() {
     if (!enabled || busy) return;
     const requested = generation, key = kind, data = state();
+    if (settleUndo(data)) autosaves[key].cancel();
     data.notice = '正在核对云端词库…';
     controls();
     const response = await request('library-read', { kind: key });
     if (generation !== requested) return;
-    if (response?.ok) {
-      const latest = response.library;
-      data.confirmed = latest;
-      if (data.dirty) {
-        data.conflict = data.version !== latest.version;
-        data.notice = data.conflict ? ERRORS.DAILY_BOT_LIBRARY_CONFLICT : '已核对云端，未保存的草稿已保留。';
-      } else {
-        data.items = structuredClone(latest.library);
-        data.version = latest.version;
-        data.conflict = false;
-        data.notice = '';
-      }
-    } else data.notice = ERRORS[response?.error] || '读取失败，已有文案和草稿已保留。请刷新重试。';
-    if (kind === key) render();
+    if (!response?.ok) {
+      data.readError = ERRORS[response?.error] || '读取失败，已有文案和草稿已保留。请刷新重试。';
+      data.notice = '';
+      if (kind === key) controls();
+      return;
+    }
+    const latest = response.library;
+    const hasDraft = data.dirty;
+    data.readError = '';
+    data.confirmed = latest;
+    if (hasDraft && !matchesConfirmed(data.items, latest.library)) {
+      data.conflict = data.version !== latest.version;
+      data.notice = data.conflict ? ERRORS.DAILY_BOT_LIBRARY_CONFLICT : '已核对云端，未保存的草稿已保留。';
+    } else {
+      if (hasDraft) autosaves[key].cancel();
+      else data.items = structuredClone(latest.library);
+      data.version = latest.version;
+      data.dirty = data.conflict = data.failed = false;
+      data.notice = '';
+    }
+    if (kind !== key) return;
+    if (hasDraft) controls();
+    else render();
   }
   async function save(key = kind, automatic = false) {
     const requested = generation, data = states[key], edit = data.edit;
     if (!enabled || busy || !data.dirty || data.conflict) return;
+    if (settleUndo(data)) {
+      controls();
+      return;
+    }
     const library = data.items.map((item) => typeof item === 'string' ? item.trim()
       : Object.fromEntries(Object.entries(item).map(([field, value]) => [field, value.trim()])));
     if (!library.length || library.some((item) => typeof item === 'string' ? !item : Object.values(item).some((value) => !value))) {
@@ -143,6 +173,7 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     const response = await request('library-save', { kind: key, expectedVersion: data.version, library });
     if (generation !== requested) return;
     if (response?.ok) {
+      data.readError = '';
       data.failed = false;
       data.confirmed = response.library;
       data.version = response.library.version;
@@ -152,7 +183,8 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     } else {
       data.failed = true;
       data.conflict = response?.error === 'DAILY_BOT_LIBRARY_CONFLICT';
-      if (data.conflict) data.confirmed = null;
+      // A lost receipt can follow a successful write, so the old snapshot cannot confirm an undo.
+      data.confirmed = null;
       data.notice = ERRORS[response?.error] || '保存尚未确认，草稿已保留。请刷新核对后重试。';
     }
     if (kind === key) !automatic && data.edit === edit ? render() : controls();
@@ -162,8 +194,8 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   element('Reload').addEventListener('click', async () => {
     const data = state();
     const edit = data.edit;
-    if (!data.confirmed) await read();
-    if (state() !== data || !data.confirmed) return;
+    if (data.readError || !data.confirmed) await read();
+    if (state() !== data || data.readError || !data.confirmed) return;
     if (data.edit !== edit) {
       data.notice = '载入期间有新的修改，草稿已保留。再次点击可放弃草稿。';
       controls();
@@ -171,7 +203,7 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     }
     data.items = structuredClone(data.confirmed.library);
     data.version = data.confirmed.version;
-    data.dirty = data.conflict = false;
+    data.dirty = data.conflict = data.failed = false;
     data.edit++;
     data.notice = '';
     render();

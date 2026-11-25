@@ -147,6 +147,34 @@ test('queue style 2 copies the legacy font once and then persists independently 
   assert.equal(state.value('identityQueueFontFamily'), '"Lira Smiley"');
 });
 
+test('illustrated queue styles inherit legacy settings once and keep later edits on restart', (t) => {
+  const state = fixture(t, {
+    identityQueueFontSize: '37',
+    illustratedQueueFontFamily: 'KaiTi, serif',
+    illustratedQueueFontWeight: '700',
+    illustratedQueueUseCustomTextColor: 'true',
+    illustratedQueueTextColor: '#123456',
+    queueScrollMode: 'loop',
+    identityQueueScrollSpeed: '63',
+  });
+  const store = bootstrapSettingsStore(state.db);
+  const settings = store.getSettings();
+  assert.equal(settings.identityQueueScrollMode, 'loop');
+  for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
+    assert.equal(settings[`${prefix}QueueFontSize`], '37');
+    assert.equal(settings[`${prefix}QueueFontFamily`], 'KaiTi, serif');
+    assert.equal(settings[`${prefix}QueueFontWeight`], '700');
+    assert.equal(settings[`${prefix}QueueUseCustomTextColor`], 'true');
+    assert.equal(settings[`${prefix}QueueTextColor`], '#123456');
+    assert.equal(settings[`${prefix}QueueScrollMode`], 'loop');
+    assert.equal(settings[`${prefix}QueueScrollSpeed`], '63');
+  }
+
+  store.setSetting('storybookQueueFontSize', '45');
+  state.reopen();
+  assert.equal(bootstrapSettingsStore(state.db).getSettings().storybookQueueFontSize, '45');
+});
+
 test('independent queue font migration rolls back on failure and retries without data loss', t => {
   const state = fixture(t, { overlayFontFamily: '"STKaiti"' });
   state.db.exec(`CREATE TRIGGER reject_identity_font BEFORE INSERT ON settings

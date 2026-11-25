@@ -10,4 +10,13 @@ function sanitizeAuthState(auth) {
   };
 }
 
-module.exports = { sanitizeAuthState };
+async function readProviderHealthSession(provider) {
+  const request = provider.getRequestSession &&
+    await provider.getSafeAuthState(source => provider.getRequestSession(source, true));
+  if (request?.state && Object.hasOwn(request.state, 'encryptedSnapshotExists') && Object.hasOwn(request.state, 'lastSavedAt')) {
+    return request;
+  }
+  return { state: await provider.getSafeAuthState(), cookieHeader: request?.cookieHeader };
+}
+
+module.exports = { sanitizeAuthState, readProviderHealthSession };

@@ -2,6 +2,7 @@
 // 点歌队列导入服务 - 负责从点歌队列导入歌曲到播放队列
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import { getSongRequestKey } from '../utils.js';
 
 /**
@@ -101,9 +102,7 @@ export class ImportService {
     const response = await fetch('/api/state', { signal: AbortSignal.timeout(10000) });
     const payload = await this.readJsonResponse(response, '读取点歌队列失败');
 
-    if (!payload.ok) {
-      throw new Error(payload.error || '读取点歌队列失败');
-    }
+    assertApiResponse(response, payload, '读取点歌队列失败');
 
     const queue = payload.data && payload.data.queue ? payload.data.queue : {};
     const items = [queue.current].concat(Array.isArray(queue.waiting) ? queue.waiting : []).filter(Boolean);

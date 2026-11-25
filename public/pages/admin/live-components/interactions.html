@@ -27,7 +27,7 @@
                 <div id="pollOptions" aria-label="投票选项"></div>
                 <button id="pollAddOption" type="button" class="secondary interaction-quiet">添加选项</button>
                 <p class="interaction-rule">
-                  观众用弹幕发送完整选项，每个账号只计首次有效投票。<lira-help label="查看计票规则"><span id="pollRule"></span></lira-help>
+                  <span id="pollRule"></span>每个账号只计首次有效投票。
                 </p>
               </div>
               <div
@@ -88,13 +88,10 @@
               </div>
               <div class="interaction-setting-group interaction-rating-setting">
                 <div class="interaction-field-label">
-                  <span>评分规则 <lira-help label="查看评分规则"><span id="ratingRule"></span></lira-help></span>
+                  <span>评分规则</span>
                 </div>
-                <dl class="interaction-rating-details">
-                  <dt>参与方式</dt><dd>弹幕发送整数 1–10</dd>
-                  <dt>重复评分</dt><dd>每个账号取最后一次</dd>
-                  <dt>公布结果</dt><dd>手动结束后显示均分</dd>
-                </dl>
+                <p id="ratingRule" class="interaction-rule"></p>
+                <p class="hint">手动结束后显示均分。</p>
               </div>
               <div class="interaction-form-actions">
                 <button id="ratingStart" type="submit" class="primary" disabled>开始评分</button>
@@ -192,7 +189,7 @@
                 </div>
               </section>
               <div class="interaction-form-actions">
-                <button id="interactionAppearanceApply" class="primary" type="submit" disabled>应用样式</button>
+                <button hidden id="interactionAppearanceApply" class="primary" type="submit" disabled>重试保存</button>
                 <button id="interactionAppearanceReset" class="secondary interaction-quiet" type="button">
                   恢复默认
                 </button>

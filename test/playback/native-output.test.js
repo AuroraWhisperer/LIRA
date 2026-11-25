@@ -20,7 +20,8 @@ test('native transport reopens after pause/seek, ignores old packets and disconn
     audioWorklet = { addModule: async () => {} };
     destination = {};
     createMediaElementSource() { return { connect() {}, disconnect() { calls.push(['disconnect']); } }; }
-    resume = async () => {};
+    resume = async () => { calls.push(['resume']); };
+    suspend = async () => { calls.push(['suspend']); };
     setSinkId = async id => { calls.push(['sink', id]); };
     close = async () => { calls.push(['close']); };
   }
@@ -35,6 +36,7 @@ test('native transport reopens after pause/seek, ignores old packets and disconn
       onFault(callback) { fault = callback; return () => { fault = null; }; },
       async invoke(request) {
         calls.push([request.op, request.value]);
+        if (request.op === 'open' && request.value.deviceId === 'offline') return { ok: false, error: 'offline' };
         return { ok: true, data: request.op === 'open' ? { stream: ++sequence } : [] };
       },
     },
@@ -47,6 +49,7 @@ test('native transport reopens after pause/seek, ignores old packets and disconn
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls.filter(call => call[0] === 'write').length, 1);
   audio.pause();
+  assert.equal(calls.at(-1)[0], 'suspend');
   node.port.onmessage({ data: { stream: 1, pcm: new ArrayBuffer(8192) } });
   assert.equal(calls.filter(call => call[0] === 'write').length, 1);
   await output.prepare();
@@ -61,6 +64,13 @@ test('native transport reopens after pause/seek, ignores old packets and disconn
   assert.equal(calls.at(-1)[0], 'fault');
   await output.browser('browser-port');
   assert.ok(calls.some(call => call[0] === 'sink' && call[1] === 'browser-port'));
+  assert.ok(calls.findLastIndex(call => call[0] === 'suspend') > calls.findLastIndex(call => call[0] === 'resume'));
+  audio.paused = false;
+  audio.dispatchEvent(new Event('playing'));
+  assert.equal(calls.at(-1)[0], 'resume', 'browser playback still uses the media-element graph');
+  audio.pause();
+  await assert.rejects(output.select('offline'), /offline/);
+  assert.equal(calls.at(-1)[0], 'suspend', 'failed validation while already paused must suspend the graph');
   await output.select('waveout:port');
   assert.equal(output.currentId, '', 'validating a saved device must release native output while the song is paused');
   await output.prepare();
@@ -106,6 +116,7 @@ test('pause and disposal during AudioContext resume cancel the pending native op
       createMediaElementSource() { return { connect() {}, disconnect() {} }; }
       setSinkId = async () => {};
       resume = async () => { enteredResume.resolve(); await resumed.promise; };
+      suspend = async () => {};
       close = async () => {};
     }
     class Worklet {

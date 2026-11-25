@@ -6,6 +6,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { maintainDesktopLogs } = require('../../src/electron/log-maintenance');
+const { appendBoundedFileSync, NORMAL_FILE_BYTES, NORMAL_ENTRY_BYTES } = require('../../src/shared/log-size-limit');
+
+test('the first desktop append reuses successful retention work on the active log and both archives', (t) => {
+  const directory = createScratchDirectory('log-retention-', t);
+  const file = path.join(directory, 'desktop.log');
+  const now = Date.parse('2026-10-13T00:00:00Z');
+  const line = '[2026-10-10T00:10:00Z] [desktop:info] near expiry\n';
+  for (const suffix of ['', '.1', '.2']) fs.writeFileSync(file + suffix, line);
+  maintainDesktopLogs(directory, now);
+  const reads = t.mock.method(fs, 'readFileSync');
+  const options = { maxFileBytes: NORMAL_FILE_BYTES, maxEntryBytes: NORMAL_ENTRY_BYTES, now };
+  const start = '[2026-10-13T00:00:00Z] [desktop:info] START\n';
+  assert.equal(appendBoundedFileSync(file, start, options).written, true);
+  assert.equal(reads.mock.callCount(), 0);
+  reads.mock.restore();
+  assert.equal(appendBoundedFileSync(file, start, { ...options, now: now + 3600_000 }).written, true);
+  assert.equal(fs.readFileSync(file, 'utf8'), start + start);
+  assert.equal(fs.existsSync(file + '.1'), false);
+  assert.equal(fs.existsSync(file + '.2'), false);
+});
 
 test('old mixed logs keep recent failures separately while ordinary records expire after three days', (t) => {
   const directory = createScratchDirectory('log-retention-', t);
@@ -32,10 +52,20 @@ test('an extraction failure preserves the original diagnostic for the next maint
   const directory = createScratchDirectory('log-retention-', t);
   const normal = path.join(directory, 'desktop.log');
   const error = '[2026-10-01T00:00:00Z] [desktop:startup-error] still useful\n';
-  fs.writeFileSync(normal, error);
-  fs.mkdirSync(path.join(directory, 'errors', 'desktop.log'), { recursive: true });
-  maintainDesktopLogs(directory, Date.parse('2026-10-13T00:00:00Z'));
-  assert.equal(fs.readFileSync(normal, 'utf8'), error);
+  const oldInfo = '[2026-10-01T00:00:00Z] [desktop:info] expired\n';
+  const target = path.join(directory, 'errors', 'desktop.log');
+  const now = Date.parse('2026-10-13T00:00:00Z');
+  fs.writeFileSync(normal, error + oldInfo);
+  fs.mkdirSync(target, { recursive: true });
+  maintainDesktopLogs(directory, now);
+  assert.equal(fs.readFileSync(normal, 'utf8'), error + oldInfo);
+  const start = '[2026-10-13T00:00:00Z] [desktop:info] START\n';
+  appendBoundedFileSync(normal, start, { maxFileBytes: NORMAL_FILE_BYTES, maxEntryBytes: NORMAL_ENTRY_BYTES, now });
+  assert.equal(fs.readFileSync(normal, 'utf8'), error + start);
+  fs.rmdirSync(target);
+  maintainDesktopLogs(directory, now);
+  assert.equal(fs.readFileSync(target, 'utf8'), error);
+  assert.equal(fs.readFileSync(normal, 'utf8'), start);
 });
 
 test('a short write followed by disk failure retires only complete errors and retries the original suffix', (t) => {

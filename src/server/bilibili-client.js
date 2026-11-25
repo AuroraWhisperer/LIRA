@@ -40,7 +40,7 @@ function createBilibiliClient(roomId, context) {
       onLiveLottery: (event) => {
         if (!isShuttingDown()) context.onLiveLottery?.(event);
       },
-      onMessage: (danmaku) => {
+      onMessage: (danmaku, simplified) => {
         if (isShuttingDown()) return false;
         let stage = 'dispatch';
         try {
@@ -80,8 +80,8 @@ function createBilibiliClient(roomId, context) {
             requesterMedalVerified: danmaku.requesterMedalVerified,
             currentRoomVerified: danmaku.currentRoomVerified,
             isPinned: danmaku.isPinned,
-          });
-          domainServices.messages.logDanmaku(danmaku, result);
+          }, simplified);
+          domainServices.messages.logDanmaku(danmaku, result, simplified);
           stage = 'after-request';
           if (result.reason === 'cloud-owned') return;
           const replySessionKey = context.getReplySessionKey?.();
@@ -184,7 +184,7 @@ function createBilibiliClient(roomId, context) {
         uid: bilibiliAuthCache.uid,
       },
       userInfoService,
-      isCommandText: (message) => isBilibiliCommandText(message, domainServices.customReplies.isCommandText),
+      isCommandText: (message, simplified) => isBilibiliCommandText(message, domainServices.customReplies.isCommandText, simplified),
     },
   );
   return client;

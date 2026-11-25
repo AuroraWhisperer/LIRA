@@ -1,197 +1,204 @@
 # 构建、打包与发布
 
-> 涉及文件:[package.json](../../../package.json)(`scripts` 与 `build` 配置)、[scripts/create-icon.js](../../../scripts/create-icon.js)、[scripts/publish-release.js](../../../scripts/publish-release.js)、[scripts/check-js.js](../../../scripts/check-js.js)、[scripts/build-local.bat](../../../scripts/build-local.bat)、[scripts/build-debug.bat](../../../scripts/build-debug.bat)、[build/installer.nsh](../../../build/installer.nsh)
+> 涉及文件：[package.json](../../../package.json)（`scripts` 与 `build` 配置）、[scripts/create-icon.js](../../../scripts/create-icon.js)、[scripts/publish-release.js](../../../scripts/publish-release.js)、[scripts/check-js.js](../../../scripts/check-js.js)、[scripts/build-local.bat](../../../scripts/build-local.bat)、[scripts/build-debug.bat](../../../scripts/build-debug.bat)、[build/installer.nsh](../../../build/installer.nsh)
 
-本文档是构建/打包/发布的**唯一事实源**:npm scripts、依赖清单、electron-builder 配置、图标生成、NSIS 脚本、发布流水线、运行模式、版本管理、本地批处理均只在此成表。自动更新的运行时状态机与 UI 同步见 [desktop/update.md](../desktop/update.md),桌面进程与 userData 布局见 [desktop/main.md](../desktop/main.md),各运行模式的认证能力差异见 [desktop/auth.md](../desktop/auth.md)。
+本文档是构建、打包与发布的**单一事实来源**，集中维护 npm 脚本、依赖清单、`electron-builder` 配置、图标生成、NSIS 安装脚本、发布流水线、运行模式、版本管理及本地批处理。自动更新的运行时状态机与 UI 同步见 [desktop/update.md](../desktop/update.md)，桌面进程与 `userData` 布局见 [desktop/main.md](../desktop/main.md)，各运行模式的认证能力差异见 [desktop/auth.md](../desktop/auth.md)。
 
-## 1. npm scripts(唯一成表处)
+## 1. npm scripts
 
-| script                | 命令                                                                                                                                                              | 说明                                                                                                         |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `export:audio` | `node scripts/export-audio-component.js` | 导出独立压缩音频组件及上传说明，更新客户端固定描述；不上传或发布 |
-| `start`               | `node src/server.js`                                                                                                                                              | 本地 Node 调试入口：同进程运行 HTTP/WS 与本地领域服务，管理页仍需有效凭据,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
-| `desktop`             | `electron .`                                                                                                                                                      | 桌面模式:Electron 壳与 HTTP 服务同进程                                                                       |
-| `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法覆盖，逐文件复用；支持 `--plan` / `--force`（见 [test.md](test.md) §3） |
-| `test` | `node scripts/run-tests.js` | 递归收集业务目录中的测试；默认文件并发取 8 与可用 CPU 数的较小值，支持依赖组、目录和 `--file` 路径/通配符筛选，显式 `--test-concurrency` 替换该默认值(见 [test.md](test.md)) |
-| `test:admin` | 具体文件清单见 [package.json](../../../package.json) 的 `scripts.test:admin` | 固定管理页组合、外壳、AI、弹幕与加班机回归；显式启用 ESM VM 模块 |
-| `verify:docs`         | `node --test test/engineering/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
-| `verify:architecture` | `node --experimental-vm-modules --test test/engineering/module-boundaries.test.js test/engineering/esm-module-boundaries.test.js test/engineering/modularity-size.test.js`                                                         | 模块依赖、遗留全局/SQL 边界与前端 ESM 检查；文件规模按 ADR-0023 提示，不执行旧行数预算                                                                    |
-| `verify:quick`        | `npm run verify:docs && npm run check && npm run verify:architecture`                                                                                             | 日常评审前快速门禁:文档 → 语法 → 架构                                                                        |
-| `verify:contracts` | `node scripts/verify-server-contract.js` | 核对固定服务器提交和 fixture SHA-256；支持 `LIRA_SERVER_ROOT` |
+| 脚本 | 命令 | 说明 |
+| --- | --- | --- |
+| `export:audio` | `node scripts/export-audio-component.js` | 导出独立压缩音频组件并更新内置清单（不上传或发布） |
+| `start` | `node src/server.js` | 本地 Node 调试入口：同进程运行 HTTP/WS 与本地领域服务，管理页仍需有效凭据（见 [backend/server-core.md](../backend/server-core.md)） |
+| `desktop` | `electron .` | 桌面模式：Electron 主进程与 HTTP 服务同进程运行 |
+| `check` | `node scripts/check-js.js` | 全量 JS 语法检查，按文件缓存复用；支持 `--plan` / `--force`（见 [test.md](test.md) §3） |
+| `test` | `node scripts/run-tests.js` | 递归收集业务目录中的测试；默认并发取 `min(8, CPU 数)`，支持依赖组、`--domain` 与 `--file` 筛选（见 [test.md](test.md) §1） |
+| `test:admin` | 见 [package.json](../../../package.json) 的 `scripts.test:admin` | 固定管理页组合、外壳、AI、弹幕与加班机回归；显式启用 ESM VM 模块 |
+| `verify:docs` | `node --test test/engineering/governance-docs.test.js` | 治理文件、路由表、规格索引和范围内 Markdown 链接检查 |
+| `verify:architecture` | `node --experimental-vm-modules --test test/engineering/module-boundaries.test.js test/engineering/esm-module-boundaries.test.js test/engineering/modularity-size.test.js` | 模块依赖、遗留全局/SQL 边界与前端 ESM 检查；文件规模按 ADR-0023 仅作提示，不再执行硬性行数上限 |
+| `verify:quick` | `npm run verify:docs && npm run check && npm run verify:architecture` | 日常评审前快速门禁：文档 → 语法 → 架构 |
+| `verify:contracts` | `node scripts/verify-server-contract.js` | 核对固定服务器提交和样例 SHA-256；支持 `LIRA_SERVER_ROOT` |
 | `verify:roundtrip` | `node scripts/verify-song-roundtrip.cjs` | 固定服务器真实 HTTP 歌库往返；两仓需安装依赖 |
-| `verify` | `npm run verify:contracts && npm run check && npm test -- --require-full` | 完整门禁:固定契约输入 → 语法 → 全量测试，拒绝筛选、跳过和不完整结果 |
-| `diagnose:wesing`     | `node scripts/inspect-wesing-playback.js`                                                                                                                         | 全民 K 歌播放状态交互诊断(见 [test.md](test.md) §4 与 [backend/music/wesing.md](../backend/music/wesing.md)) |
-| `make:icon`           | `node scripts/create-icon.js`                                                                                                                                     | 生成 `build/icon.png` + `build/icon.ico`(见 §5)                                                              |
-| `dist:win`            | `npm run make:icon && electron-builder --win nsis --x64 --publish never`                                                                                                          | 正式打包:下载 Electron 二进制 + 构建 NSIS 安装包                                                             |
-| `dist:win:local`      | `npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --publish never --config.electronDist=node_modules/electron/dist`                  | 本地打包:跳过二进制下载,复用 `node_modules/electron/dist`                                                    |
-| `release:win`         | `node scripts/publish-release.js`                                                                                                                                 | 完整发布流水线(见 §7)                                                                                        |
+| `verify` | `npm run verify:contracts && npm run check && npm test -- --require-full` | 完整门禁：固定契约输入 → 语法 → 全量测试，拒绝筛选、跳过和不完整结果 |
+| `diagnose:wesing` | `node scripts/inspect-wesing-playback.js` | 全民 K 歌播放状态交互诊断（见 [test.md](test.md) §4 与 [backend/music/wesing.md](../backend/music/wesing.md)） |
+| `make:icon` | `node scripts/create-icon.js` | 生成 `public/img/shared/lira-app-icon.png` 和 `build/icon.ico`（见 §5） |
+| `dist:win` | `npm run make:icon && electron-builder --win nsis --x64 --publish never` | 正式打包：下载 Electron 二进制并构建 NSIS 安装包 |
+| `dist:win:local` | `npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --publish never --config.electronDist=node_modules/electron/dist` | 本地打包：跳过二进制下载，复用 `node_modules/electron/dist` |
+| `release:win` | `node scripts/publish-release.js` | 完整发布流水线（见 §7） |
 
-- 出处:[package.json](../../../package.json) 的 `scripts` 字段。
-- `dist:win:local` 使用**原生 cmd 语法**(`set VAR=1 && …`,Windows-only),未引入任何跨平台环境变量注入工具；通过 Windows 上的 npm 执行。
-- `test` 的 `--test-concurrency` 控制测试文件并发数（默认 8 与可用 CPU 数的较小值），保留进程隔离；`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
+- 出处：[package.json](../../../package.json) 的 `scripts` 字段。
+- `dist:win:local` 使用 Windows 原生 cmd 语法（`set VAR=1 && …`），未引入跨平台环境变量注入工具。
+- `test` 的 `--test-concurrency` 替换默认并发值并保留进程隔离；`--experimental-vm-modules` 为必需参数，用于 VM 加载前端 ESM 模块（详见 [test.md](test.md) §1）。
 
 ### 本地发布验证
 
-当前仓库已移除 Check 工作流，发布前在 Windows 和 Node.js 24 环境按[发布指南](../../../RELEASE_GUIDE.md#0-选择发布流程与审查范围)选择日常增量或大版本／高风险流程；该指南统一维护审查范围与验证要求。下文说明各检查的环境，不要求增量发布运行所有检查；两种流程均保留发布脚本内置的构建和安装包验证。
+发布前在 Windows 和 Node.js 24 环境按 [发布指南](../../../RELEASE_GUIDE.md#0-选择发布流程与审查范围) 选择日常增量或大版本／高风险流程（审查范围与验证要求由该指南统一维护；两种流程均保留发布脚本内置的构建和安装包完整性校验）。
 
-构建检出（包括独立 worktree）必须拥有通过 `npm ci` 安装的独立 `node_modules`，可以共用 npm 下载缓存，但不要用 junction/symlink 共用另一检出的依赖目录。已复现 electron-builder 26.15.3 在共享目录时只收集 6 个包，遗漏 `pako`、`pend` 和更新器依赖；其 `cannot find path for dependency` 警告不会自行终止打包。出现此警告时必须修复构建依赖并重建，不能接受生成的 EXE，也不能把间接依赖逐个添加到应用顶层来掩盖收集错误。
+用于构建的工作区（含独立 Git worktree）必须各自通过 `npm ci` 安装独立的 `node_modules`；可以共用 npm 全局下载缓存，但不要用目录联接（junction）或符号链接共享其他工作区的 `node_modules`。已复现 `electron-builder` 26.15.3 在共享依赖目录时仅收集 6 个包，遗漏 `pako`、`pend` 和更新器依赖，且其 `cannot find path for dependency` 警告不会自行终止打包。出现该警告时必须修复依赖并重建，不能接受残缺的 EXE，也不应把间接依赖提升到应用顶层掩盖问题。
 
-Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。24.15.0 及更早 24.x 的 TCP 连接存在可能无 JavaScript 错误输出的原生崩溃，修复见 [Node #62561](https://github.com/nodejs/node/pull/62561) 与 [24.16.0 发布记录](https://nodejs.org/en/blog/release/v24.16.0)。可在 `tmp/` 使用校验过官方 SHA-256 的便携运行时并仅为当前命令设置 PATH，不需要重装依赖或修改系统 Node；这不改变桌面使用的 Electron 版本。
+Windows 发布验证要求使用 Node.js 24 LTS 最新补丁版（至少 `24.16.0`）：`24.15.0` 及更早 24.x 的 TCP 连接存在可能无 JavaScript 错误输出的原生崩溃（修复见 [Node #62561](https://github.com/nodejs/node/pull/62561) 与 [24.16.0 发布记录](https://nodejs.org/en/blog/release/v24.16.0)）。可在 `tmp/` 使用经官方 SHA-256 校验的便携运行时并仅为当前命令设置 `PATH`，无需修改系统 Node，也不影响桌面内置的 Electron 版本。
 
-`npm run verify` 先实时校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再运行语法检查（逐文件复用）和 `npm test -- --require-full`，后者已包含文档与架构测试。完整模式要求全部选中文件都有有效结果、全部用例实际执行且通过；筛选、跳过、待办、取消或结果缺失均不能通过，普通定向 `npm test` 仍可筛选。默认进度输出及完整日志位置见[测试参考](test.md#失败文件重跑与诊断记录)。依赖安装必须先结束，验证期间不要重装或修改依赖。服务器检出按显式路径、`LIRA_SERVER_ROOT`、已存在的平级 `lira-server-contract`、平级 `lira-server` 的顺序选择；准备方式与失败语义见 [测试参考](test.md#固定服务器契约输入)。不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。
+`npm run verify` 按序执行契约锁校验（[server-contract.lock.json](../../../server-contract.lock.json)）、语法检查和 `npm test -- --require-full`（已含文档与架构测试），完整模式下拒绝筛选、跳过、待办、取消或结果缺失。验证期间不要重装或修改依赖；进度输出、日志位置、服务端检出目录解析顺序与真实 HTTP 往返说明见 [失败文件重跑与诊断记录](test.md#失败文件重跑与诊断记录) 和 [固定服务器契约输入](test.md#固定服务器契约输入)。
 
-原生安装器测试自动发现本机 electron-builder 缓存中的 NSIS 编译器及插件；需要覆盖时用 `LIRA_TEST_MAKENSIS` 指向 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll` 和 `nsProcess.dll` 的 `x86-unicode` 插件目录。执行完整验证前按[安装器测试参考](test.md#windows-安装器集成测试)检查工具，已有完整缓存无需反复配置环境变量。完整验收拒绝因缺少工具而跳过安装、迁移或卸载场景。
+原生安装器集成测试会自动查找本机 `electron-builder` 缓存中的 NSIS 编译器及插件，也支持通过 `LIRA_TEST_MAKENSIS` / `LIRA_TEST_NSIS_PLUGINS` 显式覆盖；完整验收拒绝因缺少工具而跳过场景，工具发现与检查命令见 [Windows 安装器集成测试](test.md#windows-安装器集成测试)。
 
-未在上表展开的脚本（精确键名与 package.json 一致）：
+其他辅助脚本（键名与 `package.json` 一致）：
 
-| npm script | 用途及读写/环境边界 |
+| npm script | 用途与环境边界 |
 | --- | --- |
-| `verify:modularity` | 运行 `scripts/check-modularity.js` 的源码规模检查；不修改源码 |
-| `test:offline` / `test:browser` / `test:desktop` / `test:installer` / `test:contracts` | 按运行依赖选择测试组；完整发现命令、临时状态隔离、Chromium/Electron/NSIS/服务器 fixture 要求见 [test.md](test.md) §1 |
-| `refresh:gifts` | `scripts/refresh-bilibili-gift-sale.js` 读取指定 dataDir 的当前 roomId/盲盒配置，联网获取 Bilibili 在售目录并写本地缓存；使用 `--room-id` / `--data-dir` 指定维护目标，不是纯检查 |
-| `sync:gifts` | `scripts/initialize-gift-catalog.js` 从 LIRA Server 下载公开目录与图片，并迁移/写入指定数据目录的 cache；目录取首个位置参数、LIRA_DATA_DIR 或默认 data，不读写用户授权凭据，不是打包或发布步骤 |
+| `verify:modularity` | 运行 `scripts/check-modularity.js` 的源码规模报告；只读，不修改源码 |
+| `test:offline` / `test:browser` / `test:desktop` / `test:installer` / `test:contracts` | 按运行依赖分组执行测试；分组与环境要求见 [test.md](test.md) §1 |
+| `refresh:gifts` | `scripts/refresh-bilibili-gift-sale.js` 读取指定 `dataDir` 的当前房间和盲盒配置，联网拉取 B 站在售礼物并写入本地缓存（支持 `--room-id` / `--data-dir`） |
+| `sync:gifts` | `scripts/initialize-gift-catalog.js` 从 LIRA Server 下载公开礼物目录与图片并写入数据目录缓存（目录取首个位置参数、`LIRA_DATA_DIR` 或默认 `data`），不读写用户授权凭据 |
 
-## 2. 依赖清单(唯一成表处)
+## 2. 依赖清单
 
 ### 电音助手原生资源
 
-模型资源统一使用 `vendor/lira.onnx`。构建只复制运行所需文件，不打包开发转换记录或本机路径，并清理旧构建中残留的记录及旧模型文件名。
+模型资源统一使用 `vendor/lira.onnx`。构建只复制运行所需文件，不打包开发转换记录或本机路径，并清理旧构建残留记录与旧模型文件名。
 
-`npm run build:audio-assistant -- <vendor目录>` 使用根 `global.json` 固定的 .NET 10.0.404 SDK 发布 `native/audio-assistant/AudioAssistant.csproj`，目标为 `net10.0-windows10.0.19041.0`，生成含 .NET 10 运行库的 Windows x64 工作程序；未提供目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目使用 NAudio 2.2.1、ONNX Runtime 1.26.0，复用 Rubber Band 3.3.0 的既有 DLL 与已校验模型。两个项目均声明 `win-x64` 还原目标，使 VS Code 还原时保留各自 `packages.lock.json` 中的 Windows 依赖。命令行构建和原生检查在 `tmp/` 生成中间文件，并排除项目内的 `obj/`，避免重复编译编辑器生成的程序集属性。构建入口先执行 `dotnet restore -r win-x64 --locked-mode`，再以 `--no-restore` publish，保证传递图可复核。没有新增 npm 运行时依赖；客户端使用 Electron 自带 Node，终端用户无需安装 Node、Python 或 .NET。
+`npm run build:audio-assistant -- <vendor目录>` 使用仓库根 `global.json` 固定的 .NET `10.0.404` SDK 发布 `native/audio-assistant/AudioAssistant.csproj`（目标框架 `net10.0-windows10.0.19041.0`），生成自包含 .NET 10 运行库的 Windows x64 工作程序；未传目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目依赖 NAudio `2.2.1`、ONNX Runtime `1.26.0`，复用 Rubber Band `3.3.0` DLL 与已校验模型。两个项目均声明 `win-x64` 还原目标以保留各自 `packages.lock.json` 中的 Windows 依赖；命令行构建在 `tmp/` 生成中间产物并排除项目内 `obj/`，先执行 `dotnet restore -r win-x64 --locked-mode` 再 `--no-restore` 发布，保证传递依赖可复核。终端用户无需安装 Node、Python 或 .NET。
 
-输出位于忽略的 `build/audio-assistant/`，构建中间产物位于 `tmp/audio-assistant-build/`。客户端安装包不再通过 `extraResources` 携带音频目录。`npm run export:audio` 从已有构建输出生成独立压缩 ZIP（排除 PDB），并更新客户端内置的 `src/electron/audio-component-manifest.json`；音频未变时无需重编译。导出物、上传顺序和缓存规则见 [CDN 音频组件交付](../../guides/cdn-resources.md#音频组件独立交付)。构建前须准备完整 vendor 文件；核心职责见[原生核心说明](../../../native/audio-assistant/README.md)。原生代码变化时先构建并聚焦验证，再导出并按[发布指南](../../../RELEASE_GUIDE.md)执行客户端验证。
+编译输出位于忽略目录 `build/audio-assistant/`，构建脚本的中间产物位于 `tmp/audio-assistant-build/`。直接从 IDE 或 `dotnet build` 构建两个原生项目时，[Directory.Build.props](../../../Directory.Build.props) 将各项目的 `obj` 和 `bin` 分开写入 `tmp/dotnet/`。客户端安装包不再通过 `extraResources` 携带音频目录；`npm run export:audio` 将已有构建输出打成压缩 ZIP（排除 PDB）并更新内置清单 `src/electron/audio-component-manifest.json`（音频代码未变时无需重编）。导出产物、上传顺序和缓存规则见 [CDN 音频组件交付](../../guides/cdn-resources.md#音频组件独立交付)，核心职责见 [原生核心说明](../../../native/audio-assistant/README.md)。
 
-原生聚焦验证：先执行上述构建，再运行 `npm run test:audio-native`。脚本将测试工程输出到 `tmp/`，检查合成信号的 DSP、歌曲检测，并使用独立临时状态验证真实工作程序的中文管道、参数保存、失败后停止与 EOF 退出；不播放用户歌曲或修改声卡路由。
+原生定向验证：构建完成后运行 `npm run test:audio-native`，脚本将测试工程输出到 `tmp/`，验证合成信号的 DSP、歌曲检测，以及真实工作程序的中文管道通信、参数保存、失败停止与 EOF 退出，不播放用户歌曲或改动声卡路由。
 
-| 类型            | 包                  | 版本       | 用途                                                                    |
-| --------------- | ------------------- | ---------- | ----------------------------------------------------------------------- |
-| dependencies    | `@clamber_l/crypto` | `0.1.12`   | QQ音乐加密音频解码                                                      |
-| dependencies    | `@jixun/qmweb-sign` | `2.0.3`    | QQ音乐 zzcSign 请求签名([package.json](../../../package.json))   |
-| dependencies    | `jose` | `6.2.13` | ChatGPT 订阅登录的 OIDC/JWT 签名、issuer、audience 与声明校验；见 [AI 账号接入](../backend/ai.md#45-chatgpt-订阅与-kimi-api) |
-| dependencies    | `qrc-decoder`       | `1.0.2`    | QQ音乐 QRC 歌词 3DES 解密([package.json](../../../package.json)) |
-| dependencies    | `yauzl`            | `3.4.0`    | 有限体积、逐项读取本机素材 ZIP；精确锁定 |
-| dependencies    | `electron-updater`  | `^6.8.4`   | 应用内自动更新(运行时见 [desktop/update.md](../desktop/update.md))      |
-| devDependencies | `electron`          | `43.8.3`   | Electron 运行时,精确锁定([package.json](../../../package.json))  |
-| devDependencies | `electron-builder`  | `^26.18.0` | 打包器([package.json](../../../package.json))                    |
-| devDependencies | `app-builder-lib`   | `26.18.0`  | 打包配置/NSIS 测试直接引用的 builder 实现；固定版本以覆盖 `out/*` 内部路径耦合 |
-| devDependencies | `builder-util`      | `26.16.0`  | 构建脚本与测试直接使用的架构枚举及日志工具                    |
-| devDependencies | `@electron/asar`    | `3.4.1`    | 打包依赖校验、资源完整性和 ASAR 测试直接使用                  |
-| devDependencies | `playwright`        | `^1.62.1`  | 开发期浏览器自动化工具;不随正式应用打包,包括其依赖 `playwright-core`      |
+| 类型 | 包 | 版本 | 用途 |
+| --- | --- | --- | --- |
+| `dependencies` | `@clamber_l/crypto` | `0.1.12` | QQ 音乐加密音频解码 |
+| `dependencies` | `@jixun/qmweb-sign` | `2.0.3` | QQ 音乐 `zzcSign` 请求签名 |
+| `dependencies` | `jose` | `6.2.13` | ChatGPT 订阅登录的 OIDC/JWT 签名与声明校验（见 [AI 账号接入](../backend/ai.md#45-chatgpt-订阅与-kimi-api)） |
+| `dependencies` | `qrc-decoder` | `1.0.2` | QQ 音乐 QRC 歌词 3DES 解密 |
+| `dependencies` | `yauzl` | `3.4.0` | 有限体积、逐项读取本机素材 ZIP（精确锁定） |
+| `dependencies` | `electron-updater` | `^6.8.4` | 应用内自动更新（运行时见 [desktop/update.md](../desktop/update.md)） |
+| `devDependencies` | `electron` | `43.8.3` | Electron 运行时（精确锁定） |
+| `devDependencies` | `electron-builder` | `^26.18.0` | 打包器 |
+| `devDependencies` | `app-builder-lib` | `26.18.0` | 打包配置/NSIS 测试直接引用的 builder 实现；固定版本以避免 `out/*` 内部路径变动导致测试失效 |
+| `devDependencies` | `builder-util` | `26.16.0` | 构建脚本与测试使用的架构枚举及日志工具 |
+| `devDependencies` | `@electron/asar` | `3.4.1` | 打包依赖校验、资源完整性和 ASAR 测试使用 |
+| `devDependencies` | `playwright` | `^1.62.1` | 开发期浏览器自动化工具（含 `playwright-core`，不随正式应用打包） |
 
-**engines:`node >=24`**([package.json](../../../package.json))。版本与依赖归类以 [package.json](../../../package.json) 为准。`app-builder-lib/out/*` 属于 builder 内部路径，当前 packaging/installer/font 测试有意直接耦合；升级 builder 时必须运行这些 focused 测试，不能把传递安装视为项目未声明的隐式依赖。
+**engines：`node >=24`**（以 [package.json](../../../package.json) 为准）。`app-builder-lib/out/*` 属于 builder 内部路径，当前打包/安装器/字体测试有意直接依赖；升级 builder 时必须运行这些定向测试。
 
-**npm overrides**([package.json](../../../package.json)):js-yaml 强制 `^4.3.2`，当前 [package-lock.json](../../../package-lock.json) 解析为 `4.3.2`。该覆盖约束作用于 electron-updater 与 electron-builder 的传递依赖；版本锁本身不代替依赖安全审计。
+**npm overrides**（[package.json](../../../package.json)）：
+- `js-yaml` 强制 `^4.3.2`（[package-lock.json](../../../package-lock.json) 解析为 `4.3.2`），约束 `electron-updater` 与 `electron-builder` 的传递依赖。
+- `minimatch@>=7 <11.0.1` 固定为 `11.0.1`，用于修复 [GHSA-g3hv-75wg-m249](https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249)（限定区间以保留旧工具的 callable API；上游依赖纳入修复后再移除）。
 
-## 3. electron-builder 配置(唯一成表处)
+## 3. `electron-builder` 配置
 
-本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM 和缩略图从 `build.files` 排除，源码保留；小型受信 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，格式见[套装指南](../../guides/component-style-packages.md)。
+全部配置内联在 [package.json](../../../package.json) 的 `build` 字段中，无独立配置文件：
 
-`public/fonts/` 下共享完整字库的 WOFF2、TTF、OTF 不进入安装包；`clock-moon-serif-400.woff2` 和 `guard-thanks-serif-400.woff2` 两个标题裁剪字体（共 6,524 字节）保留在包内。世界地图 8K PNG 也从 `build.files` 排除；三张航海旗帜由导入样式 ZIP 提供，CDN 条目仅为旧客户端保留，当前启动不再下载。字体目录、公共资源路径清单及小型 OFL 许可继续打包。`npm run export:resources` 按字体目录与 `resource-packages.js` 的明确声明更新 `src/resources/catalog.json`，生成按字体名称归组的 ZIP、具名图片、更新清单与上传总 ZIP，并报告当前启动与兼容资源的下载字节；不再按文件大小扫描纳入，必要文件缺失时导出失败。操作与准入规则见 [CDN 资源分发](../../guides/cdn-resources.md)。首次补齐需要联网，后续由主进程检查更新并使用设备缓存，通过原本地 HTTP 路径供客户端和浏览器源读取。packaging-scope 验证全部清单二进制均被排除；bundled-fonts-electron 在含中文和空格的安装路径、仅保留两个标题字体的 ASAR、真实 preload 与 IPC 下验证仅下载 19 个共享字体包和 8K 地图、全部字体实际显示，再关闭重开验证断网缓存与静默结果。原始大小见[字体说明](../../../public/fonts/README.md)，实际 EXE 压缩体积仍须重新构建后测量。
+| 配置项 | 值 | 出处 | 说明 |
+| --- | --- | --- | --- |
+| `appId` | `com.aurorawhisperer.lira` | [package.json](../../../package.json) | 应用标识 |
+| `productName` | `LIRA` | [package.json](../../../package.json) | 安装/卸载显示名 |
+| `artifactName` | `lira-setup-${version}.${ext}` | [package.json](../../../package.json) | 安装包命名（在 `build` 与 `build.nsis` 各声明一次，发布脚本按 `build.nsis.artifactName` 计算文件名） |
+| `directories.output` | `release` | [package.json](../../../package.json) | 产物目录（见 §4） |
+| `files` | `src/**/*`、`public/**/*`、`package.json` 及排除规则 | [package.json](../../../package.json) | 桌面窗口与关于页共享同一份公开 PNG；构建资源、外置套装、共享大资源及旧资源按规则排除（详见 §4） |
+| `asar` | `true` | [package.json](../../../package.json) | 源码打包为 `app.asar` 归档 |
+| `npmRebuild` | `false` | [package.json](../../../package.json) | 无原生 Node 模块，跳过重编译 |
+| `afterPack` | `scripts/after-pack.js` | [after-pack.js](../../../scripts/after-pack.js) | 禁止 builder 直接发布、移除 `default_app.asar`、校验生产依赖并生成资源完整性清单（时序见 §7） |
+| `afterSign` | `scripts/after-sign.js` | [after-sign.js](../../../scripts/after-sign.js) | 签名可能改动 unpacked 文件，签名后重算资源清单；无签名构建不依赖该钩子 |
+| `artifactBuildCompleted` | `scripts/verify-client-installer.js` | [verify-client-installer.js](../../../scripts/verify-client-installer.js) | 普通构建对 NSIS EXE 校验最终嵌入资源，失败即阻断；`release:win` 通过专用配置接管同校验（见 §7） |
+| `win.icon` | `build/icon.ico` | [package.json](../../../package.json) | 由 `make:icon` 生成 |
+| `win.target` | `nsis` / `x64` | [package.json](../../../package.json) | 仅支持 Windows x64 |
+| `nsis.oneClick` | `false` | [package.json](../../../package.json) | 标准安装向导，非一键安装 |
+| `nsis.perMachine` | `false` | [package.json](../../../package.json) | 按当前用户安装，无需管理员权限 |
+| `nsis.allowElevation` | `false` | [package.json](../../../package.json) | 不主动请求提权，允许手动以管理员启动但仍限当前用户模式 |
+| `nsis.allowToChangeInstallationDirectory` | `true` | [package.json](../../../package.json) | 允许自定义安装目录 |
+| `nsis.shortcutName` / `uninstallDisplayName` | `LIRA` | [package.json](../../../package.json) | 快捷方式与卸载显示名 |
+| `nsis.createDesktopShortcut` / `createStartMenuShortcut` | `true` | [package.json](../../../package.json) | 创建桌面与开始菜单快捷方式 |
+| `nsis.include` | `build/installer.nsh` | [package.json](../../../package.json) | 自定义 NSIS 宏与安装策略（见 §6） |
+| `publish` | 首个 generic 为 `https://assets.lirahub.cn/downloads/`；GitHub `AuroraWhisperer/LIRA`（`releaseType: release`） | [package.json](../../../package.json) | generic 供 `electron-updater` 读取；发布脚本显式上传至 GitHub |
 
-全部配置内联在 [package.json](../../../package.json) 的 `build` 字段,无独立 electron-builder 配置文件。
+## 4. 打包过滤与产物（`release/`）
 
-| 配置项                                                   | 值                                                            | 出处                                                | 说明                                                                                   |
-| -------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `appId`                                                  | `com.aurorawhisperer.lira`                                    | [package.json](../../../package.json)        | 应用标识                                                                               |
-| `productName`                                            | LIRA                                                          | [package.json](../../../package.json)        | 安装/卸载显示名                                                                        |
-| `artifactName`                                           | `lira-setup-${version}.${ext}`                                | [package.json](../../../package.json)        | 安装包命名                                                                             |
-| `directories.output`                                     | `release`                                                     | [package.json](../../../package.json)        | 产物目录(见 §4)                                                                        |
-| `files`                                                  | `src/**/*` + `public/**/*` + `build/icon.png` + `package.json` + 静态 PNG 排除项 + 旧礼物资源排除项 | [package.json](../../../package.json) | 白名单打包；显式保留主窗口使用的 PNG 图标，其他 buildResources 不进入 asar；静态界面 PNG 由 WebP 兄弟文件替代；旧礼物资源不进入安装包 |
-| `asar`                                                   | `true`                                                        | [package.json](../../../package.json)        | 源码打成 asar 归档                                                                     |
-| `npmRebuild`                                             | `false`                                                       | [package.json](../../../package.json)        | 无原生模块,跳过重编译                                                                  |
-| `afterPack`                                              | `scripts/after-pack.js`                                        | [after-pack.js](../../../scripts/after-pack.js)      | 拒绝直接 builder 发布、移除 default_app.asar、校验归档生产依赖，再生成应用资源完整性清单；时序见 §7 |
-| `afterSign` | `scripts/after-sign.js` | [after-sign.js](../../../scripts/after-sign.js) | 签名可能改变 unpacked 文件，签名后重算资源清单；无签名构建不依赖此 hook |
-| `artifactBuildCompleted` | `scripts/verify-client-installer.js` | [verify-client-installer.js](../../../scripts/verify-client-installer.js) | 普通构建对 NSIS exe 验证最终嵌入资源；发布专用配置由发布入口调用同一校验，不运行安装器；失败阻断，时序见 §7 |
-| `win.icon`                                               | `build/icon.ico`                                              | [package.json](../../../package.json)        | 由 make:icon 生成                                                                      |
-| `win.target`                                             | nsis / x64                                                    | [package.json](../../../package.json) | 仅 Windows x64                                                                         |
-| `nsis.oneClick`                                          | `false`                                                       | [package.json](../../../package.json)        | 标准安装向导,非一键安装                                                                |
-| `nsis.perMachine`                                        | `false`                                                       | [package.json](../../../package.json)        | 按用户安装,无需管理员权限                                                              |
-| `nsis.allowElevation`                                    | `false`                                                       | [package.json](../../../package.json)        | 不主动请求提权，允许手动以管理员权限启动；仍只允许当前用户模式                           |
-| `nsis.allowToChangeInstallationDirectory`                | `true`                                                        | [package.json](../../../package.json)        | 允许自定义安装目录                                                                     |
-| `nsis.shortcutName` / `uninstallDisplayName`             | LIRA                                                          | [package.json](../../../package.json) | 快捷方式与卸载显示名                                                                   |
-| `nsis.createDesktopShortcut` / `createStartMenuShortcut` | `true`                                                        | [package.json](../../../package.json) | 桌面 + 开始菜单快捷方式                                                                |
-| `nsis.include`                                           | `build/installer.nsh`                                         | [package.json](../../../package.json)        | 自定义 NSIS 宏(见 §6)                                                                  |
-| `publish`                                                | 首个 generic 为 `https://assets.lirahub.cn/downloads/`；GitHub `AuroraWhisperer/LIRA` 保留 `releaseType: release`          | [package.json](../../../package.json) | generic 供 electron-updater 使用；发布脚本按 provider 显式选择 GitHub                                                  |
+### 4.1 打包排除与资源外置规则
 
-`artifactName` 在顶层 `build` 与 `build.nsis` 各声明一次([package.json](../../../package.json));发布脚本按 `build.nsis.artifactName` 计算产物文件名([publish-release.js:14-16](../../../scripts/publish-release.js#L14-L16))。
+正式应用不包含开发依赖 `playwright` / `playwright-core` 或 Electron 默认示例程序（`afterPack` 删除输出中的 `default_app.asar`，不改动开发环境依赖目录；离线覆盖见 `test/engineering/packaging-scope.test.js`）。以下资产按类别排除出 `app.asar`：
 
-礼物图片和目录快照不再随源码或安装包分发。加班机房间目录由 Bilibili 面板/配置及在售盲盒展开决定；首次授权后，桌面运行时从 LIRA Server 获取付费目录并把全部可用图片写入 `data/cache/overtime-gift-images/`，元数据与完成状态写入同一用户数据目录，不属于 `app.asar`。构建验收应检查源码树、新生成的 `app.asar`、`win-unpacked` 和 NSIS 安装包均不含 `public/img/bilibili-gifts/`、`public/img/bilibili-gifts.json`、三份旧礼物 Markdown 或背包图库维护脚本；既有 release 产物不会因新构建自动改写。
+- **公共共享字体与大图**：`public/fonts/` 下完整字库（WOFF2/TTF/OTF）及世界地图 8K PNG 均不打入安装包；包内保留 `clock-moon-serif-400.woff2` 和 `guard-thanks-serif-400.woff2` 两份标题裁剪字体（共 6,524 字节）、周计划专用的 `weekly-schedule/zcool-xiaowei.woff2`、字体目录、资源路径清单与 OFL 许可。运行时按本机就绪字体生成 `/css/shared/display-fonts.css`，开发宿主使用的同名静态副本排除出包。`npm run export:resources` 按 `resource-packages.js` 显式声明更新 `src/resources/catalog.json` 并生成上传包（缺失必需文件时失败）；准入、清单与上传操作见 [CDN 资源分发](../../guides/cdn-resources.md)，运行期下载与缓存见 [desktop/main.md](../desktop/main.md#共享字体初始化)。
+- **外置样式套装**：本机导入素材存于 `dataDir/component-library/`（位于打包白名单外）；以下外置套装源码保留，其图片/WebM/缩略图从 `build.files` 排除，仅保留客户端可信播放器与样式 CSS：
+  - 月渡花汀：导出脚本 `node scripts/package-moonlit-suite.js`（见 [套装指南](../../guides/component-style-packages.md)）。
+  - 林间花信：排除 `public/img/overlays/gift-frame/woodland-bloom/` 与 `gift-frame-default.webp`，导出脚本 `node scripts/package-woodland-gift-frame.js`（见 [素材包指南](../../guides/component-style-packages.md#林间花信--全屏礼物感谢)）。
+  - 窗映四时：排除 `public/img/overlays/backgrounds/windowlight/`，导出脚本 `node scripts/package-windowlight-background.js`（见 [背景样式指南](../../guides/background-style-packages.md#窗映四时分层背景)）。
+- **旧礼物图库与开播素材**：旧 `public/img/bilibili-gifts/`、`public/img/bilibili-gifts.json` 及相关维护文档/脚本已移除分发（首次授权后从 LIRA Server 同步到 `data/cache/overtime-gift-images/`）。开播音乐与人物图移至白名单外的 `test/fixtures/opening/`，`public/img/overlays/opening/` 显式排除。
+- **静态图压缩与保留规则**：弹幕装饰源码保留 PNG，安装包仅打包对应 WebP；队列底图（第 3–6 套）、弹幕示意头像、辉光纹章、唱片机底盘与队列空状态插画使用高质量 WebP（质量 90，透明通道无损）；礼物占位图为 512×512 RGBA PNG（保留原 URL）。琉璃与杏花白统一使用 B 站原图（缺失留空不回退旧插画）；当前 `crane-*` 装饰、组件缩略图、千舰徽章/头像框及兼容字体入口保留分发。打包验收以实际生成的 `app.asar` 为准。
+- **元数据、诊断页与生产依赖精简**：
+  - 排除 `AGENTS.md`、`.map`、图片目录的 `README.md` / `SOURCES.md` / `generated.md` / `provenance.json` / `.webp.json` / `sources.json` / `*-sources.json` / `*.sources.json`、字体目录 `README.md` 与 `src/shared/danmaku-source-manifest.json`（运行依赖、字体 OFL 与播放器 LICENSE 保留）。
+  - 排除旧诊断页 `public/pages/gift-audit.html`、`public/css/gift-audit.css`、`public/js/gift-audit/`（边界见 [app.md](../frontend/app.md#9-子页面gift-audithtml)）及仅供历史报告引用的截图。
+  - 生产依赖排除未使用的源码、测试、类型声明和浏览器构建副本（`@jixun/qmweb-sign/src/`、`tsconfig.json`、`dist/web.{cjs,mjs}`、`pend/test.js`、`.d.cts` / `.d.mts`、`semver/range.bnf`、semver 与 js-yaml 的 CLI、`js-yaml/lib/index_vite_proxy.tmp.mjs`、`@clamber_l/crypto/Readme.MD`、`dist/loader-inline.js`、`pako/dist/*.js`、`js-yaml/dist/*.js`）；保留 Node CJS/ESM 入口、解密 WASM 与许可文件（注意 `pako/lib/zlib/README` 含 zlib 许可，不可按普通 README 排除）。
 
-## 4. 产物(release/)
+### 4.2 输出产物
 
-正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 删除构建输出里的默认示例文件，校验生产依赖后生成资源清单；不修改开发环境的 Electron 分发目录。离线回归覆盖见 `test/engineering/packaging-scope.test.js`。
+仓库根目录下，`data/` 保存开发版的本机数据，`tmp/` 存放测试、审计等中间文件，`output/` 专放用户制作的可导入资源。这三个目录均排除在安装包之外。分发时从 `release/` 取安装包，正式安装时选择源码树以外的专用目录。
 
-弹幕装饰的 PNG 源图保留在源码中，安装包只使用对应 WebP；第 3–6 套队列底图、弹幕示意头像、辉光纹章、唱片机底盘与后台队列空状态插画均使用原尺寸的高质量 WebP（质量 90，透明通道无损）。礼物占位图缩为 512×512 RGBA PNG，保留旧 URL 以兼容已保存的引用；不用索引调色板压缩，避免色带。使用指南截图保留现有清晰度。上述压缩前原文件保留在仓库根目录 `tmp/`。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
+| 产物 | 说明 |
+| --- | --- |
+| `lira-setup-{version}.exe` | NSIS 安装包，发布主产物 |
+| `lira-setup-{version}.exe.blockmap` | 增量更新块映射 |
+| `latest.yml` | 更新清单（`electron-updater` 的版本比对与 SHA-512 校验依据） |
+| `win-unpacked/` | 未打包目录（本地运行与调试） |
 
-林间花信改为独立样式包：`node scripts/package-woodland-gift-frame.js` 生成 `tmp/output/林间花信-全屏礼物感谢样式-1.0.0.zip`，仅包含清单、使用说明、预览图和未经转码的原始 WebM。ZIP 写入器与航海旗帜共用 `scripts/component-style-zip.js`。`public/img/overlays/gift-frame/woodland-bloom/` 整个制作目录及 `gift-frame-default.webp` 不再进入安装包；可信播放器、布局 CSS 和共享头像仍保留。导入与旧图层兼容方式见[素材包指南](../../guides/component-style-packages.md#林间花信--全屏礼物感谢)。
+构建只在 `release/` 生成一份 `latest.yml`（GitHub 配置设置 `publishAutoUpdate: false`，不再生成 `release/github/latest.yml`）；发布脚本将外层 `latest.yml` 与安装包、块映射一并上传 GitHub，CDN 同步也复用同一份清单。
 
-窗映四时通过 `node scripts/package-windowlight-background.js` 生成 `tmp/output/窗映四时-背景样式-1.3.0.zip`，沿用 `scripts/component-style-zip.js` 写入清单、使用说明和八张 WebP；四张场景卡片共用这些资源，预览直接引用对应场景底图。各卡片默认手动显示对应场景，持续光影或玻璃水滴动效由客户端可信播放器提供。`public/img/overlays/backgrounds/windowlight/` 排除在应用安装包之外，可信背景播放器与 CSS 保留。包格式和使用步骤见[背景样式指南](../../guides/background-style-packages.md#窗映四时分层背景)。
+## 5. 图标生成（`scripts/create-icon.js`）
 
-分发还排除 `AGENTS.md`、`.map` 调试映射及图片目录的 `README.md`、`SOURCES.md`、`generated.md`、`provenance.json`、`.webp.json`、`sources.json`、`*-sources.json` 制作元数据。字体目录的 `README.md` 和仅供维护脚本校验的 `src/shared/danmaku-source-manifest.json` 保留在源码，排除打包；运行依赖、字体 OFL 与播放器 LICENSE 均保留。
+**零第三方依赖**的纯 Node 实现（仅使用 `node:zlib`，不依赖 `node-canvas` 或系统图形库）：
 
-旧诊断页 `public/pages/gift-audit.html`、`public/css/gift-audit.css`、`public/js/gift-audit/` 和仅供历史报告引用的 `public/img/usage-guide/S/server-manage-overview.webp` 保留在源码，排除安装包。诊断页不属于当前正式桌面入口，其授权和离线验证边界见 [app.md](../frontend/app.md#9-子页面gift-audithtml)。
+- 若 `build/icon-source.png` 存在（[create-icon.js:15-25](../../../scripts/create-icon.js#L15-L25)）：使用内置 PNG 解码器读取 → 居中裁切为正方形 → 暗色边缘背景泛洪去除 → 最近邻缩放到 `256×256`。
+- 否则程序化绘制应用图标（圆角渐变底 + 麦克风/音符图元）。
+- 输出 `public/img/shared/lira-app-icon.png` 与 `build/icon.ico`（ICO 为 PNG 压缩的单尺寸 `256×256`，宽度字段 `0` 表示 `256`）。
 
-生产依赖额外排除 `@jixun/qmweb-sign/src/` 的 TypeScript 源码和单元测试、该包的 `tsconfig.json`、`pend/test.js`、`.d.cts` / `.d.mts` 类型声明、`semver/range.bnf` 语法说明和 `@clamber_l/crypto/Readme.MD` 开发说明。`pako/dist/*.js`、`js-yaml/dist/*.js` 与 `@jixun/qmweb-sign/dist/web.{cjs,mjs}` 是未使用的浏览器构建副本，亦不分发。QQ 签名由 Node 消费者使用 `node.cjs` / `node.mjs`；音频解密只使用 `@clamber_l/crypto` 默认入口和独立 WASM，排除未引用且内嵌同份 WASM 的 `dist/loader-inline.js`。Node 的 CommonJS 入口及其 `lib/`、默认 ESM 入口 `.mjs`、解密 WASM 和许可证保留。`pako/lib/zlib/README` 包含 zlib 许可，不能按普通 README 排除；依赖文件也不能仅因名称带 `tmp` 就判为垃圾。开发环境 `node_modules` 保持完整，由打包过滤器控制上述范围。
-
-构建依赖的 `overrides` 将受影响区间 `minimatch@>=7 <11.0.1` 固定为 `11.0.1`，处理 [GHSA-g3hv-75wg-m249](https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249)。当前对应 `app-builder-lib` 与 `@electron/universal` 的具名 API 调用；限定版本区间以保留其他工具使用的旧 callable API，不按整个父包递归覆盖。保留现有 builder 版本，维护 override 时需复核真实 builder matcher 的分发结果、构建与安装器测试；上游依赖范围纳入修复后再移除 override。
-
-琉璃与杏花白统一显示 B 站礼物原图，旧猫咪 / 兔子 PNG 和专属生成说明已移至 `tmp/`；图片缺失或失败时图位留空，不再回退这些插画。未使用的五张旧鹤映鎏金 `frame-*` / `ribbon-*` / `flag-tail.webp`、两张旧礼物插画 SVG（`outline.svg`、`transparent.svg`）和未引用的 `server-manage-danmaku-url.webp` 截图已移至仓库根目录 `tmp/`。闲置的 `public/img/shared/live-refresh-icon.webp`、月渡花汀旧版 `silk.svg` 和未被文档引用的 37 张历史候选截图也已移至根 `tmp/`；当前手册图片与内容不同的历史截图保留；41 份字节完全相同的历史副本已移入 `tmp/`，报告链接复用保留图片。当前 `crane-*` 装饰、动态加载的组件缩略图、千舰徽章/头像框与文档约定的旧字体模块兼容入口继续分发。验收须检查实际 `app.asar`，不能仅以源码目录大小推断安装包大小；已有 EXE 不会被这些规则自动改写。
-
-| 产物                                | 说明                                     |
-| ----------------------------------- | ---------------------------------------- |
-| `lira-setup-{version}.exe`          | NSIS 安装包,发布时的上传主产物           |
-| `lira-setup-{version}.exe.blockmap` | 构建块映射（当前整包下载不依赖它）      |
-| `latest.yml`                        | 更新清单,electron-updater 的版本比对依据 |
-| `win-unpacked/`                     | 未打包目录(本地运行/调试)                |
-
-构建只在 `release/` 生成一份 `latest.yml`。GitHub 发布配置设置 `publishAutoUpdate: false`，不再生成 `release/github/latest.yml`；发布脚本仍将外层清单与安装包、块映射一起上传 GitHub，CDN 同步也使用同一份清单。
-
-## 5. 图标生成(scripts/create-icon.js)
-
-**零第三方依赖**的纯 Node 实现(`node:zlib` 之外不 import 任何包),**不使用 node-canvas**,无需任何系统级图形库(与旧文档相反)。
-
-- 若 `build/icon-source.png` 存在([create-icon.js:15-25](../../../scripts/create-icon.js#L15-L25)):手写 PNG 解码器([create-icon.js:103-175](../../../scripts/create-icon.js#L103-L175))读取 → 居中裁正方形 → 暗色边缘背景泛洪去除([create-icon.js:219-241](../../../scripts/create-icon.js#L219-L241))→ 最近邻缩放到 256×256;
-- 否则程序化绘制应用图标:圆角渐变底 + 麦克风/音符图形(圆与矩形图元,[create-icon.js:27-56](../../../scripts/create-icon.js#L27-L56));
-- 输出 `build/icon.png` 与 `build/icon.ico` — ICO 为 **PNG 压缩的单尺寸 256×256**(宽度字段 0 表示 256,[create-icon.js:307-321](../../../scripts/create-icon.js#L307-L321))。
-
-`npm run make:icon` 是 `dist:win`/`dist:win:local`/`release:win` 的前置步骤;electron-builder 读取 `build/icon.ico`([package.json](../../../package.json))。
+`npm run make:icon` 是 `dist:win` / `dist:win:local` / `release:win` 的前置步骤，`electron-builder` 读取 `build/icon.ico`。
 
 ## 6. NSIS 安装脚本(build/installer.nsh)
 
-安装器和卸载器分两次编译；`liraRemoveApplicationFile` 仅在 `BUILD_UNINSTALLER` 阶段生成，安装器继续复用 `liraRemoveTree` 清理迁移备份，避免普通安装器产生未引用函数警告。
+安装器与卸载器分两次编译；`liraRemoveApplicationFile` 仅在 `BUILD_UNINSTALLER` 阶段生成，安装器复用 `liraRemoveTree` 清理迁移备份，避免未引用函数警告。脚本通过 `nsis.include` 接入标准 NSIS 流程，按职责拆分如下：
 
-被 `nsis.include` 引用([package.json](../../../package.json)),在标准 NSIS 流程上追加:
+### 6.1 安装范围、权限与目录校验
 
-当前用户模式校验成功后，同时归一 builder 的 per-user/per-machine 内存标记，避免 HKCU/HKLM 均有历史安装项时，静默安装 section 仍因旧 machine 标记触发提权；不删除另一上下文的注册表记录或安装。
+- **仅当前用户模式（[installer-per-user.nsh](../../../build/installer-per-user.nsh)）**：允许普通或管理员权限启动，但始终只安装给当前用户，不展示全用户选项，拒绝 `/allusers` 及旧全用户安装的自动更新模式。校验通过后统一重置 builder 的 per-user/per-machine 内存标记，避免 HKCU/HKLM 同时存在历史安装项时静默安装触发提权（不删除另一上下文的注册表记录）。
+- **重解析点与写权限探测**：选定目录后拒绝安装根目录重解析点，并递归检查 `resources/`、`locales/` 及所有后代目录（发现链接或无法读取即停止）。在退出旧程序、备份或卸载前，按当前进程权限实际探测安装根与既有 `data/`、`logs/`、`updates/` 的写权限（静默 `/D` 和更新均不跳过；探测仅创建并删除自身临时文件，不修改 ACL；管理员下可写不代表日常普通账号可写）。
+- **非空目录归属校验**：非空目录必须与当前上下文注册的 `InstallLocation` 一致，或包含 `lira-installation.ini` 中 `installation.appId=com.aurorawhisperer.lira` 标记（默认路径、文件夹名或仅存在 `data/` 均不能证明归属）。校验失败非零退出并保留旧数据；旧全用户安装须先备份并在卸载时保留数据，再以当前用户模式安装到可写目录。验证见 [installer-directory.test.js](../../../test/engineering/installer-directory.test.js)。
 
-- [installer-per-user.nsh](../../../build/installer-per-user.nsh) 允许普通或管理员权限启动，仍只安装给当前用户；不展示全用户选择，拒绝 `/allusers` 和旧全用户安装的自动更新模式。选定目录后，拒绝安装根目录重解析点，并递归检查 `resources/`、`locales/` 及所有后代；链接或无法读取的目录会停止安装，避免保留的未知链接将新包解压重定向到外部。在退出旧程序、备份或卸载之前，按安装进程权限实际探测安装根与既有 `data/`、`logs/`、`updates/` 的写权限；静默 `/D` 和更新也不能跳过。探测只创建并删除自己的临时文件，不创建这些运行子目录；管理员下探测成功不代表普通权限可写，用户仍须选择日常运行账号可写的位置，安装器不修改 ACL。非空目录还须与当前安装上下文实际注册的 `InstallLocation` 一致，或具有 `lira-installation.ini` 中 `installation.appId=com.aurorawhisperer.lira` 的保留安装标记；默认路径、文件夹名称或单独存在 `data/` 均不能证明归属。未注册且没有标记的旧版数据目录也会拒绝，应先备份并选择空目录，不通过删除原数据绕过。失败非零退出并保留旧安装/数据；旧全用户安装须先备份并在卸载时保留数据，再以当前用户模式安装到可写位置，不自动迁移。验收：[installer-directory.test.js](../../../test/engineering/installer-directory.test.js) 覆盖空目录、未知文件、注册目录、保留标记、真实读写 ACL 和多层 junction，管理员启动时的当前用户更新与全用户模式拒绝用隔离 NSIS fixture 验证。
+### 6.2 向导界面、协议页与更新模式
 
-- `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
-- `customInstallMode` 只在 [installer-ui.nsh](../../../build/installer-ui.nsh) 定义；普通安装自动选择当前用户，更新保留既有范围选择分支及页面钩子，入口不重复定义宏。旧全用户安装仍由 `customInit` 的安装模式检查提前拒绝。实际 include 图由 [installer-update.test.js](../../../test/engineering/installer-update.test.js) 使用 NSIS 预处理校验，避免单文件静态检查漏掉宏冲突。
-- [installer-ui.nsh](../../../build/installer-ui.nsh) 负责安装向导的窗口与各页排版：协议、安装范围、目录和进度页外框为 600 × 380 逻辑像素，完成页独立收紧为 420 × 260，按当前 DPI 换算并保持窗口中心。安装范围、目录和进度页保持原有结构、字体和控件；完成页单独调整提示文案及图标、标题、正文、启动选项的位置。统一使用微软雅黑 UI，正文和按钮为 9pt，普通页标题为 10pt 加粗；完成页为 15pt 半粗标题，提示安装成功及点击“完成”退出向导，底部仅显示“完成”，隐藏已禁用的“上一步”和“取消”。目录页继续使用原来的路径选择与更新跳页逻辑，完成页保留“立即启动 LIRA”复选框、需重启时的选项、以普通用户身份启动及 `--updated` 参数的传递。协议说明段落在基础字体上单独增加 2 个逻辑像素，其他字号保持。
-- `customInit`([installer.nsh](../../../build/installer.nsh))初始化更新进度显示、选择默认目录并检查本应用在当前安装上下文中的卸载项；仅在带引号的卸载程序路径明确不存在时删除该项，不遍历其他应用。首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时保留 builder 默认目录；升级沿用本机已有路径，不限制盘符。[installer-directory.nsh](../../../build/installer-directory.nsh) 在安装模式切换后的目录页再次应用默认值，保留 builder 的更新跳页行为。目录页排版根据自定义协议页的 `LIRA_AGREEMENT_PAGE_DEFINED` 标记接入，不依赖原生 MUI 协议页符号；更新回归使用实际协议宏与目录钩子，并按发布配置将编译警告视为错误。命令行 `/D` 和目录页的显式选择优先。
-- `--updated` 更新由 [installer-ui.nsh](../../../build/installer-ui.nsh) 的 `liraInitUpdateProgress` 将 `/S` 切为可见自动安装：使用原有安装范围跳过选择页，协议与目录沿用 builder 的跳页逻辑，显示原生文件进度和等待退出、备份、安装、恢复等阶段。更新成功自动关闭，完成页 pre 回调仅在 `--force-run` 时通过 builder 的普通用户启动宏打开新版；普通退出自动安装后不重新启动。错误继续显示原有安全停止提示，不进入成功启动。独立 `/S`（不带 `--updated`）和手动安装向导保持原有行为。原生回归：[installer-update.test.js](../../../test/engineering/installer-update.test.js)。
-- 安装向导第一页是协议确认页：`licensePage`([installer.nsh](../../../build/installer.nsh))占用 builder 的许可页宏，用一个原生 SysLink 连续排版简要说明，分别链接 `https://lirahub.cn/legal/terms`《用户协议》和 `https://lirahub.cn/legal/privacy`《隐私政策》。NM_CLICK/NM_RETURN 根据 NMLINK 的链接索引打开对应固定网址。页头沿用 LIRA 字标、构建 `${VERSION}` 与软件图标；段落沿用 Microsoft YaHei UI 并放大两逻辑像素，不提供离线全文按钮。默认选中不同意，明确同意后才启用下一步，leave 回调再次验证；更新 pre-hook、`--updated` 跳过及 `/S` 静默行为保持原样。客户端「百宝箱 → 设置 → 系统与关于」分别提供两份文件入口，共用阅读弹窗，分别缓存随包的 [user-agreement.txt](../../../public/pages/admin/toolbox/user-agreement.txt) 和 [privacy-policy.txt](../../../public/pages/admin/toolbox/privacy-policy.txt)，迟到读取不覆盖当前文档。官网由 [export-user-agreement.js](../../../scripts/export-user-agreement.js) 同源导出：`node scripts/export-user-agreement.js ../lira-server/public/site/legal/index.html`，生成入口页及 `terms.html` / `privacy.html`；旧 `/legal` 保留为导航入口。全文页标明各自更新/生效日期，安装包保留对应版本正文。不要设置 `nsis.license`，也不要在 `build/` 放 `license*` / `eula*` 文件，否则 builder 会再生成 `licensePage` 宏；[静态测试](../../../test/engineering/installer-static.test.js)检查许可页及默认不同意约束。
-- [installer-process.nsh](../../../build/installer-process.nsh) 拥有安装与卸载共用的进程检查，`customCheckAppRunning` 接入 builder 流程。按可执行文件完整路径核对旧安装目录和所选目录；其他目录的同名程序不阻塞，也不会收到关闭请求。进程存在但无法核实路径时停止，不把检查失败当作已经退出。交互操作先征求关闭确认，再向对应窗口发送正常关闭请求；等待约 10 秒仍未退出时，提示可能有启动失败后的后台残留，显示相关目录，允许重试或取消。静默操作只等待主程序自行退出，超时中止。主程序退出后，两种模式均检查旧 `resources/audio-assistant/LiraAudioAssistant.exe` 以及 `data/components/audio/<版本>/LiraAudioAssistant.exe`，向核实归属的 PID 发送安装退出事件，等待音频进程安全释放文件和恢复记录后才备份/卸载。旧助手不支持事件或恢复未完成时，约 10 秒后准确提示电音助手仍在运行，旧版本可重启电脑后直接安装；静默操作返回失败。音频退出等待先遍历两处安装目录中的全部候选位置，完成所有已核实进程的通知尝试后，才开始共用的 10 秒退出期限；随后重新查询进程是否实际退出，不把通知成功当作已经退出。后续轮询和新发现进程的通知不重置该期限。等待按经过时间计量，显式重试重新计时，不强制终止进程。音频维护退出语义见[桌面生命周期](../desktop/main.md#电音助手生命周期)。
-- [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认退出和备份冲突，再判断能否原地保留数据。成功安装后，`liraRecordDataPreservation` 写入上述 `lira-installation.ini` 归属标记，并用 StdUtils 计算新卸载器 SHA-256，写入独立的 `uninstall-data-preservation.ini` 的 `preserve-data.sha256`；后者是提速能力记录，随程序替换或卸载清理。只有新旧目录一致、来源为原 data、当前安装上下文注册的卸载器规范化路径等于本目录 `${UNINSTALL_FILENAME}`、实际摘要与记录一致、没有遗留 `resources/audio-assistant` 工作程序时，才跳过完整备份和恢复。读取注册项发生在切换当前用户 AppData 上下文之前；all-users 安装若还会调用第二个 current-user 卸载器则保守回退。能力记录缺失、失效或写入失败只影响下次提速，不根据版本号猜测能力。
-- 未知旧版、换目录、旧 AppData 和遗留音频等兼容路径仍用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。复制返回码须为 0–7，且完整备份已发布，才允许使用当前安装包的安全卸载器清理旧程序；失败、数据冲突或无法检查进程时停止。备份发布使用不覆盖目标的 `MoveFileW`；仅 Windows 错误 5/32/33（访问拒绝或共享/锁定冲突）最多尝试五次，以 50/100/150/200ms 退避，四次退避合计 500ms。其他错误或重试耗尽时保留原数据、既有备份及完整 `.partial`，报告实际 Win32 错误码和暂存路径并停止；不把上次成功的复制返回码当成发布错误。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。备份及残留 `.partial` 的清理复用 `liraRemoveTree`，只移除目录链接本身，不跟随目标。升级时 `customRemoveFiles` 只替换已确认的程序文件，保留 `data/`、`logs/`、`updates/`。首次安装新策略后，后续同目录更新才可使用能力记录；快路径不提供数据库迁移的回滚快照。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。
-- [build/nsis/installUtil.nsh](../../../build/nsis/installUtil.nsh) 是基于 electron-builder 26.18.0 的受控本地模板，保留 builder 安装 section 所需的文件移动/复制、路径解析、快捷方式、注册表读取及卸载结果处理接口，直接定义安全的 `uninstallOldVersion` 宏，不再编译可能运行破坏性旧卸载器的原函数。保留严格编译警告检查；升级 app-builder-lib 时须核对这些支持接口及调用顺序。`customHeader` 仅对普通安装器将编译工作目录临时切至本地模板目录；加载后恢复 builder 模板目录，兼容当前 NSIS 3.0.4 的 include 搜索顺序。运行时将本次构建已生成的 `${UNINSTALLER_OUT_FILE}` 提取至插件临时目录，验证旧安装位置仍与备份阶段一致且范围为当前用户，再以静默更新/保留数据参数清理旧安装。不会预先覆盖旧卸载程序；注册项变化、启动失败或清理失败会中止安装。[升级回归](../../../test/engineering/installer-update.test.js) 以 `/WX` 严格编译实际本地模板并沿用 builder 调用顺序，验证同目录与换目录升级均不会启动破坏性的旧卸载器，并覆盖注册项变化和新卸载器启动失败。
-- [installer-uninstall.nsh](../../../build/installer-uninstall.nsh) 拥有普通卸载选项和删除策略。应用清理仅删除明确列出的 Electron 根文件、语言包和 LIRA 资源文件，逐级检查父目录以避免经过重解析点；不递归删除 `resources/` 或未知应用目录。安装根与资源目录中的无关文件、未知旧包残留均保留，空程序目录才移除。普通卸载自动清理 `logs/`、`updates/`，完整保留 `data/` 和 `lira-installation.ini`；“同时删除用户数据”默认不勾选。安装模式选定且程序退出后，勾选者需再次确认，默认回答“否”，拒绝确认会保留数据并继续卸载。确认后清理归属标记、当前安装数据及当前用户的 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`，避免重装导入旧资料；手工/安装恢复备份及云端资料保留。静默卸载不删除数据，`--updated` 升级始终保留全部运行目录。删除前拒绝空路径、磁盘根（包括 NSIS 去掉尾斜杠后的裸盘符）与安装目录链接；运行目录递归清理只移除链接本身，不跟随目标，失败返回非零并留下卸载程序用于重试。[原生卸载回归](../../../test/engineering/installer-uninstall.test.js) 在隔离目录编译真实卸载页，覆盖默认保留、确认删除、静默/升级、混入无关文件、目录链接和失败路径；程序根文件集合另以实际安装的 Electron 发行文件独立核对。
-- 交互安装在迁移期间显示等待提示；复制或目录发布失败时显示错误步骤与复制返回码，并把详细输出以 UTF-16 保存到 `%TEMP%/LIRA-install-error.txt`。报告无法写入时仍显示错误弹窗。静默安装不显示等待提示或阻塞弹窗，失败仍返回非零退出码。
-- [collect-install-diagnostics.cmd](../../../scripts/collect-install-diagnostics.cmd) 调用同目录的 [PowerShell 收集脚本](../../../scripts/collect-install-diagnostics.ps1)，在工具旁生成 `LIRA安装诊断-日期时间.txt`（写入失败时退回 `%TEMP%`）。内容限于 Windows 版本/位数、同目录最多五个安装包的大小/哈希/签名、相关进程名、两天内的迁移报告及匹配 LIRA 程序名的崩溃/拦截事件；不会运行安装包、读取业务数据库或上传报告。迁移报告不存在不能证明故障原因。
+- **DPI 与窗口排版（[installer-ui.nsh](../../../build/installer-ui.nsh)）**：启用 `ManifestDPIAware true`。协议、安装范围、目录与进度页外框为 `600×380` 逻辑像素，完成页收紧为 `420×260` 并保持居中；统一使用微软雅黑 UI（正文与按钮 9pt，普通页标题 10pt 加粗，协议段落额外 +2 逻辑像素，完成页标题 15pt 半粗且仅保留「完成」按钮）。`customInstallMode` 仅在 `installer-ui.nsh` 定义（实际 include 图由 [installer-update.test.js](../../../test/engineering/installer-update.test.js) 预处理校验）。
+- **默认目录与卸载项清理（`customInit` / [installer-directory.nsh](../../../build/installer-directory.nsh)）**：首次安装存在 D 盘时默认 `D:\LIRA`，无 D 盘时沿用 builder 默认目录；升级沿用已有路径（`/D` 参数和用户显式选择优先）。同时检查当前上下文的本应用卸载注册项，仅在卸载程序路径明确不存在时清理。
+- **协议确认页（`licensePage`）**：占用 builder 许可页宏，用原生 `SysLink` 链接 `https://lirahub.cn/legal/terms`《用户协议》与 `https://lirahub.cn/legal/privacy`《隐私政策》，默认选中「不同意」，同意后才启用下一步。不要设置 `nsis.license` 或在 `build/` 放置 `license*` / `eula*` 文件，以免生成重复宏（检查见 [installer-static.test.js](../../../test/engineering/installer-static.test.js)）。客户端「百宝箱 → 设置 → 系统与关于」提供两份随包正文阅读入口（[user-agreement.txt](../../../public/pages/admin/toolbox/user-agreement.txt)、[privacy-policy.txt](../../../public/pages/admin/toolbox/privacy-policy.txt)），官网同源导出脚本为 [export-user-agreement.js](../../../scripts/export-user-agreement.js)。
+- **可见自动更新（`--updated`）**：`liraInitUpdateProgress` 将 `--updated /S` 切为可见自动安装进度页（跳过选择、协议与目录页，显示等待退出、备份、安装和恢复阶段）。成功后自动关闭，仅带 `--force-run` 时以普通用户身份启动新版；普通退出自动安装后保持关闭。独立 `/S`（不带 `--updated`）保持静默。验证见 [installer-update.test.js](../../../test/engineering/installer-update.test.js)。
+
+### 6.3 进程退出检查
+
+- [installer-process.nsh](../../../build/installer-process.nsh) 提供安装与卸载共用的 `customCheckAppRunning`，按可执行文件完整路径核对旧安装目录与所选目录（忽略其他目录的同名程序；无法核实路径时停止）。
+- 交互模式先征求关闭确认，再发送正常关闭请求；等待约 10 秒未退出时提示可能有后台残留并允许重试或取消；静默模式仅等待主程序退出，超时中止。
+- 主程序退出后，均会检查旧 `resources/audio-assistant/LiraAudioAssistant.exe` 与 `data/components/audio/<版本>/LiraAudioAssistant.exe`，遍历并通知全部已核实 PID 后启动共用的 10 秒退出期限（不因后续轮询重置，不强杀），等待音频进程释放文件和恢复记录。维护退出语义见 [desktop/main.md](../desktop/main.md#电音助手生命周期)。
+
+### 6.4 数据原地保留、备份恢复与本地模板
+
+- **同目录原地保留（[installer-data.nsh](../../../build/installer-data.nsh)）**：安装成功后写入归属标记 `lira-installation.ini`，并用 `StdUtils` 计算新卸载器 SHA-256 写入 `uninstall-data-preservation.ini`（`preserve-data.sha256`）。仅当新旧目录一致、来源为原 `data`、当前上下文注册的卸载器路径与本目录 `${UNINSTALL_FILENAME}` 匹配、实际摘要一致且无遗留 `resources/audio-assistant` 时，跳过完整备份与恢复（快路径不提供数据库迁移回滚快照；能力记录缺失/失效只影响提速，不按版本号猜测）。
+- **兼容备份与恢复**：未知旧版、换目录、旧 AppData 或遗留音频路径使用系统 `robocopy` 将数据完整复制到 `<新安装目录>.lira-data-backup.partial`（返回码 0–7 视为成功），再以不覆盖目标的 `MoveFileW` 发布为 `<新安装目录>.lira-data-backup`（对 Win32 错误 5/32/33 最多重试 5 次，间隔 50/100/150/200ms）。程序替换完成后恢复 `data/`；复制或发布失败保留源数据与暂存路径并中止，恢复失败保留备份并禁止启动空库。升级时 `customRemoveFiles` 保留 `data/`、`logs/`、`updates/`。启动期旧数据迁回与策略背景见 [desktop/main.md](../desktop/main.md) §3 和 [ADR-0015](../../architecture/adr/0015-install-local-desktop-data.md)。
+- **受控本地模板（[build/nsis/installUtil.nsh](../../../build/nsis/installUtil.nsh)）**：基于 `electron-builder 26.18.0` 定制，直接定义安全的 `uninstallOldVersion` 宏（不再编译可能误删数据的旧卸载调用）。运行时提取本次构建生成的 `${UNINSTALLER_OUT_FILE}` 至临时目录，核对旧安装位置与当前用户范围后静默清理旧程序（注册项变化或失败即中止）。升级 `app-builder-lib` 时须同步核对模板接口，并以 `/WX` 严格编译回归验证（[installer-update.test.js](../../../test/engineering/installer-update.test.js)）。
+
+### 6.5 普通卸载与安装诊断
+
+- **卸载清理（[installer-uninstall.nsh](../../../build/installer-uninstall.nsh)）**：仅删除明确列出的 Electron 根文件、语言包和 LIRA 资源文件（逐级校验父目录以防重解析点，不递归删除 `resources/` 或无关文件）。普通卸载自动清理 `logs/` 与 `updates/`，默认保留 `data/` 和 `lira-installation.ini`；勾选「同时删除用户数据」后须二次确认（默认「否」），确认后才清理归属标记、本目录数据及 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`。静默卸载不删数据，`--updated` 升级保留全部运行目录。删除前拒绝空路径、磁盘根与安装目录链接（验证见 [installer-uninstall.test.js](../../../test/engineering/installer-uninstall.test.js)）。
+  删除主程序或卸载器遇到 Windows 共享冲突（错误码 32）时，依次等待 50、100、150、200 毫秒，每次重新校验安装目录后再试。持续占用时退出码为 `2`，保留卸载器供关闭占用程序后重试。
+- **失败报告与诊断收集**：交互安装迁移失败时将详细输出以 UTF-16 保存至 `%TEMP%/LIRA-install-error.txt` 并弹窗提示。[collect-install-diagnostics.cmd](../../../scripts/collect-install-diagnostics.cmd) 调用同目录 [collect-install-diagnostics.ps1](../../../scripts/collect-install-diagnostics.ps1) 生成只读诊断文本（限于系统版本、同目录安装包摘要/签名、相关进程、近期迁移报告与崩溃事件，不读取业务数据库或上传）。
 
 ## 7. 发布流程(scripts/publish-release.js)
 
-`dist:win`、`dist:win:local` 和发布脚本内的 builder 命令显式指定 `--publish never`。§10 的 `build-local.bat` 委托 `dist:win:local`，因此也使用该参数；`build-debug.bat` 依赖调用者透传。这些入口仍受 `afterPack` 检查约束：显式启用 builder 发布时会被拒绝，以免 blockmap 或安装器在最终验证前开始上传。发布必须经过 `npm run release:win`。
+`dist:win`、`dist:win:local` 和发布脚本内命令均显式指定 `--publish never`（`afterPack` 也会拦截直接启用 builder 发布的调用，防止在最终校验前上传）。正式发布必须执行 `npm run release:win`：
 
-1. 拒绝有未提交/未跟踪修改的工作区，解析 `GH_TOKEN` 或 gh CLI 登录态，并只读核对本地标签和远端 peeled commit 与 HEAD 一致；保留代理探测和凭据脱敏。
-2. 生成图标后再次核验工作区与 HEAD。
-3. 只构建一次：`electron-builder --win nsis --x64 --publish never --config scripts/release-builder-config.js --config.electronDist=node_modules/electron/dist`。发布专用配置继承 package.json 的 build，仅将 `artifactBuildCompleted` 设为 null，由发布入口接管最终资源验证。普通 `dist:win` / `dist:win:local` 继续使用原钩子。构建失败直接停止，不根据旧附件判定成功。
-4. `afterPack` 删除 default_app.asar，先验证实际 app.asar 的生产依赖链，再按构建上下文版本/平台/架构生成资源清单；发生签名时 `afterSign` 重算最终资源。无签名构建不依赖 afterSign。
-5. 发布入口记录 exe、exe.blockmap、latest.yml 的 SHA-256，完整校验最终 NSIS exe 一次。随后复核全部文件摘要，确保产物未变；验证失败或产物改变不创建新标签、Release 或上传附件。
-6. 构建/验证后再次核验工作区、HEAD 和标签；只有一致才创建并推送标签，随后在发布重试流程中创建或复用 GitHub Release。每轮先查询 Release，创建请求失败或响应丢失后可在下一轮复用已创建的 Release。标题使用当前版本，正文来自 UPDATE.md 的对应版本小节，经临时 notes 文件传入。
-7. 首次上传前及每轮上传后核对远端名称、字节数和已验证的 SHA-256；远端无摘要时下载至独立临时目录计算并清理。本地对比复用固定摘要，上传前后仍复核全部本地文件，变化立即中止。
-8. 创建/复用 Release 与 `gh release upload --clobber` 共用最多三轮发布恢复，仅上传缺失或未确认一致的附件。命令失败也核对已完成的附件；若远端全部一致可恢复成功，否则只补传剩余附件。无法确认的附件不得判成功，重试耗尽报错；重试不重新构建。上传使用异步子进程，等待期间每 15 秒报告耗时和待确认文件，不推测字节进度；完成或失败均清理计时器，并保留输出脱敏。
+1. 拒绝存在未提交或未跟踪修改的工作区，解析 `GH_TOKEN` 或 `gh` CLI 登录态，只读核对本地标签及远端标签实际指向的提交与当前 `HEAD` 一致（保留代理探测与凭据脱敏）。
+2. 生成图标后再次核验工作区与 `HEAD`。
+3. 构建一次安装包：`electron-builder --win nsis --x64 --publish never --config scripts/release-builder-config.js --config.electronDist=node_modules/electron/dist`（专用配置继承 `package.json` 的 `build`，仅将 `artifactBuildCompleted` 置空，由发布入口接管最终资源验证）。
+4. 钩子执行：`afterPack` 移除 `default_app.asar`、校验生产依赖并生成资源完整性清单；若启用代码签名，`afterSign` 重算最终清单（无签名构建不依赖 `afterSign`）。
+5. 发布入口记录 `exe`、`exe.blockmap`、`latest.yml` 的 SHA-256，完整校验最终 NSIS EXE 一次，再复核全部文件摘要确保产物未被改动。
+6. 再次核验工作区、`HEAD` 与标签，确认一致后创建并推送标签，进入最多三轮的 GitHub Release 创建/复用与上传恢复流程（正文截取自 `UPDATE.md` 对应版本小节）。
+7. 首次上传前及每轮上传后核对远端附件名称、字节数和 SHA-256（远端无摘要时下载到独立临时目录校验后清理），并复核本地文件未变更。
+8. `gh release upload --clobber` 仅补传缺失或未确认一致的附件（重试不重新构建）；等待期间每 15 秒输出耗时和待确认文件，完成或失败均清理定时器并保持输出脱敏。
 
 ```mermaid
 flowchart LR
@@ -207,45 +214,43 @@ flowchart LR
   I --> J[创建与上传重试 / 本地与远端摘要核验]
 ```
 
-资源摘要证明应用文件与随包清单一致；发布者签名验证是独立保证。`afterSign` hook 存在不代表正式证书配置或签名安装验收已完成，当前签名状态仍见 §12。
+**核心校验契约**：
 
-**最终资源验证**：`scripts/verify-client-installer.js` 使用 Windows 自带的 libarchive `tar.exe` 从当前 NSIS exe 读取嵌入应用归档。安全卸载器等前置内容可能使归档超出 tar 的自解压扫描范围；仅初次列出归档失败时，复用 builder 已有的 7-Zip 工具定位 `Type=7z` 的归档区间，验证偏移、长度及结束位置为安全整数且区间位于当前 exe 内，再流式复制该区间并继续执行相同的 tar 验证。先检查列表中将被提取的路径、类型及重复项，再只提取清单和应用资源到独立临时目录；不运行安装器，不读取现有安装/用户数据。要求清单与实际随包应用资源集合及字节完全一致，并核验归档内运行依赖，结束后清理临时目录。构建主机缺少兼容工具、无法定位合法归档或任一完整性检查失败时，构建/发布失败，不能跳过验证或退回只验证 win-unpacked。非 Windows 构建主机需要兼容的 `bsdtar`。
+- **最终安装器资源验证（`scripts/verify-client-installer.js`）**：使用 Windows 自带 `tar.exe`（非 Windows 需兼容 `bsdtar`）从 NSIS EXE 读取嵌入归档；若前置安全卸载器导致 `tar` 扫描失败，则复用 builder 的 7-Zip 定位 `Type=7z` 归档区间并流式提取校验，不运行安装器也不读取本地数据。要求清单与实际应用资源集合及字节完全一致，并复核归档内生产依赖；任一失败直接阻断构建/发布。
+- **生产依赖验证（[verify-packaged-dependencies.js](../../../scripts/verify-packaged-dependencies.js)）**：由 `afterPack` 与最终安装器校验共用，从归档内 `package.json` 的生产依赖出发按 Node 解析路径递归检查（未安装的可选依赖可省略，已安装可选依赖的必需子依赖必须完整，不借用开发机或父目录模块）。
+- **资源完整性清单**：`resources/client-integrity-manifest.json`（上限 4 MiB / 10000 项，仅含 `app.asar` 与 `app.asar.unpacked/` 普通文件，稳定排序），构建生成器与运行时共用 `resource-integrity-files.js` 规则；运行期检查语义见 [desktop/update.md](../desktop/update.md)。
+- **凭据与测试**：Git/`gh` 直接启动（不将密钥放入命令行参数），仅 Windows `npm`/`npx` 使用 shell。测试覆盖见 `test/engineering/publish-release.test.js`、`test/engineering/packaging-scope.test.js`、`test/engineering/client-installer-integrity.test.js`。
 
-**生产依赖验证**：`afterPack` 和最终安装器资源验证共用 [verify-packaged-dependencies.js](../../../scripts/verify-packaged-dependencies.js)。从归档内应用 `package.json` 的生产依赖出发，按 Node 的嵌套与提升路径递归检查包清单；缺失必需包立即抛错，并列出所属包和缺失依赖。未安装的可选依赖可省略，已安装可选依赖的必需子依赖仍必须完整；不检查开发依赖，也不允许开发机或父目录的模块补足归档。最终安装器在哈希校验后再次执行同一检查，因此“哈希正确但缺运行依赖”不能通过发布门禁。此静态检查不执行归档代码，不代替隔离 Electron 启动验收。
-
-**清单**：`resources/client-integrity-manifest.json`，4 MiB/10000 项上限；仅包含 app.asar 和实际存在的 app.asar.unpacked 普通文件；稳定排序，不含清单自身、运行环境和用户数据。构建生成器和运行时共用 `resource-integrity-files.js` 的格式/路径/摘要规则。运行期语义见 [desktop/update.md](../desktop/update.md)。
-
-**凭据**：保持 GH_TOKEN/gh 登录态和已有输出脱敏，不将密钥放入参数。Git/gh 直接启动，仅 Windows npm/npx 使用 shell。latest.yml 与安装包/块映射一同由 gh 上传，不再由 builder 自动上传。测试见 `test/engineering/publish-release.test.js`、`test/engineering/packaging-scope.test.js`、`test/engineering/client-installer-integrity.test.js`。
 ## 8. 运行模式对比
 
-| 模式     | 入口                   | ELECTRON_DESKTOP | 进程                          | 认证与功能                                                                                                                                            |
-| -------- | ---------------------- | ---------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node 调试 | `npm start`            | 未设             | Node HTTP/WS 与本地领域服务同进程 | 管理 HTML/API 仍需有效管理凭据；没有 preload、safeStorage、Cookie 注入和主进程远端代理。不是匿名完整 Web 管理产品；入口与凭据来源见 [pages.md](../frontend/pages.md) §2 |
-| 桌面     | `npm run desktop`      | `'1'`            | Electron main + Server 同进程 | 完整:分区登录、Cookie 注入、自动更新                                                                                                                  |
-| 开发桌面 | `electron .`(直接运行) | `'1'`            | 同上                          | 同上;未打包环境下调试桌面功能                                                                                                                         |
+| 模式 | 入口 | `ELECTRON_DESKTOP` | 进程形态 | 认证与功能 |
+| --- | --- | --- | --- | --- |
+| Node 调试 | `npm start` | 未设 | Node HTTP/WS 与本地领域服务同进程 | 管理 HTML/API 仍需有效管理凭据；无 preload、`safeStorage`、Cookie 注入和主进程远端代理，不能作为免认证的完整 Web 管理端使用（见 [pages.md](../frontend/pages.md) §2） |
+| 桌面 | `npm run desktop` | `'1'` | Electron 主进程 + Server 同进程 | 完整功能：分区登录、Cookie 注入、自动更新 |
+| 开发桌面 | `electron .`（直接运行） | `'1'` | 同上 | 同上；未打包环境下调试桌面功能 |
 
-`ELECTRON_DESKTOP` 由 Electron main 启动早期写为 `'1'`([main.js](../../../src/electron/main.js)),`/api/health` 的 `desktop` 字段据此上报（[api-context.js](../../../src/server/api-context.js) 的 system.health）;进程模型见 [desktop/main.md](../desktop/main.md)。环境变量(`HOST`/`PORT`/`SONG_PLUGIN_DATA_DIR`/`AUTO_OPEN_ADMIN`)的唯一成表处在 [backend/server-core.md §3](../backend/server-core.md)。
+`ELECTRON_DESKTOP` 由 Electron 主进程启动早期写为 `'1'`，`/api/health` 的 `desktop` 字段据此上报；环境变量（`HOST` / `PORT` / `SONG_PLUGIN_DATA_DIR` / `AUTO_OPEN_ADMIN`）见 [backend/server-core.md](../backend/server-core.md) §3。
 
 ## 9. 版本管理
 
-- 版本号唯一来源:package.json `version`([package.json](../../../package.json))。
-- 变更记录:`UPDATE.md`,按 `## v{version} 变更` 小节组织([UPDATE.md:7](../../../UPDATE.md));发布脚本自动截取当前版本小节作为 Release 正文([publish-release.js:117-131](../../../scripts/publish-release.js#L117-L131))。
-- git 标签:每次发布创建附注标签 `v{version}` 并推送 origin([publish-release.js:67-79](../../../scripts/publish-release.js#L67-L79))。
-- 发布前需确认 package.json 与 UPDATE.md 中的版本一致(版本不匹配时 Release 正文会退回占位文本)。
+- 版本号唯一来源：[package.json](../../../package.json) 的 `version` 字段。
+- 变更记录：[UPDATE.md](../../../UPDATE.md) 按 `## v{version} 变更` 小节组织；发布脚本自动截取当前版本小节作为 GitHub Release 正文。
+- Git 标签：每次发布创建附注标签 `v{version}` 并推送至 `origin`。
+- 发布前须确认 `package.json` 与 `UPDATE.md` 版本号一致（不匹配时 Release 正文会退回占位文本）。
 
 ## 10. 本地构建批处理
 
-| 脚本                                                | 内容                                                                                                                                                                                                      | 用途                                                                   |
-| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| [build-local.bat](../../../scripts/build-local.bat) | `ELECTRON_BUILDER_CACHE=%USERPROFILE%\.cache\electron-builder` → `npm run dist:win:local` | 由 npm 解析项目内 builder，复用本地 Electron 且不发布；失败返回非零，成功后列出 `release\*.exe` |
-| [build-debug.bat](../../../scripts/build-debug.bat) | `set DEBUG=electron-builder` + `DEBUG_COLORS=true` → `npx electron-builder --win nsis --x64 %*`                                                                                                           | electron-builder 调试日志输出;`%*` 透传额外参数(如 `--publish never`)  |
+| 脚本 | 内容 | 用途 |
+| --- | --- | --- |
+| [build-local.bat](../../../scripts/build-local.bat) | `ELECTRON_BUILDER_CACHE=%USERPROFILE%\.cache\electron-builder` → `npm run dist:win:local` | 复用本地 Electron 打包且不发布；失败返回非零，成功后列出 `release\*.exe` |
+| [build-debug.bat](../../../scripts/build-debug.bat) | `set DEBUG=electron-builder` + `DEBUG_COLORS=true` → `npx electron-builder --win nsis --x64 %*` | 输出 `electron-builder` 调试日志并透传额外参数（使用时应显式传入 `--publish never`） |
 
-`build-local.bat` 在 `npm run dist:win:local` 外增加 electron-builder 缓存设置和结果展示，不再依赖全局安装的 CLI；`build-debug.bat` 只增加调试日志并透传 `%*` 参数。**两个批处理均不改变 asar 打包行为**。使用调试入口时应显式传入 `--publish never`。
+两个批处理均不改变 `app.asar` 打包行为，也不依赖全局安装的 CLI。
 
-## 11. 自动更新
+## 11. 自动更新对接
 
-运行时依赖 `electron-updater` ^6.8.4(见 §2)。构建生成带版本号的 `lira-setup-{version}.exe`、块映射及引用同名安装包的 `latest.yml`，保留 SHA-512 和大小校验；`release:win` 沿用原流程将这三个文件上传 GitHub。客户端使用 generic CDN feed，维护者向多吉云上传同次构建的原名 EXE、blockmap 和原始清单，并保留支持中的旧 blockmap，官网固定入口也按该清单跳转，操作见[CDN 分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。provider 的 `useMultipleRangeRequest: false` 使增量使用单段 Range；客户端优先增量、不可用时回退整包。更新配置随重新构建和安装生效，现有客户端不会随源码改动而改变。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
+运行时依赖 `electron-updater`（^6.8.4），通过 `package.json` 的首个 generic provider 生成 `resources/app-update.yml` 指向 CDN 更新源（`useMultipleRangeRequest: false`）。构建产物 `lira-setup-{version}.exe`、`.blockmap` 与 `latest.yml` 由 `release:win` 上传至 GitHub；CDN 同步顺序、旧块映射保留与官网入口跳转见 [CDN 分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)，增量下载回退策略、状态机与安装交接见 [desktop/update.md](../desktop/update.md)。
 
 ## 12. Windows 代码签名
 
-签名与独立验证脚本已实现，当前 `build.win` 未接入签名，发布入口也未执行发布者签名校验。脚本输入、配置前提与尚未完成的接入统一见 [code-signing.md](code-signing.md)；本节不重复维护配置模板。
+签名与独立验证脚本已实现，但 `build.win` 与发布入口尚未接入正式签名流程。当前状态、输入参数与限制见 [code-signing.md](code-signing.md)。

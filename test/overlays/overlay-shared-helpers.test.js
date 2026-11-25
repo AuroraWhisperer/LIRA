@@ -14,11 +14,16 @@ test('scene avatars reject credential-bearing, untrusted and private local URLs'
     'https://user:secret@i0.hdslb.com/a.webp', '/img/overlays/danmaku-ranked/../secret.webp']) {
     assert.equal(sceneAvatarSource(url), '');
   }
+  const { bilibiliAvatarSource } = await loadModuleExports(path.join(__dirname, '../../public/js/shared/bilibili-avatar.js'), { URL, URLSearchParams });
+  assert.equal(bilibiliAvatarSource('https://user:secret@i0.hdslb.com/a.webp'), '');
+  assert.equal(bilibiliAvatarSource('https://untrusted.example/a.webp'), '');
+  const proxy = new URL(bilibiliAvatarSource('https://i0.hdslb.com/a.webp', 'token &1'), 'http://localhost');
+  assert.equal(proxy.searchParams.get('token'), 'token &1');
 });
 
 test('overlay utilities escape markup, combine color alpha and resolve low-power mode', async () => {
   const location = { search: '?quality=low' };
-  const utils = await loadModuleExports(overlayPath('overlay-utils-module.js'), {
+  const utils = await loadModuleExports(overlayPath('overlay-utils.js'), {
     window: {},
     location,
     URLSearchParams,

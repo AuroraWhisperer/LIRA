@@ -6,19 +6,72 @@ const { validateIndex } = require('../storage/component-style-index');
 const { normalizeSceneDocument } = require('../scenes/scene-contract');
 const { normalizeSceneConfig } = require('./scene-components');
 const { SCENE_TYPES } = require('../shared/scene-component-types');
-const { invalidBackup } = require('./component-library-archive');
+const { invalidBackup, backupFileName } = require('./component-library-archive');
 
 function transferId(...values) {
   const hex = createHash('sha256').update(JSON.stringify(values)).digest('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
-function remapReferences(value, identities) {
-  if (typeof value === 'string') return value.replace(/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}/g, id => identities.get(id) || id);
-  if (Array.isArray(value)) return value.map(item => remapReferences(item, identities));
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value)
-    .map(([key, entry]) => [remapReferences(key, identities), remapReferences(entry, identities)]));
-  return value;
+// Export, preflight and restore use the same owned reference fields. Text, labels
+// and authored filenames can legitimately contain a package, style or image UUID.
+function mapActiveReferences(type, config, { files, packages, mapId = (_kind, id) => id }) {
+  function source(url) {
+    if (url.startsWith('/scene-text-images/')) {
+      const filename = url.slice('/scene-text-images/'.length);
+      files?.add(backupFileName(`images/${filename}`));
+      const [id, extension] = filename.split('.');
+      return `/scene-text-images/${mapId('image', id)}.${extension}`;
+    }
+    const match = /^\/component-(media|web)\/([a-f0-9-]{36})\/(.+)$/.exec(url);
+    if (!match) return url;
+    const [, kind, packId, resource] = match;
+    files?.add(backupFileName(`packages/${packId}/${kind === 'web' ? 'web/' : ''}${decodeURIComponent(resource)}`));
+    packages?.add(packId);
+    return `/component-${kind}/${mapId('package', packId)}/${resource}`;
+  }
+  const result = { ...config };
+  if (type === 'browser') result.url = source(config.url);
+  if (type === 'text-box') result.nodes = config.nodes.map(node =>
+    node.type === 'image' || node.type === 'gift' ? { ...node, src: source(node.src) } : node);
+  for (const key of ['cssStyle', 'mediaStyle']) {
+    const style = config[key];
+    if (style) result[key] = { ...style, id: mapId('style', style.id), src: source(style.src) };
+  }
+  if (config.resourceStyle) {
+    const style = config.resourceStyle;
+    result.resourceStyle = { ...style, id: mapId('style', style.id), preview: source(style.preview),
+      resources: Object.fromEntries(Object.entries(style.resources).map(([key, url]) => [key, source(url)])) };
+  }
+  return result;
+}
+
+function mapConfigReferences(type, config, mapId) {
+  const result = mapActiveReferences(type, config, { mapId });
+  // A switched-out style keeps its settings. Only IDs present in the archive have a mapping.
+  if (config.styleParameters) {
+    result.styleParameters = Object.fromEntries(Object.entries(config.styleParameters).map(([key, value]) => {
+      const match = /^(web|css|media|resource):(.+)$/.exec(key);
+      if (!match) return [key, value];
+      const [, prefix, id] = match;
+      return [`${prefix}:${mapId(prefix === 'web' ? 'package' : 'style', id)}`, value];
+    }));
+  }
+  return result;
+}
+
+function backupDependencies(documents) {
+  const dependencies = { files: new Set(), packages: new Set() };
+  for (const { document } of documents) for (const item of document.items) {
+    if (item.appearance.config) mapActiveReferences(item.type, item.appearance.config, dependencies);
+  }
+  return {
+    files: dependencies.files,
+    uses: pack => dependencies.packages.has(pack.id),
+    include(pack) {
+      for (const style of pack.styles) mapActiveReferences(style.type, style.config, dependencies);
+    },
+  };
 }
 
 function portableDocuments(entries) {
@@ -90,4 +143,4 @@ function validateBackupManifest(manifest, files) {
   return manifest;
 }
 
-module.exports = { transferId, remapReferences, portableDocuments, validateBackupManifest };
+module.exports = { transferId, mapConfigReferences, backupDependencies, portableDocuments, validateBackupManifest };

@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
+const { createWheelSessionService } = require('../../src/games/wheel-session-service');
 
 const fixture = createUiFixture();
 
@@ -77,6 +78,30 @@ test('wheel drafts compare against the latest saved options after a background u
   assert.equal(await page.locator('#wheelSpinBtn').isDisabled(), true);
 });
 
+test('a successful save after a reconnect read enables spinning even when its broadcast was missed', async t => {
+  const service = createWheelSessionService();
+  t.after(() => service.dispose());
+  const initial = service.configure([{ label: '旧节目', weight: 1 }, { label: '返场', weight: 1 }]);
+  const page = await fixture(t, 'wheel');
+  await page.setContent(readAdminFragmentHtml('pages/admin/toolbox/games.html'));
+  await page.evaluate(async initial => {
+    document.getElementById('otherGamesFeature').hidden = false;
+    window.fetch = async () => ({ json: async () => ({ ok: true, data: initial }) });
+    const { initWheelAdmin } = await import('/js/admin/games-wheel.js');
+    await initWheelAdmin();
+    const { eventBus } = await import('/js/shared/event-bus.js');
+    window.reconnect = () => eventBus.emit('ws:connected');
+  }, initial);
+  await page.locator('#wheelCardTrigger').click();
+  await page.locator('.wheel-label-input').first().fill('新节目');
+  await page.locator('#wheelSaveBtn').click();
+  const entries = await page.evaluate(() => { window.reconnect(); return window.pendingSaves[0].body.entries; });
+  await page.evaluate(data => window.pendingSaves.shift().resolve({ data }), service.configure(entries));
+  assert.equal(await page.locator('#wheelSpinBtn').isEnabled(), true);
+  await page.evaluate(old => window.dispatchEvent(new CustomEvent('app:wheel-update', { detail: old })), initial);
+  assert.equal(await page.locator('.wheel-label-input').first().inputValue(), '新节目');
+});
+
 test('a late spin acknowledgement cannot overwrite its completion broadcast', async t => {
   const page = await fixture(t, 'wheel');
   await page.setContent(readAdminFragmentHtml('pages/admin/toolbox/games.html'));
@@ -103,6 +128,42 @@ test('a late spin acknowledgement cannot overwrite its completion broadcast', as
   assert.equal(await page.locator('#wheelSpinBtn').isEnabled(), true);
   assert.equal(await page.locator('.wheel-label-input').first().isEnabled(), true);
   assert.match(await page.locator('#wheelCardResult').textContent(), /唱歌/);
+});
+
+test('a delayed config acknowledgement preserves an active spin and its subsequent result', async t => {
+  const page = await fixture(t, 'wheel');
+  await page.setContent(readAdminFragmentHtml('pages/admin/toolbox/games.html'));
+  await page.evaluate(async () => {
+    document.getElementById('otherGamesFeature').hidden = false;
+    window.wheelData = {
+      entries: [{ label: '甲', weight: 1 }, { label: '乙', weight: 1 }],
+      limits: { minEntries: 2, maxEntries: 12, minWeight: 1, maxWeight: 100, maxLabelLength: 40 }, spin: null,
+    };
+    window.fetch = async () => ({ json: async () => ({ ok: true, data: window.wheelData }) });
+    const { initWheelAdmin } = await import('/js/admin/games-wheel.js');
+    await initWheelAdmin();
+  });
+  await page.locator('#wheelCardTrigger').click();
+  for (const afterFinish of [false, true]) {
+    const label = afterFinish ? '终场甲' : '新场甲';
+    await page.locator('.wheel-label-input').first().fill(label);
+    await page.locator('#wheelSaveBtn').click();
+    await page.evaluate(afterFinish => {
+      const save = window.pendingSaves.shift();
+      const saved = { ...window.wheelData, entries: save.body.entries };
+      const lastResult = { index: 0, label: saved.entries[0].label };
+      const update = state => window.dispatchEvent(new CustomEvent('app:wheel-update', { detail: state }));
+      update(saved);
+      update({ ...saved, lastResult, spin: { id: 'active' } });
+      window.finishSpin = () => update({ ...saved, lastResult });
+      if (afterFinish) window.finishSpin();
+      save.resolve({ data: saved });
+    }, afterFinish);
+    assert.equal(await page.locator('#wheelSpinBtn').isEnabled(), afterFinish);
+    if (!afterFinish) await page.evaluate(() => window.finishSpin());
+    assert.ok((await page.locator('#wheelCardResult').textContent()).includes(label));
+    assert.equal(await page.locator('#wheelSpinBtn').isEnabled(), true);
+  }
 });
 
 test('wheel reconnect recovers a missed finish, preserves drafts and ignores older reads', async (t) => {

@@ -20,7 +20,7 @@ function resolveCdnOrigin(value = process.env.LIRA_RESOURCE_CDN_BASE || DEFAULT_
 
 async function readManifest({ origin, fetch, signal, timeoutMs = 15000 }) {
   const attempt = AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
-  const response = await fetch(`${origin}/resources/manifest.json`, {
+  const response = await fetch(`${origin}/client/resources/manifest.json`, {
     signal: attempt, credentials: 'omit', redirect: 'error', cache: 'no-store',
   });
   if (!response.ok || Number(response.headers.get('content-length')) > MAX_MANIFEST_BYTES) {
@@ -96,7 +96,7 @@ function objectName(file) {
 async function downloadResource(file, { origin, directory, fetch, signal, onProgress, timeoutMs = 300000 }) {
   const attempt = AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]);
   const source = (file.sourcePath || `objects/${objectName(file)}`).split('/').map(encodeURIComponent).join('/');
-  const response = await fetch(`${origin}/resources/${source}`, {
+  const response = await fetch(`${origin}/client/resources/${source}`, {
     signal: attempt, credentials: 'omit', redirect: 'error',
   });
   if (!response.ok || Number(response.headers.get('content-length')) > file.size) {

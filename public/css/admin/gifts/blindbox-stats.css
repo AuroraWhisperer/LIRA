@@ -191,7 +191,7 @@
   border-top-color: var(--primary);
   border-radius: 50%;
   content: '';
-  animation: blind-stats-spin 800ms linear infinite;
+  animation: ui-spin 800ms linear infinite;
 }
 
 .blind-stats-status strong {
@@ -212,12 +212,6 @@
   border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
   background: var(--color-danger-light);
   color: var(--danger);
-}
-
-@keyframes blind-stats-spin {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .blind-stats-table {
@@ -280,14 +274,7 @@
 }
 
 .blind-stats-table .empty {
-  display: table-cell;
-  height: 72px;
-  border: 0;
   border-radius: 0;
-  background: transparent;
-  text-align: center;
-  color: var(--muted);
-  padding: 20px;
 }
 
 .gift-blind-stats-table-wrap,

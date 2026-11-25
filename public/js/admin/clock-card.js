@@ -1,8 +1,10 @@
 'use strict';
 
-import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
+import { readApiResponse } from '../shared/json-response.js';
+import { localOverlayOrigin, toast } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { clockSettingsPayload, clockConfigFromSettings } from '../shared/clock-settings.js';
-import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
+import { createComponentConfigController } from './component-config-controller.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
 import { bindClockParameters, buildClockUrl, clockStyleChange, createClockPreview, usesDefaultClockLabel } from './clock-preview.js';
@@ -26,8 +28,8 @@ function initClockCard() {
     confirm: async () => clockConfigFromSettings(await confirmComponentSettings()),
     read: async () => {
       const response = await fetch('/api/clock/config', { cache: 'no-store' });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok || !payload.data) throw new Error('时钟配置读取失败，请重新读取。');
+      const payload = await readApiResponse(response, '时钟配置读取失败，请重新读取。');
+      if (!payload.data) throw new Error('时钟配置读取失败，请重新读取。');
       return clockConfigFromSettings(clockSettingsPayload(payload.data));
     },
     persist: async (config) => {
@@ -51,11 +53,8 @@ function initClockCard() {
   }
   controller.subscribe((state) => {
     preview.dataset.clockStyle = state.draft.style;
-    const save = document.getElementById('clockSave');
-    save.disabled = !state.loaded || !state.dirty || state.saving;
-    save.textContent = state.saving ? '正在保存…' : '保存时钟设置';
+    document.getElementById('clockSave').disabled = !state.loaded || !state.dirty || state.saving;
     document.getElementById('clockDiscard').disabled = !state.dirty || state.saving;
-    document.getElementById('clockSaveState').textContent = componentSaveMessage(state);
     updatePreview();
   });
   registerComponentSettings('clock', controller, clockConfigFromSettings, clockSettingsPayload);
@@ -64,14 +63,14 @@ function initClockCard() {
     if (event.source === preview.contentWindow && event.origin === 'null' && event.data?.type === 'component-preview:ready') updatePreview();
   });
   document.getElementById('clockFixedUrl').textContent = fixedUrl;
-  document.getElementById('clockCopyFixed').addEventListener('click', async () => {
-    try {
+  bindCopyUrl(document.getElementById('clockCopyFixed'), {
+    getUrl: () => fixedUrl,
+    onCopied: async () => {
       const size = await readComponentOutputSize('clock').catch(() => null);
-      await copyText(fixedUrl);
       toast(size ? `时钟浏览器源地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
         : '时钟浏览器源地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
-    }
-    catch (error) { toast(error.message || '复制失败，请手动复制网址。'); }
+    },
+    onError: error => toast(error.message || '复制失败，请手动复制网址。'),
   });
   document.getElementById('clockSave').addEventListener('click', () => saveComponentWithFeedback(controller, '时钟设置'));
   document.getElementById('clockDiscard').addEventListener('click', () => controller.discard());

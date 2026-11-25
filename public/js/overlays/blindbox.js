@@ -2,9 +2,9 @@
 // 盲盒盈亏 overlay — 直播间投屏展示
 'use strict';
 
-import { escapeHtml, hexToRgba } from './overlay-utils-module.js';
+import { escapeHtml, hexToRgba } from './overlay-utils.js';
 import { applyOverlayTheme } from './overlay-theme.js';
-import { createOverlaySocket } from './socket-client.js';
+import { createOverlaySocket, snapshotReasons } from './socket-client.js';
 import { startOverlayPages } from './auto-pages.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
@@ -157,8 +157,8 @@ function connectSocket() {
         render(lastStats);
       }
       // 礼物相关更新时刷新统计数据
-      const reason = payload.reason || '';
-      if (filtersChanged || reason.startsWith('bilibili:gift') || reason === 'gift:sprint:reset' || reason === 'connect' || reason === 'settings') {
+      if (filtersChanged || snapshotReasons(payload).some(reason =>
+        reason?.startsWith('bilibili:gift') || ['gift:sprint:reset', 'connect', 'settings'].includes(reason))) {
         loadStats();
       }
     },

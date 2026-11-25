@@ -90,7 +90,9 @@ async function handleStyles(context, req, res, url, canvas = false) {
       if (!['install', 'remove', 'remove-pack', 'cancel', 'config'].includes(action)) return sendJson(res, 404, { ok: false });
       data = await library[action](action === 'config' ? body : body?.id, authorize, action === 'install' ? body?.target ?? null : undefined);
     }
-    if (action === 'config') context.broadcastSnapshot?.('component:styles');
+    if (data && ['add', 'web', 'pick-web', 'install', 'remove', 'remove-pack', 'config', 'restore-backup'].includes(action)) {
+      context.broadcastSnapshot?.('component:styles');
+    }
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
     if (res.headersSent || res.destroyed) return;

@@ -31,9 +31,9 @@ function summarizeConnectionAuth(auth = {}) {
   };
 }
 
-function songRequestSummary(danmaku = {}) {
+function songRequestSummary(danmaku = {}, simplified) {
   const message = String(danmaku.message || '').trim();
-  const commandText = toSimplifiedChinese(message);
+  const commandText = simplified ?? toSimplifiedChinese(message);
   if (!commandText.startsWith('点歌') && !commandText.startsWith('随机点歌') && !commandText.startsWith('取消点歌')) return null;
   return {
     commandRef: createHmac('sha256', commandReferenceKey)
@@ -51,8 +51,8 @@ function songRequestSummary(danmaku = {}) {
   };
 }
 
-function logSongRequest(event, danmaku, details = {}) {
-  const summary = songRequestSummary(danmaku);
+function logSongRequest(event, danmaku, details = {}, simplified) {
+  const summary = songRequestSummary(danmaku, simplified);
   if (summary) logBilibiliDiagnostic(event, { ...summary, ...details });
 }
 

@@ -77,12 +77,15 @@ test('restart deducts offline elapsed time and never gains time after wall-clock
     fixture.clock.advanceWall(20_000);
     service = fixture.createService();
     assert.equal(service.getSnapshot().effectiveRemainingMs, 70_000);
+    fixture.clock.advance(30_000);
+    service.dispose();
+    fixture.clock.advance(5_000);
     service.dispose();
 
     fixture.clock.resetMonotonic();
     fixture.clock.advanceWall(-60_000);
     service = fixture.createService();
-    assert.equal(service.getSnapshot().effectiveRemainingMs, 70_000);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 40_000);
   } finally {
     service.dispose();
     fixture.close();

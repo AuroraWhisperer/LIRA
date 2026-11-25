@@ -9,7 +9,7 @@ const pkg = require('../../package.json');
 const lock = require('../../package-lock.json');
 const { createPackagedApp } = require('../helpers/packaged-app');
 
-test('the runtime window icon survives electron-builder buildResources exclusions', async () => {
+test('packaging includes the shared window icon and excludes its build source', async () => {
   const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
   const projectDir = path.resolve(__dirname, '../..');
   const output = path.join(os.tmpdir(), 'lira-icon-matcher-output');
@@ -30,10 +30,8 @@ test('the runtime window icon survives electron-builder buildResources exclusion
     false,
   );
   const filter = matchers[0].createFilter();
-  for (const relative of ['build', 'build/icon.png']) {
-    const filename = path.join(projectDir, relative);
-    assert.equal(filter(filename, await fs.stat(filename)), true, relative);
-  }
+  const windowIcon = path.join(projectDir, 'public/img/shared/lira-app-icon.png');
+  assert.equal(filter(windowIcon, await fs.stat(windowIcon)), true);
   const sourceImage = path.join(projectDir, 'build/icon-source.png');
   assert.equal(filter(sourceImage, await fs.stat(sourceImage)), false);
 });
@@ -101,7 +99,7 @@ test('packaging excludes opening samples and only the converted PNG groups', asy
   }
 });
 
-test('packaging omits external media and maintenance metadata while retaining renderers and licensed assets', async () => {
+test('packaging omits workspace data, external media and maintenance metadata while retaining runtime assets', async () => {
   const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
   const projectDir = path.resolve(__dirname, '../..');
   const output = path.join(projectDir, 'tmp/woodland-packaging-match');
@@ -109,6 +107,11 @@ test('packaging omits external media and maintenance metadata while retaining re
     buildResourcesDir: path.join(projectDir, pkg.build.directories.buildResources), config: pkg.build,
     debugLogger: { isEnabled: false } } }, output, false);
   const filter = matchers[0].createFilter();
+  // Exercise the filter without opening real user data or requiring local ZIPs.
+  const regularFile = await fs.stat(__filename);
+  for (const relative of ['data/song-request-data.db', 'tmp/diagnostics.json', 'output/suite.zip']) {
+    assert.equal(filter(path.join(projectDir, relative), regularFile), false, relative);
+  }
   const artwork = 'public/img/overlays/gift-frame/woodland-bloom';
   const excluded = (await fs.readdir(path.join(projectDir, artwork))).map(name => `${artwork}/${name}`);
   excluded.push('public/img/component-previews/gift-frame-default.webp', 'src/electron/AGENTS.md',
@@ -116,8 +119,9 @@ test('packaging omits external media and maintenance metadata while retaining re
     'public/img/overlays/danmaku-flower-letter/SOURCES.md',
     'public/img/admin/gifts/guard-icon-sources.json', 'public/img/overlays/danmaku-harbor/sources.json',
     'src/shared/danmaku-source-manifest.json', 'public/fonts/README.md',
+    'public/css/shared/display-fonts.css', 'public/img/playback/home-icons.sources.json',
     'public/fonts/lyrics-fallback/README.md', 'public/fonts/weekly-schedule/README.md',
-    'public/img/usage-guide/S/server-manage-overview.webp', 'public/pages/gift-audit.html',
+    'public/pages/gift-audit.html',
     'public/css/gift-audit.css', 'public/js/gift-audit/index.js',
     'public/js/gift-audit/analysis.js', 'public/js/gift-audit/view.js');
   for (const relative of excluded) {
@@ -146,7 +150,8 @@ test('production dependencies omit development files and browser bundles but ret
       '@clamber_l/crypto/dist/loader-inline.js', '@jixun/qmweb-sign/tsconfig.json',
       '@jixun/qmweb-sign/dist/web.cjs', '@jixun/qmweb-sign/dist/web.mjs', 'pend/test.js',
       '@jixun/qmweb-sign/src/ag1_cipher.test.ts', 'qrc-decoder/dist/qrc_codec.d.cts',
-      'qrc-decoder/dist/qrc_codec.d.mts', 'semver/range.bnf',
+      'qrc-decoder/dist/qrc_codec.d.mts', 'semver/range.bnf', 'semver/bin/semver.js',
+      'js-yaml/bin/js-yaml.js', 'js-yaml/lib/index_vite_proxy.tmp.mjs',
       'pako/dist/pako.js', 'pako/dist/pako_inflate.es5.js', 'js-yaml/dist/js-yaml.min.js']],
     [true, ['@clamber_l/crypto/LICENSE_APACHE', '@clamber_l/crypto/LICENSE_MIT',
       '@clamber_l/crypto/dist/loader.js', '@clamber_l/crypto/dist/um_wasm_bg.wasm',

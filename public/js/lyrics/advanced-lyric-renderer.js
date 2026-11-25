@@ -1,6 +1,6 @@
 import { resolveAdvancedLyricSettings } from '../shared/advanced-lyric-appearance.js';
 import { ADVANCED_LYRIC_CATALOG } from '../shared/advanced-lyric-catalog.js';
-import { parseHexColor } from '../shared/color-value.js';
+import { parseHexColor, mixColor as mixColorValues } from '../shared/color-value.js';
 import { createAdvancedLyricText, buildAdvancedLyricLayout } from './advanced-lyric-layouts.js';
 import { advancedLyricKeyframes, advancedLyricWordAnimation, createAdvancedLyricMotion } from './advanced-lyric-motion.js';
 import { buildAdvancedLyricChoreography } from './advanced-lyric-choreography.js';
@@ -41,10 +41,9 @@ function withOpacity(color, opacity) {
 }
 
 function mixColor(color, base, proportion) {
-  const a = parseHexColor(color), b = parseHexColor(base);
-  const alpha = a.alpha * proportion + b.alpha * (1 - proportion);
-  const channels = ['r', 'g', 'b'].map(key => Math.round((a[key] * a.alpha * proportion + b[key] * b.alpha * (1 - proportion)) / alpha));
-  return `rgba(${channels.join(', ')}, ${alpha})`;
+  const mixed = mixColorValues(parseHexColor(color), parseHexColor(base), proportion);
+  const channels = ['r', 'g', 'b'].map(key => Math.round(mixed[key]));
+  return `rgba(${channels.join(', ')}, ${mixed.alpha})`;
 }
 
 function textShadow(settings) {

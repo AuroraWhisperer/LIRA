@@ -47,6 +47,33 @@ test('sole playing external client follows without selection; choosing another d
   assert.deepEqual(stops, {});
 });
 
+test('external clock ticks and seeks update lyrics without republishing source controls', async (t) => {
+  let time = 100000;
+  t.mock.method(Date, 'now', () => time);
+  const { runtime, sample, samples, messages } = await fixture(t);
+  samples.netease({ detected: false });
+  messages.length = 0;
+  samples.netease({ detected: false });
+  assert.equal(messages.length, 0);
+  await sample('netease');
+  messages.length = 0;
+  const tick = (positionMs, playbackStatus) => {
+    time += 500;
+    samples.netease({ detected: true, appId: 'netease', title: 'netease', artist: 'Artist',
+      playbackStatus, positionMs, durationMs: 120000, timelineUpdatedAt: time });
+  };
+  for (const ms of [10500, 11000, 2000]) tick(ms, 'Playing');
+  assert.deepEqual(messages.filter(m => m.type === 'lyric-state').map(m => m.state.currentMs), [10500, 11000, 2000]);
+  assert.equal(messages.filter(m => m.type === 'lyric-source').length, 0);
+  assert.equal(runtime.getLyricSource().neteaseClient.currentMs, 2000);
+  tick(2500, 'Paused');
+  const change = messages.filter(m => m.type === 'lyric-source');
+  assert.equal(change.length, 1);
+  assert.equal(change[0].state.neteaseClient.currentMs, 2500);
+  assert.equal(change[0].state.neteaseClient.playing, false);
+  assert.equal(typeof change[0].state.weSing.lyricState.currentMs, 'number');
+});
+
 test('playing native NetEase replaces a paused internal track in auto and explicit preference', async (t) => {
   const { runtime, samples } = await fixture(t);
   runtime.publishLyricTimeline({ trackTitle: 'Internal', status: 'ready', lines: [{ startMs: 0, text: 'Internal line' }] });

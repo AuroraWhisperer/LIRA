@@ -157,6 +157,34 @@ test('prefer target preserves existing manual fields but fills its empty fields 
   assert.equal(result.profile.merges[0].snapshotId, result.snapshotId);
 });
 
+for (const prefer of ['source', 'target']) {
+  test(`matching lunar birthdays fill missing fields when preferring the ${prefer}`, (t) => {
+    const f = fanFixture(t);
+    const partial = { calendar: 'lunar', monthDay: '08-08', advance: false };
+    const complete = { ...partial, year: 1996, thisYearDate: '2026-09-18', advance: true };
+    const { source, target } = pair(f,
+      { birthday: prefer === 'source' ? partial : complete },
+      { birthday: prefer === 'target' ? partial : complete });
+    f.run('merge', mergeInput(source, target, { prefer }));
+    f.restart();
+    const birthday = f.detail(target.id).birthday;
+    assert.equal(birthday.year, 1996);
+    assert.equal(birthday.thisYearDate, '2026-09-18');
+    assert.equal(birthday.advance, false);
+    assert.ok(f.run('reminders').some(item => item.key === 'birthday:2026' && item.group === 'today'));
+  });
+}
+
+test('a different lunar month must not borrow the other birthday’s conversion or year', (t) => {
+  const f = fanFixture(t);
+  const birthday = { calendar: 'lunar', monthDay: '08-08' };
+  const { source, target } = pair(f, { birthday: { ...birthday, leapMonth: true } },
+    { birthday: { ...birthday, year: 1996, thisYearDate: '2026-09-18' } });
+  const merged = f.run('merge', mergeInput(source, target, { prefer: 'source' })).profile.birthday;
+  assert.equal(merged.year, null);
+  assert.equal(merged.thisYearDate, '');
+});
+
 test('merge moves other record identities with original evidence and full revision history', (t) => {
   const f = fanFixture(t);
   const { source, target } = pair(f);

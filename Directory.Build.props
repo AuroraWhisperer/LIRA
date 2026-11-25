@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="'$(MSBuildProjectDirectory)' == '$(MSBuildThisFileDirectory)native\audio-assistant' Or '$(MSBuildProjectDirectory)' == '$(MSBuildThisFileDirectory)test\desktop\audio-assistant-native'">
+    <ArtifactsPath>$(MSBuildThisFileDirectory)tmp\dotnet</ArtifactsPath>
+  </PropertyGroup>
+</Project>

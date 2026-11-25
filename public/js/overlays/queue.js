@@ -23,7 +23,7 @@ import {
 import { syncQueuePanelViewport } from './queue-viewport.js';
 import { watchComponentOutputSize } from './component-output-size.js';
 import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
-import { createOverlaySocket } from './socket-client.js';
+import { createOverlaySocket, snapshotReasons } from './socket-client.js';
 import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
 import { createQueueRequestNotice } from './queue-request-notice.js';
 
@@ -105,18 +105,19 @@ function connectSocket() {
     },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
-      if (payload.reason === 'live:status' && state) {
+      const reasons = snapshotReasons(payload);
+      if (reasons.length === 1 && payload.reason === 'live:status' && state) {
         requestNotice?.update(payload.state.queue);
         liveStatusRevision += 1;
         state.liveStatus = payload.state.liveStatus;
         return;
       }
-      if (payload.reason && payload.reason.startsWith('songs:')) {
+      if (reasons.every(reason => reason?.startsWith('songs:'))) {
         requestNotice?.update(payload.state.queue);
         return;
       }
       stateRevision += 1;
-      const needsMetadata = queueStyleChanged(state, payload.state) || isSongRequestSnapshotReason(payload.reason);
+      const needsMetadata = queueStyleChanged(state, payload.state) || reasons.some(isSongRequestSnapshotReason);
       applyState(payload.state);
       if (needsMetadata) scheduleStateRefresh();
     },

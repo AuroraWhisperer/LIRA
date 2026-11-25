@@ -1,18 +1,14 @@
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { createTextElement as node } from '../shared/dom-element.js';
 import { setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
-const GUARDS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const ICONS = Object.freeze({
   chat: 'M5 3h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-7l-6 4v-4H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z',
   gift: 'M2 8h20v5H2zM4 14h7v9H4zM13 14h7v9h-7zM11 7C2 9 3-3 9 2l3 5 3-5c6-5 7 7-2 5h-2Zm-1-2L8 3C5 1 5 6 10 5Zm4 0c5 1 5-4 2-2Z',
   system: 'M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22Zm-1 4h2v3h-2Zm0 5h2v9h-2Z',
 });
 
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = String(text);
-  return element;
-}
 
 function icon(document, kind) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -32,10 +28,7 @@ function seedFor(item) {
   return (seed ^ (seed >>> 16)) >>> 0;
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-}
+const amount = value => formatDanmakuAmount(value, 2);
 
 // The canonical renderer owns literal text, avatars and inline emotes; this owns the card.
 export function createStargazerMessageRenderer(options, render) {

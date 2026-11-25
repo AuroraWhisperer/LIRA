@@ -45,7 +45,10 @@ test('overtime overlay tickets describe every enabled rule effect and status lab
       ['clear', '时间清零'],
     ],
   });
-  await sendSnapshot(page, { revision: 2, status: 'running', effectiveRemainingMs: 60_000, rules: [disabled] });
+  const ticket = await page.locator('#overtimeTickets .overtime-ticket').first().elementHandle();
+  await sendSnapshot(page, { revision: 2, status: 'running', effectiveRemainingMs: 65_000, rules });
+  assert.ok(await ticket.evaluate(node => node.isConnected), 'a clock adjustment keeps the displayed ticket and its artwork');
+  await sendSnapshot(page, { revision: 3, status: 'running', effectiveRemainingMs: 60_000, rules: [disabled] });
   assert.deepEqual(await tickets(), { guideHidden: true, status: null, items: [] });
 });
 

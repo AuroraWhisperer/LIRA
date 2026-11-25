@@ -16,10 +16,95 @@ test.before(async () => {
     <style>#otherWorldClockFeature { display: flex; flex-direction: column; height: 650px; width: 1100px; }</style>
     </head><body><main id="otherAssistantPage" class="active">${fragment}</main>
     <script type="module">import { initWorldClock } from '/js/admin/world-clock/index.js';
-    document.getElementById('otherWorldClockFeature').hidden = false; initWorldClock();</script></body></html>` });
+    document.getElementById('otherWorldClockFeature').hidden = location.search === '?background'; initWorldClock();</script></body></html>` });
   browser = await chromium.launch({ headless: true });
 });
 test.after(async () => { await browser?.close(); await fixture?.close(); });
+
+test('background weather loads the full city directory only when needed and restores the current reading on return', async t => {
+  const page = await browser.newPage();
+  t.after(() => page.close());
+  await page.clock.install({ time: new Date('2026-10-23T12:30:00Z') });
+  let directories = 0;
+  let temperature = 14;
+  let reads = 0;
+  page.on('request', request => { if (request.url().endsWith('/city-catalog.js')) directories++; });
+  await page.route('**/world-clock/globe.js', route => route.fulfill({ contentType: 'text/javascript',
+    body: 'export async function createGlobe() { return { setCities() {}, setActive() {}, setSun() {}, focus() {}, destroy() {} }; }' }));
+  await page.route('**/api/world-clock/temperature?**', route => {
+    reads++;
+    return route.fulfill({ json: { ok: true, data: { temperature, condition: '晴', updatedAt: Date.now() } } });
+  });
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('admin.worldClock')) localStorage.setItem('admin.worldClock', JSON.stringify({ ids: ['beijing'] }));
+  });
+  const url = `${fixture.origin}/preview-test-host?background`;
+  assert.equal((await fetch(url)).status, 200);
+  await Promise.all([page.waitForResponse(r => r.url().includes('/api/world-clock/temperature')), page.goto(url)]);
+  assert.equal(directories, 0);
+  const show = hidden => page.locator('#otherWorldClockFeature').evaluate((node, value) => { node.hidden = value; }, hidden);
+  // Hold the first directory import so the base city's reading must render before Chromium discovers the catalog.
+  const firstDirectory = Promise.withResolvers();
+  await page.route('**/world-clock/cities.js', route => firstDirectory.resolve(route), { times: 1 });
+  await Promise.all([page.waitForRequest('**/world-clock/cities.js'), show(false)]);
+  const value = page.locator('.world-clock-temperature');
+  await value.filter({ hasText: '14°C' }).waitFor();
+  const directoryRoute = await firstDirectory.promise;
+  await Promise.all([page.waitForRequest('**/world-clock/city-catalog.js'), directoryRoute.continue()]);
+  assert.equal(directories, 1);
+
+  const atlanta = 'ne-1159151489';
+  await page.evaluate(id => localStorage.setItem('admin.worldClock', JSON.stringify({ ids: [id] })), atlanta);
+  const [savedCity] = await Promise.all([page.waitForRequest(r => r.url().includes('/api/world-clock/temperature')), page.reload()]);
+  assert.equal(new URL(savedCity.url()).searchParams.get('latitude'), '33.749');
+  assert.equal(directories, 2);
+  await show(false);
+  await card(page, atlanta).getByText('14°C').waitFor();
+  await show(true);
+  temperature = 20;
+  await Promise.all([page.waitForEvent('requestfinished', r => r.url().includes('/api/world-clock/temperature')), page.clock.fastForward(3600000)]);
+  assert.equal(await value.textContent(), '14°C');
+  await show(false);
+  await value.filter({ hasText: '20°C' }).waitFor();
+  assert.equal(reads, 3);
+  assert.equal(directories, 2);
+});
+
+test('a failed city directory preserves saved cities, base weather and pagehide cleanup', async t => {
+  const page = await browser.newPage();
+  t.after(() => page.close());
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.clock.install();
+  const saved = { ids: ['beijing', 'ne-1159151489'], selectedId: 'ne-1159151489', customOrder: true };
+  await page.addInitScript(value => {
+    if (!localStorage.getItem('admin.worldClock')) localStorage.setItem('admin.worldClock', JSON.stringify(value));
+  }, saved);
+  await page.route('**/world-clock/globe.js', route => route.fulfill({ contentType: 'text/javascript',
+    body: 'export async function createGlobe() { return { setCities() {}, setActive() {}, setSun() {}, focus() {}, destroy() {} }; }' }));
+  await page.route('**/world-clock/cities.js', route => route.abort());
+  let weatherReads = 0;
+  await page.route('**/api/world-clock/temperature?**', route => {
+    weatherReads++;
+    return route.fulfill({ json: { ok: true, data: { temperature: 14, condition: '晴', updatedAt: Date.now() } } });
+  });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await Promise.all([page.waitForEvent('requestfailed', r => r.url().endsWith('/world-clock/cities.js')), page.goto(url)]);
+  await card(page, 'beijing').getByText('14°C').waitFor();
+  await page.locator('[data-world-clock-format="12"]').click();
+  assert.deepEqual((await savedOrder(page)).ids, saved.ids);
+  assert.equal(weatherReads, 1);
+  await Promise.all([page.waitForResponse(r => r.url().includes('/api/world-clock/temperature')), page.clock.fastForward(3600000)]);
+  assert.equal(weatherReads, 2);
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.clock.fastForward(3600000);
+  assert.equal(weatherReads, 2);
+  await page.unroute('**/world-clock/cities.js');
+  await page.reload();
+  await card(page, saved.selectedId).getByText('14°C').waitFor();
+  assert.deepEqual(errors, []);
+});
 
 async function openClock(t, saved) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -31,15 +116,21 @@ async function openClock(t, saved) {
   await page.route('**/js/admin/world-clock/globe.js', route => route.fulfill({ contentType: 'text/javascript',
     body: 'export async function createGlobe() { return { setCities() {}, setActive() {}, setSun() {}, focus() {}, destroy() {} }; }' }));
   await page.route('**/js/admin/world-clock/temperature.js', route => route.fulfill({ contentType: 'text/javascript',
-    body: 'export function createTemperatureController() { return { get() {}, start() {}, refreshCity() {}, destroy() {} }; }' }));
+    body: 'export function createTemperatureController() { return { get() {}, start() {}, refreshCity() {}, refreshCities() {}, destroy() {} }; }' }));
   await page.addInitScript(value => {
     if (!localStorage.getItem('admin.worldClock')) localStorage.setItem('admin.worldClock', JSON.stringify(value));
   }, saved);
   await page.clock.install({ time: new Date('2026-10-23T12:00:00Z') });
   const url = `${fixture.origin}/preview-test-host`;
   assert.equal((await fetch(url)).status, 200);
+  // The extended directory replaces the initial cards. Start drag and menu actions on the final rows.
+  const directory = Promise.withResolvers();
+  await page.route('**/world-clock/cities.js', route => directory.resolve(route), { times: 1 });
   await page.goto(url);
-  await page.locator('[data-world-clock-city]').first().waitFor();
+  const initialCard = await page.locator('[data-world-clock-city]').first().elementHandle();
+  await (await directory.promise).continue();
+  await page.waitForFunction(card => !card.isConnected, initialCard);
+  await initialCard.dispose();
   return page;
 }
 const order = page => page.locator('[data-world-clock="list"] [data-world-clock-city]').evaluateAll(cards => cards.map(card => card.dataset.worldClockCity));
@@ -81,6 +172,7 @@ test('city search paginates, ticks with the page clock and resets after adding a
   const cities = page.locator('.world-clock-catalog-city');
   await add.click();
   await search.fill('中国');
+  await page.clock.runFor(100);
   const firstPage = await cities.count();
   assert.ok(firstPage > 0);
   const time = cities.first().locator('time');
@@ -99,6 +191,7 @@ test('city search paginates, ticks with the page clock and resets after adding a
   assert.equal(await search.inputValue(), '');
   assert.equal(await cities.count(), 0);
   await search.fill('上海');
+  await page.clock.runFor(100);
   assert.equal(await page.getByRole('button', { name: '添加上海', exact: true }).count(), 0);
 });
 

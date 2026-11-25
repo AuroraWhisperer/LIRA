@@ -1,79 +1,41 @@
----
-status: accepted
-date: 2026-10-10
-scope: LIRA desktop and LIRA Server
----
+# ADR-0020: 以固定源码快照分发公共弹幕渲染核心
 
-# ADR-0020: Distribute the shared danmaku renderer as a pinned source snapshot
+## 状态
 
-## Context and acceptance
+已采纳（2026-10-10，适用范围：LIRA 桌面端与 LIRA Server）
 
-The user authorized delivery optimizations and reusable modules on 2026-10-10,
-resuming the common-renderer part of the proposal deferred on 2026-09-21.
-Both applications need the same message DOM, while their feed timing and system
-message decoration intentionally differ. Server ADR-0049 requires independent
-server deployment. Neither application needs a new runtime dependency or build.
+## 背景与采纳范围
 
-The accepted scope is the message renderer only. Style defaults/validation,
-style-specific decorators, feeds, and the proposed protobuf reader remain with
-their existing owners; their wider source-distribution proposals are not treated
-as implemented by this decision.
+2026-10-10 批准了交付效率优化与可复用模块方案，重启此前于 2026-09-21 暂缓的公共渲染器提案。桌面端与服务端需要渲染一致的弹幕 DOM 结构，但二者的消息队列时序与系统消息样式策略有意不同；同时服务端 ADR-0049 要求服务端可独立部署，两端也均不希望引入新的运行时依赖或前端构建步骤。
 
-## Decision
+本决策采纳的范围仅限消息渲染核心本身。样式默认值与校验、各样式专用装饰器、弹幕队列（feed）以及拟议的 protobuf 读取器仍由原归属模块维护，不因本决策视为同步落地。
 
-LIRA Server owns `public/overlay/danmaku-renderer-core.js`. The desktop checks in
-an identical LF-normalized copy at
-`public/js/overlays/danmaku-renderer-core.js`. Existing
-`danmaku-message-renderer.js` entry points remain small adapters, preserving
-exports and supplying explicit system-message and entrance-delay policies.
-The desktop retains no system class and `min(index, 8) * 24ms`; the server retains
-the system class and zero delay. Each core imports only local style decorators.
-Feed queues, expiry, trimming, observers and animation scheduling remain local.
+## 决策
 
-The desktop's `src/shared/danmaku-source-manifest.json` records schema version,
-source repository, source and target paths, and SHA-256 after LF normalization.
-It is independent of `server-contract.lock.json`, which continues to pin wire
-fixtures. The source and snapshot are reviewed and released independently;
-latest server HEAD need not equal every previously released desktop snapshot.
+LIRA Server 维护权威源码 `public/overlay/danmaku-renderer-core.js`，桌面端在 `public/js/overlays/danmaku-renderer-core.js` 提交一份经 LF 换行规范化的完全一致快照。既有 `danmaku-message-renderer.js` 保留为薄适配入口，维持原导出签名并显式注入各自的系统消息与入场延迟策略：桌面端不附带系统消息样式类并使用 `min(index, 8) * 24ms` 延迟，服务端保留系统消息样式类且延迟为 0。两端核心仅导入本地样式装饰器；消息队列、过期清理、裁剪、观察者与动画调度继续归各自本地维护。
 
-Developer commands in the desktop repository:
+桌面端通过 `src/shared/danmaku-source-manifest.json` 记录清单版本、源仓库、源/目标路径及 LF 规范化后的 SHA-256 摘要。该清单独立于固定线路协议样本的 `server-contract.lock.json`。源码与快照支持独立评审与发版，服务端最新 `HEAD` 无需与历史上已发布的每个桌面端快照强绑定。
 
-- `node scripts/sync-danmaku-source.cjs --check`: verify the shipped snapshot
-  against its manifest without needing a server checkout; never write.
-- `node scripts/sync-danmaku-source.cjs --server-root <path> --check`: also compare
-  the explicitly selected server checkout. Drift fails without changing files.
-- `node scripts/sync-danmaku-source.cjs --server-root <path> --write`: explicitly
-  import that source and update its manifest. Review before running this command.
+桌面端仓库提供同步工具 `scripts/sync-danmaku-source.cjs`，支持三种操作模式（具体命令行参数以脚本为准）：
 
-Server maintainers edit the canonical module directly; there is no generated
-server artifact. The existing asset snapshot includes the core automatically.
-The desktop's engineering test checks its local pin. Importing a change also
-requires cross-repository comparison and both renderer suites; each deployment
-loads only its own files. No runtime sibling lookup, fetch, symlink, frontend
-bundler or published package is introduced.
+- 离线校验本地快照与清单摘要是否一致（不依赖服务端检出，只读不写）；
+- 对比显式指定的服务端仓库目录，存在偏差时直接报错且不修改文件；
+- 显式从指定服务端仓库导入源码并更新摘要清单（执行前须人工评审）。
+
+服务端维护者直接编辑权威模块，不引入生成产物，现有资源快照机制会自动纳入该核心。桌面端工程测试持续校验本地快照完整性；导入变更时需同步做跨仓比对并运行双端渲染测试套。两端部署时只加载各自仓库内文件，不引入运行时读取兄弟目录、远程拉取、符号链接、前端打包器或独立发包流程。
 
 ```mermaid
 flowchart LR
-  Source[Server renderer core] --> ServerAdapter[Server policy adapter]
-  Source --> Import[Explicit source import]
-  Import --> Snapshot[Desktop snapshot and hash manifest]
-  Snapshot --> DesktopAdapter[Desktop policy adapter]
+  Source[服务端渲染核心] --> ServerAdapter[服务端策略适配层]
+  Source --> Import[显式源码导入]
+  Import --> Snapshot[桌面端快照与摘要清单]
+  Snapshot --> DesktopAdapter[桌面端策略适配层]
 ```
 
-## Tradeoffs and alternatives
+## 备选方案与权衡
 
-Two separately editable renderers require repeated bug fixes and can drift.
-A runtime shared dependency would undermine offline desktop rendering and
-independent deployments. A published package or bundler adds release machinery
-for one small module. A pinned snapshot keeps independent releases and one
-source owner, at the cost of an explicit review/import step. It does not claim
-that unrelated theme files or all style rules have one source.
+两端各自维护一套可编辑渲染器会造成缺陷重复修复与实现分叉；引入运行时共享依赖会破坏桌面端离线渲染与独立部署能力；改为独立发包或前端构建则为单个小模块平添整套发版基础设施。采用固定源码快照既保证了单一源码归属与独立发版，代价仅是显式评审与导入步骤，同时清晰限定不涵盖无关主题文件或全部样式规则。
 
-## Verification
+## 验证
 
-`test/engineering/danmaku-source.test.js` checks pin integrity, CRLF normalization,
-explicit imports, selected-server drift and read-only failure. Existing renderer,
-feed and browser checks cover text-safe DOM, trusted image callbacks, gift/SC
-rendering and theme behavior. Both adapters have explicit policy regressions.
-Current delivery evidence is recorded in the
-[optimization plan](../../../specs/plans/archive/2026-10-10-danmaku-delivery-efficiency.md).
+[danmaku-source.test.js](../../../test/engineering/danmaku-source.test.js) 校验快照完整性、CRLF 规范化、显式导入、指定服务端偏差检测与只读失败行为；既有渲染器、队列与浏览器测试覆盖文本安全 DOM、可信图片回调、礼物/SC 渲染与主题表现，双端适配层均具备显式策略回归。交付证据见 [弹幕交付效率优化计划](../../../specs/plans/archive/2026-10-10-danmaku-delivery-efficiency.md)。

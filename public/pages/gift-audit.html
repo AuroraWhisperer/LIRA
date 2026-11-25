@@ -4,7 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>礼物审计 · 气泡 × WebSocket 交叉对比</title>
+    <link rel="stylesheet" href="/css/styles-base.css" />
     <link rel="stylesheet" href="/css/desktop/palettes.css" />
+    <link rel="stylesheet" href="/css/admin/toasts/system.css" />
     <link rel="stylesheet" href="/css/gift-audit.css?v=20260814" />
   </head>
   <body>
@@ -22,7 +24,6 @@
     <div class="panel" style="margin-bottom: 14px">
       <div class="panel-header">
         <span>📋 气泡 HTML 输入</span>
-        <span class="hint">从直播间 DevTools 复制 <code>.bubble-list</code> 元素的 outerHTML</span>
       </div>
       <div class="panel-body">
         <div class="quick-actions">
@@ -37,9 +38,7 @@
         </div>
         <textarea
           id="bubbleHtml"
-          placeholder="在此粘贴直播间气泡 HTML…
-
-从浏览器 DevTools 中找到 .bubble-list 元素，右键 → Copy → Copy outerHTML，然后粘贴到这里"
+          placeholder="在此粘贴 .bubble-list 的 outerHTML"
         ></textarea>
         <div class="toolbar">
           <button class="primary" id="parseAndCompareBtn">🔍 解析并对比</button>
@@ -165,11 +164,6 @@
       2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在 <code>#player-section</code> 内）<br />
       3. 右键 → <code>Copy → Copy outerHTML</code><br />
       4. 粘贴到上方文本框，设置气泡捕获时间，点击 <strong>解析并对比</strong><br />
-      5. <strong style="color: var(--red)">⚠️ 仅气泡（疑似漏记）</strong> = WebSocket 可能漏记的礼物；<strong
-        style="color: var(--green)"
-        >✅ 双边匹配</strong
-      >
-      = 正常捕获<br />
       <br />
       <strong>💡 技巧：</strong>可以多次（每隔几分钟）复制气泡 HTML 并解析，观察漏记规律。
     </div>

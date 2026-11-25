@@ -85,6 +85,11 @@ export function buildGiftHistoryUrl({
 export function initGiftHistoryDrawer() {
   if (initialized) return;
   initialized = true;
+  document.addEventListener('visibilitychange', () => {
+    if (!isGiftHistoryOpen()) return;
+    if (document.hidden) cancelHistoryLoad();
+    else void loadGiftHistory({ background: historyLoaded });
+  });
   historyTools = createGiftHistoryTools({
     state: giftLedgerState,
     reload: () => loadGiftHistory(),
@@ -210,7 +215,7 @@ export function closeGiftHistoryDrawer() {
 }
 
 export async function loadGiftHistory({ background = false } = {}) {
-  if (clearing) return;
+  if (clearing || document.hidden) return;
   cancelHistoryLoad();
   const sequence = historyRequestSequence;
   historyRequestController = new AbortController();
@@ -287,7 +292,7 @@ function cancelHistoryLoad() {
 }
 
 function scheduleHistoryRetry(sequence, interval) {
-  if (!isGiftHistoryOpen()) return;
+  if (document.hidden || !isGiftHistoryOpen()) return;
   const delay =
     interval ??
     (Date.now() - historyWaitStartedAt >= HISTORY_WAIT_MS ? HISTORY_SLOW_RETRY_INTERVAL_MS : HISTORY_RETRY_INTERVAL_MS);

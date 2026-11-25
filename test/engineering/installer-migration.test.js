@@ -78,8 +78,7 @@ test(
         const copied = path.join(root, 'copied.txt');
         const uninstaller = path.join(oldInstall, 'Uninstall LIRA.exe');
         const publicationLock = scenario.startsWith('bundled-audio-publish-');
-        const publishReady = path.join(root, 'publish-ready.txt');
-        const lockReady = path.join(root, 'lock-ready.txt');
+        const publishBlocked = path.join(root, 'publish-blocked.txt');
         let holder;
         const putData = (directory, value = 'legacy fixture') => {
           assert.ok(path.resolve(directory).startsWith(root + path.sep));
@@ -137,37 +136,30 @@ test(
               await new Promise((resolve) => setTimeout(resolve, 25));
             assert.ok(fs.existsSync(ready), 'fixture file lock must be acquired');
           }
+          let fixtureFunctions = functions;
           if (publicationLock) {
-            const literal = value => "'" + value.replaceAll("'", "''") + "'";
-            const audio = path.join(backup + '.partial', 'components/audio/legacy/LiraAudioAssistant.exe');
-            const command =
-              `$ErrorActionPreference = 'Stop'; $deadline = [DateTime]::UtcNow.AddSeconds(10); ` +
-              `while (!(Test-Path -LiteralPath ${literal(publishReady)})) { ` +
-              `if ([DateTime]::UtcNow -gt $deadline) { throw 'The installer did not reach backup publication' }; Start-Sleep -Milliseconds 10 }; ` +
-              `$lock = [IO.File]::Open(${literal(audio)}, 'Open', 'Read', 'ReadWrite'); ` +
-              `[IO.File]::WriteAllText(${literal(lockReady)}, 'ready'); try { ` +
-              (scenario === 'bundled-audio-publish-retry' ? 'Start-Sleep -Milliseconds 200; $lock.Dispose(); $lock = $null; ' : '') +
-              '[Console]::ReadLine() } finally { if ($lock) { $lock.Dispose() } }';
-            holder = spawn('powershell.exe',
-              ['-NoLogo', '-NoProfile', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')],
-              { windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] });
+            // Omit FILE_SHARE_DELETE so Windows rejects publication of the staging directory.
+            const audio = definePath(path.join(backup + '.partial', 'components/audio/legacy/LiraAudioAssistant.exe'));
+            fixtureFunctions = 'Var fixturePublishHandle\n' + functions
+              .replace('  liraPublishBackup:', [
+                '  liraPublishBackup:',
+                `    System::Call 'kernel32::CreateFileW(w "${audio}", i 0x80000000, i 3, p 0, i 3, i 0, p 0) p.R0'`,
+                '    StrCmp $R0 -1 0 +3',
+                '    SetErrorLevel 3',
+                '    Quit',
+                '    StrCpy $fixturePublishHandle $R0',
+              ].join('\n'))
+              .replace('  liraPublishBackupBusy:', [
+                '  liraPublishBackupBusy:',
+                `    FileOpen $R0 "${definePath(publishBlocked)}" w`,
+                '    FileClose $R0',
+                ...(scenario === 'bundled-audio-publish-retry' ? [
+                  '    StrCpy $R0 $fixturePublishHandle',
+                  "    System::Call 'kernel32::CloseHandle(p R0)'",
+                  '    StrCpy $fixturePublishHandle 0',
+                ] : []),
+              ].join('\n'));
           }
-          const publishHook = [
-            `FileOpen $R0 "${definePath(publishReady)}" w`,
-            'FileWrite $R0 "ready"',
-            'FileClose $R0',
-            'StrCpy $R9 0',
-            'liraFixtureWaitForLock:',
-            `IfFileExists "${definePath(lockReady)}" liraFixtureLockReady`,
-            'IntOp $R9 $R9 + 1',
-            'IntCmp $R9 500 liraFixtureLockFailed',
-            'Sleep 10',
-            'Goto liraFixtureWaitForLock',
-            'liraFixtureLockFailed:',
-            'SetErrorLevel 3',
-            'Quit',
-            'liraFixtureLockReady:',
-          ].join('\n');
           const fixture = [
             'Unicode true',
             'Name "LIRA isolated preservation test"',
@@ -184,7 +176,7 @@ test(
             `OutFile "${definePath(path.join(root, 'fixture.exe'))}"`,
             `!define FIXTURE_APPDATA "${definePath(appData)}"`,
             `!define FIXTURE_TEMP "${definePath(reportDir)}"`,
-            (publicationLock ? functions.replace('  liraPublishBackup:', `  liraPublishBackup:\n${publishHook}`) : functions)
+            fixtureFunctions
               .replace(/Function liraCopyData\r?\n/, `Function liraCopyData\nFileOpen $R0 "${definePath(copied)}" a\nFileWrite $R0 "copy$\\r$\\n"\nFileClose $R0\n`),
             removal,
             'Function .onInit',
@@ -233,7 +225,7 @@ test(
             timeout: 30000,
           });
           assert.equal(run.error, undefined);
-          if (publicationLock) assert.ok(fs.existsSync(lockReady), 'the copied audio must be locked before backup publication');
+          if (publicationLock) assert.ok(fs.existsSync(publishBlocked), 'the open audio file must block backup publication');
           const failed =
             scenario.includes('failure') ||
             scenario.includes('conflict') ||

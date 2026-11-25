@@ -1,32 +1,23 @@
-# ADR-0014: Bind overtime to gift activity identity
+# ADR-0014: 加班机规则绑定礼物完整身份标识
 
-- Status: Accepted
-- Date: 2026-09-13
-- Extends: ADR-0003, ADR-0011, ADR-0012
+## 状态
 
-## Context
+已采纳（2026-09-13，扩展自 [ADR-0003](0003-settle-once-per-gift-group.md)、[ADR-0011](0011-source-partitioned-gift-ledger-projection.md)、[ADR-0012](0012-local-paid-gift-catalog.md)）
 
-Bilibili may reuse a gift ID for a different name or price. ID-only rules,
-artwork indexes and catalog joins could silently apply old settings to a new
-gift. Existing rules have no original list price and cannot be safely inferred.
+## 背景
 
-## Decision
+B 站可能将同一个礼物 ID 复用于不同名称或不同价格的新礼物。仅按 `gift_id` 匹配的规则、图片索引和目录关联，可能会把旧规则静默套用到新礼物上；而历史存量规则并未保存原始标价，无法安全反推。
 
-Consume validated server schema 3 archives and negotiate frozen event identities
-with `X-Lira-Gift-Identity: 1`. Persist full rule identity and match exactly inside
-the existing gift database settlement transaction. The append-only v10 migration
-preserves old rule settings with unresolved identity. Users reselect their gift
-without resetting effects. Guard aliases keep their established meaning.
+## 决策
 
-Images and pools follow the same identity. Unknown event identity cannot trigger
-a platform rule. Completed settlements remain immutable; historical import never
-dispatches live consumers. Old server event DTOs and schema 2 cache files remain
-readable, but cannot supply missing historical identity evidence.
+客户端拉取经过校验的服务端 schema 3 目录归档，并通过请求头 `X-Lira-Gift-Identity: 1` 协商冻结后的事件礼物身份。加班机规则持久化完整礼物身份标识（ID、名称与价格组合），并在现有礼物库结算事务中执行精确匹配。通过只追加的 v10 数据库迁移保留原有规则配置，并将其标为待重新确认身份状态，主播重新选定对应礼物即可生效而不重置加减时规则；大航海别名保持既有语义。
 
-## Consequences
+礼物图片索引与盲盒奖池遵循同一身份标识；身份未知的事件不得触发平台礼物规则。已完成的结算保持不可变，历史导入绝不派发实时业务消费者。旧服务端事件 DTO 与 schema 2 缓存文件保持可读，但无法补齐缺失的历史身份证据。
 
-Both server and desktop upgrades are needed for identity-bound gift settlement.
-Installed older clients keep the default wire shape. New clients may display
-legacy history while identity-dependent rules wait for confirmed events.
+## 影响
 
-Requirements and acceptance criteria: [gift identity specification](../../../specs/gift-identity-overtime.md).
+启用身份绑定的礼物结算需要服务端与桌面端同步升级。已安装的旧版客户端沿用默认传输格式；新版客户端可正常展示历史记录，而依赖完整身份的规则仅在收到已确认身份的新事件后触发。
+
+## 参考
+
+- [礼物身份绑定需求与验收规格](../../../specs/gift-identity-overtime.md)

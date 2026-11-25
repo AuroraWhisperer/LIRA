@@ -2,12 +2,14 @@
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { createOvertimeGiftPicker } from './overtime-gift-picker.js';
-import { api, copyText, localOverlayOrigin, readJsonResponse, showConfirmationDialog, showError, toast } from '../shared/utils.js';
+import { api, localOverlayOrigin, readJsonResponse, showConfirmationDialog, showError, toast } from '../shared/utils.js';
+import { bindCopyUrl } from '../shared/copy-url.js';
 import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 import { createOvertimeTimeView } from './overtime-time-view.js';
 import { createOvertimeStatusView } from './overtime-status-view.js';
 import { createOvertimeAppearance } from './overtime-preview.js';
 import { readComponentOutputSize } from './scene-api.js';
+import { observePanelVisibility } from './panel-visibility.js';
 
 let initialized = false;
 let serverLimits = null;
@@ -63,16 +65,16 @@ const overtimeStatusView = createOvertimeStatusView({
     ruleEditor?.setLimits(limits);
   },
 });
-const { syncClockLoop, stopClockLoop } = overtimeStatusView;
-
 function renderState(state, options) {
-  if (overtimeStatusView.renderState(state, options) === false) return;
+  if (!overtimeStatusView.renderState(state, options)) return false;
   displayRevision += 1;
   appearance?.receive(overtimeStatusView.getState(), options);
+  return true;
 }
 
 export function initOvertime(currentState = {}) {
-  if (initialized || !document.getElementById('overtimePanel')) return;
+  const panel = document.getElementById('overtimePanel');
+  if (initialized || !panel) return;
   initialized = true;
   giftDetection = currentState?.giftDetection || giftDetection;
   catalogLiveStatus = currentState?.liveStatus || catalogLiveStatus;
@@ -81,12 +83,18 @@ export function initOvertime(currentState = {}) {
     onReselect: (row) => giftPicker.open(row),
   });
   bindControls();
+  const stopVisibility = observePanelVisibility(panel, overtimeStatusView.setClockVisible);
   if (currentState?.overtime) renderState(currentState.overtime);
-  eventBus.on(Events.STATE_LOADED, ({ state, isConnectionSnapshot }) => {
-    giftDetection = state?.giftDetection || giftDetection;
-    catalogLiveStatus = state?.liveStatus || catalogLiveStatus;
-    if (state?.overtime) renderState(state.overtime, { allowRevisionReset: isConnectionSnapshot });
-    giftPicker.renderStatus();
+  eventBus.on(Events.STATE_LOADED, ({ state, changedKeys, isConnectionSnapshot }) => {
+    const changed = (key) => isConnectionSnapshot || (changedKeys ? changedKeys.includes(key) : Object.hasOwn(state, key));
+    const detectionChanged = changed('giftDetection');
+    if (detectionChanged) giftDetection = state.giftDetection;
+    const rendered = changed('overtime') && renderState(state.overtime, { allowRevisionReset: isConnectionSnapshot });
+    if (detectionChanged && !rendered) overtimeStatusView.renderConsumerStatus();
+    if (changed('liveStatus')) {
+      catalogLiveStatus = state.liveStatus;
+      giftPicker.renderStatus();
+    }
   });
   eventBus.on(Events.OVERTIME_UPDATED, (payload) => {
     renderState(payload.state);
@@ -96,8 +104,10 @@ export function initOvertime(currentState = {}) {
     if (snapshot?.source === 'server') giftPicker.applyServerGiftArtwork(snapshot);
     else giftPicker.applyGiftCatalog(snapshot);
   });
-  eventBus.on('app:shutdown', stopClockLoop);
-  document.addEventListener('visibilitychange', syncClockLoop);
+  eventBus.once('app:shutdown', () => {
+    stopVisibility();
+    overtimeStatusView.setClockVisible(false);
+  });
   giftPicker.load().catch(showError);
   refresh().catch(showError);
 }
@@ -129,7 +139,7 @@ function bindControls() {
   byId('overtimeRules').addEventListener('change', markRulesDirty);
   byId('overtimeSaveRulesBtn').addEventListener('click', saveRules);
   byId('overtimeOpenOverlayBtn').addEventListener('click', () => appearance.open());
-  byId('overtimeCopyOverlayBtn').addEventListener('click', copyOverlayUrl);
+  bindCopyUrl(byId('overtimeCopyOverlayBtn'), { getUrl: overlayUrl, onCopied: showCopiedOverlaySize, onError: showError });
   syncRulesSaveButton();
 }
 
@@ -257,15 +267,10 @@ function overlayUrl() {
   return `${localOverlayOrigin()}/overtime`;
 }
 
-async function copyOverlayUrl() {
-  try {
-    const size = await readComponentOutputSize('overtime').catch(() => null);
-    await copyText(overlayUrl());
-    toast(size ? `加班机浏览器源地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
-      : '加班机浏览器源地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
-  } catch (error) {
-    showError(error);
-  }
+async function showCopiedOverlaySize() {
+  const size = await readComponentOutputSize('overtime').catch(() => null);
+  toast(size ? `加班机浏览器源地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
+    : '加班机浏览器源地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
 }
 
 function byId(id) {

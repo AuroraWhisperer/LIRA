@@ -1,3 +1,5 @@
+import { refreshOnPanelReturn } from './panel-visibility.js';
+
 const ERROR_MESSAGES = {
   LICENSE_NOT_AUTHORIZED: '请先登录 LIRA 账号。',
   GUARD_EXPIRY_UNSUPPORTED: '当前服务暂不支持到期提示，请联系管理员。',
@@ -79,9 +81,10 @@ export function initGuardExpirySettings({ documentRef, windowRef }) {
   login.addEventListener('click', () => void run(() => bridge.login(), '请在弹出的窗口中登录主播账号…'));
   logout.addEventListener('click', () => void run(() => bridge.logout(), '正在退出主播账号…'));
   retry.addEventListener('click', refresh);
-  windowRef.addEventListener('focus', refresh);
-  if (bridge) void refresh();
-  else {
+  if (bridge) {
+    const stop = refreshOnPanelReturn(status, refresh);
+    windowRef.addEventListener('pagehide', stop, { once: true });
+  } else {
     render();
     message.textContent = '请从桌面客户端设置同步账号。此项为可选。';
   }

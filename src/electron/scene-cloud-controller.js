@@ -2,23 +2,12 @@
 
 const { randomUUID } = require('node:crypto');
 const { readBoundedSse, parseEventBlock } = require('../shared/bounded-sse-reader');
-const { isDnsHostname, normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
+const { isDnsHostname, normalizeRemoteOverlayUrl } = require('../shared/remote-url-policy');
+const { readAuthorizedIdentity } = require('./authorized-identity');
 
 function getSceneOwner(licenseManager) {
-  try {
-    if (licenseManager?.isAuthorized?.() !== true) return null;
-    const identity = licenseManager.getCloudSyncIdentity();
-    if (!['string', 'number'].includes(typeof identity?.streamerId) || !String(identity.streamerId).trim()) return null;
-    if (typeof identity.streamerId === 'number' && (!Number.isSafeInteger(identity.streamerId) || identity.streamerId <= 0)) return null;
-    const origin = normalizeRemoteRootOrigin(licenseManager.getRemoteBaseUrl());
-    if (!origin) return null;
-    // Background token renewal keeps the same authorized display lifecycle.
-    const epoch = licenseManager.getAuthorizationGeneration();
-    if (!Number.isSafeInteger(epoch) || epoch < 0) return null;
-    return { scope: JSON.stringify([origin, String(identity.streamerId)]), epoch };
-  } catch {
-    return null;
-  }
+  const identity = readAuthorizedIdentity(licenseManager);
+  return identity ? { scope: JSON.stringify([identity.origin, String(identity.streamerId)]), epoch: identity.generation } : null;
 }
 
 function getComponentPreviewOwner(licenseManager) {
@@ -248,10 +237,9 @@ function requireValid(condition) {
 }
 
 function streamUrl(value) {
-  requireValid(typeof value === 'string' && value.length <= 2048);
-  const url = new URL(value);
-  requireValid(url.protocol === 'https:' && isDnsHostname(url.hostname) && !url.username && !url.password &&
-    !url.search && !url.hash && /^\/overlay\/[A-Za-z0-9_-]{16}$/.test(url.pathname));
+  const normalized = normalizeRemoteOverlayUrl(value);
+  requireValid(normalized);
+  const url = new URL(normalized);
   return `${url.origin}/api/public/overlay/events?token=${url.pathname.slice('/overlay/'.length)}&superchatDelete=1&roomGuard=1`;
 }
 

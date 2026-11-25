@@ -261,7 +261,7 @@ test('heart box backgrounds save from desktop and canvas into the published appe
       && response.request().postDataJSON()?.heartBoxCollectionBackgroundStyle === 'sakura' && response.status() === 200),
     desktop.getByLabel('背景样式', { exact: true }).selectOption('sakura'),
   ]);
-  await desktop.getByRole('button', { name: '打开画布', exact: true }).click();
+  await desktop.getByRole('button', { name: '在画布中调整', exact: true }).click();
   let url;
   for (let i = 0; i < 100 && !url; i++) {
     url = await app.evaluate(() => global.canvasTest.externalUrls.at(-1));

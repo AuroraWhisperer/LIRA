@@ -1,4 +1,4 @@
-const GUARD_NAMES = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as GUARD_NAMES } from '../shared/bilibili-guard-labels.js';
 
 export function isHarborGiftVisible(item, minimum = 0) {
   return item?.kind !== 'gift' || minimum === 0

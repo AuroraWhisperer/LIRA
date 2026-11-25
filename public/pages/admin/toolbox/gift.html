@@ -8,6 +8,7 @@
 >
   <div class="other-feature-panel-body stack gift-assistant">
     <div id="giftFramePanel" class="gift-frame-effects" data-gift-feature="frame">
+      <p class="hint" id="giftEffectThresholdHelp">触发金额按单次送礼结算总额判断，填 0 表示所有付费礼物；各款特效独立判断。</p>
       <div id="giftEffectList" class="gift-effect-grid">
         <section id="giftDropSettings" class="gift-effect-card gift-motion-settings" aria-labelledby="giftDropTitle">
           <header class="gift-effect-card-head">
@@ -22,7 +23,7 @@
             </div>
           </header>
           <div id="giftDropFields" class="gift-effect-fields">
-            <label class="gift-effect-field"><span class="gift-effect-field-label">触发金额 <lira-help>单次送礼结算总金额达到该数值时触发（填 0 则所有付费礼物都触发）；不同特效各自独立判断。</lira-help></span><span class="lira-number-field gift-effect-threshold"><input id="giftDropThresholdRmb" aria-label="触发金额（元及以上）" type="number" min="0" step="0.01" required value="0" /><span class="lira-number-field-unit" aria-hidden="true">元及以上</span></span></label>
+            <label class="gift-effect-field"><span class="gift-effect-field-label">触发金额</span><span class="lira-number-field gift-effect-threshold"><input id="giftDropThresholdRmb" aria-label="触发金额（元及以上）" aria-describedby="giftEffectThresholdHelp" type="number" min="0" step="0.01" required value="0" /><span class="lira-number-field-unit" aria-hidden="true">元及以上</span></span></label>
           </div>
         </section>
         <section id="giftSwingSettings" class="gift-effect-card gift-motion-settings" aria-labelledby="giftSwingTitle">
@@ -38,7 +39,7 @@
             </div>
           </header>
           <div id="giftSwingFields" class="gift-effect-fields">
-            <label class="gift-effect-field"><span class="gift-effect-field-label">触发金额 <lira-help>单次送礼结算总金额达到该数值时触发（填 0 则所有付费礼物都触发）；不同特效各自独立判断。</lira-help></span><span class="lira-number-field gift-effect-threshold"><input id="giftSwingThresholdRmb" aria-label="触发金额（元及以上）" type="number" min="0" step="0.01" required value="0" /><span class="lira-number-field-unit" aria-hidden="true">元及以上</span></span></label>
+            <label class="gift-effect-field"><span class="gift-effect-field-label">触发金额</span><span class="lira-number-field gift-effect-threshold"><input id="giftSwingThresholdRmb" aria-label="触发金额（元及以上）" aria-describedby="giftEffectThresholdHelp" type="number" min="0" step="0.01" required value="0" /><span class="lira-number-field-unit" aria-hidden="true">元及以上</span></span></label>
           </div>
         </section>
         <section id="giftFrameSettings" class="gift-effect-card" data-gift-frame-effect="woodland-bloom" aria-labelledby="giftFrameSettingsTitle" hidden>
@@ -52,7 +53,7 @@
             <label class="gift-frame-switch switch-control gift-effect-switch"><input id="giftFrameEnabled" type="checkbox" aria-label="启用林间花信" /><span class="switch-track"></span><span>启用</span></label>
           </header>
           <div class="gift-effect-fields">
-            <label class="gift-effect-field"><span class="gift-effect-field-label">触发金额 <lira-help>单次送礼结算总金额达到该数值时触发（填 0 则所有付费礼物都触发）；不同特效各自独立判断。</lira-help></span><span class="lira-number-field gift-effect-threshold"><input id="giftFrameThresholdRmb" aria-label="触发金额（元及以上）" type="number" min="0" step="0.01" inputmode="decimal" value="20" /><span class="lira-number-field-unit" aria-hidden="true">元及以上</span></span></label>
+            <label class="gift-effect-field"><span class="gift-effect-field-label">触发金额</span><span class="lira-number-field gift-effect-threshold"><input id="giftFrameThresholdRmb" aria-label="触发金额（元及以上）" aria-describedby="giftEffectThresholdHelp" type="number" min="0" step="0.01" inputmode="decimal" value="20" /><span class="lira-number-field-unit" aria-hidden="true">元及以上</span></span></label>
             <div class="gift-effect-sample" role="group" aria-labelledby="giftFramePreviewTitle">
               <span id="giftFramePreviewTitle" class="gift-effect-sample-label">预览示例 <lira-help>只用于「在画布中预览」，不会保存。</lira-help></span>
               <div class="gift-effect-sample-fields">

@@ -12,7 +12,7 @@ test('each rendering surface applies a chosen shared font from local files', { t
   t.after(() => browser.close());
   const errors = [];
   const entries = ['/css/styles-base.css', '/css/overlays/base.css', '/css/overlays/danmaku.css',
-    '/css/lyrics/desktop-lyric.css', '/css/playback/appearance.css'];
+    '/css/lyrics/desktop-lyric.css', '/css/styles-playback.css'];
   for (const stylesheet of entries) {
     const page = await browser.newPage();
     page.on('pageerror', error => errors.push(error.message));
@@ -20,14 +20,26 @@ test('each rendering surface applies a chosen shared font from local files', { t
     const url = `${fixture.origin}/preview-test-host`;
     assert.equal((await fetch(url)).status, 200);
     await page.goto(url);
+    const isPlayback = stylesheet === '/css/styles-playback.css';
+    if (isPlayback) {
+      // The admin shell registers shared fonts through its base stylesheet.
+      await page.addStyleTag({ url: `${fixture.origin}/css/styles-base.css` });
+    }
     await page.addStyleTag({ url: `${fixture.origin}${stylesheet}` });
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('DOM.enable'); await cdp.send('CSS.enable');
-    await page.evaluate(async () => {
+    await page.evaluate(async (isPlayback) => {
       const font = (await import('/js/shared/font-catalog.js')).SHARED_FONTS.find(font => font.id === 'zhimangxing');
-      document.getElementById('sample').style.font = `32px ${font.value}`;
+      const sample = document.getElementById('sample');
+      if (isPlayback) {
+        const { applyPlayerAppearance, normalizePlayerAppearance } = await import('/js/playback/ui/appearance.js');
+        sample.className = 'player-fs-lyrics';
+        applyPlayerAppearance(sample.parentElement, normalizePlayerAppearance({ lyricFontFamily: font.value }));
+      } else {
+        sample.style.font = `32px ${font.value}`;
+      }
       await document.fonts.load(`32px ${font.value}`, '清风月光');
-    });
+    }, isPlayback);
     const { root } = await cdp.send('DOM.getDocument');
     const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#sample' });
     const { fonts: rendered } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });

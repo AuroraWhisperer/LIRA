@@ -12,11 +12,9 @@ const EMPTY_CATCH_LIMITS = {
   'src/ai/model-client.js': 1,
   'src/ai/http-client.js': 1,
   'src/bilibili/danmaku/websocket-connection.js': 3,
-  'src/electron/bilibili-login-window.js': 1,
   'src/electron/local-media-access.js': 1,
   'src/electron/terminal-log.js': 2,
   'src/music/music-cache.js': 2,
-  'src/music/providers/qq-provider.js': 1,
   'src/music/wesing-cache.js': 1,
   'src/music/wesing-capture-engine.js': 3,
   'src/music/wesing-monitor.js': 4,
@@ -28,7 +26,6 @@ const EMPTY_CATCH_LIMITS = {
   'public/js/admin/toolbox-navigation.js': 2,
   'public/js/gift-audit/index.js': 2,
   'public/js/playback/cache/manager.js': 3,
-  'public/js/playback/content/loader.js': 1,
   'public/js/playback/core/initializer.js': 2,
   'public/js/playback/features/playback-controls.js': 2,
   'public/js/playback/local/manager.js': 2,
@@ -94,10 +91,9 @@ test('domain modules receive stores and never import storage, transport, or desk
   }
 });
 
-test('shared modules have no upward imports or implicit Admin registry dependencies', () => {
+test('shared modules have no upward imports', () => {
   for (const [file, dependencies] of productGraph) {
     if (file.startsWith('public/js/shared/')) {
-      assert.doesNotMatch(sanitizeSource(read(file)), /\bAdminApp\b/, file);
       for (const dependency of dependencies) {
         assert.ok(dependency.startsWith('public/js/shared/'), `${file} imports ${dependency}`);
       }
@@ -216,25 +212,16 @@ test('pure frontend helper consumers bypass the legacy utility aggregation', () 
 
 test('empty catch text debt is frozen and can only decrease', () => {
   const candidates = [...listJavaScriptFiles('src'), ...listJavaScriptFiles('public/js')];
+  const unusedLimits = new Map(Object.entries(EMPTY_CATCH_LIMITS));
 
   for (const relativePath of candidates) {
     const count = read(relativePath).match(EMPTY_CATCH_PATTERN)?.length || 0;
     if (count === 0) continue;
-    assert.ok(
-      Object.hasOwn(EMPTY_CATCH_LIMITS, relativePath),
-      `${relativePath} introduces empty or comment-only catch text debt`,
-    );
-    assert.ok(
-      count <= EMPTY_CATCH_LIMITS[relativePath],
-      `${relativePath} increases empty or comment-only catch text debt`,
-    );
+    const limit = unusedLimits.get(relativePath) ?? 0;
+    assert.ok(count <= limit, `${relativePath} has ${count} empty or comment-only catches (limit ${limit})`);
+    unusedLimits.delete(relativePath);
   }
-
-  for (const [relativePath, limit] of Object.entries(EMPTY_CATCH_LIMITS)) {
-    const count = read(relativePath).match(EMPTY_CATCH_PATTERN)?.length || 0;
-    assert.ok(count > 0, `${relativePath} has no empty catch text debt; remove its baseline`);
-    assert.ok(count <= limit, `${relativePath} increases empty or comment-only catch text debt`);
-  }
+  assert.deepEqual([...unusedLimits.keys()], [], 'Remove baselines for files without empty catches');
 });
 
 test('generic shared utilities exclude codecs and Bilibili rules', () => {

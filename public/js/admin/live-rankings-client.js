@@ -1,3 +1,4 @@
+import { readApiResponse } from '../shared/json-response.js';
 const listeners = new Set();
 let request;
 let timer;
@@ -20,8 +21,7 @@ async function refresh() {
     });
     if (request !== current) return;
     if (response.status === 401 || response.status === 403) successfulSnapshot = null;
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) throw new Error('榜单读取失败');
+    const payload = await readApiResponse(response, '榜单读取失败');
     if (request !== current) return;
     if (!payload.data.unchanged) {
       successfulSnapshot = payload.data;

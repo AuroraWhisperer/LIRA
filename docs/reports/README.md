@@ -8,6 +8,8 @@
 
 ## 历史报告
 
+- [客户端去重第二轮复核：已修问题与分歧（2026-11-24）](2026-11-24-client-duplication-review.md)
+- [客户端重复审计逐项核实与修改记录（2026-11-23）](2026-11-23-client-duplication-audit.md)
 - [客户端与服务端模块化及重复实现审计（2026-11-18）](2026-11-18-workspace-modularity-audit.md)
 - [客户端职责归属与拆分粒度审查（2026-11-10）](2026-11-10-module-responsibility-review.md)
 - [客户端代码职责与拆分粒度复核](2026-11-09-module-granularity-review.md)

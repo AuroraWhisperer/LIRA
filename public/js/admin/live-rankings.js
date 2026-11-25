@@ -1,9 +1,7 @@
+import { openOrCreateCanvasItem } from './canvas-item-entry.js';
 import { createRankingsView } from '../shared/live-rankings-view.js';
 import { LIVE_RANKING_COMPONENT, RANKING_FLAGS, rankingDefaults, rankingSelection, singleRankingId } from '../shared/live-rankings.js';
 import { subscribeLiveRankings } from './live-rankings-client.js';
-import { openComponentPreview } from './component-preview-dialog.js';
-import { prepareComponentPreviews } from './component-preview-registry.js';
-import { getActiveComponentPreview } from './component-preview-session.js';
 import { toast } from '../shared/toast.js';
 
 export function initLiveRankings() {
@@ -11,7 +9,7 @@ export function initLiveRankings() {
   if (!root || root.dataset.initialized) return;
   root.dataset.initialized = 'true';
   const get = name => root.querySelector(`[data-rankings="${name}"]`);
-  const view = createRankingsView(get('boards'), { scrollable: true, onConfigure: configureBoard });
+  const view = createRankingsView(get('boards'), { scrollable: true, statusExternallyRendered: true, onConfigure: configureBoard });
   let snapshot;
   let stop;
   let clock;
@@ -26,24 +24,18 @@ export function initLiveRankings() {
   }
   async function configureBoard(id) {
     try {
-      const entries = await prepareComponentPreviews();
-      const canvas = entries.find(entry => entry.id === 'canvas');
-      if (!canvas?.controller.getState().loaded) throw new Error('画布尚未准备完成，请稍后重试。');
-      await getActiveComponentPreview('browser-preview')?.syncCanvas();
-      const document = canvas.controller.getState().draft.document;
-      let item = document.items.find(item => item.type === 'live-rankings' && singleRankingId(item.appearance.config) === id);
-      if (!item) {
-        if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
-        const [sourceWidth, sourceHeight] = LIVE_RANKING_COMPONENT.size;
-        const scale = Math.min(1, document.canvas.width / sourceWidth, document.canvas.height / sourceHeight);
-        const width = Math.round(sourceWidth * scale); const height = Math.round(sourceHeight * scale);
-        item = { id: crypto.randomUUID(), type: 'live-rankings', name: LIVE_RANKING_COMPONENT.variants.find(board => board.value === id).label,
-          x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
-          width, height, visible: true, locked: false,
-          appearance: { mode: 'independent', config: { ...rankingDefaults(), ...rankingSelection(id) } } };
-        document.items.push(item); canvas.controller.edit({ document });
-      }
-      openComponentPreview({ id: 'live-rankings', selectedItemId: item.id });
+      await openOrCreateCanvasItem({ type: 'live-rankings',
+        findItem: items => items.find(item => item.type === 'live-rankings' && singleRankingId(item.appearance.config) === id),
+        createItem(document) {
+          const [sourceWidth, sourceHeight] = LIVE_RANKING_COMPONENT.size;
+          const scale = Math.min(1, document.canvas.width / sourceWidth, document.canvas.height / sourceHeight);
+          const width = Math.round(sourceWidth * scale); const height = Math.round(sourceHeight * scale);
+          return { id: crypto.randomUUID(), type: 'live-rankings', name: LIVE_RANKING_COMPONENT.variants.find(board => board.value === id).label,
+            x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
+            width, height, visible: true, locked: false,
+            appearance: { mode: 'independent', config: { ...rankingDefaults(), ...rankingSelection(id) } } };
+        },
+      });
     } catch (error) { toast(error.message, { type: 'error' }); }
   }
   function receive(data) {

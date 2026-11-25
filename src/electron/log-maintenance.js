@@ -2,19 +2,33 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { appendBoundedLinesSync, maintainBoundedFilesSync, LEGACY_TEXT_ERROR, logTimestamp,
-  NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS } = require('../shared/log-size-limit');
+const { appendBoundedLinesSync, maintainBoundedFilesSync, markLogMaintenanceComplete, LEGACY_TEXT_ERROR, logTimestamp,
+  NORMAL_LOG_AGE_MS, ERROR_LOG_AGE_MS, ERROR_ENTRY_BYTES, NORMAL_FILE_BYTES, ERROR_FILE_BYTES,
+  RUNTIME_LOG_DIRECTORY, ERROR_LOG_DIRECTORY } = require('../shared/log-size-limit');
 const { redactCredentials } = require('../shared/log-redaction');
 
-const MIB = 1024 * 1024;
-
 function maintainDesktopLogs(logDir, now = Date.now()) {
+  for (const [relative, isError] of [
+    [path.join(RUNTIME_LOG_DIRECTORY, 'ai.jsonl'), false],
+    ...['desktop.log', 'terminal.log', 'ai.jsonl'].map(name => [path.join(ERROR_LOG_DIRECTORY, name), true]),
+  ]) {
+    const file = path.join(logDir, relative);
+    const result = maintainBoundedFilesSync(file, {
+      maxFileBytes: isError ? ERROR_FILE_BYTES : NORMAL_FILE_BYTES,
+      maxAgeMs: isError ? ERROR_LOG_AGE_MS : NORMAL_LOG_AGE_MS, now,
+    });
+    if (result.written) markLogMaintenanceComplete(file, now);
+  }
   for (const name of ['ai.log', 'desktop.log', 'terminal.log']) {
     const source = path.join(logDir, name);
     const isAi = name === 'ai.log';
-    const target = path.join(logDir, 'errors', isAi ? 'ai.jsonl' : name);
-    const prepared = maintainBoundedFilesSync(source, { maxFileBytes: MIB, maxAgeMs: ERROR_LOG_AGE_MS, now });
-    if (!prepared.written || (!isAi && !prepared.needsMixedLogPass)) continue;
+    const target = path.join(logDir, ERROR_LOG_DIRECTORY, isAi ? 'ai.jsonl' : name);
+    const prepared = maintainBoundedFilesSync(source, { maxFileBytes: NORMAL_FILE_BYTES, maxAgeMs: ERROR_LOG_AGE_MS, now });
+    if (!prepared.written) continue;
+    if (!isAi && !prepared.needsMixedLogPass) {
+      markLogMaintenanceComplete(source, now);
+      continue;
+    }
 
     let pending = false;
     for (const suffix of ['.2', '.1', '']) {
@@ -42,7 +56,7 @@ function maintainDesktopLogs(logDir, now = Date.now()) {
           }
         }
         const { count } = appendBoundedLinesSync(target, entries, {
-          maxEntryBytes: 16 * 1024, maxFileBytes: 3 * MIB, maxAgeMs: ERROR_LOG_AGE_MS, now,
+          maxEntryBytes: ERROR_ENTRY_BYTES, maxFileBytes: ERROR_FILE_BYTES, maxAgeMs: ERROR_LOG_AGE_MS, now,
         });
         for (let i = 0; i < count; i++) lines[sourceIndexes[i]] = '';
         pending ||= count < entries.length;
@@ -54,16 +68,9 @@ function maintainDesktopLogs(logDir, now = Date.now()) {
       }
     }
     if (!isAi && !pending) {
-      maintainBoundedFilesSync(source, { maxFileBytes: MIB, maxAgeMs: NORMAL_LOG_AGE_MS, now });
+      const result = maintainBoundedFilesSync(source, { maxFileBytes: NORMAL_FILE_BYTES, maxAgeMs: NORMAL_LOG_AGE_MS, now });
+      if (result.written) markLogMaintenanceComplete(source, now);
     }
-  }
-  for (const [relative, isError] of [
-    ['runtime/ai.jsonl', false], ['errors/desktop.log', true], ['errors/terminal.log', true], ['errors/ai.jsonl', true],
-  ]) {
-    maintainBoundedFilesSync(path.join(logDir, relative), {
-      maxFileBytes: isError ? 3 * MIB : MIB,
-      maxAgeMs: isError ? ERROR_LOG_AGE_MS : NORMAL_LOG_AGE_MS, now,
-    });
   }
 }
 

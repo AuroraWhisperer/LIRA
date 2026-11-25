@@ -61,9 +61,9 @@ export const DANMAKU_PREVIEW_WELCOME = Object.freeze({
 
 // Amounts are synthetic RMB totals for layout coverage, not a current price list.
 const GIFTS = [
-  { id: '10', giftName: '小花花', giftCount: 10, giftTotalPrice: 1, giftImageUrl: '/img/overlays/danmaku-previews/gifts/flower.webp' },
-  { id: 'cheer', giftName: '牛哇牛哇', giftCount: 1, giftTotalPrice: 0.1, giftImageUrl: '/img/overlays/danmaku-previews/gifts/cheer.webp' },
-  { id: 'call', giftName: '打call', giftCount: 66, giftTotalPrice: 13.2, giftImageUrl: '/img/overlays/danmaku-previews/gifts/call.webp' },
+  { id: '10', giftName: '小花花', giftCount: 10, giftTotalPrice: 1, giftImageUrl: '/img/overlays/gift-feed/flower.webp' },
+  { id: 'cheer', giftName: '牛哇牛哇', giftCount: 1, giftTotalPrice: 0.1, giftImageUrl: '/img/overlays/gift-feed/cheer.webp' },
+  { id: 'call', giftName: '打call', giftCount: 66, giftTotalPrice: 13.2, giftImageUrl: '/img/overlays/gift-feed/call.webp' },
   { id: 'crystal', giftName: '星愿水晶球', giftCount: 1, giftTotalPrice: 100, giftImageUrl: '/img/overlays/danmaku-previews/gifts/crystal.webp' },
   { id: 'spaceship', giftName: '小电视飞船', giftCount: 1, giftTotalPrice: 1245, giftImageUrl: '/img/overlays/danmaku-previews/gifts/spaceship.webp' },
   { id: 'call-crazy', giftName: '疯狂打call', giftCount: 1, giftTotalPrice: 52, giftImageUrl: '/img/overlays/danmaku-previews/gifts/call-crazy.png' },

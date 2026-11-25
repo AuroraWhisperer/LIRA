@@ -133,7 +133,8 @@ async function main() {
       }
       throw new Error('Screenshot fixture did not start');
     });
-    for (const shot of SHOTS.filter((item) => !selectedIds || selectedIds.includes(item.id))) {
+    const shots = SHOTS.filter((item) => selectedIds ? selectedIds.includes(item.id) : !item.manualOnly);
+    for (const shot of shots) {
       try {
         console.log('[ok]', JSON.stringify(await capture(app, shot)));
       } catch (error) {

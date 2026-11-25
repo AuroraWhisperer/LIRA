@@ -17,24 +17,29 @@ export const giftRecent = (() => {
   const visibleSheenCards = new Set();
   let sheenList = null;
   let latestRecentGiftItems = [];
+  let renderedCount = 0;
+  let visible = true;
+  let pending = false;
 
-  function limitRecentGiftRows(list) {
+  function visibleGiftCount(list) {
     const columns = window.getComputedStyle(list).gridTemplateColumns.split(/\s+/).filter(Boolean).length || 1;
-    const visibleCardCount = columns * MAX_RECENT_GIFT_ROWS;
+    return Math.min(latestRecentGiftItems.length, columns * MAX_RECENT_GIFT_ROWS);
+  }
 
-    list.querySelectorAll('.gift-card').forEach((card, index) => {
-      card.hidden = index >= visibleCardCount;
-    });
+  function syncRecentGiftLayout(list) {
+    if (!visible || !latestRecentGiftItems.length) return;
+    const count = visibleGiftCount(list);
+    if (count !== renderedCount) renderRecentCards(list, count);
   }
 
   function observeRecentGiftGrid(list) {
     if (recentGiftResizeObserver || !window.ResizeObserver) return;
-    recentGiftResizeObserver = new window.ResizeObserver(() => limitRecentGiftRows(list));
+    recentGiftResizeObserver = new window.ResizeObserver(() => syncRecentGiftLayout(list));
     recentGiftResizeObserver.observe(list);
   }
 
   function syncGiftSheenTimer() {
-    if (document.hidden || giftSheenMotionQuery.matches || visibleSheenCards.size === 0) {
+    if (!visible || document.hidden || giftSheenMotionQuery.matches || visibleSheenCards.size === 0) {
       window.clearTimeout(giftSheenTimer);
       giftSheenTimer = null;
       visibleSheenCards.forEach((card) => card.classList.remove('is-gold-sheening'));
@@ -90,10 +95,13 @@ export const giftRecent = (() => {
     const list = document.getElementById('giftRecentList');
     if (!list) return;
     latestRecentGiftItems = items;
+    pending = !visible;
+    if (pending) return;
     if (items.length > 0) void loadGiftArtworkCatalog();
     const isEmpty = items.length === 0;
     list.classList.toggle('is-empty', isEmpty);
     if (isEmpty) {
+      renderedCount = 0;
       list.innerHTML = `
         <div class="empty gift-recent-empty">
           <span class="gift-recent-empty-icon" aria-hidden="true">
@@ -108,7 +116,13 @@ export const giftRecent = (() => {
       return;
     }
 
-    list.innerHTML = items
+    renderRecentCards(list, visibleGiftCount(list));
+    observeRecentGiftGrid(list);
+  }
+
+  function renderRecentCards(list, count) {
+    renderedCount = count;
+    list.innerHTML = latestRecentGiftItems.slice(0, count)
       .map((item) => {
         const sprintPrice = item.sprint_count_price ?? item.total_price;
         const blindProfit = item.blind_profit;
@@ -158,8 +172,6 @@ export const giftRecent = (() => {
       })
       .join('');
     setGiftArtworkFallbacks(list);
-    limitRecentGiftRows(list);
-    observeRecentGiftGrid(list);
     observeGiftSheen(list);
   }
 
@@ -195,11 +207,20 @@ export const giftRecent = (() => {
     giftSheenTimer = null;
     visibleSheenCards.clear();
     latestRecentGiftItems = [];
+    renderedCount = 0;
+    pending = false;
+    visible = true;
   }
 
   const module = {
     renderGiftRecentList,
     refreshArtwork,
+    setVisible(value) {
+      visible = value;
+      if (visible && pending) renderGiftRecentList(latestRecentGiftItems);
+      else if (visible && latestRecentGiftItems.length) syncRecentGiftLayout(document.getElementById('giftRecentList'));
+      if (giftSheenMotionQuery) syncGiftSheenTimer();
+    },
     dispose,
     getHighValueGiftArtwork,
   };

@@ -1,6 +1,8 @@
 'use strict';
 
 const { hasExactOrigin } = require('../local-media-access');
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
+const { normalizeErrorCode } = require('../license/remote-license-error');
 const { normalizeGiftThanksTemplates, normalizeGiftThanksReplies } = require('../../../public/js/shared/gift-thanks-templates.js');
 
 function sanitizeState(state = {}) {
@@ -22,24 +24,16 @@ function sanitizeState(state = {}) {
     templates,
     replies,
     status: invalidTemplates ? 'unconfirmed' : ['confirmed', 'pending'].includes(state.status) ? state.status : 'unconfirmed',
-    error: invalidTemplates ? 'INVALID_RESPONSE' : /^[A-Z][A-Z0-9_]{0,63}$/.test(state.error || '') ? state.error : null,
+    error: invalidTemplates ? 'INVALID_RESPONSE' : typeof state.error === 'string' && state.error === state.error.trim()
+      ? normalizeErrorCode(state.error, null) : null,
   };
 }
 
 function registerGiftInteractionIpc({ ipcMain, controller, getMainWindow, getDesktopBaseUrl }) {
+  const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
   const channels = ['license:get-gift-interaction-state', 'license:set-gift-interaction', 'license:set-gift-thanks-templates', 'license:set-gift-thanks-replies'];
   for (const channel of channels) {
-    ipcMain.handle(channel, async (event, intent) => {
-      const window = getMainWindow();
-      if (
-        !window ||
-        window.isDestroyed() ||
-        event?.sender !== window.webContents ||
-        event?.senderFrame !== window.webContents.mainFrame ||
-        !hasExactOrigin(event?.senderFrame?.url, getDesktopBaseUrl())
-      ) {
-        return { ok: false, error: 'IPC_SOURCE_INVALID' };
-      }
+    register(channel, async (event, intent) => {
       try {
         return sanitizeState(
           channel === channels[3]

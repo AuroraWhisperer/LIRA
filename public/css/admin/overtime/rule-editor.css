@@ -43,9 +43,6 @@
   display: grid;
   gap: 8px;
 }
-.overtime-rule-list {
-  gap: 8px;
-}
 .overtime-rule-empty,
 .overtime-settlement-empty {
   padding: 20px;
@@ -241,16 +238,6 @@
 }
 .overtime-rule-quantity-options {
   margin-top: 8px;
-}
-.overtime-rule-mode-options > legend,
-.overtime-rule-quantity-options > legend,
-.overtime-operation-control > legend,
-.overtime-duration-control > legend {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
 }
 .overtime-mode-option {
   position: relative;

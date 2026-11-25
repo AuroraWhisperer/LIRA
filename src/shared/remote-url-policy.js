@@ -27,4 +27,16 @@ function normalizeRemoteRootOrigin(value) {
   }
 }
 
-module.exports = { isDnsHostname, normalizeRemoteRootOrigin };
+function normalizeRemoteOverlayUrl(value) {
+  if (typeof value !== 'string' || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || !isDnsHostname(url.hostname) || url.username || url.password ||
+      url.search || url.hash || !/^\/overlay\/[A-Za-z0-9_-]{16}$/.test(url.pathname)) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { isDnsHostname, normalizeRemoteRootOrigin, normalizeRemoteOverlayUrl };

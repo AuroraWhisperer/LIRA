@@ -781,12 +781,6 @@ body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-particle
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body[data-style='twitter'] .twitter-post[data-live-entry],
-  body[data-style='twitter'] .twitter-post[data-live-entry] *,
-  body[data-style='twitter'] .twitter-post[data-live-entry] *::before,
-  body[data-style='twitter'] .twitter-post[data-live-entry] *::after {
-    animation: none !important;
-  }
   body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-avatar::after,
   body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-name-line::before {
     display: none;

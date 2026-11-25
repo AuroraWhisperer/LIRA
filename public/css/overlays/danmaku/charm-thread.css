@@ -1,0 +1,119 @@
+/* A broken filament and a single enamel charm sit outside the text column. */
+body[data-style='charm-thread'] {
+  --thread-butterfly: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='M11.7 11.1C9.6 6.9 4.9 2.4 1.2 3.2.1 8 2 12.1 7.8 13.3c-3.8-.2-5.1 2-4.2 4.9 1.6 4.2 5.7 1.9 7.8-2.3l.6 5 .6-5c2.1 4.2 6.2 6.5 7.8 2.3.9-2.9-.4-5.1-4.2-4.9C22 12.1 23.9 8 22.8 3.2c-3.7-.8-8.4 3.7-10.5 7.9L12 7.9zM3.5 5.7q4.4 2 6.3 6-4.8-1.6-6.3-6zm17 0q-1.5 4.4-6.3 6 1.9-4 6.3-6z'/%3E%3C/svg%3E");
+  --thread-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.4 15.3A9.6 9.6 0 0 1 8 2.5a9.8 9.8 0 1 0 12.4 12.8ZM17 3.2l1 3.1 3.1 1-3.1 1-1 3.1-1-3.1-3.1-1 3.1-1z'/%3E%3C/svg%3E");
+  --thread-lotus: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.2c-4.2 4.4-4.8 8.6 0 13.5 4.8-4.9 4.2-9.1 0-13.5ZM3 6.8c-.2 6 2.9 10.1 8.4 11.3-3.6-3.6-4.1-5.7-4.3-8.2zM21 6.8l-4.1 3.1c-.2 2.5-.7 4.6-4.3 8.2C18.1 16.9 21.2 12.8 21 6.8ZM.6 14.4c2.5 5.3 6.6 7.3 11.4 5.6-4.8-1.1-6.9-3.6-7.4-4.5zm22.8 0-4 1.1c-.5.9-2.6 3.4-7.4 4.5 4.8 1.7 8.9-.3 11.4-5.6z'/%3E%3C/svg%3E");
+  --thread-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill-rule='evenodd' d='m12 1 2.6 8.4L22 12l-7.4 2.6L12 23l-2.6-8.4L2 12l7.4-2.6zM12 7l-1.2 3.8L7 12l3.8 1.2L12 17l1.2-3.8L17 12l-3.8-1.2z'/%3E%3C/svg%3E");
+  --danmaku-enter-animation: danmakuEntryClock var(--thread-entry-duration, 800ms) linear;
+  --danmaku-move-base-ms: 290;
+  --danmaku-move-max-ms: 470;
+  --danmaku-move-curve: .22, 1, .36, 1;
+  --danmaku-enter-offset: 0;
+}
+body[data-style='charm-thread'][data-thread-entrance='none'] { --danmaku-enter-animation: danmakuEntryClock 1ms linear; }
+body[data-style='charm-thread'] .danmaku-signal-header { display: none; }
+body[data-style='charm-thread'] .danmaku-signal-stage { padding: 0; }
+body[data-style='charm-thread'] .draw-danmaku-feed {
+  gap: .25em;
+  padding: .2em .3em;
+  font-size: var(--danmaku-font-size, 24px);
+}
+.thread-item {
+  --thread-tint: #d1bafe;
+  --thread-motif: var(--thread-butterfly);
+}
+body[data-style='charm-thread'] .draw-danmaku-item.thread-item,
+body[data-style='charm-thread'] .draw-danmaku-item.thread-item.is-gift {
+  display: flex; align-items: stretch; gap: .24em;
+  width: fit-content; max-width: 100%; min-height: 0; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: none; overflow: visible; zoom: 1;
+  font: 500 var(--danmaku-font-size, 24px)/1.36 var(--danmaku-ui-font);
+}
+body[data-style='charm-thread'] .thread-item[data-thread-role='guard'] { --thread-tint: #f1d29c; --thread-motif: var(--thread-moon); }
+body[data-style='charm-thread'] .thread-item[data-thread-role='streamer'] { --thread-tint: #f8c6de; --thread-motif: var(--thread-lotus); }
+body[data-style='charm-thread'] .thread-item[data-thread-role='fan'] { --thread-tint: #c2d9ff; --thread-motif: var(--thread-star); }
+body[data-style='charm-thread'][data-thread-charm='butterfly'] .thread-item { --thread-motif: var(--thread-butterfly); }
+body[data-style='charm-thread'][data-thread-charm='moon'] .thread-item { --thread-motif: var(--thread-moon); }
+body[data-style='charm-thread'][data-thread-charm='lotus'] .thread-item { --thread-motif: var(--thread-lotus); }
+body[data-style='charm-thread'][data-thread-charm='star'] .thread-item { --thread-motif: var(--thread-star); }
+body[data-style='charm-thread'] .thread-item::after,
+body[data-style='charm-thread'] .draw-danmaku-item.thread-item.is-gift::after { content: none; animation: none; }
+body[data-style='charm-thread'] .thread-item .draw-danmaku-body {
+  display: flex; flex-direction: column; align-items: flex-start; gap: .12em;
+  width: auto; min-width: 0; min-height: 0; padding: 0;
+}
+body[data-style='charm-thread'] .thread-item .draw-danmaku-identity { max-width: 100%; gap: .34em; align-items: baseline; }
+body[data-style='charm-thread'] .thread-item .draw-danmaku-identity .thread-name {
+  position: relative; min-width: 0; max-width: 100%; padding-left: .7em;
+  font: 600 17px/1.22 var(--danmaku-ui-font); letter-spacing: .035em; color: #f1e9ff;
+  text-shadow: 0 1px 3px #29233c, 0 0 1px #29233c;
+}
+.thread-name::before {
+  content: ''; position: absolute; left: .05em; top: .5em; width: .22em; height: .22em; border-radius: 50%; background: var(--thread-tint);
+}
+.thread-item .thread-event, .thread-item .thread-amount {
+  font: 600 14px/1.2 var(--danmaku-ui-font); white-space: nowrap; color: #f2d7ad; text-shadow: 0 1px 3px #30253a;
+}
+.thread-item .thread-amount { font: 650 15px/1.2 var(--danmaku-num-font); font-variant-numeric: tabular-nums; }
+body[data-style='charm-thread'] .thread-item .thread-copy {
+  max-width: 100%; margin: 0; padding: .14em .42em .17em; border-radius: .14em .48em .48em .48em;
+  background: rgb(var(--danmaku-bubble-color-rgb, 41 38 62) / calc(var(--danmaku-background-opacity, .9) * var(--danmaku-bubble-color-alpha, 1)));
+  color: var(--danmaku-text-color, #fbf7ff); font-size: var(--danmaku-font-size, 24px); line-height: 1.36;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.thread-item.is-emote-only .thread-copy .draw-danmaku-emote { max-width: 100%; height: 1.8em; }
+.thread-rail {
+  flex: 0 0 .8em; display: flex; position: relative; flex-direction: column; align-items: center; gap: 2px;
+  padding: 1px 0; color: var(--thread-tint); pointer-events: none;
+}
+.thread-rail::before, .thread-rail::after {
+  content: ''; width: 1px; flex: 1; min-height: 3px; border-radius: 1px;
+  background: linear-gradient(transparent, currentColor 24%, currentColor); opacity: .82;
+}
+.thread-rail::after { background: linear-gradient(currentColor, currentColor 76%, transparent); }
+.thread-jewel {
+  position: relative; width: .8em; height: .8em;
+  transform: rotate(var(--danmaku-enter-angle)) scale(var(--danmaku-enter-scale-x), var(--danmaku-enter-scale-y));
+  opacity: var(--danmaku-enter-opacity);
+}
+.thread-jewel::before, .thread-jewel::after {
+  content: ''; position: absolute; inset: 0; mask: var(--thread-motif) center / contain no-repeat;
+  background: linear-gradient(146deg, #fff4ee 4%, currentColor 45%, color-mix(in srgb, currentColor 67%, #50416f) 76%, currentColor 92%);
+}
+.thread-jewel::after {
+  opacity: 0; background: linear-gradient(110deg, transparent 35%, #fff9ec 50%, transparent 65%) 100% 0 / 300% 100%;
+}
+body[data-style='charm-thread'][data-thread-align='right'] .draw-danmaku-feed,
+body[data-thread-align='right'] .thread-item .draw-danmaku-body { align-items: flex-end; }
+body[data-style='charm-thread'][data-thread-align='right'] .thread-item,
+body[data-thread-align='right'] .thread-item .draw-danmaku-identity { flex-direction: row-reverse; }
+body[data-thread-align='right'] .thread-item .draw-danmaku-identity .thread-name { padding: 0 .7em 0 0; }
+body[data-thread-align='right'] .thread-name::before { left: auto; right: .05em; }
+body[data-thread-align='right'] .thread-item .thread-copy { text-align: right; border-radius: .48em .14em .48em .48em; }
+
+/* Only the ornament animates. The text is laid out and readable on the first frame. */
+body:not([data-thread-entrance='none']) .thread-item[data-live-entry] .thread-rail::before,
+body:not([data-thread-entrance='none']) .thread-item[data-live-entry] .thread-rail::after {
+  transform-origin: top; transform: scaleY(var(--danmaku-enter-scale-y));
+  animation: threadDraw calc(var(--thread-entry-duration, 800ms) * .42) cubic-bezier(.2,.7,.25,1) both;
+}
+body:not([data-thread-entrance='none']) .thread-item[data-live-entry] .thread-rail::after {
+  transform-origin: bottom; animation-delay: calc(var(--thread-entry-duration, 800ms) * .09);
+}
+body:not([data-thread-entrance='none']) .thread-item[data-live-entry] .thread-jewel {
+  animation: threadClasp calc(var(--thread-entry-duration, 800ms) * .55) ease-out calc(var(--thread-entry-duration, 800ms) * .18) backwards;
+}
+body:not([data-thread-entrance='none']) .thread-item[data-live-entry] .thread-jewel::after {
+  animation: threadGlint calc(var(--thread-entry-duration, 800ms) * .38) ease-in-out calc(var(--thread-entry-duration, 800ms) * .60) backwards;
+}
+@keyframes threadDraw { from { --danmaku-enter-scale-y: 0; } to { --danmaku-enter-scale-y: 1; } }
+@keyframes threadClasp {
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-scale-x: .28; --danmaku-enter-scale-y: .76; --danmaku-enter-angle: -14deg; }
+  70% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1.07; --danmaku-enter-angle: 3deg; }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1; --danmaku-enter-scale-y: 1; --danmaku-enter-angle: 0deg; }
+}
+@keyframes threadGlint {
+  from { opacity: 0; background-position: 100% 0; }
+  45% { opacity: .9; }
+  to { opacity: 0; background-position: 0 0; }
+}

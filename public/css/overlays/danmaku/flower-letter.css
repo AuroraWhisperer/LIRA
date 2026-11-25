@@ -150,9 +150,6 @@ body[data-style='flower-letter'] .flower-small-gift .flower-copy { display: flex
 .flower-small-gift .flower-nickname { font-size: 25px; font-weight: 400; color: #766d5d; }
 .flower-small-gift .flower-gift-description { flex: none; }
 @keyframes flower-letter-entry { from { --danmaku-enter-opacity: .8; } to { --danmaku-enter-opacity: 1; } }
-@media (prefers-reduced-motion: reduce) {
-  body[data-style='flower-letter'] .flower-letter-item { animation: none !important; }
-}
 
 /* Keep readable type inside the existing card and region dimensions. */
 body[data-style='flower-letter'] .draw-danmaku-item:not(.flower-join) .flower-copy {

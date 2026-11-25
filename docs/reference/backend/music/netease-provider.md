@@ -2,9 +2,9 @@
 
 > 涉及文件:[netease-provider.js](../../../../src/music/providers/netease-provider.js)、[netease-weapi.js](../../../../src/music/providers/netease-weapi.js)、[netease-mappers.js](../../../../src/music/providers/netease-mappers.js)、[lyric-parser.js](../../../../src/music/lyric-parser.js)(歌词解析器)、[stream-resolver.js](../../../../src/music/stream-resolver.js)(流解析编排)、[track-contract.js](../../../../src/music/track-contract.js)
 
-本文档是网易云**上游接口**(`music.163.com`)的逆向工程唯一事实源:weapi 加密算法、Cookie 语义、12 个上游端点、歌词解析器与流解析契约只在此成表。Cookie 持久化(登录分区、快照加密)见 [auth.md](../../desktop/auth.md);本地 `/api/music/*` 端点清单见 [api.md](../api.md) 的 music-routes 节。QQ 侧见 [qq-provider.md](qq-provider.md);Provider 注册与缓存编排见 [services.md](services.md)。
+本文档是网易云音乐**上游接口**（`music.163.com`）逆向实现的单一事实来源，涵盖 weapi 加密算法、Cookie 语义及 12 个上游端点。Cookie 持久化（登录分区、快照加密）见 [auth.md](../../desktop/auth.md)；本地 `/api/music/*` 端点清单见 [api.md](../api.md) 的 music-routes 节；QQ 侧见 [qq-provider.md](qq-provider.md)；Provider 注册、共享歌词解析与跨平台流解析编排见 [services.md](services.md)（§3 / §4 / §14）。
 
-**内部模块边界:** `netease-provider.js` 保留 Provider 公共契约、Cookie/端点请求与流程编排；`netease-weapi.js` 是无状态的 weapi 加密边界；`netease-mappers.js` 只把上游响应归一化为内部曲目/歌单模型。加密与映射模块不得反向持有 Provider 实例或发起网络请求。
+**内部模块边界：** `netease-provider.js` 负责对外接口契约、Cookie/端点请求与流程编排；`netease-weapi.js` 是无状态的 weapi 加密工具；`netease-mappers.js` 仅负责将上游响应映射为内部曲目/歌单结构。加密与映射模块不得反向引用 Provider 实例或发起网络请求。
 
 ## 1. 上游域名
 
@@ -87,12 +87,12 @@ User-Agent: Mozilla/5.0 SongAssistant/1.0
 
 ## 6. 请求方法
 
-所有 JSON 响应经[共享读取器](../../../../src/shared/response-body.js)限制为 16 MiB；保留分块前累计字节数，超限取消上游且错误不拼接大正文，缓冲区按倍数扩容以限制微小分块的对象开销。
+所有 JSON 响应均通过[共享响应体读取器](../../../../src/shared/response-body.js)限制为 16 MiB；超限时立即中止上游读取，错误信息不拼接原始大正文。
 
 | 方法                                  | 用途                | 要点                                                                                                                                                                                      |
 | ------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requestJson(pathname, params, expectedCookie?)`       | GET 明文接口        | `new URL(pathname, NETEASE_BASE_URL)` 拼参;共享响应体读取器限制 16 MiB，空响应体返回 `{}`;非 JSON 抛"返回了非 JSON 响应"([netease-provider.js](../../../../src/music/providers/netease-provider.js)) |
-| `requestWeapiJson(pathname, payload)` | POST weapi 加密接口 | payload 注入 `csrf_token` 后走 §3 加密,`URLSearchParams` 编码,URL 带 `csrf_token` 查询参数；响应体同样限制 16 MiB([netease-provider.js](../../../../src/music/providers/netease-provider.js))  |
+| `requestJson(pathname, params, expectedCookie?, cookieHeader?)` | GET 明文接口 | 每日推荐及资料查询可使用本次登录判断取得的请求头。后续分页或等待并发槽位后重新读取。传入账号约束时发送前核对，资料返回后也核对当前账号。空响应体返回 `{}`。[实现](../../../../src/music/providers/netease-provider.js) |
+| `requestWeapiJson(pathname, payload)` | POST weapi 加密接口 | payload 注入 `csrf_token` 后走 §3 加密，`URLSearchParams` 编码，URL 附 `csrf_token` 查询参数（[netease-provider.js](../../../../src/music/providers/netease-provider.js)）  |
 
 ## 7. 上游端点详解(12 个)
 
@@ -118,8 +118,9 @@ GET https://music.163.com/api/search/get/web?s=<关键词>&type=1&limit=<1-30 �
 ```
 
 - `s` 必填(空抛"缺少搜索关键词");`limit`/`offset` 由 `clampInteger` 限制
-- 搜索与健康检查共用 `readSearchSongs` 校验：只有上游业务 `code=200` 且含 `result.songs[]` 或明确的 `result.songCount=0` 才成功。业务失败保留错误码和上游 `message`/`msg`；缺少结果结构时报错，不再当成空搜索结果。本地存在登录 Cookie 不代表搜索接口成功。
+- 搜索与健康检查共用 `readSearchSongs` 校验：仅当上游业务 `code=200` 且返回 `result.songs[]` 或明确 `result.songCount=0` 时视为成功；业务报错保留错误码与上游 `message`/`msg`，缺少结果结构时直接报错（不视为空结果）。本地持有登录 Cookie 不代表搜索接口可用。
 - 响应 `data.result.songs[]` → `mapTracksWithArtwork` → `mapNeteaseSong`(见 §8.1)；缺少专辑封面的歌曲按去重 ID 每批最多 100 首请求 `/api/song/detail` 补全，失败保留原列表并沿用歌手图片回退（[netease-provider.js](../../../../src/music/providers/netease-provider.js)）。
+- 全民 K 歌只为匹配歌词搜索时传入 `includeCovers: false`，直接使用搜索响应里的曲目信息。
 - 健康检查复用:`s=晴天, type=1, limit=1`([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
 ### 7.2 播放 URL 解析([netease-provider.js](../../../../src/music/providers/netease-provider.js))
@@ -137,9 +138,9 @@ GET https://music.163.com/api/search/get/web?s=<关键词>&type=1&limit=<1-30 �
 GET https://music.163.com/api/song/lyric/v1?id=<歌曲ID>&cp=false&lv=0&kv=0&tv=0&rv=0&yv=0&ytv=0&yrv=0
 ```
 
-同时请求普通歌词与 YRC 逐字歌词及其翻译、罗马音。有效 `yrc.lyric` 优先，并直接以 YRC 的行时间构建歌词；对应翻译优先 `ytlrc.lyric`、罗马音优先 `yromalrc.lyric`，缺失时分别使用 `tlyric.lyric`、`romalrc.lyric`。即使 LRC 与 YRC 的行时间不同，仍保留 YRC 的逐字时间。相邻 YRC 词时间标记之间的文本按原样进入该词，包括空格、字面括号和括号中的歌词。
+接口同时请求普通歌词（LRC）、YRC 逐字歌词及对应的翻译和罗马音。存在有效 `yrc.lyric` 时优先按 YRC 行时间构建歌词，翻译依次取 `ytlrc.lyric` / `tlyric.lyric`，罗马音依次取 `yromalrc.lyric` / `romalrc.lyric`。即使 LRC 与 YRC 行时间不一致，也保留 YRC 逐字时间；相邻词时间标记之间的原文（含空格与括号内容）完整归入该词。
 
-没有有效 YRC 时解析 `lrc.lyric` 及普通翻译、罗马音，再调用 `estimateWordTimings(lines, track.durationMs)` 生成估算逐字时间，供内置和外置播放器共用。估算不替换真实逐字数据，也不保证逐字贴合演唱；算法见 [音乐服务 §14](services.md#14-歌词解析器srcmusiclyric-parserjs)。
+没有有效 YRC 时解析 `lrc.lyric` 及普通翻译、罗马音，再调用 `estimateWordTimings(lines, track.durationMs)` 生成估算逐字时间，供内置和外部播放器共用；具体解析与估算规则见 [音乐服务 §14](services.md#14-歌词解析器srcmusiclyric-parserjs)。
 
 ### 7.4 推荐歌单([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
@@ -172,17 +173,19 @@ GET https://music.163.com/api/personalized/newsong?limit=100
 
 ### 7.7 我喜欢([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
-分页加载可使用 [音乐服务的加载会话](services.md) 复用本次喜欢歌单定位及完整曲目 ID 快照；在 Provider 中按 `offset/limit` 切片后读取详情，不依赖歌单详情接口的 `s` 参数分页。账号 Cookie 变化或新加载会话不复用旧快照。
+分页加载可使用[音乐服务的加载会话](services.md#62-首页内容getmusichomecontentmusic-catalog-servicejs)复用本次喜欢歌单定位及完整曲目 ID 快照，在 Provider 内按 `offset/limit` 切片后拉取详情，不依赖歌单详情接口的 `s` 参数分页。
 
-组合流程:
+组合流程：
 
-1. 读取当前完整 Cookie，用它选择本次加载会话，再通过 `requireLogin` 检查登录状态。即使调用未带 `loadingSession`，观察到不同 Cookie 也会清除旧账号的分页快照。
-2. `getLikedPlaylistId()` 用起始凭据经 `getUserProfile()`（§7.12）取得 userId，再用 `getUserPlaylists(userId, { limit: 50 })` 定位标题含“喜欢”的歌单。找不到时提示重新登录。
-3. `getPlaylistTracks` 沿用同一凭据读取索引、分页详情和缺失封面。每次发出请求前和读取响应后均核对凭据，交付缓存页前同样核对。换号或退出后丢弃迟到结果。并发读取一旦观察到其他凭据，即使随后恢复原 Cookie，旧调用也会结束。
+1. 读取当前完整 Cookie 定位加载会话，再通过 `getLoginCookieHeader` 校验登录态和起始凭据。即使省略 `loadingSession`，检测到 Cookie 变化也会清除旧账号的分页快照。
+2. `getLikedPlaylistId()` 使用起始凭据，先经 `getUserProfile()`（§7.12）拿到 `userId`，再调 `getUserPlaylists(userId, { limit: 50 })` 定位标题含「喜欢」的歌单；未找到则提示重新登录。
+3. 随后沿用同一起始凭据调用 `getPlaylistTracks` 拉取索引、分页详情和缺失封面；凭据一致性校验与换号丢弃规则见 §7.9。
 
 `limit` clamp 1-5000 默认 200;`offset` clamp 0-200000。
 
 修改歌单时，前端已有的特殊目标 `playlist.id = 'liked'` 在登录校验后复用上述用户范围的解析；`writePlaylistTracks` 只把解析出的数字 ID 发给上游。普通数字歌单 ID 和 QQ Provider 的行为不变。
+
+删除成功的回执包含实体 `playlistId`。可确认喜爱歌单身份时，回执还包含布尔值 `isLikedPlaylist`。读取用户歌单时，Provider 在按所有者筛选前核对上游前 50 个位置，在内存中按账号凭据摘要保留结果 5 分钟。此期间删除数字 ID 歌单可直接复用该结果。冷启动或过期时，数字 ID 删除成功后才按当前账号解析别名。若这次读取失败，回执仍确认实体 ID，省略 `isLikedPlaylist`。
 
 ### 7.8 我的歌单 / 收藏歌单([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
@@ -208,10 +211,10 @@ GET https://music.163.com/api/song/detail?ids=<当前页曲目ID JSON数组，�
 
 - 播放器打开普通歌单时，以 `action=playlist-tracks` 向 `POST /api/music/home` 请求最多 5000 首。Provider 按 `trackIds[]` 的顺序切片，`limit` 为 1–5000（默认 1000），`offset` 为 0–200000。公开歌单支持匿名读取。
 - 每 100 个不同 ID 读取一批 `/api/song/detail`，末批可少于 100 个。详情只在这次读取中复用，输出恢复原索引顺序和重复位置。有索引时，同一响应内附的 `tracks[]` 可能只是摘要。歌曲名称、可播放状态、VIP 标记和封面取自详情，封面仍按专辑图、歌手图的顺序回退。
-- 普通歌单一次最多并行两批，仅有空闲名额时启动第二批。每个 Provider 实例的歌单索引、详情和无索引时的封面补查共用 6 个请求名额，与目录服务的成员检测并发数一致。已缓存完整曲目和封面的「我喜欢」页可直接返回。「我喜欢」分页和成员检测回退按单批串行读取。每批详情都核对所需 ID，并在该批结束时归还名额，供其他歌单立即使用。任一批请求失败或缺歌时，本次打开等另一批在途请求结束后返回错误。
-- 普通歌单在确定 ID 后记录当前完整 Cookie，「我喜欢」沿用 §7.7 开始时的 Cookie。索引、详情和补图请求在获得名额后、发出前核对当前 Cookie，交付结果前再次核对。即使账号相同，Cookie 变化也会结束本次读取并提示重新打开歌单。
-- 若没有曲目 ID 数组，仅在返回的 `tracks[]` 已覆盖声明总数时按完整列表本地切片；索引不足、ID 无效或所需详情缺失会报错，不把不完整页写成正常完成结果。
-- **成员检测** `playlistContainsTrack(playlistId, track)`([netease-provider.js](../../../../src/music/providers/netease-provider.js)):同端点 `n=0&s=0` 拉**轻量列表** `data.playlist.trackIds[]`(每项 `item.id || item`),存在 `trackIds` 数组即比较 ID。缺少索引时，若同一响应的 `tracks` 已覆盖明确返回的非负整数总数，直接在前 5000 首中检查，省去详情和封面请求。总数未知、列表缺少或截断时用本次读取的凭证重新读取歌单并检查完整性。此结果供收藏和去重标注用
+- 单个普通歌单最多并发请求 2 批详情（仅在有空闲名额时启动第 2 批）；单个 Provider 实例内，歌单索引、详情和无索引封面补查共享 6 个并发名额（与目录服务成员检测并发数一致）。「我喜欢」已缓存完整曲目与封面时直接命中返回，未命中分页及成员检测回退均按单批串行拉取。每批完成后校验 ID 完整度并立即释放名额；任一批失败或缺歌时，等待另一批在途请求结束后整体报错。
+- **Cookie 一致性校验**：普通歌单在确定 ID 后记录当前完整 Cookie，「我喜欢」沿用 §7.7 起始 Cookie。索引、详情和补图请求在获得名额后、发出前、收到响应后及交付缓存页前均复核凭据一致性；一旦检测到 Cookie 变化（含换号或退出，即使同账号刷新或随后恢复原 Cookie），旧调用立即终止并丢弃迟到结果，提示重新打开歌单。
+- 响应不含 `trackIds[]` 时，仅当 `tracks[]` 数量已覆盖声明的总曲目数才允许本地切片；索引不足、ID 无效或所需详情缺失一律报错，不返回不完整的分页。
+- **成员检测** `playlistContainsTrack(playlistId, track)`（[netease-provider.js](../../../../src/music/providers/netease-provider.js)）：调用同一端点（`n=0&s=0`）拉取轻量 `data.playlist.trackIds[]`（每项 `item.id || item`）比对 ID。若缺少 `trackIds`，当响应中的 `tracks` 数量已覆盖明确返回的非负总数时，直接在前 5000 首内比对以省去详情和封面请求；总数未知、列表缺失或截断时沿用本次凭据重新完整读取歌单并校验完整性。该结果用于收藏和去重标注。
 
 ### 7.10 最近播放([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
@@ -259,10 +262,11 @@ GET https://music.163.com/api/nuser/account/get
 - 需要登录(`MUSIC_U` Cookie,由认证层保证)
 - 响应 `data.profile.userId`(必须非空,否则抛"未能读取网易云用户资料,请重新登录后再试。")/ `profile.nickname`
 - 返回值 `{ userId: String, nickname: String }`,是每日推荐之外多个账号操作的公共前置(§7.7/7.8/7.10)
+- Provider 按完整 Cookie 的 SHA-256 保存最近一次成功资料，期限 5 分钟。未命中时用本次核对过的 Cookie 发出资料请求，响应后重新读取当前凭据，再发布资料。命中时也读取当前凭据以识别换号。匿名与失败结果允许立即重试。
 
 ### 7.13 健康检查([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
-不是独立端点,复用 §7.1 搜索探测:`getSafeAuthState()` → `requestJson('/api/search/get/web', {s:'晴天', type:'1', limit:'1', offset:'0'})` → `readSearchSongs` 校验业务响应:成功 + `auth.loggedIn` → `logged-in`;成功无登录 → `public-ok`;HTTP、业务码或结果结构失败 → `api-error`。`auth` 经 `sanitizeAuthState` 脱敏，保留本地凭据状态，不把接口失败等同于退出登录。
+健康检查读取含备份元数据的状态，用同一次分区读取取得的 Cookie 执行 §7.1 搜索探测（`晴天`，`limit=1`）。`readSearchSongs` 校验业务响应。成功时按登录态返回 `logged-in` 或 `public-ok`，HTTP、业务码或结果结构失败时返回 `api-error`。两种情况下 `auth` 都通过 `sanitizeAuthState` 返回本地状态。
 
 ## 8. 映射函数
 
@@ -299,12 +303,13 @@ GET https://music.163.com/api/nuser/account/get
 
 网易云 Provider 实现 `getStream`；跨 Provider 的输入规范化、缓存与降级编排统一由 [音乐服务 §4](services.md#4-流解析编排stream-resolverjs--track-contractjs) 维护。上游付费音质限制仍见本文各端点说明。
 
-## 11. 登录态要求总表
+## 11. 登录校验规则差异
 
-| 操作                                                | 需要登录 | 判定方式                                                                                                                                                                                                 |
-| --------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 搜索 / 推荐歌单 / 新歌 / 歌单详情 / 歌词 / 播放 URL | ❌       | —(播放 URL 是公开直链)                                                                                                                                                                                   |
-| 每日推荐                                            | ✅       | `requireLogin('每日推荐需要先登录网易云音乐。')`([netease-provider.js](../../../../src/music/providers/netease-provider.js)):仅 `auth.loggedIn` 有效(**与 QQ 不同,Cookie 存在不兜底**) |
-| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放             | ✅       | `requireLogin` + `getUserProfile()`                                                                                                                                                                      |
-| 歌单写入                                            | ✅       | `requireLogin` + `__csrf` Cookie(weapi 加密必需)                                                                                                                                                         |
-| 用户资料                                            | ✅       | 依赖 `MUSIC_U` Cookie                                                                                                                                                                                    |
+各端点是否要求登录见 §7 汇总表，具体校验机制差异如下：
+
+| 类别 | 校验方式 |
+| --- | --- |
+| 匿名可调接口（搜索 / 推荐歌单 / 新歌 / 公开歌单详情 / 歌词 / 播放 URL） | 不要求登录；其中播放 URL 实际返回完整或试听权益取决于当前账号登录态（§7.2） |
+| 每日推荐 | `getLoginCookieHeader` 要求 `auth.loggedIn`，将当次 Cookie 用于请求 |
+| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放 | 验证登录并通过 `getUserProfile()` 取得当前账号资料（依赖 `MUSIC_U` Cookie） |
+| 歌单写入 | 验证登录，从当次 Cookie 提取 weapi 的 `__csrf` |

@@ -157,6 +157,8 @@ test('local media protocol enforces authorization and serves byte ranges', async
   fs.writeFileSync(blockedPath, Buffer.from('blocked'));
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
 
+  const access = createLocalMediaAccess(tempDir);
+  access.allowPath(allowedPath);
   let handler = null;
   registerLocalMediaProtocol(
     {
@@ -165,16 +167,18 @@ test('local media protocol enforces authorization and serves byte ranges', async
         handler = nextHandler;
       },
     },
-    (filePath) => filePath === allowedPath,
+    access.isCanonicalAllowed,
     () => 'http://127.0.0.1:3000',
   );
 
   const allowedUrl = `local-media://media/${Buffer.from(allowedPath).toString('base64url')}`;
+  const realpath = t.mock.method(fs.promises, 'realpath');
   const partial = await handler({
     url: allowedUrl,
     headers: new Headers({ range: 'bytes=1-3', origin: 'http://127.0.0.1:3000' }),
   });
   assert.equal(partial.status, 206);
+  assert.equal(realpath.mock.callCount(), 1, 'a Range request resolves the selected path once');
   assert.equal(partial.headers.get('access-control-allow-origin'), 'http://127.0.0.1:3000');
   assert.equal(partial.headers.get('content-range'), 'bytes 1-3/6');
   assert.equal(Buffer.from(await partial.arrayBuffer()).toString('utf8'), 'bcd');

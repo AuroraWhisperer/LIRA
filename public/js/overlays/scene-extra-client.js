@@ -1,14 +1,9 @@
+import { normalizeBilibiliAvatarUrl } from '../shared/bilibili-avatar.js';
 import { isComponentPreview, createComponentPreviewClient } from './component-preview-client.js';
 
 export function sceneAvatarSource(value) {
   if (/^\/img\/overlays\/danmaku-ranked\/(viewer|captain|admiral)\.webp$/.test(value)) return value;
-  try {
-    const url = new URL(String(value || ''));
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com') || url.username || url.password) return '';
-    return url.toString();
-  } catch {
-    return '';
-  }
+  return normalizeBilibiliAvatarUrl(value);
 }
 
 export function mountSceneExtraClient(type, callbacks) {

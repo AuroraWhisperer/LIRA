@@ -1,10 +1,13 @@
 @media (max-width: 760px) {
+  .draw-card-trigger,
   .wheel-card-trigger {
     grid-template-columns: 1fr;
   }
+  .draw-card-trigger .game-card-poster,
   .wheel-card-trigger .game-card-poster {
     min-height: 118px;
   }
+  .draw-card-summary,
   .wheel-card-summary {
     min-height: 0;
   }
@@ -14,17 +17,7 @@
   .wheel-remove-entry {
     justify-self: start;
   }
-}
-@media (max-width: 760px) {
-  .draw-card-trigger {
-    grid-template-columns: 1fr;
-  }
-  .draw-card-trigger .game-card-poster {
-    min-height: 118px;
-  }
-  .draw-card-summary {
-    min-height: 0;
-  }
+
   .draw-config,
   .draw-word-categories {
     grid-template-columns: 1fr;
@@ -39,8 +32,7 @@
   .draw-host-meta {
     justify-items: start;
   }
-}
-@media (max-width: 760px) {
+
   .games-category {
     padding: 14px;
   }

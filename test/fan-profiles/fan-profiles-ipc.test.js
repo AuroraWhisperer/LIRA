@@ -3,11 +3,12 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { fanScopeFor } = require('../../src/electron/fan-profile-controller');
+const { createPublicError } = require('../../src/shared/public-error');
 const { fixture, deferred, SCOPE_A, SCOPE_B } = require('../helpers/fan-profile-controller-fixture');
 
 test('fan scope uses authenticated origin and stable streamer identity only', (t) => {
   const f = fixture(t);
-  f.state.origin = 'https://lira.example/configurable/base';
+  f.state.origin = 'https://LIRA.example:443/';
   assert.equal(fanScopeFor(f.licenseManager), SCOPE_A);
   f.state.authorized = false;
   assert.equal(fanScopeFor(f.licenseManager), null);
@@ -208,9 +209,13 @@ test('fan IPC uses main-process scope despite renderer-supplied owner fields and
   );
   assert.equal(f.calls.execute.at(-1).scope, SCOPE_A);
   f.service.execute = () => {
-    throw new Error('SQLITE_ERROR token=fictional-secret');
+    throw new Error('SQLITE_ERROR C:\\合成用户\\private.db token=fictional-secret');
   };
   const failed = f.invoke({ action: 'save', contextId: opened.contextId });
   assert.equal(failed.ok, false);
   assert.equal(failed.error.includes('fictional-secret'), false);
+  assert.equal(failed.error.includes('private.db'), false);
+  const businessFailure = createPublicError('输入需重新核对。');
+  f.service.execute = () => { throw businessFailure; };
+  assert.equal(f.invoke({ action: 'save', contextId: opened.contextId }).error, businessFailure.publicMessage);
 });

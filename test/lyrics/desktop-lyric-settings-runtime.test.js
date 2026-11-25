@@ -338,6 +338,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(elements.get('desktopLyricShowRoma').checked, false, 'The saved romanization choice is restored.');
   const fontSizeNumber = elements.get('desktopLyricFontSizeNumber');
   fontSizeNumber.value = '6';
+  receiveSettings({ ...authoritativeSettings, unrelatedSetting: 'changed' });
+  assert.equal(fontSizeNumber.value, '6', 'an unrelated broadcast preserves an unfinished number entry');
   numberListeners.get('input')();
   listeners.get('input')();
   assert.equal(fontSizeNumber.value, '6', 'A partially typed number must survive local draft updates.');

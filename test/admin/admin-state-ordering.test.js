@@ -33,6 +33,7 @@ async function createFixture({ json = JSON } = {}) {
     window,
     location: { protocol: 'http:', host: '127.0.0.1:3000' },
     WebSocket: Socket,
+    Event,
     CustomEvent: class {
       constructor(type, options) {
         this.type = type;
@@ -170,11 +171,13 @@ test('HTTP hydration keeps newer partial updates while accepting unrelated field
 });
 
 test('negotiated snapshot patches preserve music events across HTTP hydration and full reconnects', async () => {
-  const { service, requests } = await createFixture();
+  const { service, requests, events } = await createFixture();
   service.ws.receive({ type: 'snapshot', reason: 'connect', state: { lyricTimeline: { sequence: 1 }, gifts: { count: 0 } } });
   const reload = service.reloadState();
   service.ws.receive({ type: 'lyric-timeline', timeline: { sequence: 2 } });
-  service.ws.receive({ type: 'snapshot:patch', reason: 'bilibili:gift', state: { gifts: { count: 1 } } });
+  service.ws.receive({ type: 'snapshot:patch', reason: 'bilibili:gift', reasons: ['component:styles', 'bilibili:gift'],
+    state: { gifts: { count: 1 } } });
+  assert.equal(events.filter(event => event.type === 'component-styles:changed').length, 1);
   assert.equal(service.getAppState().lyricTimeline.sequence, 2);
   assert.equal(service.getAppState().gifts.count, 1);
   requests[0]({ lyricTimeline: { sequence: 1 }, gifts: { count: 0 }, settings: { roomId: '123' } });
@@ -244,7 +247,7 @@ test('catalog changes forward new asset revisions once and reject unversioned fr
 });
 
 test('a reconnect snapshot accepts restarted overtime without letting old HTTP restore the previous server', async () => {
-  const { service, requests } = await createFixture();
+  const { service, requests, eventBus } = await createFixture();
   service.ws.receive({ type: 'overtime:update', state: { revision: 90 } });
   const pending = service.reloadState();
   service.ws.receive({
@@ -256,6 +259,12 @@ test('a reconnect snapshot accepts restarted overtime without letting old HTTP r
   await pending;
   assert.equal(service.getAppState().overtime.revision, 1);
   assert.equal(service.getAppState().overtime.enabled, false);
+  const baselines = [];
+  eventBus.on('state:loaded', event => baselines.push(event));
+  service.ws.receive({ type: 'snapshot', reason: 'connect', state: service.getAppState() });
+  assert.equal(baselines.length, 1, 'a reconnect establishes a clock anchor even if every value compares equal');
+  assert.equal(baselines[0].isConnectionSnapshot, true);
+  assert.deepEqual([...baselines[0].changedKeys], []);
   service.ws.receive({ type: 'overtime:update', state: { revision: 2 } });
   assert.equal(service.getAppState().overtime.revision, 2);
 });

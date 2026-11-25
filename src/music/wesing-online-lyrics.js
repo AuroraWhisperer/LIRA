@@ -133,7 +133,7 @@ async function resolveProviderLyrics(options) {
     platform,
     keyword,
     limit: 20,
-  });
+  }, { includeCovers: false });
   const match = rankWeSingLyricTracks(title, durationMs, searchResult.tracks, artist)[0];
   if (!match) return null;
 

@@ -1,144 +1,104 @@
 # 前端页面与入口清单
 
-「百宝箱 → 主播工具 → 周表生成器」沿用 `/admin`，片段为 [toolbox/weekly-schedule.html](../../../public/pages/admin/toolbox/weekly-schedule.html)，入口模块为 [admin/weekly-schedule.js](../../../public/js/admin/weekly-schedule.js)。编辑器布局与成品画布样式分属 `css/admin/toolbox/weekly-schedule.css`、`weekly-schedule-art.css`；状态、字段及模板存储见 [Admin 周表说明](app.md#周表生成器)。固定 `/weekly-schedule-export` 仅用于桌面内部渲染，由 [page-assets.js](../../../src/server/page-assets.js) 验证管理凭据，不是普通浏览器源，不注入凭据；不得将它加入 overlay 公开能力。用户操作见应用内「主播工具」章。
+> 涉及文件：[pages/admin/](../../../public/pages/admin)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js)、[gift-audit.html](../../../public/pages/gift-audit.html)、[overlays/](../../../public/pages/overlays)、[js/admin/](../../../public/js/admin)、[js/playback/](../../../public/js/playback)、[js/overlays/](../../../public/js/overlays)、[js/shared/](../../../public/js/shared)、[css/](../../../public/css)、[img/](../../../public/img)
 
-「组件 → 实时榜单」由 [live-components/live-rankings.html](../../../public/pages/admin/live-components/live-rankings.html) 和 [admin/live-rankings.js](../../../public/js/admin/live-rankings.js) 提供四榜查看及各榜独立的画布入口；每榜显示高度至少 480px。客户端、画布预览与投屏的完整榜均加载全部已返回名次供手动滚动，不自动翻页；投屏在来源交互界面中操作，附近模式仍由画布设置控制。数据刷新或延迟提示改变列表高度时，[live-rankings-view.js](../../../public/js/shared/live-rankings-view.js) 保持已滚到底部的视图贴底，中间阅读位置不主动改变；首次加载从顶部开始。房间跟随当前账号配置；隐藏标签页停止该查看订阅。直播输出使用保存后的独立组件地址或场景地址，内部 `/live-rankings` 不直接提供榜单数据。操作见[实时榜单指南](../../guides/component-sources.md#实时榜单)。
+本文档是前端**页面清单**的单一事实来源：每个页面是什么、由谁打开、入口 URL 只在此成表。URL → HTML 的映射表（`pageMap`）归 [server-core.md](../backend/server-core.md) §4.3 维护，此处只列出面向使用者的入口语义。
 
-音乐展示位于「组件 → 音乐展示」，包含「直播歌词」与「歌曲信息」。歌词分片 `song/desktop-lyric.html` 由 `live-components/page.html` 嵌入一次；其中基础／高级页签同步切换编辑面板、实时歌词预览和右侧可点击复制的独立地址，音乐跟随共用，不提供显示开关或示例试播。高级编辑由 `admin/advanced-lyric-editor.js` 拥有，提供分类效果、轮换和自存搭配，完整输出规则见[歌词 overlay](overlays.md#6-直播歌词页lyrics)。点歌页不再组合该标签。歌曲信息分片为 `live-components/now-playing.html`，模块为 `admin/now-playing.js`，共享渲染器和浏览器源入口见[overlay 参考](overlays.md#歌曲信息now-playing)。两个组件共用音乐来源并独立加入画布；导航兼容与保存方式见 [Admin 应用](app.md#2-公共框架shared)。
-
-粉丝档案位于百宝箱 → 主播工具，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒/设置”与“资料/手记/音乐/大航海”由 `js/admin/fans/` 拥有；在当前档案或已归档列表中直接切换人物时，保留当前详情页签。顶部页签与新建操作下方留 16px，再接主题浅色分隔线，避免选中下划线、按钮底边与分隔线挤在一起。点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 浏览器源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
-
-电音助手同属「主播工具」；设置片段 `toolbox/audio-assistant.html` 沿用通用导航，提供分区完整参数。`shared/audio-assistant.html` 与 `shared/topbar-status.html` 在主页面之外各组合一次，前者承载共享精简面板与侧边入口，后者承载顶栏连接详情；顶部图标由 `shell-start.html` 提供。对应 `audio-assistant.js`、`topbar-status.js` 由 `app.js` 装配；`audio-assistant-controls.js` 统一生成与同步两处音频控件。样式分别位于 `css/admin/audio-assistant.css`、`topbar-status.css`。本机偏好和交互边界见 [Admin 应用](app.md#6-组件与百宝箱)。
-
-档案手动同步与自动更新通知共用 `fans/view.js` 的 `rosterUpdateNotices`：成功统计、跳过说明、名单外资料查询失败分别为 success/info/warning toast；无跳过或失败时不生成对应通知，单次最多三条，成功统计不显示“跳过 0 位”。`fans/editor.js` 在关闭同步表单后消费 `notices`，普通保存仍沿用单条 `message`。最近一次手动结果保留在同步状态左侧的 `lira-help#fanRosterHelp`，内容节点 `fanRosterResult` 随组件初始化保留，不单独占行；尚无结果或账号上下文变化时隐藏并清空。自动整次失败只显示一条 error toast。IPC 结果字段不变。
-
-档案页提醒横幅的“不再显示”只写本机 localStorage 界面偏好 `liraFanReminderSummaryHidden=true`，后续打开仍隐藏横幅；不按账号保存，不调用提醒状态接口，不改变档案提醒、日历投影或其他页面。存储不可用时仍在当前页面生效。提醒页及“查看提醒”的跳转行为保留。
-
-基本资料的曾用名以胶囊统一展示，不区分来源或日期；默认位置使用服务返回的 `formerName`，其余通过原生 details 展开，列表限高滚动。“替换”复用档案编辑器保存手动默认值，“补充”调用受限 IPC；新建表单查询结果只留草稿，UID 改变时清理本次追加名字并忽略迟到返回。`fans/former-name-batch.js` 持有设置页批量调度、间隔计时器及停止/退出清理，目标和保存规则由领域层维护；入口与兼容规则见[粉丝档案规格](../../../specs/fan-profiles.md)。
-
-返回档案列表与切换档案/归档范围一样，会推进当前选择代次；返回前发出的详情 IPC 迟到时不能重新打开详情，之后主动选择仍正常读取。
-
-> 涉及文件:[pages/admin/](../../../public/pages/admin)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js)、[gift-audit.html](../../../public/pages/gift-audit.html)、[overlays/](../../../public/pages/overlays)、[js/admin/](../../../public/js/admin)、[js/playback/](../../../public/js/playback)、[js/overlays/](../../../public/js/overlays)、[js/shared/](../../../public/js/shared)、[css/](../../../public/css)、[img/](../../../public/img)
-
-本文档是前端**页面清单**的唯一事实源:每个页面是什么、由谁打开、入口 URL 只在此成表。URL → HTML 的映射表(`pageMap`)本身归 [server-core.md](../backend/server-core.md) §4.3 所有,此处只列出面向使用者的入口语义。
-
-管理后台没有单一 `public/pages/admin.html` 文件。HTML 分片位于 [pages/admin/](../../../public/pages/admin)，由 [server/admin-page.js](../../../src/server/admin-page.js) 组合，顺序由 [admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js) 保护。
+管理后台没有单一 `public/pages/admin.html` 文件。HTML 分片位于 [pages/admin/](../../../public/pages/admin)，由 [server/admin-page.js](../../../src/server/admin-page.js) 组合，顺序由 [admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js) 保护。各功能页的业务交互、保存状态机与渲染细节分别归 [app.md](app.md) 与 [overlays.md](overlays.md) 维护。
 
 ### 客户端设置与外观
 
 主窗口标题栏使用紧凑的应用图标，避免横向字标挤占导航空间。登录页和「系统与关于」使用本地打包的 [lira-wordmark.svg](../../../public/img/shared/lira-wordmark.svg) 文字字标，复用同一矢量图形；文字随当前表面前景色适配，粉色圆点保持品牌色。布局样式在 [lira-wordmark.css](../../../public/css/shared/lira-wordmark.css)，软件图标继续独立使用，不将横向字标裁成应用图标。安装协议页使用同一字形的 [installer-wordmark.bmp](../../../build/installer-wordmark.bmp)，按当前 Windows DPI 装载；安装窗口尺寸及独立完成页排版见[构建参考](../engineering/build.md)。
 
-「百宝箱 → 设置」采用居中吸顶单行四段页签，包含「外观主题」「声音与通知」「账号与连接」「系统与关于」，由 [client-settings.js](../../../public/js/admin/client-settings.js) 管理点击、方向键切换和旧更新页选中项迁移。设置页通过既有片段 include 组合 [desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html)，不再提供单独的「桌面更新」侧栏项；更新通知直接打开设置中的「系统与关于」。外观主题页签使用宽画廊容器（最高 976px，4 列自适应卡片网格，顶部集成当前主题色点、明暗筛选与保存反馈）；其余三个页签统一收束为居中单栏分组卡片（最高 776px），共享圆角表面卡、卡片外微标题与细分隔线。系统与关于将品牌标识、版本号、更新操作与自动更新开关融合为顶部主卡，下方按需显示资源下载任务和「本地数据与诊断」分组卡（数据目录、日志目录与资源检查），底部居中放置无箭头的官网、用户协议与隐私政策入口。关于页使用本地打包的 [lira-app-icon.png](../../../public/img/shared/lira-app-icon.png)，与桌面窗口使用的 `build/icon.png` 图像一致。
+「百宝箱 → 设置」采用居中吸顶单行四段页签，包含「外观主题」「声音与通知」「账号与连接」「系统与关于」，由 [client-settings.js](../../../public/js/admin/client-settings.js) 管理切换与旧更新页选中项迁移。设置页通过片段 include 组合 [desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html)，不再提供单独的「桌面更新」侧栏项；更新通知直接打开「系统与关于」。外观主题页签使用宽画廊容器（最高 976px，4 列自适应卡片网格，顶部集成当前主题色点、明暗筛选与保存反馈）；其余三个页签收束为居中单栏分组卡片（最高 776px），共享圆角表面卡、卡片外微标题与细分隔线。系统与关于将品牌标识、版本号、更新操作与自动更新开关融合为顶部主卡，下方按需显示资源下载任务和「本地数据与诊断」分组卡，底部居中放置无箭头的官网、用户协议与隐私政策入口；关于页使用本地打包的 [lira-app-icon.png](../../../public/img/shared/lira-app-icon.png)，桌面窗口也读取这一文件。「声音与通知」收纳「内置播放器输出」与「系统通知」两张分组卡片（大额礼物开启时原地展开门槛与快捷金额条；控件状态机见 [app.md](app.md#2-公共框架shared) 与 [preload](../desktop/preload.md#25-dailybotsfanprofiles-与-giftexport)）。
 
-「声音与通知」页签收纳「内置播放器输出」与「系统通知」两张分组卡片。系统通知由 [desktop-notification-settings.js](../../../public/js/admin/desktop-notification-settings.js) 初始化日程、大额礼物开关、快捷金额预设和人民币门槛，开关与金额自动保存到本机；大额礼物开启时原地平滑展开门槛与快捷金额条，Windows 通知权限等通用说明位于卡片外底部。禁用状态与保存反馈跟随桌面快照；金额与快捷预设仅在大额礼物通知开启时可用，具体契约见 [preload](../desktop/preload.md#25-dailybotsfanprofiles-与-giftexport)。
+「百宝箱 → 设置 → 外观主题」共提供十三套配色，按「浅色」（9 套）与「深色」（4 套）两组展示并支持「全部 / 浅色 / 深色」筛选：
 
-百宝箱 → 设置 → 外观主题共提供十三套配色，按「浅色」（9 套）与「深色」（4 套）两组展示并支持「全部 / 浅色 / 深色」筛选。浅色组依次展示默认的暖陶、经典暖金、中性蓝、清白 · 翠光、雾苔 · 亚麻、烟粉 · 灰玫瑰以及渐变主题玫瑰映光、梅雾 · 浅色和紫岚 · 浅色；深色组展示墨咖 · 香槟、玄黑 · 银红、梅雾 · 深色和紫岚 · 深色。梅雾采用暖杏到玫瑰灰或深梅色渐变，紫岚采用藕粉到灰蓝或灰紫到墨蓝渐变。雾苔 · 亚麻（`moss-linen`）采用亚麻白实色底、苔绿按钮与深橄榄文字；墨咖 · 香槟（`cocoa-champagne`）采用暖咖灰底、香槟色按钮与暖白文字，输入框、下拉菜单、通知及滚动条一起使用深色层级。烟粉 · 灰玫瑰（`dusty-rose`）采用灰粉实色底、灰棕文字和低饱和玫瑰色按钮，与明亮渐变的玫瑰映光独立；内容面板、输入框与弹层逐层提亮，导航及下拉选中项使用较浓的烟粉底色，成功、警告、错误和信息保持各自语义色。点选配色立即发起保存，同一时间只接受一次写入；保存失败恢复原选项并提示重新选择，成功后才原位更新 `html[data-client-theme]`，不重新挂载播放器、保存业务设置或刷新页面。入口、明暗筛选与反馈由 [client-appearance.js](../../../public/js/admin/client-appearance.js) 拥有。
+- **浅色组（9 套）**：默认的暖陶（`terracotta`）、经典暖金、中性蓝、清白 · 翠光、雾苔 · 亚麻（`moss-linen`，亚麻白实色底、苔绿按钮与深橄榄文字）、烟粉 · 灰玫瑰（`dusty-rose`，灰粉实色底、灰棕文字与低饱和玫瑰色按钮），以及渐变主题玫瑰映光、梅雾 · 浅色和紫岚 · 浅色。
+- **深色组（4 套）**：墨咖 · 香槟（`cocoa-champagne`，暖咖灰底、香槟色按钮与暖白文字）、玄黑 · 银红、梅雾 · 深色和紫岚 · 深色（梅雾为暖杏到玫瑰灰/深梅色渐变，紫岚为藕粉到灰蓝/灰紫到墨蓝渐变）。
 
-[desktop/palettes.css](../../../public/css/desktop/palettes.css) 只提供作用域内颜色及兼容别名；布局、字体与控件几何共用。默认 `terracotta`（暖陶），选项小样使用 `data-client-theme-preview` 在自身作用域解析别名。独立工具仅加载色板，不加载拖拽等桌面壳规则；新打开的预览与已授权礼物审计读取当前已提交主题，旧页面不自动同步或刷新。初始化白名单见 [服务核心](../backend/server-core.md)，本机保存及首帧底色见 [桌面主进程](../desktop/main.md)。
-
-登录、直播浏览器源、观众点歌页、歌词内容不接入客户端色板；盲盒与加班机专属内容保持独立配色。场景编辑器检查底色固定，实际组件仍由独立 iframe 和组件配置决定。
+[desktop/palettes.css](../../../public/css/desktop/palettes.css) 只提供作用域内颜色及兼容别名，选项小样通过 `data-client-theme-preview` 在自身作用域解析；独立工具仅加载色板，不加载拖拽等桌面壳规则。登录页、直播浏览器源、观众点歌页、歌词内容不接入客户端色板；盲盒与加班机专属内容保持独立配色，场景编辑器检查底色固定。点选保存与主题切换状态机见 [app.md](app.md#2-公共框架shared)，白名单与首帧底色见 [server-core.md](../backend/server-core.md) 与 [desktop/main.md](../desktop/main.md)。
 
 ## 1. 技术选型
 
-| 事实     | 说明                                                                             |
-| -------- | -------------------------------------------------------------------------------- |
-| 语言     | 零框架 Vanilla JS(ES Modules + Classic Scripts),无构建工具、无 TypeScript        |
-| 样式     | 原生 CSS,按目录拆分,无预处理器                                                   |
-| 实时通道 | WebSocket 按权限投影的快照及领域增量消息(见 [comms.md](comms.md)、[ws.md](../backend/ws.md))           |
-| 命令通道 | `fetch('/api/...')`(见 [comms.md](comms.md)、[api.md](../backend/api.md))        |
+| 事实 | 说明 |
+| --- | --- |
+| 语言 | 零框架 Vanilla JS（ES Modules + Classic Scripts），无构建工具、无 TypeScript |
+| 样式 | 原生 CSS，按目录拆分，无预处理器 |
+| 实时通道 | WebSocket 按权限投影的快照及领域增量消息（见 [comms.md](comms.md)、[ws.md](../backend/ws.md)） |
+| 命令通道 | `fetch('/api/...')`（见 [comms.md](comms.md)、[api.md](../backend/api.md)） |
 | 模块形态 | ES Module 带 `.js` 后缀的显式导入；Admin 由 `app.js` 通过具名导入和回调装配，原全局注册桥已退役 |
 
 ### 1.1 桌面 Admin 字体层级
 
-桌面 Admin 的通用字体层级由 [styles-base.css](../../../public/css/styles-base.css) 中的 token 与 [admin/layout.css](../../../public/css/admin/layout.css) 中 `.app-shell` 范围内的语义角色共同持有。`styles-base.css` 只声明 token，不得增加会影响普通 `h1`、`p`、`small` 等元素的裸排版规则；页面和组件通过 `ui-*` 角色或组件自有的等价选择器消费这些值。
+桌面 Admin 的通用字体层级由 [styles-base.css](../../../public/css/styles-base.css) 中的设计令牌与 [admin/layout.css](../../../public/css/admin/layout.css) 中 `.app-shell` 范围内的语义角色共同维护。`styles-base.css` 仅声明设计令牌，不得添加直接作用于 `h1`、`p`、`small` 等原生标签的全局排版规则；页面和组件通过 `ui-*` 角色或组件自有的等价选择器读取这些值。
 
-下表记录通用 token 的默认设计值，具体数值由样式 owner 调整；组件可在相应语义角色基础上调整展示尺寸。自动化测试保护 token 完整性、有效取值、字号层级和以下可读性/作用域边界，不在各页面重复冻结这些数值。用户配置的直播画面字号属于输入输出契约，仍须准确应用。
+下表记录通用令牌的默认设计值，具体数值由样式模块按需调整；组件可在相应语义角色基础上调整展示尺寸。自动化测试保护令牌完整性、有效取值、字号层级和以下可读性/作用域边界，不在各页面重复冻结这些数值。用户配置的直播画面字号属于输入输出契约，仍须准确应用。
 
-| 角色            | 默认字号 | 常用字重 | 用途                                   |
-| --------------- | ---: | -------: | -------------------------------------- |
-| display         | 28px |      700 | 少量展示型标题                         |
-| page title      | 24px |      700 | 主工作区与百宝箱功能页锚点             |
-| section title   | 18px |      700 | 面板、弹窗和主要内容分区               |
-| card title      | 15px |      600 | 卡片标题、歌曲名与 Toast 标题          |
-| body            | 14px |      400 | 正文、说明和普通状态文案               |
-| control label   | 13px |      600 | 表单标签、按钮和导航控件               |
-| caption         | 12px |      400 | 元数据、辅助说明和次级状态             |
-| micro / eyebrow | 11px |      700 | 短标签、表头、状态徽标和 Latin eyebrow |
+| 角色 | 默认字号 | 常用字重 | 用途 |
+| --- | ---: | ---: | --- |
+| display | 28px | 700 | 少量展示型标题 |
+| page title | 24px | 700 | 主工作区与百宝箱功能页锚点 |
+| section title | 18px | 700 | 面板、弹窗和主要内容分区 |
+| card title | 15px | 600 | 卡片标题、歌曲名与 Toast 标题 |
+| body | 14px | 400 | 正文、说明和普通状态文案 |
+| control label | 13px | 600 | 表单标签、按钮和导航控件 |
+| caption | 12px | 400 | 元数据、辅助说明和次级状态 |
+| micro / eyebrow | 11px | 700 | 短标签、表头、状态徽标与英文小眉标 |
 
-普通正文、帮助、错误与可操作说明不得小于 12px；11px 只用于短而有边界的 microcopy。计时器、歌词、硬件数值、图表与其他展示数据可使用组件自有的 metric/presentation 字号，但不能反向覆盖通用正文。常规字重限定为 400/500/600/700。
+普通正文、帮助、错误与可操作说明不得小于 12px；11px 仅用于篇幅固定、极短的辅助文案。计时器、歌词、硬件数值、图表等数据展示区可使用组件自带的展示字号，但不能反向覆盖通用正文。常规字重限定为 400/500/600/700。
 
-该契约只拥有 Electron/Admin chrome。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不消费 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的 overlay 字体与字号，`/lyrics` 和 Admin 歌词预览共用用户配置：基础使用 `--preview-*`，高级使用 `--advanced-*` 视觉变量。完整字体目录由 `shared/font-catalog.js` 拥有，`shared/font-library.js` 为播放器、歌词、弹幕、点歌板、展示板、画布参数及共享文字格式工具栏统一填充“软件字体库”，适配旧 ID 与字体名。默认／跟随行为置顶；样式字体默认项显示对应字体名称及“（默认）”，随样式切换更新，保留原有选择值；“软件字体库”使用统一资源，“系统字体库”仅使用本机枚举结果。旧页面系统预设只保留兼容元数据，已保存的别名和回退组合尽量在对应系统字体项回显，无法匹配时单列“当前设置”，不改写原值或校验限制。搜索框固定，只有选项区滚动。系统字体枚举仍由 `shared/local-font-library.js` 共享，沿用原生许可与必要时的用户手势重试；旧 Admin/歌词字体模块 URL 保留兼容入口。
+本字号体系仅适用于 Electron 桌面管理界面的外框与控件。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不使用 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的叠加层字体与字号，`/lyrics` 和 Admin 歌词预览共用用户配置（基础使用 `--preview-*`，高级使用 `--advanced-*`）。共享字体目录与本机字体枚举见 §6 及 [app.md](app.md#10-共享字体与资源下载)（默认/跟随项置顶，样式默认项标「（默认）」，系统旧别名尽量回显，无法匹配时单列「当前设置」）。
 
 ### 1.2 组件工作区的桌面尺度
 
-「组件」通过 [live-components.css](../../../public/css/admin/live-components.css) 有序加载工作区样式，由 [live-components/workspace.css](../../../public/css/admin/live-components/workspace.css) 消费并局部细化上述语义 token；适用于组件设置页，礼物姬下的全屏礼物感谢、滚动礼物、礼物许愿、月底冲刺、盲盒盈亏榜和大航海感谢各有独立页面，不改变 OBS/哔哩哔哩直播姬中的输出字号、素材比例或用户配置。颜色、圆角、禁用与焦点状态沿用客户端主题。侧栏负责标识当前页，右侧直接呈现操作与设置，不重复页名或功能介绍；内容左边线、控件高度与分区层级保持一致。
+「组件」通过 [live-components.css](../../../public/css/admin/live-components.css) 有序加载工作区样式，由 [live-components/workspace.css](../../../public/css/admin/live-components/workspace.css) 读取并局部细化上述语义令牌；适用于组件设置页，不改变 OBS / 哔哩哔哩直播姬中的输出字号、素材比例或用户配置。侧栏负责标识当前页，右侧直接呈现操作与设置，不重复页名或功能介绍。
 
-桌面双栏布局中，左侧「组件」标题与底部「打开画布」「素材管理」「使用指南」固定在侧栏两端，仅中间组件列表独立滚动，隐藏列表滚动条。「使用指南」打开使用文档并通过现有目录导航定位到第 5 章「场景与素材」开头。
+桌面双栏布局中，左侧「组件」标题与底部「打开画布」「素材管理」「使用指南」固定在侧栏两端，仅中间组件列表独立滚动并隐藏滚动条（「使用指南」定位到第 5 章「场景与素材」开头）。百宝箱双栏工作区由 [toolbox/shell.css](../../../public/css/admin/toolbox/shell.css) 维护布局（上/左/右外边距与栏间距均为 4px，侧栏隐藏滚动条，窄窗口沿用单栏）。
 
-百宝箱双栏工作区由 [toolbox/shell.css](../../../public/css/admin/toolbox/shell.css) 持有布局，顶部、左侧和右侧外边距均为 4px，侧栏与内容面板间距为 4px。侧栏始终隐藏滚动条，双栏下内容超出时仍可滚动；窄窗口沿用单栏布局。
-
-顶部入口命名为「组件」，与点歌、播放、礼物保持两字节奏，表示可配置并放入直播画面的独立功能；悬停说明为「组件 · 弹幕、礼物与直播画面设置」。命名参考同类产品的功能分类：[Streamlabs 中文站](https://streamlabs.com/zh-cn/stream-widgets)称 Widgets 为「小工具」，[StreamElements](https://docs.streamelements.com/overlays/getting-started)区分单个 Widget 与组合 Overlay，[OBS](https://obsproject.com/kb/sources-guide)则使用 Sources。LIRA 采用「组件」是结合本站功能与既有画布用语的选择，并非这些软件统一使用的中文名称。
-
-图标沿用顶部导航的透明彩色立体风格，以直播预览窗口、金色弹幕板和珊瑚色小画面表达直播间画面的搭建。`nav-components.webp` 将三层画面收拢为紧凑的横向屏幕，`nav-components-active.webp` 将弹幕板和小画面向上展开，形成明显的三层轮廓；两态保持相同的材质与配色，通过整体轮廓区分选择状态。两图各为 64×64，按既有 20×20 CSS 像素显示，共用默认/选中图层的 180ms 淡入淡出；减少动态效果偏好下取消过渡，无持续闪烁。内部页面 ID、`#components` 和记忆选择键保持不变。
+顶部入口命名为「组件」（悬停说明「组件 · 弹幕、礼物与直播画面设置」），图标 `nav-components.webp` / `nav-components-active.webp`（64×64 显示为 20×20，180ms 淡入淡出，开启「减弱动态效果」时取消过渡）。
 
 设计依据核对于 2026-10-09：
 
-- [Microsoft Fluent 2 Typography](https://fluent2.microsoft.design/typography)：原生系统字体、14/20 正文、Windows 20/28 副标题及分级字重，建立稳定的文字层级。
-- [Microsoft Fluent 2 Layout](https://fluent2.microsoft.design/layout)：4px 基础间距、邻近关系分组，以及按内容空间重排。它并未规定本项目的侧栏或卡片必须取某一宽度。
-- [Fluent Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/) 与 [Fluent Button](https://fluent2.microsoft.design/components/web/react/core/button/usage)：标签置于字段上方，辅助操作减轻视觉权重，主操作在各自任务组内保持明确。
-- [Fluent Tooltip](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage/)：补充解释按需出现。LIRA 复用 `lira-help` 问号组件，支持悬停、聚焦和点击；输入限制、保存状态与错误仍直接显示。
-- [WCAG 2.2 SC 1.4.1 Use of Color](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)：选中、当前等状态不只依靠颜色表达，侧栏与样式卡片同时使用填充、竖条/选中环和字重。
-- [Adobe Spectrum Platform scale](https://spectrum.adobe.com/page/platform-scale/)：鼠标与触屏采用不同密度。LIRA 的 Electron 工作区按鼠标桌面设计，不把触屏最小尺寸直接作为所有桌面按钮的高度。
+- [Microsoft Fluent 2 Typography](https://fluent2.microsoft.design/typography)：原生系统字体、14/20 正文、Windows 20/28 副标题及分级字重。
+- [Microsoft Fluent 2 Layout](https://fluent2.microsoft.design/layout)：4px 基础间距、邻近关系分组及按内容空间重排。
+- [Fluent Field](https://fluent2.microsoft.design/components/web/react/core/field/usage/) 与 [Fluent Button](https://fluent2.microsoft.design/components/web/react/core/button/usage)：标签置于字段上方，主/辅操作区分视觉权重。
+- [Fluent Tooltip](https://fluent2.microsoft.design/components/web/react/core/tooltip/usage/)：补充解释按需出现（复用 `lira-help` 问号组件）。
+- [WCAG 2.2 SC 1.4.1 Use of Color](https://www.w3.org/WAI/WCAG22/Understanding/use-of-color.html)：选中与当前状态同时使用填充、竖条/选中环和字重，不只依靠颜色。
+- [Adobe Spectrum Platform scale](https://spectrum.adobe.com/page/platform-scale/)：按鼠标桌面密度设计。
 
-下表区分引用的尺度与 LIRA 的内容适配。除明确引用的字体尺度外，尺寸是本项目的可验证选择，不声称是大厂规定；数值均为 CSS 像素，随系统缩放渲染。
+下表区分引用的尺度与 LIRA 的内容适配；除明确引用的字体尺度外，其余尺寸属于本项目的具体适配选择（单位均为 CSS 像素）：
 
 | 对象 | LIRA 值 | 选择理由 |
 | --- | --- | --- |
-| 界面字体 | 正文 Segoe UI Variable Text，页标题 Segoe UI Variable Display；均回退 Segoe UI 与 Microsoft YaHei UI / Microsoft YaHei | 原生 Windows 字体栈，不额外下载显示字体。Variable 字体按光学尺寸分 Text / Display 档，20px 标题用 Display 档；中文回退不受影响。用户素材预览保留自身字体 |
-| 页面定位 | 左侧选中导航项；右侧不另设同名标题 | `tabpanel` 继续通过 `aria-labelledby` 关联导航项；开关与主要操作组成紧凑工具栏，没有工具栏的页面直接进入设置 |
-| 顶部工具栏 | 按内容撑开高度，按钮下方留 16px，再接主题浅色细分隔线；弹幕姬不用工具栏分隔线，改为下述设置行卡片 | 设置内容较长时工具栏仍保留完整内边距，分隔线不与按钮底边相接。月底冲刺的来源行及标题、盲盒盈亏榜标题沿用同一浅色边界 |
-| 分区标题 | 16px / 24px，600 | 基于 Fluent 16px 副标题，行高从 Web 的 22px 调到 24px。右侧保持分区 / 正文 / 辅助信息的 16 / 14 / 12 三级层次 |
-| 补充说明 | 相邻的 `lira-help` 问号 | 链接用法、预览作用、样式差异与触发规则按需查看；单位、长度或文件大小限制保留在字段旁，反馈继续使用可见状态区 |
-| 正文、按钮、字段标签 | 14px / 20px；正文、字段标签、开关行文字与输入值 400，按钮 500，选中项 600 | Fluent Body 1 尺度；同等任务不再混用 13px 和 14px。字段标签不加粗，粗体只留给分区/分组标题、选中项和按钮；输入框不继承标签字重，用户填写的内容始终是常规字重 |
-| 辅助说明、状态 | 12px / 18px，400–500 | 保留现有 caption 尺度；比 Fluent 12/16 多 2px 行距以容纳中文长说明；不把帮助文字压成 11px |
-| 常规按钮、输入框、下拉框 | 最小高 36px；文字按钮水平内边距 12px，宽度随文案 | 20px 文字行盒 + 上下各 7px 内边距 + 各 1px 边框；中文清楚且保持桌面密度。长文案允许增高 |
-| 下拉框 | 统一由 `components/select-menu.css` 绘制：触发框 500 字重，箭头置于圆角底座，展开时加 3px 主题色光环；弹层圆角 12px。单选选中项为左侧 3px 选中竖条 + 主题色底 + 600 字重，不显示对勾；多选（`.lira-multiselect`）选中项为实心勾选框 + 主题色底 + 600 字重。未选项 400 字重，悬停为正文色 6% 中性叠加；禁用项无底色、仅降低文字色；带标签的 `optgroup` 在组首显示小号组名 | 单选参照 Ant Design、Element Plus 与 Windows 11 下拉：单选不用对勾；对勾只表达「可多选」，参照 Linear、Notion 筛选器的勾选框列表。状态由竖条/勾选框、填充和字重共同表达（WCAG 1.4.1）。悬停与选中分属中性与主题色两套颜色，避免在浅色主色或深色外观中混淆。选中颜色跟随客户端外观：经典暖金为红到金渐变，清白 · 翠光与玫瑰映光沿用各自主按钮渐变，玄黑 · 银红为银红竖条，烟粉 · 灰玫瑰使用灰粉实色底与玫瑰色竖条；雾苔 · 亚麻使用浅苔绿实色底与深苔绿竖条，墨咖 · 香槟使用深咖实色底与香槟色竖条 |
-| 导航行 | 一级行最小高 40px；礼物姬子项高 34px，缩进 24px；侧栏图标 20px；图文间距 12px | 导航承担持续定位，比表单操作多留点击空间；图标与正文中心对齐。样式卡片属于预览选择器，不强行压成按钮高度 |
-| 弹幕姬分组 | 上方「监控弹幕」与「弹幕过滤」为两张相距 4px 的设置行卡片（最小高 60px，标题 14px / 600 + 12px 说明，开关或箭头在最右）；下方隔 24px 为「弹幕外观」：16px / 600 标题后接保存状态，预览按钮位于同行右侧。标题栏、最近使用和参数区共用细边框及正文色 2.5% 底色，以横线区分；内容左右内边距统一 16px | 接收与外观按功能分区，桌面有效修改自动保存；参数区按款提供「文字样式」「配色与外观」「消息与动效」「高级参数」，标题栏的「恢复默认」按钮最小高 28px |
-| 弹幕样式入口 | 主页「最近使用」最多 4 款，以 80×52px 缩略图和名称／英文标识组成横向卡片；单款最大宽 320px，容器宽不超过 960px 时为两列，四款均保留。右侧「全部样式」打开样式库 | 当前选择和最近保存的款式方便快速返回，完整筛选留在样式库；选卡回到原参数区并自动保存，长名称截断后可悬停查看 |
-| 区块内分类 | 弹幕样式库的显示方式、持续动效、节日元素与视觉风格均为分段控件：3px 内衬底，选项高 30px，选中项为面板色填充 + 细阴影 | 条件共同筛选弹窗里的样式网格，与左侧切换独立页面的导航区分层级，对应 Apple 分段控件的用法 |
-| 侧栏 | 常规 184px；901–1100px 窗口内为 176px，完整容纳礼物姬子项名称；上方组件列表左右内边距 4px，行内左右 8px，子导航缩进 24px；底部「打开画布／素材管理／使用指南」保持原有左侧位置和内边距，「使用指南」下留 32px，不被全局播放器展开按钮遮挡 | 收紧上方组件缩进和侧栏占宽，为右侧详情增加空间；保留选中行两侧留白、20px 图标与 12px 间隔。加班机用秒表、时钟用表盘、文本框用框内文字，与其余矩形外框图标同族，避免两个时钟图标难以区分 |
-| 礼物姬子导航 | 带礼物图标和箭头的组名行，默认展开；子项只用文字，当前项沿用选中填充和竖条；折叠时组名保留位置提示 | 参考 [Fluent 2 Nav](https://fluent2.microsoft.design/components/web/react/core/nav/usage/) 的类别与子项、[Carbon 左侧导航](https://v10.carbondesignsystem.com/components/UI-shell-left-panel/usage/) 的箭头折叠；以缩进、邻近和字重表达层级，组名只收放，不切页；右侧直接展示当前功能的设置 |
-| 侧栏选中态 | 外观主导航选中底色与描边 + 3px 选中竖条 + 600 字重；图标取选中文字色，标签保持正文色 | Windows 11 设置的导航选中样式；状态由填充、竖条和字重共同表达，不只依靠颜色（WCAG 1.4.1）。悬停按正文色 7% 叠加，因为侧栏位于页面底色而非面板上 |
-| 选中与强调色 | 竖条、选中环取 `--color-selection-marker`；实心徽标、标签文字取 `--color-selection-text`，徽标文字取面板色 | 跟随客户端外观。玄黑 · 银红的主色是接近白色的银灰，作为 1–2px 描边不可辨，选中标记改用该外观为此设定的红色；其余外观即各自主色 |
-| 弹幕姬操作 | 「预览与调整」为标题栏右侧带图标的描边按钮，最近使用行右侧为「全部样式」，参数标题右侧为「恢复默认」 | 操作跟随所属内容，桌面自动保存；画布继续显式「保存并应用」 |
-| 弹幕姬保存反馈 | 标题标签显示当前样式及应用状态；自动保存成功时收起底部操作，失败时保留重试和放弃修改入口 | 保存状态与当前样式保持关联，错误恢复沿用原草稿控制器 |
-| 素材管理入口 | 「素材管理」集中在「组件」左侧导航底部，画布编辑器顶部保留同名入口；提供样式列表的组件页保留样式选择与「＋ 添加样式」。直播歌词设置页不挂载通用样式库，保持左侧设置、右侧实时预览；额外歌词样式在画布分类中导入 | 全局管理不混入组件分类。弹窗宽度上限 640px，直接以「已导入素材」开头，不重复入口标题及解释句；下接存储空间、备份与恢复，关闭位于右上角。排版参照 [Fluent 2 字号](https://fluent2.microsoft.design/typography)与[间距](https://fluent2.microsoft.design/layout)：分区 16/22px、正文及按钮 14/20px、辅助信息 12/16px，采用 8/16/24px 间距。移除按钮有红色描边，配色跟随客户端主题 |
-| 样式选择卡 | 选中：2px 选中环 + 缩略图右上角实心「已选」徽标；「添加样式」为虚线透明框 | 与 Windows 个性化、macOS 墙纸等缩略图选择器一致；徽标不占用名称行。占位操作不应比真实内容更醒目 |
-| 折叠行 | 整行最小高 56px（弹幕过滤 60px、弹幕参数分组 44px 通栏、外观效果组 40px），悬停填充；右侧依次为状态摘要和箭头 | 收起时仍告知内容状态，如「已屏蔽 3 人 · 12 个屏蔽词」「原样式」，用户不必展开就知道是否配置过 |
-| 外观效果参数 | 每项一行：标签 104px + 主题色滑块 + 64px 数值框；最多两列、列间 40px，单列不足 340px 时改一列；时钟与浏览器源的外观效果组使用浅底色、细边框的圆角外框，组内保留上述紧凑属性行。弹幕姬保留现有参数卡片：「随机弹幕通用参数」「消息显示」「外观效果」为 12px / 600 次要色组内标签，前两者右接细线；字段名 400、数值次要色 | 参照 Figma、Photoshop 效果面板的紧凑属性行，展开后高度约减半；滑块使用 `parameter-range` 主题样式，不再出现浏览器默认蓝色 |
-| 开关行 | 文字在前，开关在后 | 同页多处开关的阅读方向一致，与 Windows 设置的开关行相同 |
-| 开播动画 | 工具栏第一行显示样式选择、自动保存状态和显示开关；第二行明文显示完整地址，点击地址复制，右侧为预览；下方的文案、画面效果、人物图片和开场音乐各用紧凑圆角框分组，保留两列，容器不足 760px 时改为单列 | 不再单独显示复制按钮或链接问号。图片格式与大小限制保持可见；像素样式的大头贴建议随对应字段的问号出现 |
-| 顶部工具栏 | 同一任务的选择、状态与操作并排，组内 8px、组间 16px，必要时用 1px 分隔线；控件高 36px，空间不足按组换行 | 弹幕姬见上方「弹幕姬分组」；时钟将保存状态、复制、预览、重新读取、放弃修改与保存集中在样式区上方，链接问号位于复制按钮边框内，当前样式效果的重置留在参数区；礼物感谢将启用、触发金额或文字语言、保存放在样式标题旁，模拟预览独立成行；滚动礼物将源地址与保存操作置顶；许愿周期与源操作同行，月底冲刺与盲盒盈亏榜各有独立标签；文本框列表与新建、保存共用工具栏，普通按钮及下拉触发器高 32px，独立圆角矩形标签最小高 30px |
-| 工作区 / 内容区 | 双栏时顶部及右侧外边距 4px，左侧外边距及栏间距 16px；面板内边距 24px，窄窗口 20px；正文容器填满面板可用宽度 | 沿用 4px 节奏；侧栏与内容面板靠近顶栏，右侧保留细间隙；窗口放大或最大化时正文随面板展开，心动盲盒（含预览）、文本框及 PK 算分同样不设固定正文宽度上限；滚动条预留空间避免内容左右跳动 |
-| 字段与分组 | 相关字段间距 8/12/16px；常规分区间距 24px，紧凑参数框按所属页面使用 8/12/16px 间距 | 用距离表达关系，需要明确边界的参数组可加一层浅底细边框；盲盒盈亏榜外观按排版、配色、布局各自包框，避免多层同色边框 |
-| 弹幕样式卡片 | 最小宽 208px，间隔 12px；预览高 104px，卡片至少 152px | 保留素材辨识度与 14px 名称；常规窗口容纳五列，1024px 窗口降为三列。素材等比例包含，不裁掉弹幕样式 |
-| 时钟样式 / 预览 | 样式最小宽 152px、高 64px；预览区最小高 192px | 48px 色样与中文名称需要独立空间；实际时钟保持自身横竖比例，192px 预览区容纳常见外观 |
-| 设置与预览双栏 | 设置栏自适应，预览栏 320px，间隔 24px；容器不超过 880px 时堆叠 | 给编辑区域约 536px、预览区 320px，加 24px 间隔。空间不足就重排，避免压缩字段或截断说明 |
-| 加班机状态区 | 状态与计时并排，收礼服务状态和操作按可用宽度换行；取消固定最小高度，计时数值 32px / 40px，600、等宽数字 | 数字位数变化时不抖动；操作按钮沿用 36px，初始时长与直播画面的保存操作分别放到对应标题行 |
+| 界面字体 | 正文 Segoe UI Variable Text，页标题 Segoe UI Variable Display；回退 Segoe UI 与 Microsoft YaHei UI / Microsoft YaHei | 原生 Windows 字体栈，不额外下载显示字体；用户素材预览保留自身字体 |
+| 页面定位 | 左侧选中导航项；右侧不另设同名标题 | `tabpanel` 通过 `aria-labelledby` 关联导航项，避免重复标题 |
+| 顶部工具栏 | 控件高 36px（文本框普通按钮/下拉 32px，圆角矩形标签 ≥ 30px），组内 8px、组间 16px，底部留 16px 后接浅色细分隔线 | 同一任务的选择、状态与操作并排；空间不足按组换行（弹幕姬改用下方设置行卡片） |
+| 分区标题 | 16px / 24px，600 | 基于 Fluent 16px 副标题，建立 16 / 14 / 12 三级层次 |
+| 补充说明 | 相邻 `lira-help` 问号 | 规则与链接用法按需查看；单位、长度限制与保存状态直接显示 |
+| 正文、按钮、字段标签 | 14px / 20px；正文/标签/输入值 400，按钮 500，选中项 600 | Fluent Body 1 尺度，输入框始终常规字重 |
+| 辅助说明、状态 | 12px / 18px，400–500 | 保留 caption 尺度并留足中文行距，不压成 11px |
+| 常规按钮、输入框、下拉框 | 最小高 36px；文字按钮水平内边距 12px | 20px 行盒 + 上下各 7px 内边距 + 边框，保持桌面密度 |
+| 下拉框 | 由 `components/select-menu.css` 统一绘制：圆角 12px，单选为左侧 3px 竖条 + 主题底 + 600 字重（无对勾），多选（`.lira-multiselect`）用实心勾选框 | 参照 Fluent/Ant Design/Linear，单选不放对勾，选中色随十三套客户端外观切换，悬停与选中色分离 |
+| 导航行 | 一级行 ≥ 40px，礼物姬子项 34px（缩进 24px），侧栏图标 20px、图文间距 12px | 导航承担持续定位，留足点击空间 |
+| 弹幕姬分组与样式入口 | 上方「监控弹幕」「弹幕过滤」为 60px 设置行卡片；下方隔 24px 为「弹幕外观」，主页「最近使用」最多 4 款（80×52px 缩略图横向卡），右侧「全部样式」打开样式库 | 接收与外观分区清晰，常用样式可快速返回；样式库四组筛选采用高 30px 分段控件 |
+| 侧栏 | 常规 184px（901–1100px 窗口 176px），底部「使用指南」下留 32px 避开播放器把手 | 收紧占宽为右侧留空间；选中态用填充 + 3px `--color-selection-marker` 竖条 + 600 字重（玄黑 · 银红竖条改用红色保证辨识） |
+| 素材管理入口 | 集中在「组件」侧栏底部与画布顶部；弹窗宽上限 640px，直接以「已导入素材」开头，下接存储空间与备份恢复 | 全局管理不混入单组件分类，分区 16/22px、正文 14/20px、间距 8/16/24px |
+| 样式选择卡 / 折叠行 | 样式卡：2px 选中环 + 右上角「已选」徽标，「添加样式」为虚线透明框；折叠行 ≥ 56px（弹幕过滤 60px、参数组 44px），右侧显示状态摘要 | 收起时直接展示配置摘要；占位操作不喧宾夺主 |
+| 外观效果参数 | 每项一行：104px 标签 + 主题色滑块 + 64px 数值框，最多两列（列间 40px，单列不足 340px 切单列） | 紧凑属性行减少纵向高度，滑块统一使用 `parameter-range` |
+| 开关行 / 开播动画 | 开关行文字在前、开关在后；开播动画首行样式/状态/开关，次行可点击复制网址与预览，下方两列圆角框（< 760px 转单列） | 统一阅读方向，减少重复按钮和多层嵌套 |
+| 工作区 / 内容区 | 双栏顶部与右侧外边距 4px、左侧及栏间 16px，面板内边距 24px（窄窗口 20px），正文填满可用宽度；字段间距 8/12/16px，分区 24px | 窗口放大时正文自适应展开，滚动条预留空间防跳动 |
+| 弹幕/时钟卡片与双栏预览 | 弹幕卡 ≥ 208×152px（预览高 104px）；时钟卡 ≥ 152×64px（预览高 ≥ 192px）；设置/预览双栏预览宽 320px（≤ 880px 堆叠）；加班机计时 32/40px 等宽数字 | 保持素材辨识度、数字不抖动，空间不足自动重排 |
 
-右侧主体随窗口高度填充并独立滚动；不为不同组件硬设相同内容高度。开播动画去除重复标题标签与多层容器，时钟在宽窗口中以左侧设置、右侧实时预览组织；开播动画使用两列表单，预览由顶部按钮进入画布。移动浏览器不是这些桌面设置页的验收目标，已有窄窗口导航回退仍保留。图标删除、富文本格式工具等紧凑控件沿用各自组件的既有尺寸；直播输出和素材缩略图不继承正文尺寸规范。
-
-通用操作按钮复用 `styles-base.css` 的原生 `button` 和 `.primary` / `.secondary` / `.danger` 语义变体。`.danger` 默认显示主题危险色描边，悬停加深边框并显示浅色底；音乐退出登录、顶部退出及停止/清空操作直接消费此规则，页面不得用透明边框覆盖普通危险操作按钮。导航页签、菜单项、窗口控制和播放器图标仍由各自组件定义外观，不强制添加矩形边框。按钮事件与业务逻辑仍由所属模块拥有，通用样式不注册事件或调用业务接口。
+右侧主体随窗口高度填充并独立滚动；移动浏览器不是桌面设置页验收目标，已有窄窗口回退保留。通用操作按钮复用 `styles-base.css` 的 `.primary` / `.secondary` / `.danger` 变体（`.danger` 默认带主题危险色描边，不得用透明边框覆盖），按钮事件与业务逻辑归所属模块维护。需要次级按钮外观的导航链接可使用 `a.secondary`，链接在操作区内的对齐和内边距由面板样式控制。
 
 ### 1.3 可复制网址块
 
-管理页和画布弹出的框状网址共用 `shared/copy-url.js` 的 `bindCopyUrl(button, options)` 与 `css/components/copy-url.css`。使用原生 `<button type="button" class="copy-url">`，将完整网址写入 `textContent` 后绑定即可；普通导航链接和可编辑的 URL 输入不接入。按钮支持鼠标、Enter 和空格；长网址省略显示，悬停或聚焦显示完整地址，复制始终读取完整值。
+管理页和画布弹出的框状网址共用 `shared/copy-url.js` 的 `bindCopyUrl(button, options)` 与 `css/components/copy-url.css`。使用原生 `<button type="button" class="copy-url">`，写入完整网址后绑定；支持鼠标、Enter 和空格，长网址省略显示，悬停或聚焦提示完整地址，复制始终读取完整值。
 
-- 默认读取按钮的 `textContent.trim()`；动态地址可传 `getUrl()`，未就绪时由页面设置 `disabled`，空地址不会复制。
-- 复用 `utils.copyText` 的 Clipboard API 与 DOM 回退。默认成功/失败通知可用 `onCopied(url)`、`onError(error, url)` 覆盖，输出尺寸和领域状态仍由页面负责。
-- 同一按钮重复绑定会替换旧监听，返回的函数用于解除绑定；画布弹层销毁时调用。
-- `--copy-url-width` 默认 `100%`，`--copy-url-height` 默认 `36px`，由页面 CSS 或元素的 `style` 设置；容器只负责布局。按钮类型、复制行为和样式均由公共模块维护。
+- 默认读取 `textContent.trim()`；动态地址传 `getUrl()`，未就绪时由页面设置 `disabled`，空地址不复制。
+- 复用 `utils.copyText` 的 Clipboard API 与 DOM 回退；可通过 `onCopied(url)`、`onError(error, url)` 覆盖提示。
+- 重复绑定替换旧监听并返回解绑函数；`--copy-url-width` 默认 `100%`，`--copy-url-height` 默认 `36px`。
 
 ```html
 <button id="sourceUrl" type="button" class="copy-url" style="--copy-url-width: 320px; --copy-url-height: 40px"></button>
@@ -153,110 +113,79 @@ bindCopyUrl(button);
 
 ## 2. 入口 URL(唯一成表处)
 
-所有页面都由后端 `servePageOrAsset` 提供(`pageMap` 见 [server-core.md](../backend/server-core.md) §4.3),响应 `Cache-Control: no-store`。
+所有页面均由后端 `servePageOrAsset` 提供（`pageMap` 见 [server-core.md](../backend/server-core.md) §4.3），响应 `Cache-Control: no-store`。
 
-| 页面类别 | 凭据与用途 | 能力边界 |
+| 页面类别 | 凭据与用途 | 权限边界 |
 | --- | --- | --- |
-| 管理 HTML（`/`、`/admin`、`/settings`、`/songs`） | 需要本地管理凭据；Electron main 的 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 对受信主窗口主 frame 的精确 origin 请求注入 Bearer | `?desktop=1` 只切换表现；旧书签、手动浏览器打开或 `AUTO_OPEN_ADMIN=1` 均不授予权限 |
-| 登录页 `/license` | HTML 无需本地管理凭据，供 Electron 登录流程使用 | 浏览器可读页面不等于拥有 preload/设备会话；登录能力须走受限 IPC |
-| 场景编辑器 `/c#<短入口能力>`；兼容旧 `/component-preview` | “点歌 → 浏览器源 → 直播场景 → 编辑场景”或原组件预览按钮，经 Electron 既有外部导航策略交给系统默认浏览器 | 直接入口首次为空，后续恢复保存布局；组件入口添加/选中对应组件。顶部“添加组件”小窗按分类选择样式，新增独立外观图层并展开右侧参数；已有图层在画布下方横向排列。编辑页采用浅色工具栏与灰色工作区，直接入口默认收起参数，折叠保留选择与草稿；画布自动适配且不滚动。保存与复制集中在右上角。公共分辨率仅由画布设置改变。“保存并应用”保存各 owner 后发布组合输出，链接图标“复制场景地址”返回一条 `127.0.0.1:<实际端口>/scene…` 地址供 OBS 或哔哩哔哩直播姬使用；后续应用沿用该地址。详见 [预览 API](../backend/api.md#浏览器组件预览)，无 preload 或管理凭据 |
-| 组件浏览器源目录 | 客户端“点歌 → 浏览器源” | “直播场景”提供编辑场景及复制组合来源，使用说明在标题旁问号中；独立点歌板、时钟、加班机、本机弹幕姬继续单独复制。本机弹幕地址 `/danmaku?source=component` 使用当前授权账号已保存的本地外观和展示数据；服务器旧 `/overlay` 画面已退役，不能作为直播来源。场景编辑器地址不用于直播导入。完整步骤见 [组件指南](../../guides/component-sources.md) |
-| 本地展示页 | [access-policy.js](../../../src/server/access-policy.js) 的 `OVERLAY_PAGES` 定义能力范围；HTML 注入本 scope 的 overlay 凭据 | 可供 overlay/本地预览；只能调用本 scope 允许的 HTTP/WS，不能取得管理权限；如 `gift-export` 是内部导出用途，并非普通 浏览器源 |
-| 独立 Node 调试 | `npm start` 保留同一 HTML/API 鉴权；受保护调用必须显式使用当前运行时的有效管理凭据 | 没有 Electron preload、主进程 Device API 代理、分区登录和本地媒体协议，不是完整 Web 管理产品 |
+| 管理 HTML（`/`、`/admin`、`/settings`、`/songs`） | 需要本地管理凭据；Electron 主进程的 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 为受信主窗口主 frame 精确 origin 注入 Bearer | `?desktop=1` 仅切换表现；旧书签、手动浏览器打开或 `AUTO_OPEN_ADMIN=1` 不授予权限 |
+| 登录页 `/license` | HTML 无需本地管理凭据，供 Electron 登录流程使用 | 浏览器可读页面不等于具备 preload 或设备会话；登录必须走受限 IPC |
+| 场景编辑器 `/c#<短入口凭证>`（兼容旧 `/component-preview`） | 从「打开画布」「点歌 → 浏览器源 → 编辑场景」或组件预览入口经 Electron 外部导航在系统浏览器打开 | 无 preload 或管理凭据；通过单 fragment 短入口并行建立会话，由「保存并应用」发布 `127.0.0.1:<端口>/scene…` 正式来源（交互与协议见 [app.md](app.md#62-统一画布与本机样式库) 与 [预览 API](../backend/api.md#浏览器组件预览)） |
+| 组件浏览器源目录 | 客户端「点歌 → 浏览器源」 | 提供直播场景及点歌板、时钟、加班机、本机弹幕姬（`/danmaku?source=component`）复制入口；旧服务器 `/overlay` 已退役；「网页页面」仅保留「我的网页歌单」，操作见[组件指南](../../guides/component-sources.md) |
+| 本地展示页 | [access-policy.js](../../../src/server/access-policy.js) 的 `OVERLAY_PAGES` 定义权限范围；HTML 注入对应 scope 的叠加层访问凭证 | 仅可调用本 scope 允许的 HTTP/WS，无法取得管理权限；内部导出页（如 `gift-export`、`/weekly-schedule-export`）并非普通浏览器源 |
+| 独立 Node 调试 | `npm start` 保留同一 HTML/API 鉴权，受保护调用须显式携带有效管理凭据 | 无 Electron preload、主进程 Device API 代理、分区登录与本地媒体协议 |
 
-画布编辑页使用单个 fragment 短入口，首次打开时并行建立各组件连接，全部就绪后生成入口并打开窗口，避免逐个等待连接。客户端仍持有原配置控制器时重复打开会沿用连接；旧页可刷新接管继续编辑，未保存修改仍保留。短暂断线自动重试，客户端关闭、账号或配置来源变化时撤销。直播场景地址与编辑页入口不同：成功“保存并应用”后客户端地址目录立即刷新，后续应用沿用正式来源地址。能力及恢复元数据契约见 [预览 API](../backend/api.md#浏览器组件预览)。
+[servePageOrAsset](../../../src/server/page-assets.js) 对非展示、非登录、非组件预览 HTML 的匿名请求返回 401「请从桌面应用打开管理页面。」；API 无效凭据返回 401，越权或不受信 Origin 返回 403。时钟的客户端和画布参数由 [clock-preview.js](../../../public/js/admin/clock-preview.js) 共用绑定，并通过 [component-parameter-fields.js](../../../public/js/shared/component-parameter-fields.js) 保护正在编辑的字段。
 
-时钟的客户端和画布参数由 [clock-preview.js](../../../public/js/admin/clock-preview.js) 共用绑定；通过 [component-parameter-fields.js](../../../public/js/shared/component-parameter-fields.js) 保留正在编辑的字段，迟到的状态确认不覆盖未提交输入。离开字段时先执行原有 change 提交，再同步控制器中的规范化值；保存及禁用规则沿用原配置控制器。
-
-[servePageOrAsset](../../../src/server/page-assets.js) 对非展示、非登录、非组件预览 HTML 的匿名请求返回 401“请从桌面应用打开管理页面。”；API 中无效凭据为 401，越权或不受信 Origin 为 403。这些响应说明服务已可达，应检查正常桌面入口与请求身份，不应关闭保护或据此判断 localhost 不可用。
-
-
-| 入口 URL           | 实际 HTML                                                                                                          | 打开者                                                       | 行为说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --- | --- | --- | --- |
-| `/admin`           | [pages/admin/](../../../public/pages/admin) 分片经 [server/admin-page.js](../../../src/server/admin-page.js) 组合 | Electron 主窗口；带有效管理凭据的调试调用 | 管理后台:点歌/播放/礼物/组件/百宝箱五个主页面;`#playback`/`#gifts`/`#components`/`#other` hash 直达对应主页面                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `/admin?desktop=1` | 同上                                                                                                               | Electron 主窗口([desktop/main.md](../desktop/main.md))       | [shell-start.html](../../../public/pages/admin/shell-start.html) 在 CSS 加载前写入 `html.desktop-shell` 主题类(防粉色闪烁),显示标题栏拖拽区与窗口控制按钮;退出后展示桌面版重启屏                                                                                                                                                                                                                                                                                                                                             |
-| `/settings`        | 同上                                                                                                               | Electron 管理页兼容路径（需管理凭据）                                      | 历史兼容入口,落到管理后台默认页(点歌)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `/songs`           | 同上                                                                                                               | Electron 管理页兼容路径（需管理凭据） | 同上,兼容入口                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `/background` | [overlays/background.html](../../../public/pages/overlays/background.html) | 场景内背景组件、浏览器源 | 背景样式由场景配置决定；默认无背景，月渡花汀需导入套装后使用资源映射；带显式 style 的旧开发预览仍可使用源码素材；使用沙箱组件协议，无业务凭据或数据连接 |
-| `/imported-danmaku` | [overlays/imported-danmaku.html](../../../public/pages/overlays/imported-danmaku.html) | 导入弹幕 CSS 的预览与场景子页面 | 常见 blivechat/BLC 消息结构，CSS 和显示数据经既有组件协议进入；匿名 HTML 无凭据，保持 opaque sandbox；不作为独立连接 B 站的页面 |
-| `/queue`           | [overlays/queue.html](../../../public/pages/overlays/queue.html)                                                   | 浏览器源、独立浏览器窗口                                 | 点歌队列叠加层,透明背景                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `/songlist`        | [overlays/songs.html](../../../public/pages/overlays/songs.html)                                                   | 浏览器源                                                 | 歌单展示板叠加层,支持 `?category=` 过滤                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `/blindbox`        | [overlays/blindbox.html](../../../public/pages/overlays/blindbox.html)                                             | 浏览器源                                                 | 盲盒盈亏投屏，支持 `?top=/winners=/heartBox=/title=` 等参数覆盖；组件的盲盒盈亏榜页复制固定地址并沿用已保存设置，预览进入统一画布 |
-| `/overtime`        | [overlays/overtime.html](../../../public/pages/overlays/overtime.html)                                             | 浏览器源、管理页预览 `<iframe>`                          | 加班机叠加层,支持 `?quality=low`(降帧/降动画)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `/gift-effects`    | [overlays/gift-effects.html](../../../public/pages/overlays/gift-effects.html)                                     | 浏览器源、管理页预览                                     | 礼物特效与四方边框叠加层,平时保持透明并在匹配礼物到达时播放                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `/lyrics`          | [overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html)                                     | 浏览器源、独立浏览器窗口                                 | 基础多行／高级构图共用输出；管理页按所选样式复制 `?layer=basic\|advanced` 独立地址；旧合并地址保留兼容                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `/danmaku`         | [overlays/danmaku.html](../../../public/pages/overlays/danmaku.html)                                               | 管理页本机预览、兼容本地展示入口 `<iframe>`                | 本机 `/danmaku?preview=1` 用于编辑预览；`/danmaku?source=component` 和场景组合输出使用当前授权账号的本地外观，服务器旧 HTTPS `/overlay` 画面已退役；固定区域样式按顺序显示普通文字、身份信息和 B 站表情，其中透明简约样式不绘制卡片底色或身份装饰，仅在昵称和正文下方显示粉丝牌等级；全屏随机样式在指定区域内随机定位，按 `danmakuFullscreenDurationSeconds` 自动消失；青雾（`mist`）区分普通／本房大航海弹幕，另支持礼物、大航海感谢和 SC；第六种固定样式身份横卡(`identity`)使用右侧头像、四档身份底色和 624×640 等比缩放设计画布，`?preview=1&style=…` 只用于 Admin 的确定性样本预览                                                                                                                                                         |
-| `/games`           | [overlays/games.html](../../../public/pages/overlays/games.html)                                                   | 浏览器源、独立浏览器窗口                                 | 直播小游戏浏览器源；管理页先打开固定地址再开始游戏，页面按当前会话自动显示数字炸弹、五子棋或你画我猜；画猜页面使用收窄并居中的 16:9 画布，由主播通过画笔、橡皮擦、直线、矩形、圆形和画布取色器作画，并显示弹幕抢答/总积分；图形仍编码为既有 append 笔画同步，不新增 WebSocket 消息形状。弹幕画廊按消息视觉长度动态调整气泡宽度与高度，展示头像、昵称、消息、大航海与当前房间灯牌，头像统一经带 token 的 `/api/bilibili/avatar` 本地代理加载并补全；题词只在 Admin 私有主持区显示；旧 `?game=` 地址仍可访问但参数不再决定游戏 |
-| `/wheel`           | [overlays/wheel.html](../../../public/pages/overlays/wheel.html)                                                   | 浏览器源、独立浏览器窗口                                 | 独立转盘浏览器源；圆形外透明，按主播配置的内容份数绘制多色扇形，抽取时旋转并突出最终结果；不参与 `/games` 会话互斥                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `/opening`         | [overlays/opening.html](../../../public/pages/overlays/opening.html)                                               | 浏览器源、管理页预览                                     | 固定开播画面地址,读取已保存的文案、动画、画质与音乐设置                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `/clock` | [overlays/clock.html](../../../public/pages/overlays/clock.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定时钟地址；默认读取已保存设置，支持逐字段 URL 参数覆盖；样式与参数见 [时钟契约](overlays.md#63-时钟clock) |
-
-礼物姬在「全屏礼物感谢」「滚动礼物」后增加「礼物许愿」。管理片段 `toolbox/gift-wishes.html` 由原礼物片段组合；`admin/gifts/wishes.js` 管理三周期与增改删，`wish-picker.js` 复用在售/全库目录，`shared/gift-wish-card.js` / CSS 与 overlay 共用实际展示。每条许愿默认可选「礼物卡片」「文字版」「圆形徽章」；月渡花汀在导入套装后作为画布样式使用。文字版将 `{图片}`、`{礼物}`、`{已收}`、`{目标}` 显示为不可拆开的中文内容块，提供插入按钮、问号说明和相邻的即时预览；支持原生撤销/重做、整块删除、复制/剪切及纯文本粘贴，粘贴已知标记时恢复内容块，保留原 `textTemplate`，可选 `textRuns` 保存一致的分段格式；默认“许愿{礼物}（{已收}/{目标}）”。文字版与文本框调用同一个 `admin/rich-text-toolbar.js`：选区可改字体、字号、加粗/斜体/下划线、文字颜色、描边和阴影，默认字体与清除格式恢复对应编辑器的默认外观。格式应用保留模板块、原生撤销和选区；字体调用现有共享字体库，不维护第二份列表。`shared/text-format.js` 校验文字格式，`shared/text-style.js` 供编辑器与展示复用样式。图片标记可放任意位置，每处生成一个图片节点，删除全部图片标记即可隐藏；名称和数量使用文本节点，不解析 HTML。共享模板读取函数将旧 `textImagePosition` 的 before/after 转成首尾图片标记，inline 转成第一处礼物名称前的标记（无名称标记时前置）；模板已有 `{图片}` 时优先使用，不重复追加。编辑保存时写入转换后的模板并清除旧位置值为 none，保留内容和顺序。模板含图片标记时显示动态原图/静态 PNG 选择，原图没有动画时仍显示原静态图片，`shared/gift-wish-card.js` 直接调用 `shared/gift-image.js` 的 `setGiftArtwork`，通过 `format` 传入文字图片格式；静态首帧转换、原图与舰徽复用同一入口，缓存和异步更新规则见[弹幕图片模块](overlays.md)。文字颜色依据服务端 todayCount，默认今日未收到为雾蓝 #3b6ea8、已收到为翠绿 #21815c。默认值由共享 renderer 导出；每条许愿可分别自定义 textPendingColor / textReceivedColor，空值使用默认。编辑器提供取色器、恢复默认颜色和两状态对比预览，预览不修改真实收礼状态或数量，颜色随「添加许愿 / 保存修改」生效。未显式指定片段颜色时继续继承收礼状态色；选区设色覆盖该片段，选择“默认颜色”恢复继承。已保存预览保留展示内容和编辑/删除操作。空、加载、同步不完整、直播状态未知均有对应提示，离开面板暂停轮询。面向用户的完整规则见内置指南 `usage-guide-guard-thanks.html#ug-gift-wishes`。
-
-文字版默认不描边，管理端预览、画布及独立浏览器源统一使用 `css/shared/gift-wish-card.css` 的文字样式。
-
-「月渡花汀」（`moonlit`）沿用同名开播动画的蓝白、银蓝与靛青配色，层叠白山茶、墨蓝枝叶、如意云纹、绢带与山水纹饰紧贴礼物圆框、环绕整圈。装饰原画为 `img/shared/gift-wish-moonlit.webp`；`shared/gift-wish-moonlit.js` / `css/shared/gift-wish-moonlit.css` 负责展示。圆框中的礼物图片、右侧同一行的礼物名称与已收 / 目标数量、下方细进度条均由实时 DOM 渲染；数量与进度条收在延长的深色墨段内，白色已收数和银蓝目标数避开末端浅色花瓣。条头固定显示银蓝折扇与云纹 `img/shared/gift-wish-moonlit-start.svg`，零进度仍保留。填充宽度使用服务端 `progress` 并限制在 0–100%，已收数量保留超过目标的真实值。银色流光沿进度条移动，端点有呼吸亮光与三枚飘散花瓣；零进度隐藏端点，达成时末端转为淡金。`prefers-reduced-motion: reduce` 停用进度过渡和装饰动画。
-
-礼物姬「全屏礼物感谢」面板 `#giftFramePanel` 同样位于 `toolbox/gift.html`，样式为 `css/admin/toolbox/gift-effects.css`。`#giftEffectList` 是一组自适应两列的效果卡片：礼物掉落、礼物摇摇乐（标注「内置」）、林间花信（`#giftFrameSettings`，导入后显示，标注样式包版本）、`gift-frame-styles.js` 生成的其他导入样式卡片，最后是横跨整行的「添加样式」（`#giftFrameAddStyle`）。每张卡片包含头部（图标或缩略图、名称、标签、问号说明、启用开关）和参数区（触发金额「元及以上」，可选预览示例）；导入样式另有底栏（状态、动作、「保存设置」）；已开启的卡片边框和图标使用组件强调色。共享样式库挂载在 `#giftFrameStyleLibrary`，其缩略图列表隐藏，只保留导入状态与确认流程。
-
-两张内置卡片的头部右侧为启用开关和「预览」；效果解释集中在标题旁的问号组件，标题下用细边框和略深底色包裹完整网址，不附加文字标签，点击网址复制。参数修改后自动保存，不再设置底栏或保存成功文字。保存失败通过错误提示保留修改，下一次编辑可重试。`gift-motion-settings.js` 复制对应效果的独立直播地址并提示推荐宽高，复制不打开画布或强制提交待保存修改；链接与事件筛选规则见 [Overlay 参考](overlays.md) §1.4。
-
-两张内置卡片的参数区按卡片宽度排为三列、两列或单列，每组参数使用浅底色、细边框的圆角矩形分隔，名称、当前值和滑块放在同一框内；文字显示选项共用一框。只有触发金额保留 88px 输入框，非法金额由原生校验阻止保存和预览；大小、时长、速度、弹跳、摆幅及掉落数量直接使用带最小/最大值的共享参数滑块，旁边的 `output` 只读显示当前值和单位，不再附加数值输入框。掉落数量默认 30 个、可调 1–100 个，每条最终结算记录生成一批该数量的图片，不乘记录中的实际送礼份数；预览也展示一批。整批从结算时统一计时，顶部满屏时等待空位，到期仍未显示的取消。两款停留时长均可调 1–30 秒，默认 20 秒；摇摇乐的送礼人、礼物名、数量使用三个独立勾选项，可全部关闭，并映射回既有 `giftSwingTextMode` 保存字段。`gift-motion-parameters.js` 同时生成客户端和画布控件；草稿、自动保存及预览由 `gift-motion-settings.js` 逐卡维护并按修改字段提交，画布适配器自动保存至同一设置。
-
-礼物姬最后一个子导航「大航海感谢」的独立面板直接位于 `toolbox/gift.html`，样式为 `css/admin/gift-guard-thanks.css`，动画样式 `css/shared/guard-thanks.css`（经典）与 `css/shared/guard-thanks-aurora.css`（辉光，默认）由管理页与 `/gift-effects` 共同加载，辉光与经典分别显示独立开关、动画文字、保存和预览，设置与模拟参数紧凑分组；辉光不提供观众昵称输入。两套内置设置之后直接列出已导入的大航海感谢样式（`#guardThanksStyleLibrary`，继续使用本机样式库）：配套样式显示完整设置条目，图片/视频为同宽条目，最后是「＋ 添加样式」，不再单列“更多样式”标题。旧 `guardThanksStyle` 仅用于未独立保存的配置兼容。
-
-Admin 礼物图片查询统一由 `admin/gifts/artwork-catalog.js` 提供，最近礼物、通知及盲盒映射共享索引，视图导入不再隐式启动目录。初始化与释放由 `app.js` 接入 `gifts/index.js` 的 `initGiftPanel()`，详细职责见 [Admin 模块](app.md#5-礼物主页面gifts)。
-
-「组件 → 礼物姬」下的「月底冲刺」「盲盒盈亏榜」是同级独立标签，对应 `live-components/gift-sprint.html` 与 `live-components/blindbox.html`。「月底冲刺」集中目标、已收、还差、水晶球数量、保存/重置及浏览器源入口，由 `admin/gifts/sprint.js` 统一初始化浏览器源入口并渲染原 `giftSprint` 快照的统计和文字预览，不重复轮询或计算。文字与投屏共用 `shared/gift-sprint-text.js` / CSS，显示“还差 N 个水晶球”，达标显示绿色 0，未设目标时留空。复制地址与打开画布各有独立按钮；目标直接在本页编辑。许愿地址行的复制、预览、刷新统一使用 secondary 按钮。
-
-`/gift-sprint` 对应 [overlays/gift-sprint.html](../../../public/pages/overlays/gift-sprint.html)，默认透明底，建议尺寸 600 × 80；`preview=1` 显示预览底色和状态提示。使用 WebSocket 初始/后续快照更新，断线清空旧数字，重连恢复当前进度。
 
 | 入口 URL | 实际 HTML | 打开者 | 行为说明 |
 | --- | --- | --- | --- |
-| `/gift-wishes` | [overlays/gift-wishes.html](../../../public/pages/overlays/gift-wishes.html) | 浏览器源、管理页预览 | `period=long/day/session` 分别筛选长效/本日/本场，未指定有效周期时展示全部周期；`preview=1` 显示预览底色与状态提示。正式源透明底，建议宽度 440；每 3 秒读取服务端整数进度，来源变更即时清空旧展示。 |
-| `/heart-box-collection` | [overlays/heart-box-collection.html](../../../public/pages/overlays/heart-box-collection.html) | 浏览器源、管理页预览 | 每周心动盲盒收集任务；`displayStyle=task/compact` 选择任务卡或紧凑进度，任务卡支持五种 `backgroundStyle` 背景（默认经典白）；`showRewards=false` 隐藏城堡、倍率和限开数量（默认显示）。周期与解锁由服务端计算，来源变化清空旧展示。 |
+| `/admin` | [pages/admin/](../../../public/pages/admin) 分片经 [server/admin-page.js](../../../src/server/admin-page.js) 组合 | Electron 主窗口；带有效管理凭据的调试调用 | 管理后台：点歌/播放/礼物/组件/百宝箱五个主页面；`#playback`/`#gifts`/`#components`/`#other` hash 直达对应主页面 |
+| `/admin?desktop=1` | 同上 | Electron 主窗口（[desktop/main.md](../desktop/main.md)） | [shell-start.html](../../../public/pages/admin/shell-start.html) 在 CSS 加载前写入 `html.desktop-shell` 类（防闪烁），显示标题栏拖拽区与窗口控制按钮；退出后展示桌面版重启屏 |
+| `/settings` | 同上 | Electron 管理页兼容路径（需管理凭据） | 历史兼容入口，落到管理后台默认页（点歌） |
+| `/songs` | 同上 | Electron 管理页兼容路径（需管理凭据） | 同上，兼容入口 |
+| `/weekly-schedule-export` | 周表内部导出页 | Electron 主进程内部渲染 | 仅用于桌面周表 PNG 导出，由 [page-assets.js](../../../src/server/page-assets.js) 验证管理凭据，不是普通浏览器源，不注入叠加层凭证（见 [app.md](app.md#周表生成器)） |
+| `/background` | [overlays/background.html](../../../public/pages/overlays/background.html) | 场景内背景组件、浏览器源 | 背景样式由场景配置决定（默认无背景，月渡花汀需导入套装）；使用沙箱组件协议，无业务凭据或数据连接 |
+| `/imported-danmaku` | [overlays/imported-danmaku.html](../../../public/pages/overlays/imported-danmaku.html) | 导入弹幕 CSS 的预览与场景子页面 | 兼容 blivechat/BLC 消息结构，CSS 与数据经组件协议进入，保持不透明源沙箱，无独立 B 站连接 |
+| `/queue` | [overlays/queue.html](../../../public/pages/overlays/queue.html) | 浏览器源、独立浏览器窗口 | 点歌队列叠加层，透明背景（见 [overlays.md](overlays.md#2-队列叠加层queue)） |
+| `/songlist` | [overlays/songs.html](../../../public/pages/overlays/songs.html) | 浏览器源 | 歌单展示板叠加层，支持 `?category=` 过滤 |
+| `/blindbox` | [overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | 浏览器源 | 盲盒盈亏投屏，支持 `?top=`/`winners=`/`heartBox=`/`title=` 参数覆盖；固定地址沿用已保存设置 |
+| `/overtime` | [overlays/overtime.html](../../../public/pages/overlays/overtime.html) | 浏览器源、管理页预览 `<iframe>` | 加班机叠加层，支持 `?quality=low`（降帧/降动画） |
+| `/gift-effects` | [overlays/gift-effects.html](../../../public/pages/overlays/gift-effects.html) | 浏览器源、管理页预览 | 礼物掉落/摇摇乐、林间花信边框、官方特效与大航海感谢叠加层，平时透明（见 [overlays.md](overlays.md#14-礼物四方边框gift-effects)） |
+| `/gift-sprint` | [overlays/gift-sprint.html](../../../public/pages/overlays/gift-sprint.html) | 浏览器源、管理页预览 | 月底冲刺横幅（默认透明底，建议 600×80，`preview=1` 显示预览底色）；WS 快照驱动，断线清空旧数字 |
+| `/gift-wishes` | [overlays/gift-wishes.html](../../../public/pages/overlays/gift-wishes.html) | 浏览器源、管理页预览 | 礼物许愿叠加层（建议宽 440，`period=long\|day\|session` 筛选周期，`preview=1` 显示底色）；每 3 秒读取服务端进度，来源变化清空旧展示 |
+| `/heart-box-collection` | [overlays/heart-box-collection.html](../../../public/pages/overlays/heart-box-collection.html) | 浏览器源、管理页预览 | 每周心动盲盒收集任务（`displayStyle=task\|compact`，任务卡支持五种 `backgroundStyle`，`showRewards=false` 隐藏奖励，见 [overlays.md](overlays.md#心动盲盒收集组件)） |
+| `/lyrics` | [overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | 浏览器源、独立浏览器窗口 | 基础多行／高级构图共用输出；管理页按页签复制 `?layer=basic\|advanced`，旧合并地址保留兼容（见 [overlays.md](overlays.md#6-直播歌词页lyrics)） |
+| `/danmaku` | [overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | 浏览器源、管理页预览 `<iframe>` | 本机 `/danmaku?preview=1` 用于编辑预览，`/danmaku?source=component` 与场景输出使用当前授权账号的本地外观（旧服务器 `/overlay` 已退役）；完整样式与参数见 [overlays.md](overlays.md#61-弹幕姬) |
+| `/interactions` | [overlays/interactions.html](../../../public/pages/overlays/interactions.html) | 只读浏览器源、管理页预览 | 弹幕投票与观众评分叠加层（推荐 800×600，详见 [overlays.md](overlays.md#投票与评分-interactions)） |
+| `/games` | [overlays/games.html](../../../public/pages/overlays/games.html) | 浏览器源、独立浏览器窗口 | 直播小游戏叠加层（数字炸弹/五子棋/你画我猜单会话互斥，画猜 16:9 画布与 6 种工具，题词仅在 Admin 主持区显示；旧 `?game=` 不再决定游戏） |
+| `/wheel` | [overlays/wheel.html](../../../public/pages/overlays/wheel.html) | 浏览器源、独立浏览器窗口 | 独立抽奖转盘叠加层，圆形外透明，不参与 `/games` 会话互斥 |
+| `/opening` | [overlays/opening.html](../../../public/pages/overlays/opening.html) | 浏览器源、管理页预览 | 固定开播画面地址，读取已保存的文案、动画、画质与音乐设置 |
+| `/clock` | [overlays/clock.html](../../../public/pages/overlays/clock.html) | OBS/直播姬浏览器源、管理页预览 `<iframe>` | 固定时钟地址，支持逐字段 URL 参数覆盖（见 [overlays.md](overlays.md#63-时钟clock)） |
 
 保留的旧诊断页面（无 URL 映射，未接入当前桌面授权入口）：
 
-| 路径                     | 页面                                                     | 打开者          | 说明                                                       |
-| ------------------------ | -------------------------------------------------------- | --------------- | ---------------------------------------------------------- |
-| `/pages/gift-audit.html` | [gift-audit.html](../../../public/pages/gift-audit.html) | 专用授权测试上下文 | 历史礼物审计源码，不分发到安装包；源码运行时未授权访问返回 401，API/WS 也需有效凭据，详见 [app.md](app.md) §9 |
+| 路径 | 页面 | 打开者 | 说明 |
+| --- | --- | --- | --- |
+| `/pages/gift-audit.html` | [gift-audit.html](../../../public/pages/gift-audit.html) | 专用授权测试上下文 | 历史礼物审计源码，不分发到安装包；详见 [app.md](app.md#9-子页面gift-audithtml) |
 
-### 心动盲盒菜单
+注：实时榜单（「组件 → 实时榜单」，`live-components/live-rankings.html`）、歌曲信息（`live-components/now-playing.html`）、文本框等均为场景内组件，通过已保存的独立组件地址或场景地址输出（内部 `/live-rankings` 不直接返回榜单数据）；周表生成器（`toolbox/weekly-schedule.html`）、粉丝档案（`toolbox/fan-profiles*.html`）、电音助手（`toolbox/audio-assistant.html` + `shared/audio-assistant.html`）及礼物姬六子页（`toolbox/gift*.html`、`live-components/gift-sprint.html`、`blindbox.html`、`heart-box-collection.html`）均沿用 `/admin`，不新增公开页面或浏览器源。
 
-「组件 → 礼物姬 → 心动盲盒」位于礼物许愿之后，片段 `live-components/heart-box-collection.html`、控制器 `admin/gifts/heart-box-collection.js`。显示本期日期、累计进度、固定奖励节点，以及刷新、复制源地址、打开画布。右侧「本期累计」可填入实际总数并点击「校准进度」，后续礼物继续增加；来源或周期/数量过期时刷新并回填最新数量，普通保存失败保留输入。规则、校准范围和显示同步说明使用 `lira-help`，正常更新不常驻提示，加载、同步未完整与错误仍显示。「背景样式」和「显示倍率和限开数量」自动保存并与画布及未指定 URL 覆盖的独立来源同步，失败保留修改并可重试。开启前本期已记录的心动盲盒自动纳入。页面显隐由 `gift-assistant.js` 统一管理，离开暂停请求。画布中的「心动收集」「紧凑进度」与独立 `/heart-box-collection` 地址共用 renderer，详见 [收集组件](overlays.md#心动盲盒收集组件)；内置指南位于 `usage-guide-guard-thanks.html#ug-heart-box-collection`。
+## 3. 页面清单（每个页面一行）
 
-## 3. 页面清单(每个页面一行)
+**Admin 使用文档（`toolbox/usage-guide.html`）结构与交互**：
 
-Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和搜索入口；正文依次为安装账号与连接、点歌与播放、弹幕与互动、礼物记录与分析、场景与素材、粉丝档案与工作台、软件维护与数据、Q&A 八章。主章使用 `.usage-guide-section`，模块使用直属 `h4`，操作文章保留 `article`、`.usage-guide-feature-head strong`，以兼容现有检索；`usage-guide.js` 从各章直属 `h4` 生成次一级目录，保留既有锚点，并为没有 ID 的标题补充章内锚点，不收录第三级操作标题。旧 `ug-*` 锚点随内容迁移，快速上手、常见问题和新手引导入口保留。`usage-guide-features.html` 组合歌曲、分享和播放；`usage-guide-toolbox.html` 组合互动与 AI；`usage-guide-obs.html` 组合场景、各类组件、素材与接入；维护章收录位置索引和词典，异常问答最后呈现。`src/server/admin-page.js` 仍递归展开白名单路径的静态片段，拒绝循环引用并缓存完整页面；横向目录按八章分组排列，组内展示大章和次一级子章节，随容器宽度切换四列、两列或单列。顶部展开目录与导航条无间隙衔接，左右边框对齐，连接处使用直角、整体外侧保留圆角；展开面板高度不超过窗口高度的 32%，同时受导航栏下方可用空间限制。超出的条目在目录内滚动，页首正文按目录实际高度留空，不再叠加面板间隙。侧边目录恢复透明底色与缩进层级，全部展开并固定在左侧；目录内部可滚动，隐藏滚动条，滚动不传递到正文。顶部大章入口至少 44px 高，侧边大章入口至少 36px，子章节入口至少 28px，章节编号仅显示一次，各级编号不补前导 0（如 4、4.1、4.1.1），正文主章编号与主章标题同为 26px；点击子章节沿用正文定位流程，当前章标题仍显示所属大章。目录展开收起、检索排序与高亮、图片放大机制保留。正文样式限定在使用文档，采用 26/22/18/16 px 标题与正文、13 px 图注；模块标题（`h4`）加粗并带 4px 主题色竖条，未用 `h5` 的操作文章标题与 `h5` 同为 18px 半粗。分隔分三级：第 2 章起章节顶部由 CSS 计数器生成「第 N 章」标签并配两端渐隐的主题色双线；同一列表内相邻操作文章之间为两端渐隐的中性细线加正中小菱形；步骤行之间为从文字起点开始的圆点线。分隔线颜色均取外观主题变量。正文段落、列表、配图说明区与常见问题随所在内容区宽度排版，不另设行宽上限；图注随配图宽度排版，常规截图默认最大宽度为 520px 并保留比例，小图与竖图沿用既有尺寸上限；点击图片或聚焦后按 Enter / 空格仍可查看大图，放大视图不受缩略图宽度限制。弹窗、抽屉和通知截图在正文或图注说明入口后聚焦前景窗口，保留标题、页签、关键操作和编号；依赖页面位置关系的新手引导截图保留背景，纵向抽屉沿用竖图尺寸上限。
+- **章节与片段组合**：保留面板、目录容器与搜索入口，正文依次为安装账号与连接、点歌与播放、弹幕与互动、礼物记录与分析、场景与素材、粉丝档案与工作台、软件维护与数据、Q&A 八章。主章用 `.usage-guide-section`，模块用直属 `h4`，操作文章保留 `article` 与 `.usage-guide-feature-head strong`；`usage-guide.js` 从各章直属 `h4` 生成次级目录（保留既有 `ug-*` 锚点，不收录第三级标题）。`usage-guide-features.html`、`usage-guide-toolbox.html`、`usage-guide-obs.html` 分别组合对应章节，由 `src/server/admin-page.js` 递归展开白名单片段、拒绝循环引用并缓存。
+- **双目录与正文排版**：横向顶部目录按八章分四/两/一列，与导航条无间隙衔接（面板高度上限为窗口 32%）；侧边目录固定左侧、透明底色、隐藏滚动条且滚动不传递至正文（章节编号不补前导 0）。正文采用 26/22/18/16px 标题与正文、13px 图注，模块标题 `h4` 带 4px 主题色竖条；分隔分三级（章首「第 N 章」双线、同列表文章间菱形细线、步骤间圆点线）。常规截图最大宽 520px，点击或 Enter/空格打开原生 `<dialog>` 大图。
+- **指南跳转**。`usage-guide.js` 统一处理目录、正文链接、搜索、上下章和功能页的 `[data-usage-guide-link]`。从功能页进入时，`app.js` 的 `showGuide` 先选中百宝箱的使用文档。定位前展开目标所在的折叠段，恢复章节懒布局后再次对齐。新跳转取消旧定位。
+- **动效、进度与搜索**。`usage-guide-motion.js` 在单视口内用 160–300ms 减速滚动，远距跳转用 80ms 淡出、定位和 160ms 淡入，开启「减弱动态效果」时直接定位。右下角 `.usage-guide-floating-actions` 合并「返回跳转前的位置」与「返回顶部」。`usage-guide-progress.js` 展示当前章、小标题与滚动百分比，`usage-guide-layout.js` 协调侧栏收放时的视图快照过渡，`usage-guide-search.js` 分别索引标题、段落、文章、问答与步骤并高亮首个匹配项。
 
-`usage-guide.js` 统一处理目录、正文链接、搜索、上下章及组件页「使用指南」入口的定位。跳转前收起顶部目录及正文留白，并暂停留白过渡；计算落点时按当前目录高度确定偏移。章节和操作文章定位到标题首行；搜索命中与所属文章标题距离在半个可见阅读区以内时保留标题上下文，较远命中仍直达匹配文字，目标通过 `.usage-guide-navigation-target` 保留焦点样式，落点位于顶部导航条下方约 12px；侧边目录模式使用正文顶部 24px 的偏移。接近文档末尾时受剩余滚动空间限制，目标仍保持可见。新跳转、返回顶部或侧栏切换会取消尚未执行的旧定位，避免迟到的滚动覆盖当前操作。
-
-`usage-guide-motion.js` 统一控制文档跳转、返回原位置和置顶的动画。距离不超过一个阅读视口时，使用 160–300ms 的减速滚动；更远的跳转将可见阅读区淡出 80ms、直接定位、再淡入 160ms，不滚过中间章节。动画完成后同步阅读状态，不再使用固定 700ms 的延迟校正。系统启用减少动态效果时直接定位，并保留一帧完整章节排版，让 `content-visibility` 缓存真实尺寸后再恢复延迟渲染。滚轮、触摸、正文滚动按键或新的导航操作会取消当前动画及其后续回调，恢复正常可见状态，避免抢回用户手动选择的位置；页面布局切换继续复用原有视图快照过渡。
-
-文档右下角的 `.usage-guide-floating-actions` 将「返回跳转前的位置」和「返回顶部」合并为横向分段按钮，中间使用短竖线分隔，各段有独立悬停与键盘焦点样式。有返回记录时向左展开，无记录时收回；置顶按钮的右侧位置不变。展开/收起使用 180ms 过渡，遵循减少动态效果设置。无返回记录且接近页首时整组隐藏；位于页首时置顶按钮禁用。`usage-guide.js` 在目录、正文、搜索、上下章及返回顶部操作前保存文档阅读位置，左箭头逐次取出记录，返回本身不添加记录。记录仅保留在当前页面内存中，复用 `usage-guide-layout.js` 的段落/图片与内部阅读比例快照，布局换行后仍返回对应内容；恢复后同步目录、阅读进度及可用的来源焦点。返回也取消旧的待执行滚动。
-
-`usage-guide-progress.js` 负责阅读位置与上下章控件，复用 `usage-guide.js` 的当前章节、滚动判定线、尺寸观察及定位回调，不另建滚动监听。顶部导航栏显示当前章、最近经过的小标题、本章滚动百分比与到下一章的剩余比例；左侧目录模式只展示章节树，隐藏阅读工具栏和进度条。最后一章在实际滚动到底时显示 100%。上下章按钮使用原定位与焦点流程，首章/末章对应按钮禁用。进度条平滑推进、标题切换使用短动效，并遵循减少动态效果设置。导航背景、文字、边框与选中态复用客户端 `--color-help-*` 语义色，随所选配色自动适配。
-
-`usage-guide-layout.js` 负责侧栏展开/收起时的文档布局过渡。`initUsageGuide()` 返回切换回调，由 `app.js` 注入功能导航；导航仍负责折叠状态、无障碍属性与偏好保存。文档可见且使用内部滚动时，先记录阅读判定线处的正文位置，一次完成布局与位置恢复，再用限定在工作区可见范围内的原生视图快照过渡，复用侧栏时长与缓动变量，避免长文逐帧重排。连续切换跳过旧动画并顺序应用状态；减少动态效果或不支持元素级视图过渡时直接切换并保留阅读位置。顶部自动展开、滚动后悬浮展开/移开收起的目录行为保留。
-
-`usage-guide-search.js` 分别索引章节标题、章节直属段落与小标题、文章、问答和操作步骤；小标题不会合并到整章摘要。首次搜索建立索引时保存规范化后的搜索文本、标题和正文，后续输入、标题评分与摘要定位复用该索引。搜索结果优先展示标题命中项，点击后展开匹配文字所在的折叠内容，并通过 `usage-guide.js` 滚动、聚焦到首个高亮匹配处；没有正文匹配时定位结果容器。清空或修改搜索时移除原文高亮。
-
-| 页面           | 文件                                                                                                          | 类型                                     | 内容                                                                                                                                                                                                                               |
-| -------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 管理后台       | [pages/admin/](../../../public/pages/admin) 分片 + [server/admin-page.js](../../../src/server/admin-page.js) | ES Module + 显式依赖                      | 点歌/播放/礼物/组件/百宝箱五主页面 + 状态条(WS/直播/歌库计数)+ 窗口控件;歌单导入导出页包含云端歌单同步(覆盖前确认 + 云端数量对比 + 本机上次同步记录)与授权后的歌单页背景管理面板                                                            |
-| 礼物审计       | [pages/gift-audit.html](../../../public/pages/gift-audit.html)                                                | [gift-audit/index.js](../../../public/js/gift-audit/index.js)（ES module） | 粘贴气泡数据、读取授权诊断记录并比较差异；不重放或手动投递业务事件 |
-| 队列叠加层     | [pages/overlays/queue.html](../../../public/pages/overlays/queue.html)                                        | ES Module(`js/overlays/queue.js`)        | 点歌队列滚动展示,classic、identity、storybook、neon-vinyl、cherry-ribbon、golden-lily 六种风格                                                                                                                                     |
-| 歌单叠加层     | [pages/overlays/songs.html](../../../public/pages/overlays/songs.html)                                        | ES Module(`js/overlays/songs.js`)        | 可点歌单展示,虚拟滚动 + 按时长/字母分组                                                                                                                                                                                            |
-| 盲盒叠加层     | [pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html)                                  | ES Module(`js/overlays/blindbox.js`)     | 面向观众的盲盒盈亏汇总与排行榜                                                                                                                                                                                                   |
-| 加班机叠加层   | [pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html)                                  | ES Module(`js/overlays/overtime.js`)     | 直播加班倒计时 + 送礼加班表 + 结算动画                                                                                                                                                                                             |
-| 礼物特效叠加层 | [pages/overlays/gift-effects.html](../../../public/pages/overlays/gift-effects.html)                          | ES Module(`js/overlays/gift-effects.js`) | 礼物掉落/摇摇乐、林间花信视频、官方礼物特效及大航海感谢；播放器与队列分工见 [Overlay 模块边界](overlays.md#overlay-模块边界) |
-| 直播歌词页     | [pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html)                          | ES Module(`js/overlays/lyric-window.js`) | 复用管理页实时预览的完整时间轴、当前行高亮、逐字进度、翻译/罗马音与自动跟随                                                                                                                                                        |
-| 弹幕姬叠加层   | [pages/overlays/danmaku.html](../../../public/pages/overlays/danmaku.html)                                    | ES Module(`js/overlays/danmaku.js`)      | `/danmaku` 多样式页面；快照恢复并实时同步 `danmakuOverlayStyle` 与 `danmakuFullscreenDurationSeconds`，固定区域通过 `danmaku:message` 顺序追加消息，全屏随机在边界内定位并按停留时间移除，复用 `danmaku-feed.js` 安全渲染 B 站表情 |
-| 游戏叠加层     | [pages/overlays/games.html](../../../public/pages/overlays/games.html)                                        | ES Module(`js/overlays/games.js`)        | 数字炸弹/五子棋/你画我猜共享会话；你画我猜使用紧凑画布、六种绘画工具，并通过 `danmaku-feed.js` 渲染动态宽高弹幕气泡                                                                                                                |
-| 转盘叠加层     | [pages/overlays/wheel.html](../../../public/pages/overlays/wheel.html)                                        | ES Module(`js/overlays/wheel.js`)        | 独立抽奖转盘,按主播配置的选项绘制并突出抽取结果                                                                                                                                                                                    |
-| 开播画面叠加层 | [pages/overlays/opening.html](../../../public/pages/overlays/opening.html)                                    | ES Module(`js/overlays/opening.js`)      | 固定地址读取已保存的开场文案、动画、画质和音乐设置                                                                                                                                                                                 |
-| 时钟叠加层 | [pages/overlays/clock.html](../../../public/pages/overlays/clock.html) | ES Module(`js/overlays/clock.js`) | 按已保存样式显示本地时间，可选日期与星期；包含仅显示时间的极简样式，按实际内容边界缩放 |
+| 页面 | 文件 | 类型 | 内容 |
+| --- | --- | --- | --- |
+| 管理后台 | [pages/admin/](../../../public/pages/admin) 分片 + [server/admin-page.js](../../../src/server/admin-page.js) | ES Module + 显式依赖 | 点歌/播放/礼物/组件/百宝箱五主页面 + 状态条 + 窗口控件 |
+| 礼物审计 | [pages/gift-audit.html](../../../public/pages/gift-audit.html) | [gift-audit/index.js](../../../public/js/gift-audit/index.js)（ES Module） | 粘贴气泡数据、读取授权诊断记录并比较差异，不重放事件 |
+| 队列叠加层 | [pages/overlays/queue.html](../../../public/pages/overlays/queue.html) | ES Module（`js/overlays/queue.js`） | 点歌队列滚动展示（六种内置风格） |
+| 歌单叠加层 | [pages/overlays/songs.html](../../../public/pages/overlays/songs.html) | ES Module（`js/overlays/songs.js`） | 可点歌单展示，虚拟滚动 + 按时长/字母分组 |
+| 盲盒叠加层 | [pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | ES Module（`js/overlays/blindbox.js`） | 盲盒盈亏汇总与排行榜 |
+| 加班机叠加层 | [pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html) | ES Module（`js/overlays/overtime.js`） | 直播加班倒计时 + 送礼加班表 + 结算动画 |
+| 礼物特效叠加层 | [pages/overlays/gift-effects.html](../../../public/pages/overlays/gift-effects.html) | ES Module（`js/overlays/gift-effects.js`） | 礼物掉落/摇摇乐、林间花信边框、官方特效及大航海感谢（见 [Overlay 模块边界](overlays.md#overlay-模块边界)） |
+| 礼物冲刺/许愿/心动收集 | `overlays/gift-sprint.html` / `gift-wishes.html` / `heart-box-collection.html` | ES Module | 月底冲刺横幅、三周期礼物许愿（含月渡花汀与文字版）及每周心动盲盒收集任务 |
+| 直播歌词页 | [pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html) | ES Module（`js/overlays/lyric-window.js`） | 完整时间轴、当前行高亮、逐字进度、翻译/罗马音与自动跟随 |
+| 弹幕姬叠加层 | [pages/overlays/danmaku.html](../../../public/pages/overlays/danmaku.html) | ES Module（`js/overlays/danmaku.js`） | 多样式弹幕叠加层，固定/随机/横栏样式与 B 站表情渲染 |
+| 投票与评分叠加层 | [pages/overlays/interactions.html](../../../public/pages/overlays/interactions.html) | ES Module（`js/overlays/interactions.js`） | 弹幕投票与观众评分只读叠加层 |
+| 游戏叠加层 | [pages/overlays/games.html](../../../public/pages/overlays/games.html) | ES Module（`js/overlays/games.js`） | 数字炸弹/五子棋/你画我猜共享会话与绘画弹幕气泡 |
+| 转盘叠加层 | [pages/overlays/wheel.html](../../../public/pages/overlays/wheel.html) | ES Module（`js/overlays/wheel.js`） | 独立抽奖转盘，按配置份数绘制并突出结果 |
+| 开播画面叠加层 | [pages/overlays/opening.html](../../../public/pages/overlays/opening.html) | ES Module（`js/overlays/opening.js`） | 读取已保存的开场文案、动画、画质和音乐设置 |
+| 时钟叠加层 | [pages/overlays/clock.html](../../../public/pages/overlays/clock.html) | ES Module（`js/overlays/clock.js`） | 按已保存样式显示本地时间、可选日期与星期 |
 
 ### 使用文档跳转维护规则
 
@@ -270,119 +199,115 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 
 ## 4. JS 模块地图
 
-### 4.1 管理后台 `public/js/admin/`(ESM 入口、显式依赖与按需加载)
+### 4.1 管理后台 `public/js/admin/`（ESM 入口、显式依赖与按需加载）
 
-| 文件                                                                                | 职责                                                                                                                                       | 文档                                      |
-| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| `index.js`                                                                          | 常驻 ESM 入口；按需模块与初始化 owner 见 [app.md](app.md) §3                                                                            | [app.md](app.md)                          |
-| `contextual-help.js`                                                                | 注册 `<lira-help>` 问号说明组件；说明使用顶层 Popover，支持悬浮、键盘和点击。仅承载可选解释，不得隐藏状态、校验、警告或必读操作说明        | 本文 §5                                   |
-| `app.js`                                                                            | 应用启动:导航初始化、播放助手桥接、WebSocket 连接                                                                                          | [app.md](app.md) §3                       |
-| `state.js`                                                                          | `StateService` 单例:状态快照 + WS 客户端 + `/api/state`/`/api/songs` 加载                                                                  | [comms.md](comms.md)、[app.md](app.md) §2 |
-| `queue.js` / `superchat.js` | 分别拥有点歌队列与 SC 的渲染和操作；SC 还拥有串行操作、撤销与释放，复制和滚轮交互共用 `queue-list-view.js` | [app.md](app.md) §4 |
-| `state-renderer.js` | 按快照变化调度视图、回填普通设置；独立表单的草稿和主题换算留在各自 owner | [app.md](app.md) §2 |
-| `component-preview-elements.js` / `component-preview-surface.js` | 分别拥有预览基础 DOM/SVG 工具与 iframe 生命周期，消费者按实际需要直接导入 | [app.md](app.md) §2 |
-| `songs.js`                                                                          | 歌库表格、筛选(曲风/语言/歌手/标签)、编辑/入队/删除                                                                                        | [app.md](app.md) §4                       |
-| `settings.js`                                                                       | 设置表单、Bilibili 登录、清库、盲盒映射、退出/重新连接直播间；账号中心只读展示当前登录账户、本机设备和凭据保存说明，设备授权由服务器管理员管理   | [app.md](app.md) §4                       |
-| `theme.js`                                                                          | 点歌板主题(经典/身份/奶油画框样式、预设卡片、一键美化)                                                                                     | [app.md](app.md) §4                       |
-| `display.js`                                                                        | 展示板(歌单板)配置与主题                                                                                                                   | [app.md](app.md) §4                       |
-| `forms.js` | 通用 range↔number 绑定、参数滑块刷新和选项卡 | [app.md](app.md) §2 |
-| [player-workspace.js](../../../public/js/admin/player-workspace.js) | `PlayerWorkspace`:播放器全屏、dock 展开/收起、快捷键、焦点与依赖弹窗联动 | [app.md](app.md) §2 |
-| `song-import.js` / `song-import-parser.js` / `cloud-song-sync.js` / `song-background.js` / `song-background-image.js` | 导入入口保留文件读取与兼容连接；纯 TSV/CSV 解析由导入和歌单更新共用；云同步拥有覆盖确认、数量与本机同步记录，背景 UI 调用图片模块完成静态压缩和本地版本缓存 | [app.md](app.md) §4                       |
-| `metrics.js`                                                                        | 系统性能检测(`/api/system/metrics` 5 秒采样)                                                                                               | [app.md](app.md) §4                       |
-| `danmaku-tool.js`                                                                   | 弹幕工具组合入口：连接状态与发送、分类导航、回复开关，以及本机弹幕外观、过滤和云端回复模块；外观预览由 `danmaku-overlay-settings.js` 接入统一画布，来源地址在「点歌 → 浏览器源」复制 | [app.md](app.md) §6 |
-| `danmaku-tabs.js` | 弹幕互动四分类：互动回复、欢迎答谢、弹幕发送、AI 助手；只切换页面内容，保留编辑器和草稿 | [固定回复与云端词库](app.md#固定回复与云端词库) |
-| `danmaku-libraries.js` / `danmaku-cloud-replies.js` / `danmaku-scheduled-library.js` / `danmaku-interaction-thanks.js` | 两类自定义回复共用列表草稿编辑；云端精确回复、定时弹幕与点赞/分享/关注感谢共用受限桌面桥；互动感谢各有开关与词库，复用列表搜索和分页；云端签到/抽签共用 danmaku-daily-library.js | [固定回复与云端词库](app.md#固定回复与云端词库) |
-| `danmaku-fixed-replies.js` / `danmaku-editor-pagination.js` / `danmaku-viewer-names.js` / `danmaku-query-replies.js` / `danmaku-welcome.js` / `danmaku-welcome-library.js` / `danmaku-welcome-custom.js` / `danmaku-welcome-audience.js` / `danmaku-welcome-model.js` / `danmaku-pk-report.js` | 按分类页组织的回复设置及右侧编辑 dialog；昵称管理位于「欢迎答谢」，沿用功能行总开关与编辑入口，服务端每批读取 20 人，批内按侧栏高度分页，按 UID 修改/删除，默认开启且关闭保留名单；上方提供默认昵称黑名单的逐行编辑和独立保存，失败及刷新保留草稿；欢迎、PK 播报与欢迎、两类自定义回复、定时弹幕、查询、签到与抽签共用单活动侧栏，点击外部空白、Escape 或关闭图标收起并保留草稿；事件根为 `#otherDanmakuFeature`；欢迎四卡两列、双输入同行；参数、各词库、按 UID 定制文案及欢迎名单独立草稿/保存，四个页签为欢迎规则、欢迎词库、用户定制、欢迎对象，对象页提供本房间粉丝牌开关与并排的黑白名单编辑，开关单独即时保存；PK 总开关、两项子开关和串门欢迎延时/词库，规则说明复用问号组件 | [桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置)、[PK 播报与欢迎](../desktop/main.md#pk-播报与欢迎) |
-| `danmaku-gift-thanks.js` / `gift-thanks-library.js` / `gift-thanks-text-editor.js` | 礼物及三个大航海等级的候选文案、按场景选择普通／@、中文参数块与预览；同一云端交互队列保存，兼容旧双模板 | [app.md](app.md) §6 |
-| `ai-assistant-settings.js`、`ai-assistant-config-view.js`、`ai-assistant-personas.js` | AI 互动助手：模型配置、自动保存、角色包选择/创建/导入导出/删除、可选工具与供应商测试 | [app.md](app.md) §6 |
-| `overtime.js`                                                                       | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景；礼物选择与图片身份 key 内聚于 `overtime-gift-picker.js`                                                                                    | [app.md](app.md) §6                       |
-| `streamer-planner.js` / `streamer-planner-view.js`                                                          | 主播工作台：控制器拥有 localStorage 兼容、保存保护和编辑动作；视图只读取分离的展示快照并描述动作                                           | [app.md](app.md) §6                       |
-| `toolbox-navigation.js`                                                                          | 组件与百宝箱共用导航(独立实例与选中项,不承载业务)                                                                                                    | [app.md](app.md) §6                       |
-| `desktop-lyric.js`                                                                  | 直播歌词设置表单(自动保存)                                                                                                                 | [app.md](app.md) §6                       |
-| `desktop-lyric-preview.js`                                                          | 当前歌曲预览适配器，随基础／高级编辑页签切换对应歌词                                                                            | [app.md](app.md) §6                       |
-| `start-animation.js`                                                                | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、人物图/音乐上传与清除、音量控制                                                      | [app.md](app.md) §6                       |
-| `clock-card.js` | 时钟固定地址、持久化设置、风格选择与 iframe 实时预览 | [app.md](app.md) §6 |
-| `song-library-filters.js`                                                           | 曲风/标签筛选工具(拆分、选中态读取、保留原筛选状态的多选弹层定位)                                                                                                        | [app.md](app.md) §4                       |
-| `gifts/index.js`                                                                    | 礼物面板统一渲染入口                                                                                                                       | [app.md](app.md) §5                       |
-| `gifts/notification.js` / `detection.js` / `sprint.js` / `recent.js`                | 礼物通知 / 检测状态 / 月底冲刺 / 最近礼物                                                                                                  | [app.md](app.md) §5                       |
-| `gifts/blindbox.js` / `blindbox-analysis.js` / `history.js`                         | 盲盒映射与统计 / 盲盒分析工作区 / 礼物历史抽屉                                                                                             | [app.md](app.md) §5                       |
+| 文件 | 职责 | 文档 |
+| --- | --- | --- |
+| `index.js` | 常驻 ESM 入口；按需模块与初始化归属见 [app.md](app.md) §3 | [app.md](app.md) |
+| `contextual-help.js` | 注册 `<lira-help>` 问号说明组件（顶层 Popover，仅承载可选解释，不得隐藏状态/校验/警告） | 本文 §5 |
+| `app.js` | 应用启动：导航初始化、播放助手桥接、WebSocket 连接 | [app.md](app.md) §3 |
+| `state.js` | `StateService` 单例：状态快照 + WS 客户端 + `/api/state`/`/api/songs` 加载 | [comms.md](comms.md)、[app.md](app.md) §2 |
+| `queue.js` / `superchat.js` | 分别负责点歌队列与 SC 渲染、操作、撤销与释放，复制和滚轮共用 `queue-list-view.js` | [app.md](app.md) §4 |
+| `state-renderer.js` | 按快照变化调度视图、回填普通设置；独立表单草稿由所属控制器维护 | [app.md](app.md) §2 |
+| `component-preview-elements.js` / `component-preview-surface.js` | 分别负责预览基础 DOM/SVG 工具与 iframe 生命周期，调用方按需导入 | [app.md](app.md) §2 |
+| `songs.js` | 歌库表格、筛选（曲风/语言/歌手/标签）、编辑/入队/删除 | [app.md](app.md) §4 |
+| `settings.js` | 设置表单、Bilibili 登录、清库、盲盒映射、退出/重连；账号中心只读展示账号与设备 | [app.md](app.md) §4 |
+| `theme.js` / `display.js` | 点歌板主题（六套样式、预设与一键美化）与展示板（歌单板）配置 | [app.md](app.md) §4 |
+| `forms.js` | 通用 `range` ↔ `number` 绑定、参数滑块刷新和选项卡 | [app.md](app.md) §2 |
+| [player-workspace.js](../../../public/js/admin/player-workspace.js) | `PlayerWorkspace`：播放器全屏、dock 展开/收起、快捷键、焦点与联动关闭 | [app.md](app.md) §2 |
+| `song-import.js` / `song-import-parser.js` / `cloud-song-sync.js` / `song-background.js` / `song-background-image.js` | 歌单文件/粘贴解析、云端歌单同步、网页歌单开关与歌单页背景 WebP 压缩缓存 | [app.md](app.md) §4 |
+| `metrics.js` | 系统性能检测（`/api/system/metrics` 5 秒采样与本机硬件信息） | [app.md](app.md) §4 |
+| `danmaku-tool.js` | 弹幕工具组合入口：连接状态与发送、本机弹幕外观/过滤及 `danmaku-overlay-settings.js` 画布预览 | [app.md](app.md) §6 |
+| `danmaku-tabs.js` / `danmaku-libraries.js` / `danmaku-cloud-replies.js` / `danmaku-scheduled-library.js` / `danmaku-interaction-thanks.js` | 弹幕互动四分类导航、两类自定义回复、云端精确/定时回复、点赞/分享/关注感谢与签到/抽签（`danmaku-daily-library.js`） | [固定回复与云端词库](app.md#固定回复与云端词库) |
+| `danmaku-fixed-replies.js` / `danmaku-editor-pagination.js` / `danmaku-viewer-names.js` / `danmaku-query-replies.js` / `danmaku-welcome*.js` / `danmaku-pk-report.js` | 以 `#otherDanmakuFeature` 为事件根的右侧单活动编辑 dialog、高度自适应分页、昵称管理（每批 20 人与黑名单）、查询回复、四页签进场欢迎及 PK 播报与欢迎 | [固定回复与云端词库](app.md#固定回复与云端词库)、[桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置)、[PK 播报与欢迎](../desktop/main.md#pk-播报与欢迎) |
+| `danmaku-gift-thanks.js` / `gift-thanks-library.js` / `gift-thanks-text-editor.js` | 礼物及三档大航海候选文案、普通／@ 切换、原子中文参数块与预览 | [app.md](app.md) §6 |
+| `ai-assistant-settings.js` / `ai-assistant-config-view.js` / `ai-assistant-personas.js` | AI 互动助手：模型配置、自动保存、角色包管理与可选工具开关 | [app.md](app.md) §6 |
+| `overtime.js` | 加班机控制台、初始时间、礼物规则与背景；礼物选择与图片 key 内聚于 `overtime-gift-picker.js` | [app.md](app.md) §6 |
+| `streamer-planner.js` / `streamer-planner-view.js` | 主播工作台：本机存储兼容、日程提醒同步与独立快照视图 | [app.md](app.md) §6 |
+| `toolbox-navigation.js` | 组件与百宝箱共用导航（独立实例与记忆项，不承载业务） | [app.md](app.md) §6 |
+| `desktop-lyric.js` / `desktop-lyric-preview.js` / `advanced-lyric-editor.js` / `now-playing.js` | 音乐展示：直播歌词基础/高级设置、实时预览与歌曲信息设置 | [app.md](app.md#6-组件与百宝箱) |
+| `live-rankings.js` / `interactions.js` | 实时四榜查看与画布入口；弹幕投票与观众评分编辑器（复用 `shared/interaction-rules.js`、`interaction-client.js`、`interaction-view.js`） | [app.md](app.md#6-组件与百宝箱) |
+| `start-animation.js` / `clock-card.js` | 开播动画与时钟固定地址、样式设置与预览 | [app.md](app.md) §6 |
+| `fans/` / `audio-assistant.js` / `weekly-schedule.js` / `world-clock/` / `pk-score-calculator.js` | 主播工具与互动娱乐按需模块：粉丝档案、电音助手、周表生成器、世界地图与 PK 算分 | [app.md](app.md#6-组件与百宝箱) |
+| `song-library-filters.js` | 曲风/标签多选、语言/歌手筛选与多选弹层定位 | [app.md](app.md) §4 |
+| `gifts/index.js` / `notification.js` / `detection.js` / `sprint.js` / `recent.js` / `blindbox*.js` / `history.js` / `wishes.js` / `heart-box-collection.js` | 礼物面板渲染、通知/检测/冲刺/最近/盲盒映射与分析/历史抽屉/许愿/心动盲盒 | [app.md](app.md#5-礼物主页面gifts) |
 
-`pk-score-calculator.js` 拥有百宝箱「PK 算分」的本地试算与显示，由 `app.js` 按需加载；片段为 `toolbox/pk-score-calculator.html`，样式为 `css/admin/toolbox/pk-score-calculator.css`。默认值与换算规则见 [app.md §6.1](app.md#61-pk-算分)。
+- Admin 登录、房间资料、粉丝档案及礼物/弹幕/游戏头像共用 [shared/bilibili-avatar.js](../../../public/js/shared/bilibili-avatar.js) 校验与构造 B 站头像地址（仅接受 HTTPS `.hdslb.com` 子域且禁止 URL 凭据，查询参数经 `URLSearchParams` 编码）。
+- `admin/canvas-item-entry.js` 负责样式库、大航海感谢、礼物动效及实时榜单的查找与插入画布公共流程（`MAX_NON_TEXT_BOX_SCENE_ITEMS` 仍为 32，已有图层可在满画布时复用）；`admin/rich-text-selection.js` 仅负责三个富文本编辑器的 DOM Range、原子边界与格式替换。
+- 共享小工具按合同复用：`shared/tab-navigation.js`（ARIA 选项卡）、`json-response.js`（解析与 API 判错）、`json-request.js`（礼物 feed/许愿超时与 signal 清理）、`bilibili-guard-labels.js`（中文等级映射）、`dom-element.js`（纯文本节点工厂）、`string-hash.js`（按 Unicode 码点迭代的 FNV-1a）及 `display-format.js`（金额格式化）。
 
-「主播工具 → 世界地图」沿用 `/admin`，由 `toolbox/world-clock.html`、`js/admin/world-clock/` 和 `css/admin/toolbox/world-clock.css` 拥有；顶部搜索与操作区以主题浅色细线连接地图，保留紧凑布局。启动及整点后台天气刷新、计时、城市偏好与地球按需加载见 [Admin 应用](app.md#世界地图)。
+### 4.2 播放助手 `public/js/playback/`（纯 ES Module）
 
-Admin 登录、房间资料和粉丝档案共用 [shared/bilibili-avatar.js](../../../public/js/shared/bilibili-avatar.js) 构造带授权的 B 站头像代理 URL。
+播放页内的「播放器外观」由 `pages/admin/playback/appearance.html`、`js/playback/ui/appearance.js` 和 `css/playback/appearance.css` 负责，入口及本机偏好见[播放器外观契约](playback.md#81-大播放器外观)。
 
-### 4.2 播放助手 `public/js/playback/`(纯 ES Module)
-
-播放页内的「播放器外观」由 `pages/admin/playback/appearance.html`、`js/playback/ui/appearance.js` 和 `css/playback/appearance.css` 拥有，入口及本机偏好见[播放器外观契约](playback.md#81-大播放器外观)。
-
-入口链 `admin/app.js` → `playback/index.js` → `playback/controller.js`(编排层)，使用显式导入和回调接线。模块树:`core/`(initializer/renderer/event-handlers/queue-coordinator)、`state/`(manager/storage)、`provider/`(manager)、`player/`(controller)、`queue/`(manager)、`services/`(search/stream/lyric/match/import/home/wesing)、`features/`(search/match/stream/playback-controls/radio-mode/home/import/pending)、`operations/`(provider/state-persistence/playlist/cache)、`ui/`(index/components/playback-bar/queue-popup/drawer/fullscreen)、`content/`(loader)、`local/`(manager)、`cache/`(manager)、`config.js`、`utils.js`。逐模块说明见 [playback.md](playback.md)。
+入口链 `admin/app.js` → `playback/index.js` → `playback/controller.js`（组合根），使用显式导入和回调接线。模块树：`core/`、`state/`、`provider/`、`player/`、`queue/`、`services/`、`features/`、`operations/`、`ui/`、`content/`、`local/`、`cache/`、`config.js`、`utils.js`，逐模块说明见 [playback.md](playback.md)。
 
 ### 4.3 叠加层 `public/js/overlays/`
 
-| 文件                                                                        | 说明                                                                                                                                                                   |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `overlay-utils.js`                                                          | 共享工具(转义/颜色/字体回退/滚动时长换算/低功耗判定),挂 `window.OverlayUtils`;模块消费者经 `overlay-utils-module.js` 具名导入 |
-| `song-virtual-scroller.js`                                                  | 歌单虚拟滚动器(环形 DOM 窗口)                                                                                                                                          |
-| `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` | 各叠加层逻辑,详见 [overlays.md](overlays.md)                                                                                                                           |
-| `games.js`                                                                  | 直播小游戏入口与会话渲染；绘画工具按钮与笔画清理归 `games-drawing.js`；结果窗的显示、头像与按钮状态归 `games-result.js`，动作请求及快照恢复仍由入口处理；你画我猜在本地预览图形后把直线/矩形/圆形拆为归一化坐标点，取色器只吸附到现有安全色板；通过 `danmaku-feed.js` 的显式 ESM 接口消费你画我猜弹幕 |
-| `opening.js`                                                                | 开播动画 Browser Source：读取本地配置与用户上传人物图/音乐，未上传时无人物图且不播放音乐，并驱动人物待机与心形/灯带/流光轨道动画                                       |
-| `clock.js`                                                                  | 时钟 Browser Source：读取已保存配置并兼容 URL 参数覆盖，按本地秒边界更新时间/日期、切换横竖设计画布并在页面隐藏时暂停调度                                            |
-| `danmaku-feed.js` / `danmaku-message-renderer.js` / `danmaku-renderer-core.js` / `danmaku-superchat-renderer.js` | feed 拥有队列、布局与过期清理；renderer 适配桌面策略，core 为服务器公共消息 DOM 的固定源码快照，委托 SC 渲染器处理价格配色、对比色与卡片；图片解析能力由调用方传入 |
-| `danmaku-random-entrance.js` / `danmaku-floating.js` | 普通随机入场适配器逐条锁定参数，公共 feed 在实际放置后启动入场；floating feed 拥有横移、等待及完整尾部清理。`danmaku/random-entrance.css` 与 `floating-motion.css` 分别管理共用入场和边缘遮罩，专属分层动效仍由款式模块拥有 |
+| 文件 | 说明 |
+| --- | --- |
+| `overlay-utils.js` | 队列、盲盒、歌单板和主题适配直接导入的 ES 模块。转义和字体回退复用 `shared/`，并提供覆盖层的颜色转换、滚动时长与低功耗判定 |
+| `song-virtual-scroller.js` | 歌单虚拟滚动器（环形 DOM 窗口） |
+| `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` / `interactions.js` | 各叠加层逻辑，详见 [overlays.md](overlays.md) |
+| `games.js` | 直播小游戏入口与会话渲染；绘画工具与笔画清理归 `games-drawing.js`，结果窗归 `games-result.js`；通过 `danmaku-feed.js` 显式 ESM 接口读取你画我猜弹幕 |
+| `opening.js` | 开播动画浏览器源：读取本地配置与用户上传人物图/音乐，驱动人物待机与轨道动画 |
+| `clock.js` | 时钟浏览器源：读取已保存配置并兼容 URL 参数覆盖，按本地秒边界更新时间/日期并在页面隐藏时暂停调度 |
+| `danmaku-feed.js` / `danmaku-message-renderer.js` / `danmaku-renderer-core.js` / `danmaku-superchat-renderer.js` | feed 负责队列、布局与过期清理；renderer 适配桌面策略，core 为公共消息 DOM 源码快照，委托 SC 渲染器处理价格配色与卡片；图片解析由调用方传入 |
+| `danmaku-random-entrance.js` / `danmaku-floating.js` | 随机入场适配器与横移飘窗 feed；`danmaku/random-entrance.css` 与 `floating-motion.css` 管理共用入场和边缘遮罩，专属分层动效由款式模块维护 |
 
 ### 4.4 共享与入口 `public/js/`
 
-| 文件                            | 说明                                                                                 |
-| ------------------------------- | ------------------------------------------------------------------------------------ |
-| `shared/utils.js`               | 具名 UI/请求工具导出(见 [comms.md](comms.md) §2)                |
-| `shared/copy-url.js` | 框状网址的原生按钮交互、完整地址提示、复制反馈与监听清理；接入与尺寸接口见本文 §1.3 |
-| `shared/event-bus.js`           | `EventBus` 单例 + `Events` 常量(见 [app.md](app.md) §2)                              |
-| `shared/logger.js`              | `Logger` 单例，消费者显式导入                                           |
-| `shared/theme.js`               | 主题配置加载(`/data/theme-presets.json`)与预设访问器                                 |
-| `shared/lyric-word-renderer.js` | 逐字歌词渲染器(rAF 驱动,WeSing 面板/直播歌词预览/歌词窗口共用)                       |
-| `shared/parameter-range.js`     | Admin 参数滑块进度与零点区段同步；扫描显式 `parameter-range` 控件并维护轨道 CSS 变量；隐藏或收起的参数不读取样式和尺寸，显示后由既有 ResizeObserver 按最新值更新；`data-range-scale="balanced"` 为零点两侧各保留至少 25% 行程，统一拖动与视觉映射，原生值和键盘步长不变 |
-| `shared/color-picker.js` | 统一选色弹层：色相/明度饱和度、RGB/HEX、不透明度；桌面优先使用[全屏取色桥](../desktop/preload.md)，浏览器使用可用的 EyeDropper。弹层随当前输入挂到其活动原生 modal 内，回到普通页面输入时移回 body，保持模态窗口内的颜色可操作。取色保留不透明度；「撤回」恢复上一次操作前的颜色与不透明度，连续拖动算一次，撤回后或重新打开时清空记录；取色中禁用撤回。关闭或切换字段取消取色，迟到结果不写入其他字段；失败在弹层内提示 |
-| `shared/color-value.js` | 无 DOM 的 HEX 解析和 Alpha 序列化，保留旧六位纯色格式 |
-| `shared/color-control.js`       | `enhanceColorControls(root = document)` 原位增强颜色输入框，保留输入节点与业务事件；同步程序赋值、重置、动态节点及克隆面板。`data-color-opacity` 关联已有不透明度字段（按其 max/step 换算百分比），隐藏原控制行；未关联时以六/八位 HEX 保存颜色及 Alpha。表单序列化保留 Alpha |
-| `shared/select-menu.js`         | `enhanceSelects(root = document)` 把原生单选 `select` 增强为共享弹层（`components/select-menu.css`），自动接入动态节点；单选菜单使用保留 DOM 归属的顶层 popover，按触发框宽度、窗口边界与上下剩余空间定位和限高，避免滚动容器裁切、相邻区域遮挡；菜单内部可滚动，外层滚动或窗口缩放时关闭。自定义菜单宽度可用 `--select-trigger-width` 引用触发框宽度；每次实际展开后在原生 select 上派发一次可冒泡的 `lira-select-open`，供调用方按需更新选项，组件自身不轮询。选择同步只更新前后两个选项；动态选项重建时同步重建节点索引，保留重复值对应的原生选项位置。原生 select 动态禁用时同步关闭已展开菜单；鼠标、键盘选择入口均检查当前禁用状态，恢复启用后可正常展开和选择。纯提示占位项由调用方设置原生 `option.disabled`，组件同步禁用外观并禁止鼠标、键盘选中。调用方保留未选择状态，不因占位项禁用而自动选择第一项；「自动」「全部」「默认」等有效值仍可选；`optgroup` 标签写入 `data-label` 作为可见组名。单选可通过 `data-select-search` 启用名称搜索（输入框在 listbox 外，过滤不改变选择），通过 `data-select-font-preview` 用 option 的 `data-font-family` 或双引号字体值预览字体。字体菜单直接展开，不播放淡入动画，避免每次打开都等待动画完成。字体预览行使用 `content-visibility: auto`，离屏行按选项最小高度占位，滚动或搜索进入可见区后再排版，避免展开时同步排版全部本机字体；完整选项和原生选择状态不变。复用处可在 `.lira-select` 上设置 `--select-marker-display: none` 隐藏选中竖条，默认显示；选中底色、边框与字重不受此开关影响。未声明属性的下拉行为不变。多选下拉保留 `.lira-multiselect` 的 details/checkbox 结构，由 `admin/song-library-filters.js` 的 `bindFilterMenuPopovers` 接入顶层 popover；单选和多选复用 `shared/select-menu-position.js` 的 `positionSelectMenu` 计算边界。多选的选项区独立滚动，底部清除按钮保留可见空间；切换选项或清除选择后重新定位，外层滚动、窗口缩放、Escape 和外部点击关闭菜单 |
-| `shared/fit-text-to-width.js`   | `fitTextToWidth(elements)` 按元素可用宽度收缩字号；礼物横幅与粉丝档案名单共用，选择器与 DOM 查询留在各自视图 |
-| `desktop.js`                    | 桌面外壳:更新检查/下载/安装、打开数据目录、`window.songAssistantDesktop` 检测        |
-| `license-resource-downloads.js` | 首次准备页的公共字体/大图内联进度与失败说明，不显示资源下载 toast；复用现有 IPC 和资源进度控制器 |
+| 文件 | 说明 |
+| --- | --- |
+| `shared/utils.js` | 具名 UI/请求工具导出（见 [comms.md](comms.md) §2） |
+| `shared/copy-url.js` | 框状网址的原生按钮交互、完整地址提示、复制反馈与监听清理（见本文 §1.3） |
+| `shared/event-bus.js` | `EventBus` 单例 + `Events` 常量（见 [app.md](app.md) §2） |
+| `shared/logger.js` | `Logger` 单例，调用方显式导入 |
+| `shared/theme.js` | 主题配置加载（`/data/theme-presets.json`）与预设访问器 |
+| `shared/lyric-word-renderer.js` | 逐字歌词渲染器（rAF 驱动，WeSing 面板/直播歌词预览/歌词窗口共用） |
+| `shared/parameter-range.js` | Admin 参数滑块进度与零点区段同步（隐藏参数不读布局，显示后由 `ResizeObserver` 更新；`data-range-scale="balanced"` 为零点两侧各留 ≥ 25% 行程） |
+| `shared/color-picker.js` / `shared/color-value.js` / `shared/color-control.js` | 统一选色弹层（桌面优先[全屏取色桥](../desktop/preload.md)，支持模态挂靠与一步撤回）、HEX/Alpha 解析，以及 `enhanceColorControls` 原位增强（`data-color-opacity` 关联不透明度字段） |
+| `shared/select-menu.js` | `enhanceSelects(root = document)` 将原生单选 `select` 增强为顶层 popover 弹层（`components/select-menu.css`），并支持名称搜索与字体预览（细则见表下） |
+| `shared/fit-text-to-width.js` | `fitTextToWidth(elements)` 按元素可用宽度收缩字号（礼物横幅与粉丝档案名单共用） |
+| `desktop.js` | 桌面外壳：更新检查/下载/安装、打开数据目录、`window.songAssistantDesktop` 检测 |
+| `license-resource-downloads.js` | 首次准备页的公共字体/大图内联进度与失败说明（见 [app.md](app.md#10-共享字体与资源下载)） |
+
+**`shared/select-menu.js` 行为细则**：
+
+- **定位与事件**：单选弹层保留 DOM 归属并使用顶层 popover（复用 `shared/select-menu-position.js` 的 `positionSelectMenu`），按触发框宽度（`--select-trigger-width`）、窗口边界与上下空间限高滚动，外层滚动或缩放时关闭；展开后派发可冒泡的 `lira-select-open` 供调用方按需刷新选项。原生 `select` 动态禁用时同步关闭已展开菜单；`option.disabled` 占位项不可选且不自动选中首项，`optgroup` 写入 `data-label` 展示组名。
+- **搜索、字体预览与多选**：单选可通过 `data-select-search` 启用名称搜索、通过 `data-select-font-preview` 预览字体（直接展开无淡入，预览行用 `content-visibility: auto` 避免展开时全量同步排版）；可在 `.lira-select` 设 `--select-marker-display: none` 隐藏左侧竖条。多选保留 `.lira-multiselect` 的 details/checkbox 结构，由 `song-library-filters.js` 的 `bindFilterMenuPopovers` 接入顶层 popover。
 
 ## 5. CSS 清单
 
-`css/admin/gift-display.css` 保留原入口，按顺序加载 `gift-display/common.css`、`history.css`、`export.css`、`settings.css`，分别维护共用控件、礼物历史抽屉、导出预览和展示设置；各功能的响应式规则随 owner 保留。
+管理主窗口在 `shell-start.html` 引入 `components/drawer.css`。礼物和播放抽屉组合 `.ui-drawer` 系列类，共用几何与过渡，各自控制尺寸、层级和遮罩。`styles-base.css` 和可单独加载的弹幕预览都引入 `shared/visually-hidden.css` 的完整 `.sr-only` 规则。基础样式提供菜单入场及 `ui-spin`。原生 dialog 的遮罩由 `admin/layout.css` 读取主题的 `--color-bg-overlay-light`。`admin/toasts/system.css` 提供图标定位和遮罩，业务 Toast 按需组合 `.toast-with-icon` 等类。播放歌单选择器使用 `div[role="dialog"]`，布局归 `playback/playlist-picker.css`。独立桌面歌词窗口直接加载 `playback/desktop-lyric.css`，管理端富文本工具栏经 `styles-admin.css` 统一加载。
 
-`css/admin/live-components.css` 保留组件工作区入口，依次加载 `live-components/workspace.css`（令牌、导航和页面布局）、`controls.css`（共享控件与参数行）、`danmaku-settings.css`（弹幕设置与保存栏）、`danmaku-library.css`（样式卡片、筛选和样式库弹窗）、`panels.css`（已有组件面板在工作区内的布局适配）和 `clock.css`（时钟设置与预览）。公共控件先于具体页面适配；窗口规则归工作区，时钟容器规则归时钟模块。
+- `css/admin/gift-display.css` 按序加载 `gift-display/common.css`、`history.css`、`export.css`、`settings.css`。
+- `css/admin/live-components.css` 按序加载 `live-components/workspace.css`、`controls.css`、`danmaku-settings.css`、`danmaku-library.css`、`panels.css`、`clock.css`。
+- `css/admin/toolbox/danmaku-fixed-replies.css` 按序加载 `danmaku-fixed-replies/workspace.css`、`thanks.css`、`query.css`、`welcome.css`、`editor.css`、`libraries.css`（基础样式仍在 `toolbox/danmaku-editors.css`）。
+- `css/playback/appearance.css` 加载 `appearance/settings.css`（设置表单）与 `appearance/rendering.css`（预览与实际播放器共用渲染，契约见[大播放器外观](playback.md#81-大播放器外观)）。
 
-`css/admin/toolbox/danmaku-fixed-replies.css` 保留固定回复入口，依次加载 `danmaku-fixed-replies/workspace.css`（功能分组与右侧编辑面板）、`thanks.css`（答谢模板）、`query.css`（查询回复）、`welcome.css`（迎宾规则和个性化话术）、`editor.css`（共享字段、动作和控件约束）和 `libraries.css`（话术列表、搜索与分页）。各模块保留自身容器规则；共享控件规则后置，列表搜索样式再后置，保留控件尺寸例外与搜索图标的覆盖次序。基础编辑器样式仍由既有 `toolbox/danmaku-editors.css` 提供。
+| 文件 | 职责 |
+| --- | --- |
+| `css/styles-base.css` | 设计系统：CSS 变量、重置、按钮/表单基类、spacing/radius/shadow 令牌 |
+| `css/styles-admin.css` | 管理后台顶层样式（引用 `admin/` 子目录） |
+| `css/styles-playback.css` | 播放助手顶层样式（引用 `playback/` 子目录） |
+| `css/components/parameter-range.css` | 原生参数滑块：4px 轨道与 18px 圆形滑块，`--centered` 与 `data-range-scale="balanced"` 支持中心映射，不接管播放进度/音量 |
+| `css/components/number-field.css` | 带单位数字输入框：`lira-number-field` + `lira-number-field-unit` 后缀，不增加脚本或接管保存校验 |
+| `css/components/switch-control.css` | `switch-control` 包裹原生 checkbox、`switch-track` 和标签，统一主题轨道与焦点状态 |
+| `css/components/save-status.css` | 保存提示文字层级、圆点与语义色，由 `js/shared/save-status.js` 呈现（管理页与画布各自加载） |
+| `css/components/content-state.css` | 播放队列、粉丝档案、主播工作台共用空态/加载/失败提示层级与语义色 |
+| `css/components/color-control.css` | 公共颜色控件与选色弹层（`--color-control-height` 默认 36px） |
+| `css/components/contextual-help.css` | Admin `<lira-help>` 问号与顶层说明样式 |
+| `css/admin/*.css` | 管理后台分模块（`component-styles.css` 卡片与边框使用 `--color-border-default` 跟随客户端主题） |
+| `css/playback/*.css` | 播放助手分模块 |
+| `css/overlays/base.css` | 叠加层框架（classic/identity 队列主题、滚动动画、歌单板） |
+| `css/overlays/blindbox.css` | 盲盒叠加层动画与布局 |
+| `css/overlays/overtime.css` | 加班机叠加层（cq 单位 + 容器查询，见 [overlays.md](overlays.md) §4） |
+| `css/overlays/clock.css` | 时钟各样式 CSS 入口，含纯时间极简样式与 `prefers-reduced-motion` 降级 |
+| `css/admin/workspace/song.css` | 按原顺序导入 `song-management.css` 与 `song-layout.css` |
+| `css/overlays/desktop.css` | 桌面样式入口，组合滚动条、`css/desktop/theme.css`、`update.css`、`shell.css` |
 
-`css/playback/appearance.css` 保留字体导入和原入口，加载 `appearance/settings.css` 与 `appearance/rendering.css`。前者拥有外观设置表单、预览容器及其响应式规则；后者由预览和实际播放器共用，拥有布局、歌词、背景和唱片样式变体。操作与配置契约见[大播放器外观](playback.md#81-大播放器外观)。
-
-| 文件                                 | 职责                                                                                                                                                                                  |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `css/styles-base.css`                | 设计系统:CSS 变量、重置、按钮/表单基类、spacing/radius/shadow 令牌                                                                                                                    |
-| `css/styles-admin.css`               | 管理后台顶层样式(引用 admin/ 子目录)                                                                                                                                                  |
-| `css/styles-playback.css`            | 播放助手顶层样式(引用 playback/ 子目录)                                                                                                                                               |
-| `css/components/parameter-range.css` | 原生参数滑块统一使用客户端控制色、两端半圆的 4px 轨道及填充和18px 圆形滑块；桌面歌词设置保留轨道通栏；`--centered` 保留正负区间填充，`data-range-scale="balanced"` 保留中心映射；不接管播放 seek/音量 |
-| `css/components/number-field.css` | 带单位数字输入框：`lira-number-field` 包裹原生 input 与 `lira-number-field-unit` 后缀。提示文字使用主题 muted 色，单位使用主题强调文字色，实际数值沿用正文色；统一单位留白、隐藏及禁用状态，不增加脚本或接管保存与校验 |
-| `css/components/switch-control.css` | `switch-control` 包裹原生 checkbox、相邻 `switch-track` 和标签；统一主题轨道、圆点、键盘焦点和禁用状态，包含开播动画总开关 |
-| `css/components/save-status.css` | 保存提示的文字层级、圆点及等待／成功／失败语义色；由 `js/shared/save-status.js` 呈现，页面保留保存、重试和显隐规则；管理页与画布页面各自加载 |
-| `css/components/content-state.css` | 播放队列、粉丝档案、主播工作台共用空内容／加载／失败提示的文字层级与语义色；局部布局、图标、文案和操作归页面 |
-| `css/components/color-control.css` | 公共颜色控件与选色弹层：整条可点击，棋盘格色块、HEX 和当前不透明度；支持两端半圆的色相和不透明度滑条、RGB、HEX、A 百分比及取色。沿用主题令牌，`--color-control-height` 对齐邻近控件（默认 36px） |
-| `css/components/contextual-help.css` | Admin `<lira-help>` 的统一问号与顶层说明样式；只允许按视口空间切换上下位置，不提供页面级视觉变体                                                                                      |
-| `css/admin/*.css`                    | 管理后台分模块:workspace/layout/tabs/toasts/modals/collapsible/gifts/blindbox-analysis/overtime/toolbox/song-filters/desktop-lyric-preview/responsive；`component-styles.css` 的样式库卡片、对话框和分隔线使用 `--color-border-default` 跟随客户端配色 |
-| `css/playback/*.css`                 | 播放助手分模块:player/layout/panels/header/drawer/fullscreen/dialogs/queue-modal/song-row/desktop-lyric/responsive                                                                    |
-| `css/overlays/base.css`              | 叠加层框架(classic/identity 队列主题、滚动动画、歌单板)                                                                                                                               |
-| `css/overlays/blindbox.css`          | 盲盒叠加层动画与布局                                                                                                                                                                  |
-| `css/overlays/overtime.css`          | 加班机叠加层(cq 单位 + 容器查询,见 [overlays.md](overlays.md) §4)                                                                                                                     |
-| `css/overlays/clock.css` | 时钟各样式的 CSS 入口，包含纯时间极简样式与 reduced-motion 降级 |
-| `css/admin/workspace/song.css`      | 按原顺序导入 `song-management.css` 的歌曲资料与导入/云库表单、`song-layout.css` 的队列和工作区布局 |
-| `css/overlays/desktop.css` | 桌面样式入口，组合滚动条、`css/desktop/theme.css`、`update.css`、`shell.css`；主题色板按客户端选择生效，更新/支持页与桌面壳布局分别维护 |
-
-带单位输入框从 `styles-admin.css` 加载。使用示例：
+带单位输入框从 `styles-admin.css` 加载（单位写入 `aria-label`，装饰后缀加 `aria-hidden="true"`；默认 `--number-field-unit-space: 36px`、`--number-field-unit-inset: 12px`，调用方按单位长度覆盖，如点歌规则双列用 28px/8px、小时数用 40px/10px；广泛用于通知金额、礼物触发金额、播放器外观、加班时长、基础歌词与电音助手变速）：
 
 ```html
 <span class="lira-number-field">
@@ -391,30 +316,24 @@ Admin 登录、房间资料和粉丝档案共用 [shared/bilibili-avatar.js](../
 </span>
 ```
 
-单位包含在输入框的可访问名称中，装饰后缀不重复朗读。默认 `--number-field-unit-space: 36px`、`--number-field-unit-inset: 12px`，消费者按实际单位长度和宽度覆盖；点歌规则双列分别用 28px / 8px，小时数用 40px / 10px。页面继续拥有范围、空值语义、错误提示与自动保存，组件只负责外观。
-
-数字框还用于通知金额、内置及导入礼物触发金额、播放器外观、加班初始时长、基础歌词参数及预览尺寸、电音助手变速数值。原生 input 的 ID、精度、范围、事件及各自空值含义不变；页面布局只设置所需宽度和单位留白。
-
-`renderSaveStatus(element, state, message?)` 使用 `idle`、`loading`、`pending`、`saving`、`saved`、`error` 状态；可覆盖业务文案，设置 `role="status"` 与礼貌播报，不发请求或控制隐藏。`component-save-feedback.js` 将既有组件控制器状态映射到该呈现。桌面歌词、弹幕、点歌板、开播、主播工作台、周表、盲盒及既有自动保存反馈均复用；原来成功后隐藏的提示仍隐藏。
-
-浮层继续复用 `--color-floating-surface`、`--color-bg-overlay-light` 与浮层／弹窗阴影；播放队列、播放抽屉的遮罩分别取主题遮罩的 40% 和 75%，礼物抽屉与选择窗使用完整遮罩。引导遮罩保持略浅于退出确认的层级。打开关闭、焦点管理及原生 dialog 行为仍由原控制器负责，无额外浮层运行时。
+`renderSaveStatus(element, state, message?)` 使用 `idle`、`loading`、`pending`、`saving`、`saved`、`error` 状态，设 `role="status"` 且不发请求；浮层统一复用 `--color-floating-surface`、`--color-bg-overlay-light` 与弹窗阴影（播放队列/抽屉遮罩分别取 40%/75%，礼物抽屉与选择窗使用完整遮罩）。
 
 ## 6. 静态资源
 
-| 资源                                                                                                                                                         | 说明                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `img/overtime-machine/`                                                                                                                                      | 加班机内置背景:`midnight-grid.svg`、`gift-placeholder.svg`(占位图),选型见 ADR [0005-built-in-overtime-backgrounds](../../architecture/adr/0005-built-in-overtime-backgrounds.md)                                                                                      |
-| `img/admin/gifts/bilibili-guard-*.webp`                                                                                                                       | 大航海(总督/提督/舰长)图标,加班机内置三档守护礼物                                                                                                                                                                                                     |
-| `img/playback/qqmusic-icon.webp` / `img/playback/player-turntable-chassis.webp` / `img/admin/gifts/gift-section-icon.webp` | 播放器/礼物面板图标                                                                                                                                                                                                                                   |
-| `data/theme-presets.json`                                                                                                                                    | 点歌板/歌单板主题预设，字段 schema 见 §6.1                                                                                                                                                                                                            |
-| `data/cache/overtime-gift-catalog-v2.json` / `data/cache/overtime-gift-images/` / `data/cache/overtime-gift-assets-state-v2.json`                            | 运行时用户数据，不属于 `public/` 静态资源；分别保存服务器付费礼物元数据、首次授权后按精确 ID 准备的图片缓存和版本化扫描完成状态，不进入源码或安装包                                                                                                   |
-| 字体                                                                                                                                                         | 管理界面沿用系统字体栈；所有字体选择入口共用 [font-catalog.js](../../../public/js/shared/font-catalog.js) 中的 19 款完整 OFL 字体，经 CDN 补齐后从本机缓存读取；来源、缓存与首次联网要求见[字体说明](../../../public/fonts/README.md)，可调字段见[播放器外观](playback.md#81-大播放器外观)。两个微型标题裁剪字体由各组件拥有并随安装包提供 |
+| 资源 | 说明 |
+| --- | --- |
+| `img/overtime-machine/` | 加班机内置背景：`midnight-grid.svg`、`gift-placeholder.svg`（占位图），选型见 [ADR-0005](../../architecture/adr/0005-built-in-overtime-backgrounds.md) |
+| `img/admin/gifts/bilibili-guard-*.webp` | 大航海（总督/提督/舰长）图标，加班机内置三档守护礼物 |
+| `img/playback/qqmusic-icon.webp` / `img/playback/player-turntable-chassis.webp` / `img/admin/gifts/gift-section-icon.webp` | 播放器/礼物面板图标 |
+| `data/theme-presets.json` | 点歌板/歌单板主题预设，字段 schema 见 §6.1 |
+| `data/cache/overtime-gift-catalog-v2.json` / `data/cache/overtime-gift-images/` / `data/cache/overtime-gift-assets-state-v2.json` | 运行时用户数据（不属于 `public/` 静态资源）：分别保存服务器付费礼物元数据、按精确 ID 缓存的图片及扫描状态，不进入源码或安装包 |
+| 字体 | 管理界面沿用系统字体栈；所有字体选择入口共用 [font-catalog.js](../../../public/js/shared/font-catalog.js) 中的 19 款完整 OFL 字体，经 CDN 补齐后从本机缓存读取（来源与许可见[字体说明](../../../public/fonts/README.md)，加载与重试机制见 [app.md](app.md#10-共享字体与资源下载)）；两个微型标题裁剪字体由各组件随安装包提供 |
 
-礼物主目录由当前配置直播间的 Bilibili 礼物面板、`giftConfig` 和已配置的在售盲盒展开产生。LIRA Server 全局礼物目录不增加主目录成员；首次授权后，本地运行时保存其金瓜子正价子集并按精确礼物 ID 准备全部图片，供全局本地搜索、盲盒、历史高价值礼物和已保存规则复用。同名不同 ID 保持各自映射。服务器或图片不可用时保留礼物条目并显示 `gift-placeholder.svg`。因此源码和安装包不包含 `img/bilibili-gifts.json`、`img/bilibili-gifts/` 或三份旧礼物 Markdown。
+礼物主目录由当前配置直播间的 Bilibili 礼物面板、`giftConfig` 和已配置的在售盲盒展开产生。LIRA Server 全局礼物目录不增加主目录成员；首次授权后，本地运行时保存其金瓜子正价子集并按精确礼物 ID 准备图片，供全局本地搜索、盲盒、历史高价值礼物和已保存规则复用（缺失显示 `gift-placeholder.svg`）。源码与安装包不包含 `img/bilibili-gifts.json`、`img/bilibili-gifts/` 或三份旧礼物 Markdown。
 
 ### 6.1 data/theme-presets.json 格式(唯一成文处)
 
-由 `shared/theme.js` 的 `loadThemeConfig()` 在页面启动时加载，主题配置由模块缓存并通过显式导出供消费者读取。
+由 `shared/theme.js` 的 `loadThemeConfig()` 在页面启动时加载，主题配置由模块缓存并通过显式导出供调用方读取。
 
 顶层结构示意（占位符表示类型，不是可解析的 JSON）：
 
@@ -433,33 +352,26 @@ Admin 登录、房间资料和粉丝档案共用 [shared/bilibili-avatar.js](../
 }
 ```
 
-`default` 保存默认主题值。`classic` 组的预设名（如 `pure`/`cream`/`sky`/`peach`/`mint`/`sakura`/`starry`/`ocean`/`sunset`/`cyber`/`gold`/`lavender`/`emerald`/`rose`）共 14 套；`songBoard` 组共 14 套（名称可能不同）。预设只保存当前表单和渲染器消费的字段。
+`default` 保存默认主题值。`classic` 组共 14 套预设，`songBoard` 组共 14 套预设，仅保存当前表单和渲染器使用的字段。
 
 `ThemeSnapshot`（点歌板预设）的 17 个键：
 
-| 分组      | 键                                                                                                                                                                   | 类型/值域       |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| 基色      | `themePrimary` / `themeAccent` / `themeText` / `themeBackground`                                                                                                     | `"#rrggbb"`     |
-| 面板      | `themeOpacity`(`"0.00"`–`"1.00"`) / `themeRadius`(px 字符串) / `backdropBlur`(px) / `glowIntensity`(界面范围 0–20)                                                             | string 数字     |
-| 渐变      | `enableGradient`(`"true"`/`"false"`) / `gradientEnd`(`"#rrggbb"`)                                                                                                   | string          |
-| 字体      | `overlayFontFamily`(CSS font-family) / `overlayFontWeight`(`"400"`–`"900"`)                                                                                          | string          |
-| 颜色      | `overlaySongColor` / `overlayRequesterColor`                                                                                                                         | `"#rrggbb"`     |
-| 字号      | `queueSongFontSize` / `queueTitleFontSize`                                                                                                                           | string 数字(px) |
-| 滚动      | `queueScrollSpeed`(像素/秒)                                                                                                                                        | string          |
+| 分组 | 键 | 类型/值域 |
+| --- | --- | --- |
+| 基色 | `themePrimary` / `themeAccent` / `themeText` / `themeBackground` | `"#rrggbb"` |
+| 面板 | `themeOpacity`（`"0.00"`–`"1.00"`） / `themeRadius`（px 字符串） / `backdropBlur`（px） / `glowIntensity`（界面范围 0–20） | string 数字 |
+| 渐变 | `enableGradient`（`"true"`/`"false"`） / `gradientEnd`（`"#rrggbb"`） | string |
+| 字体 | `overlayFontFamily`（CSS font-family） / `overlayFontWeight`（`"400"`–`"900"`） | string |
+| 颜色 | `overlaySongColor` / `overlayRequesterColor` | `"#rrggbb"` |
+| 字号 | `queueSongFontSize` / `queueTitleFontSize` | string 数字（px） |
+| 滚动 | `queueScrollSpeed`（像素/秒） | string |
 
 `default` 另含 `overlayLowPowerMode`、`overlayTitle`、`overlayShowIndex`、`overlayIndexThreshold`、`overlayIndexColor`、`queueFixedSixRows`、`queueScrollMode`，共 24 个键。
 
 `SongBoardSnapshot` 使用 `songBoardThemePrimary`、`songBoardThemeAccent`、`songBoardThemeText`、`songBoardThemeBackground`、`songBoardThemeOpacity`、`songBoardThemeRadius`、`songBoardBackdropBlur`、`songBoardGlowIntensity`、`songBoardEnableGradient`、`songBoardGradientEnd`、`songBoardFontFamily`、`songBoardFontWeight`、`songBoardSongColor`、`songBoardTitle`、`songBoardSongFontSize`、`songBoardTitleFontSize`、`scrollSeconds`，共 17 个键。`classicSwatches`/`songBoardSwatches` 每项为 4 元素数组 `["#背景","#主色","#强调色","#文字色"]`，用于预设选择器的色块预览。
 
-## 7. 礼物完整历史页面（Implemented）
+## 7. 礼物完整历史页面
 
-`gifts/history.js` 统一持有请求代次、分页、取消和重试；`gifts/history-view.js` 负责状态及行展示，沿用安全转义。`gifts/history-selection.js` 负责行点击和本页框选：点击行或勾选框切换单条选择；普通框选替换本页选择；Ctrl（或 Meta）框选按按下鼠标时的状态切换框内记录，框外及其他页保持原选择，缩小选框时恢复移出框记录的原状态。拖动计数分别显示本次新增和取消条数，结束后恢复只显示已选总数。
-
-客户端“最近礼物 → 查看全部”使用逐行礼物流水表：标题与操作按钮、时间/礼物/数量/金额/用户/备注六列表格、底部翻页。提供用户名称、礼物名称、开始/结束日期与单条金额严格大于门槛的筛选，以及今天/重置操作；默认读取全部历史，保留复合 keyset 翻页。支持跨页勾选、本页全选、选择全部筛选结果及导出所选，切换筛选会清除旧选择。不增加独立同步信息栏，数量位置只显示已读取的数量；未完成同步的空列表显示等待提示，确认同步完成后才显示“暂无礼物记录”。已有记录时更新提示位于标题下，加载失败保留当前列表；无记录时提示位于表格内，不重复展示底层错误。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。抽屉移除仅清理显示的操作；“清空全部记录”明确提示不可撤销，并先通过 Electron main 的 DeviceBearer 清空当前认证主播的服务器礼物 ledger/outbox，只有服务器成功后才清当前本地 source。清空结果与后续列表更新分别显示；无法确认远端结果时不承诺记录未删除。抽屉打开期间对来源未就绪、同步未完成、离线和读取失败自动重读，15 秒后降低重读频率并提供手动重试；手动重试只读取，不重复删除。关闭抽屉取消读取和定时器，失效响应不能覆盖新状态。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，通过显式依赖协作；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
-
-
-## 投票与评分页面
-
-`/interactions` → `public/pages/overlays/interactions.html` → `public/js/overlays/interactions.js`，只读浏览器源，推荐 800×600。「组件 → 弹幕投票 / 观众评分」分别由 `livePollFeature`、`liveRatingFeature` 承载，片段位于 `public/pages/admin/live-components/interactions.html`，由 `public/js/admin/interactions.js` 按需初始化一次。切换入口时复用同一编辑器、外观草稿与状态订阅，保留两种表单的未提交内容；另一种互动占用会话时提示返回对应组件结束或关闭结果。顶部地址操作、表单和右侧预览遵循组件页样式，独立链接使用实际本地端口。投票首次有效、评分末次有效；支持开始、提前结束/公布平均分、取消与关闭结果。小游戏与投票/评分进行中互斥，小游戏和互动的保留结果可同时展示。
-
-共同文本验证、布局估算在 `public/js/shared/interaction-rules.js`，同步代次在 `interaction-client.js`，安全文本结果行在 `interaction-view.js`。后台人数轮询随面板可见性启停；新场清掉旧结果，未结算均分留空。
+- **表格、筛选与框选**：`gifts/history.js` 统一管理请求代次、分页、取消与重试；`gifts/history-view.js` 负责状态与行展示（安全转义）；`gifts/history-selection.js` 负责行点击与本页框选（普通框选替换本页选择，Ctrl/Meta 框选按按下鼠标时的状态切换框内记录，拖动计数分别显示新增与取消条数）。「最近礼物 → 查看全部」展示时间/礼物/数量/金额/用户/备注六列表格，支持用户名称、礼物名称、日期区间与单条金额严格大于门槛的筛选，默认读取全部历史并沿用复合游标（keyset）翻页；支持跨页勾选、本页全选、选择全部筛选结果及导出所选（切换筛选清除旧选择）。统计摘要、排行和趋势归服务器网页承载。
+- **清空与自动重读**：抽屉移除仅清理显示的操作；「清空全部记录」明确提示不可撤销，并先经 Electron 主进程携带 DeviceBearer 清空当前认证主播在服务端的礼物账本与发件箱（ledger/outbox），待服务端确认成功后再清理当前本地数据源（清空结果与后续列表更新分别显示，无法确认远端结果时不保证已删除）。抽屉打开期间对来源未就绪、同步未完成、离线和读取失败自动重读，15 秒后降频并提供手动重试（手动重试只读不删）；关闭抽屉取消读取和定时器，过期响应不覆盖新状态。
+- **权限边界**：抽屉仅调用当前本地数据源的 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。

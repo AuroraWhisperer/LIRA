@@ -47,9 +47,9 @@ let pendingInstall = null;
 
 function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   _onStateChange = onStateChange || null;
-  const configuredUpdater = updater || getAutoUpdater();
   const log = typeof writeLog === 'function' ? writeLog : () => {};
   _writeLog = log;
+  const configuredUpdater = updater || getAutoUpdater();
 
   // electron-builder writes the packaged feed to resources/app-update.yml.
   configuredUpdater.autoDownload = true;
@@ -302,5 +302,6 @@ module.exports = {
   downloadUpdate,
   installUpdate,
   getUpdateState: () => updateState,
+  reportUpdateError: handleUpdateError,
   friendlyUpdateError,
 };

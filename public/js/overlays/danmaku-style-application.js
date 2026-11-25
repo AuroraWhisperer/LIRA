@@ -62,6 +62,12 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
     document.body.dataset[key] = options[key] || '';
   }
   const root = document.documentElement.style;
+  if (style === 'charm-thread') {
+    document.body.dataset.threadAlign = options.threadAlign;
+    document.body.dataset.threadCharm = options.threadCharm;
+    document.body.dataset.threadEntrance = options.threadEntrance;
+    root.setProperty('--thread-entry-duration', `${options.threadEntranceMs}ms`);
+  }
   root.setProperty('--charm-gap', `${options.charmGap ?? 32}px`);
   root.setProperty('--charm-max-width', `${options.charmMaxWidth ?? 560}px`);
   root.setProperty('--astral-custom-accent', options.astralAccentColor || '#f7e68b');

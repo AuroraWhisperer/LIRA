@@ -19,6 +19,7 @@ async function createFixture() {
       this.classList = { add() {}, remove() {}, toggle() {} };
     }
     get isConnected() { return this === document.body || !!this.parentNode?.isConnected; }
+    get childElementCount() { return this.children.length; }
     get elements() { return this.querySelectorAll('select'); }
     append(...nodes) {
       for (const node of nodes) {

@@ -44,6 +44,10 @@ function createComponentStyleIndex(root) {
   let cached;
   let indexedStyles;
   let indexedMedia;
+  function directoryStamp() {
+    const stat = fs.statSync(root, { bigint: true, throwIfNoEntry: false });
+    return stat ? `${stat.ino}:${stat.mtimeNs}:${stat.ctimeNs}` : 'missing';
+  }
   function fingerprint() {
     return ['index.json', 'index.backup.json'].map(filename => {
       try {
@@ -85,7 +89,8 @@ function createComponentStyleIndex(root) {
     } catch { backupCurrent = false; }
   }
   function readIndex() {
-    if (cached && fingerprint() === cached.fingerprint) return cached.index;
+    if (cached && (cached.emptyRoot !== undefined
+      ? directoryStamp() === cached.emptyRoot : fingerprint() === cached.fingerprint)) return cached.index;
     cached = null;
     indexedStyles = null;
     indexedMedia = null;
@@ -103,8 +108,15 @@ function createComponentStyleIndex(root) {
       try { atomicWrite(root, 'index.recovery.json', JSON.stringify(recovery)); } catch { recovery.noticePersisted = false; }
       return remember(backup.index);
     }
-    const installed = fs.existsSync(root) && fs.readdirSync(root).some(name => UUID.test(name));
-    if (primary.missing && backup.missing && !installed) return { version: 1, packages: [] };
+    if (primary.missing && backup.missing) {
+      const emptyRoot = directoryStamp();
+      if (emptyRoot === 'missing' || !fs.readdirSync(root).some(name =>
+        name === 'index.json' || name === 'index.backup.json' || UUID.test(name))) {
+        cached = { emptyRoot, index: { version: 1, packages: [] } };
+        backupCurrent = false;
+        return cached.index;
+      }
+    }
     throw unavailable();
   }
   const owner = {

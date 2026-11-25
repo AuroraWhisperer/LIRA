@@ -59,11 +59,6 @@
   transition: background 160ms ease;
 }
 
-.overlay-panel.has-backdrop-blur .song-card {
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-}
-
 .song-card strong {
   flex: 1 1 auto;
   min-width: 0;

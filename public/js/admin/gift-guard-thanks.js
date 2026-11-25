@@ -1,17 +1,16 @@
 // 组件 → 礼物姬 → 大航海感谢：各风格独立的设置与画布预览入口。
 'use strict';
 
+import { openOrCreateCanvasItem } from './canvas-item-entry.js';
 import { api, toast } from '../shared/utils.js';
 import { GUARD_THANKS_EFFECTS, readGuardThanksEffect, readNauticalGuardEnabled } from '../shared/guard-thanks-settings.js';
 import { previewElement } from './component-preview-elements.js';
-import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
-import { prepareComponentPreviews } from './component-preview-registry.js';
-import { getActiveComponentPreview } from './component-preview-session.js';
 import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scene-extra-components.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 import { bindComponentAutosave } from './settings-autosave.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 
 const settingIds = GUARD_THANKS_EFFECTS.flatMap(({ prefix }) => [`${prefix}Enabled`, `${prefix}TextMode`]);
 const controllers = new Map();
@@ -99,27 +98,20 @@ async function playPreview(effect) {
   setStatus(effect, '', '');
   button.disabled = true;
   try {
-    const entries = await prepareComponentPreviews();
-    const canvas = entries.find(entry => entry.id === 'canvas');
-    if (!canvas?.controller.getState().loaded) throw new Error('画布尚未准备完成，请稍后重试。');
-    await getActiveComponentPreview('browser-preview')?.syncCanvas();
-    const document = canvas.controller.getState().draft.document;
-    let item = document.items.find(item => item.type === 'guard-thanks'
-      && item.appearance.config?.style === effect.style
-      && !item.appearance.config.mediaStyle && !item.appearance.config.resourceStyle);
-    if (!item) {
-      if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
-      const [defaultWidth, defaultHeight] = SCENE_EXTRA_COMPONENTS['guard-thanks'].size;
-      const width = Math.min(defaultWidth, document.canvas.width);
-      const height = Math.min(defaultHeight, document.canvas.height);
-      item = { id: crypto.randomUUID(), type: 'guard-thanks', name: `大航海感谢 · ${effect.label}`,
-        x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
-        width, height, visible: true, locked: false,
-        appearance: { mode: 'independent', config: { ...createSceneExtraDefaults('guard-thanks'), style: effect.style } } };
-      document.items.push(item);
-      canvas.controller.edit({ document });
-    }
-    openComponentPreview({ id: 'guard-thanks', previewData, selectedItemId: item.id });
+    await openOrCreateCanvasItem({ type: 'guard-thanks', previewData,
+      findItem: items => items.find(item => item.type === 'guard-thanks'
+        && item.appearance.config?.style === effect.style
+        && !item.appearance.config.mediaStyle && !item.appearance.config.resourceStyle),
+      createItem(document) {
+        const [defaultWidth, defaultHeight] = SCENE_EXTRA_COMPONENTS['guard-thanks'].size;
+        const width = Math.min(defaultWidth, document.canvas.width);
+        const height = Math.min(defaultHeight, document.canvas.height);
+        return { id: crypto.randomUUID(), type: 'guard-thanks', name: `大航海感谢 · ${effect.label}`,
+          x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
+          width, height, visible: true, locked: false,
+          appearance: { mode: 'independent', config: { ...createSceneExtraDefaults('guard-thanks'), style: effect.style } } };
+      },
+    });
   } catch (error) {
     setStatus(effect, error.message || '无法打开画布，请稍后重试。', 'error');
   } finally {
@@ -150,9 +142,8 @@ async function saveSettings(effect) {
 function setStatus(effect, message = '', state = '') {
   const node = field(effect, 'SaveState');
   const current = controllers.get(effect.prefix).getStatus();
-  node.textContent = message || current.error || (current.saving ? '正在保存…'
-    : current.dirty ? '有未保存修改，点击“保存设置”后生效。' : '');
-  node.dataset.state = state || (current.error ? 'error' : current.dirty ? 'pending' : '');
+  renderSaveStatus(node, state || (current.error ? 'error' : current.saving ? 'saving' : current.dirty ? 'pending' : 'idle'),
+    message || current.error || (current.saving ? '正在保存…' : current.dirty ? '等待自动保存…' : ''));
 }
 
 export function mountNauticalGuardToggle(host) {
@@ -166,13 +157,13 @@ export function mountNauticalGuardToggle(host) {
   window.addEventListener('app:settings-state', receive);
   input.addEventListener('change', async () => {
     const enabled = input.checked;
-    input.disabled = true; status.textContent = '正在保存…';
+    input.disabled = true; renderSaveStatus(status, 'saving');
     try {
       await api('/api/settings', { guardThanksNauticalEnabled: String(enabled) }, { notifyError: false });
       currentSettings = { ...currentSettings, guardThanksNauticalEnabled: String(enabled) };
-      status.textContent = enabled ? '已启用' : '已关闭';
+      renderSaveStatus(status, 'saved', enabled ? '已启用' : '已关闭');
     } catch {
-      input.checked = !enabled; status.textContent = '启用设置未保存，请重试。';
+      input.checked = !enabled; renderSaveStatus(status, 'error', '启用设置未保存，请重试。');
     } finally { input.disabled = false; }
   });
   return { dispose() { window.removeEventListener('app:settings-state', receive); label.remove(); status.remove(); } };

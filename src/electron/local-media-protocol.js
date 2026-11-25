@@ -4,17 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Readable } = require('node:stream');
 
-const MIME_TYPES = {
-  '.mp3': 'audio/mpeg',
-  '.flac': 'audio/flac',
-  '.wav': 'audio/wav',
-  '.aac': 'audio/aac',
-  '.ogg': 'audio/ogg',
-  '.m4a': 'audio/mp4',
-  '.wma': 'audio/x-ms-wma',
-};
+const { LOCAL_AUDIO_MIME_TYPES, LOCAL_AUDIO_EXTENSIONS } = require('./local-audio-formats');
 
-function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, getDesktopBaseUrl = () => '') {
+function registerLocalMediaProtocol(protocol, isCanonicalAllowed, getDesktopBaseUrl = () => '') {
   protocol.handle('local-media', async function (request) {
     // Parse URL: local-media://media/<base64url-encoded-path>
     let urlPath = '';
@@ -31,25 +23,25 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, getDes
       return new Response('Invalid path encoding', { status: 400 });
     }
 
-    if (!filePath || !fs.existsSync(filePath)) {
+    if (!filePath) {
       return new Response('File not found', { status: 404 });
     }
 
     // Canonicalize path to prevent symlink escapes
     let canonicalPath;
     try {
-      canonicalPath = fs.realpathSync(filePath);
+      canonicalPath = await fs.promises.realpath(filePath);
     } catch (_) {
       return new Response('File not found', { status: 404 });
     }
 
-    if (!isPathAllowedForLocalMedia(canonicalPath)) {
+    if (!isCanonicalAllowed(canonicalPath)) {
       return new Response('Forbidden', { status: 403 });
     }
 
     // Enforce audio extension whitelist at protocol boundary
     const ext = path.extname(canonicalPath).toLowerCase();
-    if (!['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma'].includes(ext)) {
+    if (!LOCAL_AUDIO_EXTENSIONS.includes(ext)) {
       return new Response('Forbidden', { status: 403 });
     }
 
@@ -64,7 +56,7 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, getDes
     }
     if (!stat.isFile()) return new Response('Not a file', { status: 404 });
     const fileSize = stat.size;
-    const contentType = MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    const contentType = LOCAL_AUDIO_MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
     let cors = {};
     try {
       const origin = new URL(getDesktopBaseUrl()).origin;

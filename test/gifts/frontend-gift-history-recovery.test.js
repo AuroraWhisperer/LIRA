@@ -18,6 +18,24 @@ const UNAVAILABLE = {
   error: '当前礼物来源尚未就绪。',
 };
 
+test('a visible history poll reconciles totals without formatting 100 unchanged rows', async () => {
+  const ui = await createFixture();
+  const items = Array.from({ length: 100 }, (_, index) => ({ eventId: String(index),
+    gift: { createdAt: 1700000000000 + index, giftName: '星星', num: 1 } }));
+  const data = { ...LIVE_EMPTY, items, total: 100, totalPages: 1 };
+  ui.open();
+  await ui.reply({ ok: true, data });
+  assert.equal(ui.datesFormatted(), 100);
+  ui.runTimer();
+  await ui.reply({ ok: true, data: { ...data, total: 101, totalPages: 2 } });
+  assert.equal(ui.datesFormatted(), 100);
+  assert.match(ui.get('giftHistoryPageInfo').textContent, /1\/2/);
+  ui.runTimer();
+  items[49].gift.giftName = '更正的礼物';
+  await ui.reply({ ok: true, data });
+  assert.match(ui.body(), /更正的礼物/);
+});
+
 test('gift history recovers an empty ledger without receiving a gift', async () => {
   const ui = await createFixture();
   ui.open();
@@ -39,6 +57,13 @@ test('gift history recovers an empty ledger without receiving a gift', async () 
     true,
   );
   ui.runTimer();
+  const late = ui.requests.at(-1);
+  ui.setHidden(true);
+  assert.equal(late.options.signal.aborted, true);
+  assert.equal(ui.timers.size, 0);
+  const reads = ui.requests.length;
+  ui.setHidden(false);
+  assert.equal(ui.requests.length, reads + 1);
   await ui.reply({
     ok: true,
     data: {
@@ -47,9 +72,13 @@ test('gift history recovers an empty ledger without receiving a gift', async () 
       items: [{ eventId: 'new', gift: { giftName: '新收到的礼物' } }],
     },
   });
+  await ui.reply({ ok: true, data: LIVE_EMPTY }, 200, late);
   assert.match(ui.body(), /新收到的礼物/);
   ui.close();
   assert.equal(ui.timers.size, 0);
+  ui.setHidden(true);
+  ui.setHidden(false);
+  assert.equal(ui.requests.length, reads + 1);
 });
 
 test('slow gift history recovery exposes retry and cancels work on close', async () => {

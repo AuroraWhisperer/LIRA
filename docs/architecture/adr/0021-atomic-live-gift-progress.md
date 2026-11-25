@@ -1,51 +1,33 @@
-# ADR-0021: Atomic Live Gift Progress
+# ADR-0021: 实时礼物终态与同步游标原子提交
 
-- Status: Accepted
-- Date: 2026-09-28
-- Refines the live reception portion of [ADR-0011](0011-source-partitioned-gift-ledger-projection.md).
+## 状态
 
-## Context
+已采纳（2026-09-28，细化 [ADR-0011](0011-source-partitioned-gift-ledger-projection.md) 的实时接收部分）
 
-A healthy final SSE already carries the canonical settled record, but immediate
-import leaves its durable cursor unchanged and triggers an HTTP read of the
-same event. The user authorized reducing this repeated transfer while retaining
-server gift detection and recovery behavior.
+## 背景
 
-## Decision
+健康的终态（`final`）SSE 事件本身已携带规范的结算记录，但此前实时导入后持久化游标并未随之推进，导致每条终态礼物都会再触发一次针对同一事件的 HTTP 拉取。为消除这部分重复传输，同时不削弱服务端权威礼物检测与恢复语义，需要对实时提交路径做原子化增强。
 
-Use the existing synchronous gift-sync-store transaction to commit a contiguous
-final and its cursor together when bootstrap is complete, the current stream is
-epoch-validated, and the controller is clean LIVE without pending recovery.
-Dispatch consumers after commit. Ignore already committed cursors on that
-validated path. Failure, gaps and recovery use the existing serialized HTTP path.
-Aborted/replaced streams and stale source/auth/projection generations cannot write.
+## 决策
 
-This extends ADR-0011's description of SSE as an acceleration hint: a validated
-contiguous final can also advance durable progress. HTTP remains authoritative
-for bootstrap, reconnect/gap recovery and periodic reconciliation. An SSE commit
-updates the observed cursor but not the last HTTP validation timestamp or the
-10-second reconciliation deadline.
+复用既有同步 `gift-sync-store` 事务：当历史初始化已完成、当前实时流已通过纪元（`epoch`）校验且控制器处于无待恢复积压的正常实时态（`LIVE`）时，将序号连续的终态记录与持久化游标在同一事务中原子提交，提交后再派发本地业务消费者。在该校验路径上自动忽略已提交过的旧游标；遇到失败、序号缺口或需要恢复时仍回退至既有串行 HTTP 拉取路径。沿用 [ADR-0011](0011-source-partitioned-gift-ledger-projection.md) 的防护校验（fence），已中止或被替换的流及过期的来源/授权/投影代次（`generation`）一律禁止写入。
 
-## Consequences
+本决策扩展了 ADR-0011 将 SSE 仅作加速通知的定位：经校验的连续终态记录可直接推进持久化同步进度，但 HTTP 依然是初始化同步、断线/缺口恢复及周期核对的权威通道。SSE 提交仅推进已观察到的最新游标，不刷新上次 HTTP 校验时间戳，也不推迟 10 秒周期核对期限。
 
-Normal final events no longer require a second download. Cursor durability and
-post-commit effects use the existing transaction, without a schema, runtime
-bridge or dependency change. Local source changes during delivery are fenced
-before publishing state. Existing consumer retry/idempotency remains necessary;
-this decision does not promise exactly-once execution of external effects.
+## 影响
 
-Server detector, amounts, combo handling, finalization and wire fields remain
-owned by their current implementations. Legacy mode and initial-history behavior
-are retained. No release or server deployment is part of this change.
+常规终态事件不再需要二次 HTTP 下载；游标持久化与提交后副作用复用既有事务，无需改动数据库表结构、运行时桥接或依赖。派发过程中若发生本地来源切换，在对外暴露状态前即通过防护校验隔离。既有消费者的重试与幂等保护仍不可缺少，本决策不保证外部副作用严格只执行一次。
 
-## Alternatives
+服务端检测器、金额计算、连击处理、终态裁定与传输字段均维持原实现；遗留兼容模式与历史初始化行为保持不变。本变更不涉及单独发版或服务端部署。
 
-A fixed debounce delays recovery and only reduces requests close enough in time.
-Keeping per-final pulls repeats data that can already be committed safely.
-Removing periodic checks would weaken recovery from a silently missed last event.
+## 备选方案
 
-## References
+- **固定防抖延迟拉取**：既会拖慢恢复时效，又只能合并极短间隔内的请求。
+- **维持每条终态后再发 HTTP 拉取**：重复传输已可安全落库的数据。
+- **取消 10 秒周期核对**：会削弱对最后一条事件静默丢失场景的兜底恢复能力。
 
-- [Projection sync requirements and acceptance](../../../specs/gift-ledger-projection-sync_design.md)
-- [Controller](../../../src/electron/remote-gift-controller.js)
-- [SQLite-backed controller regressions](../../../test/gifts/remote-gift-controller-commit.test.js)
+## 参考
+
+- [礼物账本投影同步规格](../../../specs/gift-ledger-projection-sync_design.md)
+- [远端礼物控制器](../../../src/electron/remote-gift-controller.js)
+- [基于 SQLite 的控制器提交回归测试](../../../test/gifts/remote-gift-controller-commit.test.js)

@@ -1,3 +1,4 @@
+import { requestApiData } from '../shared/json-request.js';
 import {
   BANNER_HEIGHT,
   BANNER_GAP,
@@ -13,7 +14,7 @@ import {
   scanTodayGifts,
   shanghaiToday,
 } from '../shared/gift-feed-state.js';
-import { createOverlaySocket } from './socket-client.js';
+import { createOverlaySocket, snapshotReasons } from './socket-client.js';
 import { buildGiftCards } from '../shared/gift-card-model.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient, sceneAvatarSource } from './scene-extra-client.js';
@@ -53,23 +54,8 @@ let profileSnapshot = null;
 let cardSnapshot = null;
 let cardMinimum = null;
 
-async function request(url, signal) {
-  // Browser sources may use a Chromium version without AbortSignal.any/timeout.
-  const requestController = new AbortController();
-  const abort = () => requestController.abort();
-  if (signal.aborted) abort();
-  else signal.addEventListener('abort', abort, { once: true });
-  const timeout = setTimeout(abort, 10000);
-  try {
-    const response = await fetch(url, { signal: requestController.signal });
-    const result = await response.json();
-    if (!response.ok || !result.ok)
-      throw Object.assign(new Error(result.error || '本日礼物暂未更新'), { code: result.code });
-    return result.data;
-  } finally {
-    clearTimeout(timeout);
-    signal.removeEventListener('abort', abort);
-  }
+function request(url, signal) {
+  return requestApiData(url, { signal, errorMessage: '本日礼物暂未更新' });
 }
 
 function render(retryAvatars = false) {
@@ -275,11 +261,11 @@ const socket = createOverlaySocket({
     const next = payload.state?.gifts?.viewRevision;
     const sourceChanged = next !== undefined && next !== revision;
     if (sourceChanged) reset();
-    const reason = payload.reason || '';
-    if (sourceChanged || payload.type === 'gift-catalog:update' || /gift|settings|connect/.test(reason)) {
+    const reasons = snapshotReasons(payload);
+    if (sourceChanged || payload.type === 'gift-catalog:update' || reasons.some(reason => /gift|settings|connect/.test(reason))) {
       scheduleRefresh({
-        settings: sourceChanged || /settings|connect/.test(reason),
-        catalog: sourceChanged || payload.type === 'gift-catalog:update' || /connect/.test(reason),
+        settings: sourceChanged || reasons.some(reason => /settings|connect/.test(reason)),
+        catalog: sourceChanged || payload.type === 'gift-catalog:update' || reasons.includes('connect'),
       });
     }
   },
@@ -318,23 +304,34 @@ if (component) {
   componentResize = new ResizeObserver(fit);
   componentResize.observe(document.documentElement);
   fit();
-} else { socket.start(); scheduleRefresh(); }
-const reconcileTimer = component ? null : setInterval(() => scheduleRefresh({ settings: true, catalog: true }), 30000);
-const dayTimer = component ? null : setInterval(() => {
+} else { socket.start(); }
+let reconcileTimer;
+function reconcile() {
+  clearTimeout(reconcileTimer);
+  if (component || disposed || document.hidden) return;
   const nextDay = shanghaiToday();
   if (day !== nextDay) {
     day = nextDay;
     reset();
-    scheduleRefresh();
   }
-}, 1000);
+  scheduleRefresh({ settings: true, catalog: true });
+  const midnight = Date.parse(`${day}T00:00:00+08:00`) + 86400000;
+  reconcileTimer = setTimeout(reconcile, Math.min(30000, Math.max(1, midnight - Date.now())));
+}
+reconcile();
 document.addEventListener('visibilitychange', () => {
+  if (disposed) return;
   if (document.hidden) {
     stage.classList.remove('is-playing');
     stopScrolling();
+    clearTimeout(reconcileTimer);
+    clearTimeout(refreshTimer);
+    refreshTimer = null;
+    generation += 1;
+    controller?.abort();
   } else {
+    reconcile();
     render();
-    scheduleRefresh({ settings: true, catalog: true });
   }
 });
 window.addEventListener(
@@ -343,8 +340,7 @@ window.addEventListener(
     disposed = true;
     reset();
     socket.dispose();
-    clearInterval(dayTimer);
-    clearInterval(reconcileTimer);
+    clearTimeout(reconcileTimer);
     clearTimeout(refreshTimer);
   },
   { once: true },

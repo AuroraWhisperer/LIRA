@@ -14,7 +14,6 @@ const { FakeNode } = require('../helpers/fake-dom');
 const ROOT_DIR = path.join(__dirname, '../..');
 const QUEUE_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js');
 const QUEUE_RENDER_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue-render.js');
-const QUEUE_STYLE_SETTINGS_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'shared', 'queue-style-settings.js');
 
 function createFakeList() {
   const classes = new Set(['paused']);
@@ -139,7 +138,10 @@ const BASE_SETTINGS = {
 test('every queue theme renders all queued songs and escapes viewer text', async () => {
   const dom = createQueueDom();
   const render = await loadQueueOverlay(dom);
-  const current = { song_name: '<img src=x onerror=alert(1)>当前', requester_name: '<b>观众A</b>' };
+  const current = {
+    song_name: '<em>当前</em>', requester_name: '<b>观众A</b>',
+    requester_medal_name: '<i>灯牌</i>', requester_medal_level: 26,
+  };
   const waiting = [
     { song_name: '下一首', requester_name: '观众B' },
     { song_name: '第三首', requester_name: '观众C' },
@@ -154,8 +156,10 @@ test('every queue theme renders all queued songs and escapes viewer text', async
   ]) {
     render[name]({ ...BASE_SETTINGS, overlayQueueStyle: style }, current, waiting, dom.content, []);
     const html = dom.content.innerHTML;
-    assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;当前/, name);
-    assert.doesNotMatch(html, /<img src=x|<b>观众A/, `${name} must not inject viewer markup`);
+    assert.match(html, /&lt;em&gt;当前&lt;\/em&gt;/, name);
+    assert.match(html, /&lt;b&gt;观众A&lt;\/b&gt;/, name);
+    if (style !== 'classic') assert.match(html, /&lt;i&gt;灯牌&lt;\/i&gt;/, name);
+    assert.doesNotMatch(html, /<em>当前|<b>观众A|<i>灯牌/, name);
     waiting.forEach((item) => assert.ok(html.includes(item.song_name), `${name} keeps ${item.song_name}`));
   }
 });
@@ -238,64 +242,6 @@ test('queue preview updates orientation when switching resource packages with th
     assert.equal(renders, before, 'identical configuration preserves the rendered queue');
   }
   windowListeners.get('pagehide')();
-});
-
-test('queue style settings resolve and persist only the selected style', async () => {
-  const namespace = await loadModuleExports(QUEUE_STYLE_SETTINGS_ENTRY, {});
-  const settings = {
-    identityQueueFontSize: '26',
-    neonVinylQueueFontSize: '41',
-    neonVinylQueueFontFamily: 'KaiTi, serif',
-    neonVinylQueueScrollMode: 'loop',
-    neonVinylQueueScrollSpeed: '64',
-    cherryRibbonQueueFontSize: '22',
-  };
-
-  const neon = namespace.resolveQueueStyleSettings(settings, 'neon-vinyl');
-  assert.equal(neon.identityQueueFontSize, '41');
-  assert.equal(neon.illustratedQueueFontFamily, 'KaiTi, serif');
-  assert.equal(neon.queueScrollMode, 'loop');
-  assert.equal(neon.identityQueueScrollSpeed, '64');
-  assert.equal(namespace.resolveQueueStyleSettings(settings, 'cherry-ribbon').identityQueueFontSize, '22');
-
-  const payload = namespace.queueStyleSettingsPayload('neon-vinyl', {
-    fontSize: '44',
-    fontFamily: 'YouYuan',
-    scrollSpeed: '71',
-  });
-  assert.equal(payload.neonVinylQueueFontSize, '44');
-  assert.equal(payload.neonVinylQueueScrollSpeed, '71');
-  assert.equal(Object.prototype.hasOwnProperty.call(payload, 'cherryRibbonQueueFontSize'), false);
-  assert.equal(Object.prototype.hasOwnProperty.call(payload, 'identityQueueFontSize'), false);
-});
-
-test('classic and identity resolve independent fonts while preserving old snapshots', async () => {
-  const namespace = await loadModuleExports(QUEUE_STYLE_SETTINGS_ENTRY, {});
-  const settings = { overlayFontFamily: '"Lira Maiyuan"', identityQueueFontFamily: '"STKaiti"' };
-  assert.equal(namespace.resolveQueueStyleSettings(settings, 'classic').overlayFontFamily, '"Lira Maiyuan"');
-  assert.equal(namespace.resolveQueueStyleSettings(settings, 'identity').overlayFontFamily, '"STKaiti"');
-  assert.equal(namespace.resolveQueueStyleSettings({ overlayFontFamily: 'KaiTi' }, 'identity').overlayFontFamily, 'KaiTi');
-  assert.deepEqual({ ...namespace.queueStyleSettingsPayload('identity', { fontFamily: '"Lira Smiley"' }) },
-    { identityQueueFontFamily: '"Lira Smiley"' });
-});
-
-test('queue rows escape viewer medal text', async () => {
-  const render = await loadQueueOverlay(createQueueDom());
-  const item = {
-    song_name: '歌',
-    requester_name: '点歌人',
-    requester_guard_level: 0,
-    requester_medal_name: '<i>灯牌</i>',
-    requester_medal_level: 26,
-  };
-
-  for (const [style, row] of [
-    ['storybook', render.renderStorybookRow(item, 0)],
-    ['neon-vinyl', render.renderNeonVinylRow(item)],
-  ]) {
-    assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt;/, style);
-    assert.doesNotMatch(row, /<i>灯牌/, `${style} must not inject viewer markup`);
-  }
 });
 
 test('custom illustrated typography applies only to illustrated queue styles', async () => {

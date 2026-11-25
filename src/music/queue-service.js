@@ -44,10 +44,10 @@ function addQueueItem(context, input) {
   const canonicalName = matchedSong ? matchedSong.name : songName;
   const canonicalArtist = matchedSong ? matchedSong.artist : input.artist;
   const cooldownKey = songCooldownKey(canonicalName, canonicalArtist);
-  if (settings.songCooldownMode && settings.songCooldownMode !== 'off') {
-    assertSongAvailable(settings, store.getSongCooldown(cooldownKey, input.fanScope), canonicalName, acceptedAt);
-  }
-  if (settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName)) {
+  const cooldownEnabled = settings.songCooldownMode && settings.songCooldownMode !== 'off';
+  const duplicate = settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName);
+  if (duplicate) {
+    if (cooldownEnabled) assertSongAvailable(settings, store.getSongCooldown(cooldownKey, input.fanScope), canonicalName, acceptedAt);
     throw requestRejection('SONG_ALREADY_QUEUED', '队列里已经有这首歌。');
   }
   const isPinned = input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true' ? 1 : 0;
@@ -74,7 +74,7 @@ function addQueueItem(context, input) {
     pinnedAt: isPinned ? createdAt : '',
     createdAt,
   }, {
-    checkCooldown: (lastAcceptedAt) => assertSongAvailable(settings, lastAcceptedAt, canonicalName, acceptedAt),
+    checkCooldown: cooldownEnabled ? (lastAcceptedAt) => assertSongAvailable(settings, lastAcceptedAt, canonicalName, acceptedAt) : undefined,
     checkRequesterCount: userQueueLimit > 0 ? (count) => {
       if (count >= userQueueLimit) throw requestRejection('USER_QUEUE_FULL', `每人最多同时排队 ${userQueueLimit} 首，请等待已点歌曲完成后再点歌。`);
     } : undefined,

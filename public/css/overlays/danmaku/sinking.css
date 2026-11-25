@@ -140,18 +140,7 @@ body[data-style='sinking'] .sinking-event {
   font: 400 18px/1.4 var(--danmaku-ui-font);
 }
 body[data-style='sinking'] .draw-danmaku-emote { height: 1.5em; width: auto; vertical-align: middle; }
-body[data-style='sinking'] .sinking-bubbles { position: absolute; inset: 0; pointer-events: none; }
-body[data-style='sinking'] .sinking-bubble {
-  position: absolute;
-  left: 0;
-  top: 0;
-  transform-origin: 0 0;
-  opacity: 0;
-  border: 1px solid #c2e5e2b8;
-  background: radial-gradient(circle at 28% 24%, #efffff85, transparent 34%);
-  border-radius: 50%;
-  box-shadow: inset -1px -1px 1px #7ca4ad50;
-}
+body[data-style='sinking'] .sinking-bubbles { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='sinking'] .sinking-bubbles { display: none; }
 }

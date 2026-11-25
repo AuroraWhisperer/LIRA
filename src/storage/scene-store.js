@@ -26,17 +26,20 @@ function createSceneStore(db) {
   }
   return {
     getOutput(scope, id) {
-      const row = db.prepare(`SELECT published_json, published_version, capability_hash
-        FROM component_scenes WHERE owner_scope = ? AND id = ?`).get(scope, id);
       const key = JSON.stringify([scope, id]);
       let cached = publications.get(key);
+      const row = db.prepare(`SELECT published_version, capability_hash, body_token,
+        CASE WHEN body_token = ? THEN NULL ELSE published_json END AS published_json
+        FROM component_scenes WHERE owner_scope = ? AND id = ?`).get(cached?.token ?? null, scope, id);
       if (!row) { publications.delete(key); return null; }
-      if (!cached || cached.json !== row.published_json) {
-        cached = { json: row.published_json,
+      if (cached?.token !== row.body_token) {
+        cached = { token: row.body_token,
           document: row.published_json === null ? null : freezePublication(JSON.parse(row.published_json)) };
-        publications.delete(key);
-        publications.set(key, cached);
-        if (publications.size > 32) publications.delete(publications.keys().next().value);
+        if (!db.isTransaction) {
+          publications.delete(key);
+          publications.set(key, cached);
+          if (publications.size > 32) publications.delete(publications.keys().next().value);
+        }
       }
       return { publishedVersion: row.published_version, publishedDocument: cached.document,
         capability: { hash: row.capability_hash } };

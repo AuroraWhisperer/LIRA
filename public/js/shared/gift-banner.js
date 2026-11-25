@@ -1,5 +1,6 @@
 'use strict';
 
+import { bilibiliAvatarSource } from './bilibili-avatar.js';
 import { GIFT_PLACEHOLDER, bindGiftImage, resolveGiftImageSource } from './gift-image.js';
 import { fitTextToWidth } from './fit-text-to-width.js';
 import { bindGuardImage, getGuardAvatarFrame, getGuardIcon } from './bilibili-guard-icons.js';
@@ -60,10 +61,6 @@ export function resolveGiftArtwork(gift, catalog) {
   return artworkPath(path);
 }
 
-export async function loadGiftArtworkCatalog(signal) {
-  return (await requestGiftArtworkCatalog(signal))?.gifts || [];
-}
-
 export function createGiftArtworkCatalogReader() {
   let contentRevision;
   let catalog = [];
@@ -79,7 +76,7 @@ export function createGiftArtworkCatalogReader() {
   };
 }
 
-async function requestGiftArtworkCatalog(signal, query = '') {
+async function requestGiftArtworkCatalog(signal, query) {
   const response = await fetch('/api/overtime/gifts/catalog' + query, { signal });
   if (!response.ok) throw new Error('礼物图片目录暂不可用');
   return (await response.json()).data;
@@ -159,7 +156,7 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
   return textChanged;
 }
 
-function applyGiftBannerAppearance(root, config) {
+export function applyGiftBannerAppearance(root, config) {
   for (const key of ['tailStyle', 'textureStyle', 'sheen']) {
     const value = String(config[key] ?? DEFAULT_GIFT_BANNER_APPEARANCE[key]);
     if (root.dataset[key] !== value) root.dataset[key] = value;
@@ -168,9 +165,7 @@ function applyGiftBannerAppearance(root, config) {
 
 export function giftAvatarSource(value) {
   const token = globalThis.window?.__API_TOKEN__ || '';
-  return value
-    ? `/api/bilibili/avatar?url=${encodeURIComponent(value)}${token ? `&token=${encodeURIComponent(token)}` : ''}`
-    : AVATAR_PLACEHOLDER;
+  return bilibiliAvatarSource(value, token) || AVATAR_PLACEHOLDER;
 }
 
 function updateBannerImage(image, source, retry = false) {

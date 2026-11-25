@@ -38,6 +38,15 @@ test('HTML escaping retains falsy normalization and attribute-only backtick esca
   assert.equal(escapeHtml(true), 'true');
 });
 
+test('playback time formats seconds and milliseconds without exposing non-finite values', async () => {
+  const { formatTime, formatTimeMs } = await loadModuleExports(modulePath('playback/utils.js'));
+  assert.equal(formatTime(125.9), '02:05');
+  assert.equal(formatTimeMs(125900), '02:05');
+  assert.equal(formatTime(-1), '00:00');
+  assert.equal(formatTimeMs(Infinity), '00:00');
+  assert.equal(formatTimeMs('invalid'), '00:00');
+});
+
 test('money formatting rounds to cents and never displays invalid or negative amounts', async () => {
   const { formatMoney } = await loadModuleExports(modulePath('shared/display-format.js'));
   for (const [input, expected] of [[NaN, '¥0.00'], [-1, '¥0.00'], [1.236, '¥1.24']]) assert.equal(formatMoney(input), expected);

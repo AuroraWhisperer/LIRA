@@ -57,11 +57,15 @@ Function ${LIRA_UNINSTALL_PREFIX}liraRemoveApplicationFile
   Exch $R3
   Push $R4
   Push $R5
+  Push $R7
+  StrCpy $R7 0
+  liraApplicationFileCheck:
   ClearErrors
   System::Call 'kernel32::GetFileAttributesW(w "$R3") i .R4'
   IntCmp $R4 -1 liraApplicationFileDone
   IntOp $R4 $R4 & 0x10
-  StrCmp $R4 0 0 liraApplicationFileDone
+  StrCmp $R4 0 +2
+  StrCmp $R3 "$INSTDIR\${UNINSTALL_FILENAME}" liraApplicationFileFailed liraApplicationFileDone
   GetFullPathName $R5 "$R3\.."
   liraApplicationParent:
     StrCmp $R5 $INSTDIR liraApplicationFileDelete
@@ -74,8 +78,29 @@ Function ${LIRA_UNINSTALL_PREFIX}liraRemoveApplicationFile
     StrCpy $R5 $R4
     Goto liraApplicationParent
   liraApplicationFileDelete:
+    ; Keep NSIS handling for ordinary deletions, including read-only package files.
     Delete "$R3"
+    IfErrors 0 liraApplicationFileDone
+    StrCmp $R3 "$INSTDIR\${APP_EXECUTABLE_FILENAME}" liraApplicationExecutableDelete
+    StrCmp $R3 "$INSTDIR\${UNINSTALL_FILENAME}" 0 liraApplicationFileFailed
+  liraApplicationExecutableDelete:
+    System::Call 'kernel32::DeleteFileW(w "$R3") i .R4 ?e'
+    Pop $R5
+    StrCmp $R4 0 0 liraApplicationFileDone
+    StrCmp $R5 32 liraApplicationFileBusy liraApplicationFileFailed
+  liraApplicationFileBusy:
+    ; A reader can briefly deny delete sharing on the program or uninstaller.
+    StrCmp $R7 4 liraApplicationFileFailed
+    IntOp $R7 $R7 + 1
+    IntOp $R5 $R7 * 50
+    Sleep $R5
+    System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR") i .R4'
+    IntOp $R4 $R4 & 0x410
+    IntCmp $R4 0x10 liraApplicationFileCheck
+  liraApplicationFileFailed:
+    SetErrors
   liraApplicationFileDone:
+    Pop $R7
     Pop $R5
     Pop $R4
     Pop $R3
@@ -264,12 +289,7 @@ FunctionEnd
         ${EndIf}
     ${EndIf}
     ; Keep the original uninstaller available if any cleanup step needs a retry.
-    StrCpy $R6 "$INSTDIR\${UNINSTALL_FILENAME}"
-    IfFileExists "$R6" 0 liraUninstallerRemoved
-    ClearErrors
-    Delete "$R6"
-    IfErrors liraRemoveFailed
-    liraUninstallerRemoved:
+    !insertmacro liraRemoveApplicationFile "${UNINSTALL_FILENAME}"
     ; A retained data directory intentionally prevents removal of the parent.
     RMDir "$INSTDIR"
     Goto liraRemovalFinished

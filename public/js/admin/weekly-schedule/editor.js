@@ -34,6 +34,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   let saveTimer;
   let savePending = Promise.resolve();
   let frame;
+  let fitFrame;
   let unregisterFont = () => {};
   let exporting = false;
   let loading = false;
@@ -79,14 +80,19 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     const template = current();
     const art = renderWeeklySchedule(preview, template);
     resizePreview();
-    fitPreview();
     void Promise.all([
       root.ownerDocument.fonts.load(`32px ${template.fontId}`, art.textContent || '直播周表'),
       waitForWeeklyScheduleImages(art),
     ]).then(() => {
-      if (!disposed && generation === previewGeneration) { fitPreview(); imageInteraction.refresh(); }
+      if (!disposed && generation === previewGeneration) { queueFit(); imageInteraction.refresh(); }
     }).catch(error => {
-      if (!disposed && generation === previewGeneration) showError(error);
+      if (!disposed && generation === previewGeneration) { showError(error); queueFit(); }
+    });
+  }
+  function queueFit() {
+    if (!fitFrame && !disposed) fitFrame = requestAnimationFrame(() => {
+      fitFrame = null;
+      fitPreview();
     });
   }
   function fitPreview() {
@@ -274,14 +280,13 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     let target = current();
     for (const part of parts.slice(0, -1)) target = target[part];
     const key = parts.at(-1);
-    const value = input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value;
-    if (path === 'monday' && !input.value) { input.value = current().monday; return; }
+    let value = input.type === 'checkbox' ? input.checked : input.type === 'range' ? Number(input.value) : input.value;
+    if (path === 'monday') {
+      if (!value) return;
+      value = getWeekDates(value)[0];
+    }
     if (target[key] === value) return;
     target[key] = value;
-    if (path === 'monday') {
-      current().monday = getWeekDates(input.value)[0];
-      input.value = current().monday;
-    }
     const exact = fields.querySelector(`[data-weekly-number="${path}"]`);
     if (exact) exact.value = input.value;
     if (path === 'monday' || path.startsWith('days.')) updateDaySummaries();
@@ -448,6 +453,10 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     const input = event.target.closest('[data-weekly-field]');
     if (input && input.tagName !== 'SELECT' && input.type !== 'checkbox' && input.type !== 'date') readField(input);
   }
+  function onFocusOut(event) {
+    // Chromium emits change while the user is still typing a native date segment.
+    if (event.target.matches('[data-weekly-field="monday"]') && state) event.target.value = current().monday;
+  }
   function onChange(event) {
     const input = event.target;
     if (input.matches('[data-weekly-image-select]')) selectImage(input.value);
@@ -537,15 +546,15 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   }
   root.addEventListener('input', onInput);
   root.addEventListener('change', onChange);
+  root.addEventListener('focusout', onFocusOut);
   root.addEventListener('click', onClick);
   root.addEventListener('keydown', onKeyDown);
   root.ownerDocument.addEventListener('keydown', onEscape);
   window.addEventListener('pagehide', flush);
-  const resize = new ResizeObserver(() => { resizePreview(); fitPreview(); });
+  const resize = new ResizeObserver(() => { resizePreview(); queueFit(); });
   resize.observe(stage);
   const titlebar = root.ownerDocument.querySelector('.topbar');
   if (titlebar) resize.observe(titlebar);
-  root.ownerDocument.fonts.addEventListener('loadingdone', fitPreview);
   await load();
   return {
     dispose() {
@@ -555,12 +564,13 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       disposed = true;
       clearTimeout(saveTimer);
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(fitFrame);
       resize.disconnect();
       unregisterFont();
       disposeParameterRanges(fields);
-      root.ownerDocument.fonts.removeEventListener('loadingdone', fitPreview);
       root.removeEventListener('input', onInput);
       root.removeEventListener('change', onChange);
+      root.removeEventListener('focusout', onFocusOut);
       root.removeEventListener('click', onClick);
       root.removeEventListener('keydown', onKeyDown);
       root.ownerDocument.removeEventListener('keydown', onEscape);

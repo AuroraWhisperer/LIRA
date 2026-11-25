@@ -17,7 +17,9 @@ function wishRoute(action, service = 'giftWishes') {
           error: '礼物来源不能由页面指定。',
         });
       }
-      const data = await context[service][action](body);
+      const input = service === 'giftWishes' && action === 'getSnapshot' && request.query?.get('includeSession') === '0'
+        ? { includeSession: false } : body;
+      const data = await context[service][action](input);
       if (action !== 'getSnapshot') {
         context.broadcastSnapshot(service === 'heartBoxCollection' ? 'gift:heart-box-collection' : 'gift:wishes');
       }

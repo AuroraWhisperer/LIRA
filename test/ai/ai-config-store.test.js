@@ -313,9 +313,10 @@ test('AI config accepts a QWeather host without an HTTPS scheme', () => {
   assert.throws(() => store.updateConfig({ qweatherApiHost: 'javascript://alert' }), /HTTP/);
 });
 
-test('AI context, cache and blacklist use TTL and bound keys', () => {
+test('AI context, cache and blacklist use TTL and bound keys', (t) => {
   let now = 1000;
-  const { store } = createStore({ now: () => now });
+  const { db, store } = createStore({ now: () => now });
+  t.after(() => db.close());
   store.setContext('42', { city: '苏州' }, 10);
   store.setCache('weather 苏州', { text: '晴' }, 10);
   store.setBlacklist('42', true, { userName: 'Alice', reason: 'spam' });
@@ -325,6 +326,9 @@ test('AI context, cache and blacklist use TTL and bound keys', () => {
   now = 12000;
   assert.equal(store.getContext('42'), null);
   assert.equal(store.getCache('weather 苏州'), null);
+  db.exec('DELETE FROM ai_blacklist');
+  assert.equal(store.isBlacklisted('42'), false);
+  store.setBlacklist('42', true);
   store.setBlacklist('42', false);
   assert.equal(store.isBlacklisted('42'), false);
 });

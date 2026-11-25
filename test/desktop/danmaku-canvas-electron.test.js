@@ -48,6 +48,14 @@ test('danmaku favorites synchronize between the desktop and external canvas with
   await page.locator('.component-preview-frame').waitFor();
   const appearanceWrites = await app.evaluate(() => global.canvasTest.attempts);
   await desktop.locator('#danmakuAllStylesBtn').click();
+  const neonGlass = desktop.locator('#danmakuStyleLibrary [data-danmaku-style="neon-glass"]');
+  await desktop.locator('#danmakuFixedStyleTab').click();
+  assert.equal(await neonGlass.isVisible(), true);
+  await desktop.locator('#danmakuHorizontalStyleTab').click();
+  assert.equal(await neonGlass.isVisible(), false);
+  assert.equal(await desktop.locator('#danmakuStyleLibrary [data-danmaku-style="celestial-horizontal"]').isVisible(), true);
+  await desktop.locator('#danmakuAllStyleTab').click();
+  assert.equal(await neonGlass.isVisible(), true);
   await desktop.locator('#danmakuStyleLibrary [data-danmaku-favorite="cream"]').click();
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.locator('.preview-component-picker');
@@ -56,9 +64,11 @@ test('danmaku favorites synchronize between the desktop and external canvas with
   assert.equal((await canvasOrder())[0], 'cream', 'The external browser reads desktop favorites.');
   await picker.locator('[data-danmaku-favorite="signal"]').click();
   await desktop.locator('#danmakuStyleLibrary [data-danmaku-favorite="signal"][aria-pressed="true"]').waitFor();
+  await picker.locator('[data-danmaku-favorite="signal"][aria-pressed="true"]').waitFor();
   assert.deepEqual((await canvasOrder()).slice(0, 2), ['signal', 'cream']);
   await picker.locator('[data-danmaku-favorite="signal"]').click();
   await desktop.locator('#danmakuStyleLibrary [data-danmaku-favorite="signal"][aria-pressed="false"]').waitFor();
+  await picker.locator('[data-danmaku-favorite="signal"][aria-pressed="false"]').waitFor();
   assert.equal((await canvasOrder())[0], 'signal', 'Unfavoriting in the canvas holds its current slot.');
   await picker.getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByRole('button', { name: '添加组件', exact: true }).click();

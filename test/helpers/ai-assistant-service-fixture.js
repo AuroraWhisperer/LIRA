@@ -43,6 +43,7 @@ function createTestService(overrides = {}) {
     },
     sendReply: overrides.sendReply || (async () => {}),
     waitForDelivery: overrides.waitForDelivery,
+    trackDelivery: overrides.trackDelivery,
     now: overrides.now,
     delay: overrides.delay || (async () => {}),
     random: overrides.random,

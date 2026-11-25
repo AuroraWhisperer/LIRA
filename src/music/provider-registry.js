@@ -19,19 +19,11 @@ function normalizeMusicPlatform(value) {
 }
 
 function createMusicProviderRegistry(options = {}) {
-  const authStateProvider = typeof options.getAuthState === 'function' ? options.getAuthState : () => null;
-  const cookieHeaderProvider = typeof options.getCookieHeader === 'function' ? options.getCookieHeader : () => '';
   const authorization = new Map();
 
   const providers = {
-    qq: new QQMusicProvider({
-      getAuthState: authStateProvider,
-      getCookieHeader: cookieHeaderProvider,
-    }),
-    netease: new NeteaseMusicProvider({
-      getAuthState: authStateProvider,
-      getCookieHeader: cookieHeaderProvider,
-    }),
+    qq: new QQMusicProvider(options),
+    netease: new NeteaseMusicProvider(options),
   };
 
   return {

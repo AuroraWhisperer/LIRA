@@ -56,6 +56,28 @@ test('history poller deduplicates and submits a stable old-to-new hint order', a
   assert.deepEqual(observed, ['old', 'new']);
 });
 
+test('history errors back off to one minute and a successful request restores the normal interval', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let requests = 0;
+  const poller = new HistoryPoller({ async fetchHistory() {
+    if (++requests <= 6) throw new Error('synthetic history limit');
+    return { room: [] };
+  } }, () => {});
+  t.after(() => poller.stop());
+  poller.start({ roomId: '100', ownerUid: '999' });
+  t.mock.timers.tick(1);
+  await new Promise(setImmediate);
+  assert.equal(requests, 1);
+  for (const delay of [5000, 10000, 20000, 40000, 60000, 60000, 2500]) {
+    const previous = requests;
+    t.mock.timers.tick(delay - 1);
+    assert.equal(requests, previous);
+    t.mock.timers.tick(1);
+    await new Promise(setImmediate);
+    assert.equal(requests, previous + 1);
+  }
+});
+
 test('online rank merges both orderings beyond 100 viewers and uses available results through failures', async (t) => {
   t.mock.method(console, 'log', () => {});
   const service = new UserInfoService();

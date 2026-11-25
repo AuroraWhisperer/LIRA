@@ -101,6 +101,35 @@ test('WeSing keeps local download discovery responsive during online backoff and
   assert.equal(searches, 2);
 });
 
+test('WeSing backs off empty line arrays and limits fixed-disk discovery independently of lyric retries', async (t) => {
+  let time = 0, sample, lookups = 0;
+  const diskScans = [];
+  const capture = createWeSingCapture({
+    platform: 'win32', now: () => time,
+    monitorFactory(callback) { sample = callback; return { start() {}, stop() {} }; },
+    setTimer: () => ({ unref() {} }), clearTimer() {},
+    discoverCachePath({ includeDriveRoots }) { if (includeDriveRoots) diskScans.push(time); return ''; },
+    resolveFallbackLyrics() { lookups++; return { lines: [], artists: [], durationMs: 0, source: 'qq' }; },
+  });
+  t.after(() => capture.stop());
+  await capture.setActive(true);
+  assert.deepEqual(diskScans, []);
+  async function tick(at) {
+    time = at;
+    sample({ detected: true, title: 'fixture', currentSec: 1, totalSec: 240 });
+    await capture.waitForRefresh();
+  }
+  for (let at = 0; at < 30000; at += 3000) await tick(at);
+  assert.equal(lookups, 1);
+  await tick(30000);
+  assert.equal(lookups, 2);
+  await tick(60000);
+  assert.deepEqual(diskScans, [0]);
+  await tick(1800000);
+  await capture.refresh();
+  assert.deepEqual(diskScans, [0, 1800000, 1800000]);
+});
+
 test('WeSing capture falls back to injected online lyrics when local QRC is absent', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-online-'));
   const cachePath = path.join(root, 'WeSingCache');
@@ -430,7 +459,11 @@ test('WeSing automatically follows newly created and moved caches without refres
     fs.utimesSync(log, modifiedSeconds, modifiedSeconds);
   };
   writeRendition('moved-cover', '新版本', Date.now() / 1000 + 10);
+  const beforeHealthyTick = discoveries;
   timestamp = 9003;
+  await sendSample(2);
+  assert.equal(discoveries, beforeHealthyTick, 'a healthy current directory does not trigger another drive scan');
+  timestamp = 36003;
   await sendSample(3);
   assert.equal(capture.getStatus().cachePath, second, 'an existing old directory does not pin capture there');
   assert.equal(capture.getStatus().songMid, 'moved-cover');
@@ -438,13 +471,13 @@ test('WeSing automatically follows newly created and moved caches without refres
   assert.deepEqual(saved, [second]);
 
   writeRendition('next-cover', '再切版本', Date.now() / 1000 + 20);
-  timestamp = 12004;
+  timestamp += 3001;
   await sendSample(0);
   await sendSample(1);
   assert.equal(capture.getStatus().songMid, 'next-cover', 'periodic identity checks recover missed file events');
   assert.equal(capture.getStatus().lyricState.lineText, '再切版本');
   const before = { discoveries, timelines };
-  timestamp = 12005;
+  timestamp++;
   await sendSample(2);
   assert.equal(discoveries, before.discoveries, 'monitor samples are throttled');
   const logWork = { scans: 0, reads: 0 };
@@ -458,7 +491,7 @@ test('WeSing automatically follows newly created and moved caches without refres
     if (path.extname(file) === '.log') logWork.reads += 1;
     return Reflect.apply(originalOpen, this, [file, ...args]);
   });
-  timestamp = 15005;
+  timestamp += 3000;
   await sendSample(3);
   assert.equal(timelines, before.timelines, 'an unchanged cache does not reload lyrics');
   assert.equal(capture.getStatus().currentMs, 3130);

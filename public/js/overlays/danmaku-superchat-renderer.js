@@ -1,3 +1,4 @@
+import { createTextElement } from '../shared/dom-element.js';
 import { createMoonlitScroll } from './danmaku-moonlit.js';
 import { createRipploidSuperChat } from './danmaku-ripploid.js';
 import { createTwitterSuperChat } from './danmaku-twitter.js';
@@ -135,12 +136,7 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
     return column;
   }
 
-  function node(tag, className, text) {
-    const element = document.createElement(tag);
-    element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
-  }
+  function node(tag, className, text) { return createTextElement(document, tag, className, text); }
 
   function avatar() {
     const element = node('span', 'sc-avatar');

@@ -66,17 +66,6 @@ const SHOTS = [
     ],
   },
   {
-    id: 'D1',
-    group: 'D',
-    file: 'gift-page-overview',
-    title: '礼物页整页',
-    type: 'admin',
-    viewport: { width: 1440, height: 900 },
-    mainPage: 'giftAssistantPage',
-    waitFor: '#giftRecentList .gift-card',
-    settleMs: 600,
-  },
-  {
     id: 'E1',
     group: 'E',
     file: 'toolbox-nav',

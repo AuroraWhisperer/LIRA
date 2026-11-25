@@ -215,9 +215,6 @@
   flex-direction: column;
   animation: danmaku-editor-enter 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.danmaku-fixed-editor-dialog::backdrop {
-  background: var(--color-bg-overlay-light);
-}
 .danmaku-fixed-editor-body {
   flex: 1;
   min-height: 0;

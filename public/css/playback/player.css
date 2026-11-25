@@ -115,9 +115,9 @@ body.player-dock-collapsed {
 .playback-cover {
   width: 52px;
   height: 52px;
-  flex-shrink: 0;
   display: grid;
   place-items: center;
+  font-weight: var(--type-weight-bold);
   overflow: hidden;
   border-radius: var(--radius-md);
   background: var(--color-bg-secondary);

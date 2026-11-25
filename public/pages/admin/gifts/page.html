@@ -36,30 +36,12 @@
         </label>
       </section>
 
-      <div id="giftInteractionControls" hidden>
-        <section class="gift-control-panel gift-interaction-panel">
-          <div class="gift-control-heading">
-            <h2 class="gift-section-title ui-section-title"><label for="giftStatsQueryEnabled">弹幕查询</label></h2>
-            <lira-help label="弹幕查询说明" tooltip-id="giftStatsQueryDescription"
-              >观众可发「今日礼物」等弹幕查询自己的付费礼物记录。登录 B 站并同步后可开启。查询由服务器处理，无需保持客户端运行。</lira-help
-            >
-          </div>
-          <label class="switch-control">
-            <input
-              id="giftStatsQueryEnabled"
-              type="checkbox"
-              aria-label="弹幕查询"
-              aria-describedby="giftStatsQueryDescription giftInteractionStatus"
-            />
-            <span class="switch-track" aria-hidden="true"></span>
-          </label>
-        </section>
-
-        <div class="gift-interaction-summary">
-          <span id="giftInteractionStatus" class="hint" role="status" aria-live="polite">状态未确认，请刷新核对。</span>
-          <button id="giftInteractionRefresh" type="button" class="btn gift-interaction-refresh" aria-describedby="giftInteractionStatus">刷新状态</button>
+      <section class="gift-control-panel gift-interaction-panel">
+        <div class="gift-control-heading">
+          <h2 class="gift-section-title ui-section-title">查询回复</h2>
         </div>
-      </div>
+        <button id="giftQuerySettingsLink" class="secondary" type="button">前往弹幕互动设置</button>
+      </section>
     </div>
 
     <section class="panel gift-recent-panel" data-state="ready">
@@ -188,7 +170,7 @@
       <div class="panel-header">
         <h2 class="gift-section-title ui-section-title">
           盲盒设置
-          <lira-help>若盲盒列表未更新，请完全退出客户端后重新打开。</lira-help>
+          <lira-help>要刷新当前房间的在售盲盒，在设置中保存直播间号，再回到礼物助手。</lira-help>
         </h2>
         <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
       </div>

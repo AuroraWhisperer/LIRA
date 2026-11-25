@@ -6,16 +6,11 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 import { bindCopyUrl } from '../shared/copy-url.js';
-import { ensureSavedFontOption, populateSystemFontOptions, registerFontSelect } from '../shared/font-library.js';
 
 const OVERLAY_FIELDS = ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly',
   'blindboxCastleMultiplier', 'blindboxCastlesRemaining', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'];
-// [row title, [component field key, settings key, label override]]. Opacity is edited in the background color.
+// [row title, [component field key, settings key]]. Shared typography and colors are edited on the song queue page.
 const APPEARANCE_ROWS = [
-  ['排版', [['overlayFontFamily', 'overlayFontFamily'], ['overlayFontWeight', 'overlayFontWeight'],
-    ['themeFontScale', 'themeFontScale']]],
-  ['配色', [['themeBackground', 'themeBackground', '背景'], ['themeOpacity', 'themeOpacity'],
-    ['themeText', 'themeText', '文字'], ['themePrimary', 'themePrimary'], ['themeAccent', 'themeAccent']]],
   ['布局', [['compact', 'blindboxCompact'], ['noScroll', 'blindboxAutoPages']]],
 ];
 
@@ -68,26 +63,11 @@ export function createBlindboxSettings({
       row.append(create('span', 'blindbox-row-title', rowTitle), grid);
       for (const [key, setting, labelText] of fields) {
         const field = SCENE_EXTRA_COMPONENTS.blindbox.fields[key];
-        const fontFamily = key === 'overlayFontFamily';
-        const label = create('label', fontFamily ? 'blindbox-span-2' : '');
+        const label = create('label');
         const name = create('span', '', labelText || field.label);
-        const input = create(fontFamily || field.type === 'select' ? 'select' : 'input');
+        const input = create('input');
         input.id = `blindboxAppearance-${key}`;
-        if (fontFamily) {
-          // Same searchable font picker as the canvas for this shared setting.
-          populateSystemFontOptions(input, field.maxLength);
-          registerFontSelect(input, { maxLength: field.maxLength });
-        } else if (field.type === 'select') {
-          for (const [value, text] of Object.entries(field.options)) {
-            const option = documentRef.createElement('option');
-            option.value = value; option.textContent = text; input.append(option);
-          }
-        } else input.type = field.type;
-        if (field.opacity) input.dataset.colorOpacity = `blindboxAppearance-${field.opacity}`;
-        if (field.type === 'number') {
-          input.min = field.min; input.max = field.max; input.step = field.step; input.required = true;
-        }
-        if (field.maxLength && !fontFamily) input.maxLength = field.maxLength;
+        input.type = field.type;
         if (field.type === 'checkbox') {
           label.className = 'switch-control';
           input.setAttribute('role', 'switch');
@@ -265,7 +245,6 @@ export function createBlindboxSettings({
         if (!input || settings?.[setting] === undefined || documentRef.activeElement === input) continue;
         if (input.type === 'checkbox') input.checked = settings[setting] === 'true';
         else {
-          if (input.dataset?.selectFontPreview !== undefined) ensureSavedFontOption(input, settings[setting]);
           input.value = settings[setting];
         }
       }

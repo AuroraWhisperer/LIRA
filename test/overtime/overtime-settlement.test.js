@@ -130,19 +130,19 @@ test('unobserved recovery backlog keeps its retry delay while checkpoint writes 
     service.dispose();
     const events = Array.from({ length: 150 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
     const store = createOvertimeStore(fixture.db.giftDb);
-    const observe = store.observeGift;
+    const settle = store.settleFinal;
     let attempts = 0;
-    let blocked = true;
-    store.observeGift = (...args) => {
+    fixture.db.giftDb.exec(`CREATE TRIGGER fail_checkpoint BEFORE INSERT ON overtime_settlements
+      WHEN NEW.gift_event_id = ${events[0].giftEventId} BEGIN SELECT RAISE(ABORT, 'checkpoint unavailable'); END`);
+    store.settleFinal = (...args) => {
       attempts++;
-      if (blocked && args[0] === events[0].giftEventId) throw new Error('synthetic checkpoint unavailable');
-      return observe(...args);
+      return settle(...args);
     };
     service = fixture.createService({ store });
     assert.equal(attempts, 100);
     fixture.clock.advance(999);
     assert.equal(attempts, 100);
-    blocked = false;
+    fixture.db.giftDb.exec('DROP TRIGGER fail_checkpoint');
     fixture.clock.advance(1);
     assert.equal(attempts, 151);
     assert.equal(fixture.getSettlement(events[0].giftEventId).status, 'applied');
@@ -200,23 +200,22 @@ test('an arriving checkpoint failure suspends the sweep until its retry delay', 
     service.dispose();
     const events = Array.from({ length: 150 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
     const store = createOvertimeStore(fixture.db.giftDb);
-    const observe = store.observeGift;
+    const settle = store.settleFinal;
     let blockedId = 0;
     let blockedAttempts = 0;
-    store.observeGift = (...args) => {
-      if (args[0] === blockedId) {
-        blockedAttempts++;
-        throw new Error('synthetic incoming checkpoint failure');
-      }
-      return observe(...args);
+    store.settleFinal = (...args) => {
+      if (args[0] === blockedId) blockedAttempts++;
+      return settle(...args);
     };
     service = fixture.createService({ store });
     const incoming = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
     blockedId = incoming.giftEventId;
+    fixture.db.giftDb.exec(`CREATE TRIGGER fail_checkpoint BEFORE INSERT ON overtime_settlements
+      WHEN NEW.gift_event_id = ${blockedId} BEGIN SELECT RAISE(ABORT, 'synthetic incoming checkpoint failure'); END`);
     assert.throws(() => service.finalizeGift(incoming), /synthetic incoming checkpoint failure/);
     fixture.clock.advance(999);
     assert.equal(blockedAttempts, 1);
-    blockedId = 0;
+    fixture.db.giftDb.exec('DROP TRIGGER fail_checkpoint');
     fixture.clock.advance(1);
     assert.equal(fixture.getSettlement(events.at(-1).giftEventId).status, 'applied');
     assert.equal(fixture.getSettlement(incoming.giftEventId).status, 'applied');

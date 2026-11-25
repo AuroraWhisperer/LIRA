@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createClock } = require('../helpers/toast-dom');
 
 function response(payload) {
   return { ok: payload.ok !== false, text: async () => JSON.stringify(payload) };
@@ -34,6 +35,7 @@ async function createStatsHarness({ active = true } = {}) {
   const requests = [];
   const documentListeners = new Map();
   const observers = [];
+  const clock = createClock();
   const document = {
     readyState: 'loading', hidden: false,
     addEventListener: (type, fn) => documentListeners.set(type, fn),
@@ -46,7 +48,7 @@ async function createStatsHarness({ active = true } = {}) {
     path.join(ROOT_DIR, 'public/js/admin/gifts/blindbox-stats.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
   ], {
     window: {},
-    document, AbortController,
+    document, AbortController, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
     MutationObserver: class {
       constructor(callback) { this.callback = callback; this.targets = new Map(); observers.push(this); }
       observe(node, options) { this.targets.set(node, options); }
@@ -67,7 +69,7 @@ async function createStatsHarness({ active = true } = {}) {
       if (observer.targets.get(node)?.attributeFilter.includes(attribute)) observer.callback();
     }
   }
-  return { initBlindBoxStats, eventBus, requests, body,
+  return { initBlindBoxStats, eventBus, requests, body, clock,
     bodyListenerCount: () => bodyListeners.size,
     setActive(value) { page.classList.toggle('active', value); changed(page, 'class'); },
     setCollapsed(value) { section.classList.toggle('is-collapsed', value); changed(section, 'class'); },
@@ -93,7 +95,7 @@ function statsFor(userName) {
 }
 
 test('visible blind box summary requests the displayed ranking and coalesces in-flight updates', async () => {
-  const { initBlindBoxStats, eventBus, requests, body, finish } = await createStatsHarness();
+  const { initBlindBoxStats, eventBus, requests, body, finish, clock } = await createStatsHarness();
 
   assert.equal(requests.length, 1);
   assert.equal(new URL(requests[0].url, 'http://localhost').searchParams.get('top'), '10');
@@ -101,12 +103,16 @@ test('visible blind box summary requests the displayed ranking and coalesces in-
 
   eventBus.emit('state:loaded', { state: {} });
   assert.equal(requests.length, 1);
-  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  for (let i = 0; i < 100; i++) eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  clock.tick(499);
+  assert.equal(requests.length, 1);
+  clock.tick(1);
   assert.equal(requests.length, 2);
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
   assert.equal(requests.length, 2);
   await finish(1);
+  clock.tick(500);
   assert.equal(requests.length, 3);
   await finish(2, statsFor('Test viewer'));
   assert.match(body.innerHTML, /Test viewer/);
@@ -177,6 +183,7 @@ test('a failed blind box read waits for the next invalidation before retrying', 
   await new Promise(setImmediate);
   assert.equal(f.requests.length, 1, 'a read failure must not start an unbounded retry loop');
   f.eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  f.clock.tick(500);
   assert.equal(f.requests.length, 2);
   await f.finish(1, statsFor('Recovered viewer'));
   assert.match(f.body.innerHTML, /Recovered viewer/);
@@ -186,6 +193,7 @@ test('blind box summary discards old source reads and reloads a hidden reconnect
   const f = await createStatsHarness();
   await f.finish(0, statsFor('Old source viewer'));
   f.eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  f.clock.tick(500);
   f.eventBus.emit('gift:received', { reason: 'gift:source' });
   assert.equal(f.requests[1].signal.aborted, true);
   assert.equal(f.requests.length, 3);

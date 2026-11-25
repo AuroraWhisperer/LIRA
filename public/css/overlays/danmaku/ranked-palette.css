@@ -1,4 +1,4 @@
-/* 经典样式与流光气泡共用身份色，主播色优先于大航海身份。 */
+/* 经典气泡与流光气泡共用身份色，主播色优先于大航海身份。 */
 body[data-style='ranked'] .draw-danmaku-item,
 body[data-style='glow'] .draw-danmaku-item,
 body[data-style='ranked'] .draw-danmaku-item[data-identity='viewer'],

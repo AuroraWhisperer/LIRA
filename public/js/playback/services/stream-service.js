@@ -2,6 +2,7 @@
 // 流媒体服务 - 负责播放 URL 解析、刷新和错误重试
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import { isLocalTrack, hasUsableUrl, serializeTrackForProvider, getPlaybackLyricOffsetMs } from '../utils.js';
 
 /**
@@ -95,9 +96,7 @@ export class StreamService {
 
     const payload = await this.readJsonResponse(response, '解析播放地址失败');
 
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.error || `解析播放地址失败（HTTP ${response.status}）`);
-    }
+    assertApiResponse(response, payload, `解析播放地址失败（HTTP ${response.status}）`);
 
     return payload.data;
   }

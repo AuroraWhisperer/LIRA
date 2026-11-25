@@ -26,7 +26,6 @@ function createFanUi() {
   const detailNode = get('fanDetail');
   const panel = get('otherFanProfilesFeature');
   const mainPage = get('otherAssistantPage');
-  const isVisible = () => !panel.hidden && mainPage.classList.contains('active');
   document.body.append(editor);
   const state = {
     contextId: null,
@@ -47,10 +46,15 @@ function createFanUi() {
     expiry: { badges: [] },
   };
   let disposed = false;
+  const isVisible = () => !disposed && !document.hidden && !panel.hidden && mainPage.classList.contains('active');
+  const profilesVisible = () => isVisible() && state.page === 'profiles';
   let searchTimer;
   let pollTimer;
+  let listRevision = 0;
   let reminderRevision = 0;
-  let remindersLoadedRevision = -1;
+  let requestedReminderRevision = -1;
+  let reminderRead;
+  let reminderItems = [];
   let reminderSummaryHidden = false;
   try {
     reminderSummaryHidden = window.localStorage?.getItem(REMINDER_SUMMARY_HIDDEN_KEY) === 'true';
@@ -64,8 +68,8 @@ function createFanUi() {
     request,
     getContext: () => state.contextId,
     async onChanged(contextId) {
-      await load(false, false, false);
-      if (state.contextId === contextId && state.profile) await select(state.profile.id, false);
+      await load({ refreshReminders: false });
+      if (state.contextId === contextId) await refreshSelected();
     },
   });
   async function receiveProfile(profile, tab) {
@@ -108,7 +112,7 @@ function createFanUi() {
     },
   });
 
-  async function request(action, payload = {}) {
+  async function request(action, payload = {}, sequence) {
     if (!window.fanProfiles) throw new Error('请在 LIRA 桌面客户端中使用粉丝档案。');
     const contextId = state.contextId;
     const result = await window.fanProfiles.invoke({
@@ -116,6 +120,7 @@ function createFanUi() {
       payload,
       contextId,
     });
+    if (sequence !== undefined && sequence !== state.sequence) return;
     if (!result.ok) {
       const error = new Error(result.error || '档案操作失败，未保存的输入仍保留。');
       error.existingId = result.existingId;
@@ -125,6 +130,9 @@ function createFanUi() {
     if (action === 'open' && state.contextId && state.contextId !== result.contextId) {
       formerNameBatch.reset();
       formEditor.invalidate();
+      reminderItems = [];
+      reminderRevision++;
+      renderPageReminders();
       state.profile = null;
       state.selection++;
       state.tab = 'overview';
@@ -181,7 +189,7 @@ function createFanUi() {
     } catch {
       expiry = { state: 'unavailable', badges: [] };
     }
-    if (disposed || sequence !== state.sequence || contextId !== state.contextId || roomId !== state.roomId) return;
+    if (!isVisible() || sequence !== state.sequence || contextId !== state.contextId || roomId !== state.roomId) return;
     state.expiry = expiry;
     renderSyncState();
     renderList();
@@ -222,8 +230,15 @@ function createFanUi() {
   }
 
   function renderSelected() {
-    if (state.profile) updateMarkup(detailNode, renderDetail(state.profile, state.tab, window.__API_TOKEN__));
+    if (!profilesVisible()) return;
+    renderSelectedDetail();
     renderList();
+  }
+
+  function renderSelectedDetail() {
+    if (state.profile && updateMarkup(detailNode, renderDetail(state.profile, state.tab, window.__API_TOKEN__))) {
+      renderExpanded();
+    }
   }
 
   detailNode.addEventListener('error', (event) => {
@@ -231,10 +246,11 @@ function createFanUi() {
   }, true);
 
   function fitPeopleNames() {
-    fitTextToWidth(get('fanPeople').querySelectorAll('.fan-name'));
+    if (profilesVisible()) fitTextToWidth(get('fanPeople').querySelectorAll('.fan-name'));
   }
 
   function renderList() {
+    if (!profilesVisible()) return;
     const list = get('fanPeople');
     const changed = updateMarkup(
       list,
@@ -251,56 +267,98 @@ function createFanUi() {
             ),
     );
     get('fanSplit').classList.toggle('fan-has-selection', Boolean(state.profile));
+    if (changed) fitPeopleNames();
+  }
+
+  function renderExpanded() {
     get('fanSplit').classList.toggle('fan-expanded', state.expanded);
     const expandButton = detailNode.querySelector('[data-fan-action="expand"]');
     const expandLabel = state.expanded ? '收起详情' : '展开详情';
     if (expandButton && expandButton.textContent !== expandLabel) expandButton.textContent = expandLabel;
-    if (changed) fitPeopleNames();
   }
 
-  async function load(open = false, background = false, refreshReminders = true) {
+  function listPayload() {
+    return { query: get('fanSearch').value, filters: state.filters, archived: state.archived };
+  }
+
+  async function load({ open = false, background = false, refreshReminders = true } = {}) {
     if (refreshReminders) reminderRevision++;
     const sequence = ++state.sequence;
     const observed = Date.parse(state.expiry.observedAt);
     const beijingDay = (time) => Math.floor((time + 8 * 3600000) / 86400000);
-    if (!background || !Number.isFinite(observed) || Date.now() - observed >= 300000 || beijingDay(Date.now()) !== beijingDay(observed)) {
+    if (!background || !Number.isFinite(observed) ||
+        Date.now() - observed >= 300000 || beijingDay(Date.now()) !== beijingDay(observed)) {
+      const hadBadges = state.expiry.badges.length > 0;
       state.expiry = { badges: [] };
       renderSyncState();
-      renderList();
+      if (hadBadges && state.listStatus === 'ready') renderList();
     }
-    const keepList = state.listStatus === 'ready' && state.contextId;
+    const payload = listPayload();
+    await readList(sequence, payload, { open, background });
+    if (sequence !== state.sequence) return false;
+    void refreshExpiry(sequence, payload);
+    await loadReminders();
+    return sequence === state.sequence;
+  }
+
+  async function readList(sequence, payload, { open = false, background = false } = {}) {
+    const revision = ++listRevision;
+    const contextId = state.contextId;
+    const action = open || !contextId ? 'open' : 'list';
+    const keepList = state.listStatus === 'ready' && contextId;
     get('fanPageError').hidden = true;
     if (!keepList) {
       state.listStatus = 'loading';
       renderList();
     }
     let data;
-    const payload = { query: get('fanSearch').value, filters: state.filters, archived: state.archived };
     try {
-      data = await request(open || !state.contextId ? 'open' : 'list', payload);
+      data = await request(action, payload, sequence);
     } catch (error) {
-      if (sequence !== state.sequence) return false;
-      if (!background || !keepList) {
+      if (sequence !== state.sequence || contextId !== state.contextId) return;
+      if (revision !== listRevision && action === 'list') return;
+      if (revision === listRevision && (!background || !keepList)) {
         state.listStatus = 'error';
         renderList();
       }
       throw error;
     }
-    if (sequence !== state.sequence) return false;
+    // A post-write list read supersedes only the rows. An open that switches
+    // accounts must still replace every row from the previous context.
+    const contextChanged = contextId !== state.contextId;
+    const currentRows = contextChanged ? action === 'open' : revision === listRevision;
+    if (sequence !== state.sequence || !currentRows) return;
     state.profiles = data.profiles;
     state.settings = data.settings;
     state.listStatus = 'ready';
     renderList();
-    void refreshExpiry(sequence, payload);
-    if (remindersLoadedRevision !== reminderRevision) await loadReminders();
-    return sequence === state.sequence;
   }
 
-  async function loadReminders() {
+  function loadReminders() {
+    if (!state.contextId || state.page === 'settings' || !isVisible()) return;
+    if (requestedReminderRevision === reminderRevision) return reminderRead;
     const revision = reminderRevision;
-    const items = await request('reminders');
-    remindersLoadedRevision = revision;
-    const actionable = items.filter((item) => item.actionable);
+    requestedReminderRevision = revision;
+    reminderRead = request('reminders').then(items => {
+      if (disposed || revision !== reminderRevision) return;
+      reminderItems = items;
+      renderPageReminders();
+    }).catch(error => {
+      if (disposed || revision !== reminderRevision) return;
+      requestedReminderRevision = -1;
+      throw error;
+    });
+    return reminderRead;
+  }
+
+  function renderPageReminders() {
+    if (!isVisible()) return;
+    if (state.page === 'reminders') {
+      updateMarkup(get('fanRemindersPage'), renderReminders(reminderItems));
+      return;
+    }
+    if (state.page !== 'profiles') return;
+    const actionable = reminderItems.filter((item) => item.actionable);
     const summary = get('fanReminderSummary');
     summary.hidden = reminderSummaryHidden || !actionable.length;
     updateMarkup(
@@ -309,7 +367,25 @@ function createFanUi() {
         ? `<span>今天与近期有 ${actionable.length} 项重要日子待处理</span><div class="fan-actions"><button type="button" data-fan-page="reminders">查看提醒</button><button type="button" data-fan-action="hide-reminder-summary" title="仅隐藏本页横幅，不影响提醒和日历">不再显示</button></div>`
         : '',
     );
-    updateMarkup(get('fanRemindersPage'), renderReminders(items));
+  }
+
+  async function refreshSelected(id = state.profile?.id, selection = state.selection) {
+    const sequence = state.sequence;
+    const current = () => profilesVisible() && id && id === state.profile?.id
+      && selection === state.selection && sequence === state.sequence;
+    if (!current()) return;
+    const profile = await request('detail', { id }, sequence);
+    if (!current()) return;
+    state.profile = profile;
+    renderSelectedDetail();
+  }
+
+  async function refreshWorkspace(background = false) {
+    const id = state.profile?.id;
+    const selection = state.selection;
+    if (!(await load({ open: true, background }))) return false;
+    await refreshSelected(id, selection);
+    return true;
   }
 
   async function select(id, resetTab = true, alignScope = false) {
@@ -342,6 +418,7 @@ function createFanUi() {
       node.setAttribute('aria-pressed', String((node.dataset.fanAction === 'archived') === state.archived));
     for (const node of root.querySelectorAll('[data-fan-page][role="tab"]'))
       node.setAttribute('aria-selected', String(node.dataset.fanPage === state.page));
+    renderPageReminders();
   }
 
   function clearSelection(preservePending = false) {
@@ -353,6 +430,7 @@ function createFanUi() {
     state.tab = 'overview';
     state.expanded = false;
     updateMarkup(detailNode, '<p class="fan-empty lira-content-state">选择一份档案查看详情</p>');
+    renderExpanded();
     renderList();
   }
 
@@ -449,7 +527,7 @@ function createFanUi() {
     if (name === 'expand') {
       state.expanded = !state.expanded;
       element.closest('details')?.removeAttribute('open');
-      renderList();
+      renderExpanded();
       return;
     }
     if (name === 'back-list') {
@@ -463,7 +541,7 @@ function createFanUi() {
       await load();
       return;
     }
-    if (!state.contextId) await load(true);
+    if (!state.contextId) await load({ open: true });
     if (name === 'supplement-all-former-names') {
       await formerNameBatch.run();
       return;
@@ -473,7 +551,7 @@ function createFanUi() {
       return;
     }
     if (name === 'guard-roster') {
-      await load(true);
+      await load({ open: true });
       if (!state.roomId) throw new Error('请先在连接设置中填写直播间号。');
       openForm(guardRosterForm(state.roomId, getBilibiliRoomProfileSnapshot(state.roomId)), async (payload) => {
         const result = await request('sync-guard-roster', payload);
@@ -481,7 +559,7 @@ function createFanUi() {
         get('fanRosterResult').textContent = notices.map((notice) => notice.message).join(' ');
         get('fanRosterHelp').hidden = false;
         await load();
-        if (state.profile) await select(state.profile.id, false);
+        await refreshSelected();
         return { notices };
       });
       return;
@@ -495,8 +573,7 @@ function createFanUi() {
       return;
     }
     if (name === 'refresh') {
-      await load(true);
-      if (state.profile) await select(state.profile.id, false);
+      await refreshWorkspace();
       return;
     }
     if (name === 'clear-filter') {
@@ -504,7 +581,7 @@ function createFanUi() {
       get('fanSearch').value = '';
       for (const button of root.querySelectorAll('[data-fan-filter]'))
         button.setAttribute('aria-pressed', String(!button.dataset.fanFilter));
-      await load(false, false, false);
+      await load({ refreshReminders: false });
       return;
     }
     if (name === 'backup') {
@@ -538,6 +615,7 @@ function createFanUi() {
       state.expanded = false;
       state.selection++;
       detailNode.innerHTML = '<p class="fan-empty lira-content-state">档案已全部清除。</p>';
+      renderExpanded();
       showPage();
       await load();
       toast(`已清除 ${result.deletedCount} 份档案`);
@@ -557,7 +635,8 @@ function createFanUi() {
         key: element.dataset.reminderKey,
         status: name.slice(9),
       });
-      await loadReminders();
+      reminderRevision++;
+      await Promise.all([loadReminders(), readList(state.sequence, listPayload())]);
       return;
     }
     if (!state.profile) return;
@@ -589,11 +668,16 @@ function createFanUi() {
       else if (element.dataset.fanId) await select(element.dataset.fanId, false);
       else if (element.dataset.fanTab) {
         state.tab = element.dataset.fanTab;
-        renderSelected();
+        if (profilesVisible()) renderSelectedDetail();
       } else if (element.dataset.fanPage) {
-        if (state.page !== element.dataset.fanPage) formEditor.invalidate();
+        if (state.page === element.dataset.fanPage) return;
+        formEditor.invalidate();
+        state.selection++;
+        state.selectionId = state.profile?.id ?? null;
         state.page = element.dataset.fanPage;
         showPage();
+        if (state.page === 'profiles') renderList();
+        await Promise.all([loadReminders(), refreshSelected()]);
       } else if ('fanFilter' in element.dataset) {
         const filter = element.dataset.fanFilter;
         state.filters = filter
@@ -606,14 +690,14 @@ function createFanUi() {
             'aria-pressed',
             String(button.dataset.fanFilter ? state.filters.includes(button.dataset.fanFilter) : !state.filters.length),
           );
-        await load(false, false, false);
+        await load({ refreshReminders: false });
       }
     })().catch((error) => showError(error));
   });
   get('fanSearch').addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      void load(false, false, false).catch((error) => showError(error));
+      void load({ refreshReminders: false }).catch((error) => showError(error));
     }, 180);
   });
   get('fanRestoreFile').addEventListener('change', () => {
@@ -621,36 +705,41 @@ function createFanUi() {
     get('fanRestoreFile').value = '';
     if (file) void transfer.restoreFile(file).catch((error) => showError(error));
   });
+  let wasVisible = false;
   const refreshVisible = () => {
-    if (!isVisible()) formEditor.invalidate();
-    if (isVisible())
-      void load(true)
-        .then(() => {
-          if (!state.settings.initialized && !editor.open) settings();
-        })
-        .catch((error) => showError(error));
+    const visible = isVisible();
+    if (visible === wasVisible) return;
+    wasVisible = visible;
+    clearInterval(pollTimer);
+    if (!visible) {
+      state.sequence++;
+      if (!document.hidden) formEditor.invalidate();
+      return;
+    }
+    let pendingSelection = null;
+    async function refresh(background) {
+      const selection = state.selection;
+      if (pendingSelection === selection || !isVisible() || (background && (editor.open || !state.contextId))) return;
+      pendingSelection = selection;
+      try {
+        const loaded = await refreshWorkspace(background);
+        if (!background && loaded && isVisible() && !state.settings.initialized && !editor.open) settings();
+      } catch (error) {
+        showError(error);
+      } finally {
+        if (pendingSelection === selection) pendingSelection = null;
+      }
+    }
+    void refresh(false);
+    pollTimer = setInterval(() => refresh(true), 30000);
   };
   const observer = new MutationObserver(refreshVisible);
   observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
   observer.observe(mainPage, { attributes: true, attributeFilter: ['class'] });
   const namesObserver = new ResizeObserver(fitPeopleNames);
   namesObserver.observe(get('fanPeople'));
+  document.addEventListener('visibilitychange', refreshVisible);
   refreshVisible();
-  pollTimer = setInterval(() => {
-    if (isVisible() && !editor.open && state.contextId) {
-      const id = state.profile?.id;
-      const selection = state.selection;
-      void load(true, true)
-        .then(async (loaded) => {
-          if (!loaded || !id || selection !== state.selection || state.profile?.id !== id) return;
-          const profile = await request('detail', { id });
-          if (selection !== state.selection || state.profile?.id !== id) return;
-          state.profile = profile;
-          renderSelected();
-        })
-        .catch((error) => showError(error));
-    }
-  }, 30000);
   window.addEventListener(
     'pagehide',
     () => {
@@ -660,6 +749,7 @@ function createFanUi() {
       formerNameBatch.dispose();
       observer.disconnect();
       namesObserver.disconnect();
+      document.removeEventListener('visibilitychange', refreshVisible);
       clearInterval(pollTimer);
       clearTimeout(searchTimer);
     },

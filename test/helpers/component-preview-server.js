@@ -18,7 +18,7 @@ async function startComponentPreviewServer({ getOwner = () => null, parentHtml, 
     ensureGiftImage: imagePath => isLicenseAuthorized() ? ensureGiftImage?.(imagePath) : '',
     inflightTracker, createApiContext: () => ({ ...extraContext, sessionToken: token, scenes, sceneEvents, danmakuEvents, readDanmakuDisplay, overtime,
       system: { getState, dataDir }, settings: settings || { get: () => getState?.().settings },
-      bilibili: { configure() {} }, broadcastSnapshot() { hub?.broadcastSnapshot({ getState }, 'settings'); } }),
+      bilibili: { configure() {} }, broadcastSnapshot(reason) { hub?.broadcastSnapshot({ getState }, reason); } }),
     getSettings: () => getState?.().settings || {},
     getWebSocketHub: () => hub,
     getWebSocketContext: (base) => ({ sessionToken: token, allowedOrigins: [base], getState }),
@@ -28,7 +28,7 @@ async function startComponentPreviewServer({ getOwner = () => null, parentHtml, 
       if (parentHtml && url.pathname === '/preview-test-host') {
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(parentHtml);
-      } else servePageOrAsset(publicDir, req, res, url, token, undefined, undefined, Boolean(fontLibrary));
+      } else return servePageOrAsset(publicDir, req, res, url, token, undefined, undefined, Boolean(fontLibrary));
     } });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;

@@ -21,19 +21,17 @@ function configureMediaRequestHeaders(desktopSession, requestAuth = null) {
           ],
     },
     function (details, callback) {
-      const headers = { ...details.requestHeaders };
-      let host = '';
-      try {
-        host = new URL(details.url).hostname.toLowerCase();
-      } catch (_) {
-        host = '';
-      }
+      const target = URL.parse(details.url);
+      const host = target?.hostname.toLowerCase() || '';
       const matches = (domain) => host === domain || host.endsWith(`.${domain}`);
+      let headers = details.requestHeaders;
       if (matches('music.163.com') || matches('music.126.net')) {
+        headers = { ...headers };
         if (!headers.Referer && !headers.referer) {
           headers.Referer = 'https://music.163.com/';
         }
       } else if (matches('qqmusic.qq.com') || matches('gtimg.cn') || matches('y.qq.com')) {
+        headers = { ...headers };
         if (!headers.Referer && !headers.referer) {
           headers.Referer = 'https://y.qq.com/';
         }
@@ -41,6 +39,7 @@ function configureMediaRequestHeaders(desktopSession, requestAuth = null) {
           headers.Origin = 'https://y.qq.com';
         }
       } else if (matches('bilibili.com') || matches('hdslb.com')) {
+        headers = { ...headers };
         if (!headers.Referer && !headers.referer) {
           headers.Referer = 'https://www.bilibili.com/';
         }
@@ -48,8 +47,7 @@ function configureMediaRequestHeaders(desktopSession, requestAuth = null) {
           headers.Origin = 'https://www.bilibili.com';
         }
       }
-      requestAuth?.applyHeaders(details, headers);
-      callback({ requestHeaders: headers });
+      callback({ requestHeaders: requestAuth ? requestAuth.applyHeaders(details, headers, target) : headers });
     },
   );
   if (requestAuth) {

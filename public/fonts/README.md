@@ -11,9 +11,9 @@
 | 站酷小薇 | [周表字体](weekly-schedule/README.md)，周表专用完整WOFF2随客户端本地打包，按选用加载，不加入共享CDN启动下载 |
 | 霞鹜文楷 Light | [文楷分片](moonlit-wenkai/README.md)，共享库与外部资源样式共用来源 |
 | Nunito | `spooky/nunito-500.ttf` 与 `nunito-700.ttf`，共用现有 OFL 字库和 `Spooky Nunito` 字体族名 |
-| 思源宋体 | [完整宋体字库](sea-breeze/README.md)，Regular 400；郁香海风固定／随机两版及线框星事共用同一文件，也可供其他组件选择 |
-| Poppins | [字体来源](stargazer/README.md)，400/700 两个字重；星旅默认使用，也可供其他组件选择 |
-| Quicksand | [字体来源](glass/README.md)，原始 300–700 可变字体；Glass 默认使用 400，也可供其他组件选择 |
+| 思源宋体 | [完整宋体字库](sea-breeze/README.md)，Regular 400；海风倒影／海风散影两版及银环线框共用同一文件，也可供其他组件选择 |
+| Poppins | [字体来源](stargazer/README.md)，400/700 两个字重；星河漫旅默认使用，也可供其他组件选择 |
+| Quicksand | [字体来源](glass/README.md)，原始 300–700 可变字体；磨砂通知默认使用 400，也可供其他组件选择 |
 | Montserrat | [字体来源](animated-gradient/README.md)，400/700 与[天穹横栏](celestial-horizontal/README.md)的 Latin 300 分支合为一包，供所有组件选择 |
 | Cinzel | [字体来源](celestial-horizontal/README.md)，700、Latin 字形，天穹横栏昵称默认使用，也可供其他组件选择 |
 | M PLUS Rounded 1c | [字体来源](glass-bubble/README.md)，完整 ExtraBold 800，玻璃气泡默认使用，也可供其他组件选择 |
@@ -31,7 +31,7 @@
 
 ## 专用资源
 
-[思源宋体](sea-breeze/README.md)、[Poppins](stargazer/README.md)、[Quicksand](glass/README.md)、[Montserrat](animated-gradient/README.md)、[Cinzel](celestial-horizontal/README.md) 和 [M PLUS Rounded 1c](glass-bubble/README.md) 已纳入共享库，经 CDN 补齐后由本地 HTTP 按需加载。原弹幕的默认族名与字重保留，线框星事通过别名复用同一份思源宋体；Montserrat 两款样式共用一个下载包。Cinzel 与 Montserrat 300 保留原有 Latin 分支，其余文字沿用回退链；其他组件也可在软件字体库中选择。
+[思源宋体](sea-breeze/README.md)、[Poppins](stargazer/README.md)、[Quicksand](glass/README.md)、[Montserrat](animated-gradient/README.md)、[Cinzel](celestial-horizontal/README.md) 和 [M PLUS Rounded 1c](glass-bubble/README.md) 已纳入共享库，经 CDN 补齐后由本地 HTTP 按需加载。原弹幕的默认族名与字重保留，银环线框通过别名复用同一份思源宋体；Montserrat 两款样式共用一个下载包。Cinzel 与 Montserrat 300 保留原有 Latin 分支，其余文字沿用回退链；其他组件也可在软件字体库中选择。
 
 [多语言字体](lyrics-fallback/README.md)已加入共享库，也继续用于歌词自动补字。以下两份裁剪字体仅服务固定标题和时间显示，不在通用字体选择中显示。
 

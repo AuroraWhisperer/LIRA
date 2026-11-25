@@ -2,8 +2,9 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const { createComponentStyleIndex } = require('./component-style-index');
-const { activeImports, beginStyleFileUse, endStyleFileUse, pruneStyleTemporaryFiles, renameStyleDirectory } = require('./component-style-files');
+const { activeImports, beginStyleFileUse, endStyleFileUse, inspectStyleRoot, listStyleFiles, pruneStyleTemporaryFiles, renameStyleDirectory } = require('./component-style-files');
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 
 function hasMultipleCategories(pack) {
@@ -15,9 +16,34 @@ function isSuite(pack, packages) {
   return candidates.some(hasMultipleCategories);
 }
 
-function createComponentStyleStore(dataDir) {
+function restoreMissingFiles(pending, installed, pack) {
+  const existing = new Set(listStyleFiles(installed).map(file => file.name));
+  for (const { file, name } of listStyleFiles(pending)) {
+    if (existing.has(name)) continue;
+    const target = path.join(installed, name);
+    const temporary = path.join(path.dirname(installed), `${randomUUID()}.tmp`);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    try {
+      if (name === 'package.json') fs.writeFileSync(temporary, JSON.stringify(pack), { flag: 'wx', mode: 0o600 });
+      else fs.copyFileSync(file, temporary, fs.constants.COPYFILE_EXCL);
+      fs.renameSync(temporary, target);
+    } finally { fs.rmSync(temporary, { force: true }); }
+  }
+}
+
+function styleLibraryRoot(dataDir) {
   if (!dataDir) throw new Error('素材目录尚未准备完成。');
-  const root = path.join(path.resolve(dataDir), 'component-library');
+  return path.join(path.resolve(dataDir), 'component-library');
+}
+
+function listComponentMediaStyleIds(dataDir, type) {
+  const root = styleLibraryRoot(dataDir);
+  if (!inspectStyleRoot(root)) return [];
+  return createComponentStyleIndex(root).listMediaStyleIds(type);
+}
+
+function createComponentStyleStore(dataDir) {
+  const root = styleLibraryRoot(dataDir);
   pruneStyleTemporaryFiles(root);
   const indexFile = createComponentStyleIndex(root);
   const read = () => indexFile.read();
@@ -30,7 +56,6 @@ function createComponentStyleStore(dataDir) {
   return {
     root, directory, read, integrity: () => indexFile.integrity(),
     createStyleReader: () => indexFile.createStyleReader(),
-    listMediaStyleIds: type => indexFile.listMediaStyleIds(type),
     beginPending(id) { beginStyleFileUse(directory(id, true)); },
     endPending(id) { endStyleFileUse(directory(id, true)); },
     cancelPending(id) {
@@ -74,13 +99,15 @@ function createComponentStyleStore(dataDir) {
         delete same.removed;
         for (const style of same.styles) delete style.removed;
         for (const item of replaced) item.removed = true;
-        const restoreFiles = !fs.existsSync(directory(same.id));
+        const restoreFiles = !inspectStyleRoot(directory(same.id));
         if (restoreFiles) {
           fs.writeFileSync(path.join(directory(id, true), 'package.json'), JSON.stringify(same), { mode: 0o600 });
           renameStyleDirectory(directory(id, true), directory(same.id));
+        } else restoreMissingFiles(directory(id, true), directory(same.id), same);
+        if (restored || replaced.length) {
+          try { write(index); }
+          catch (error) { if (restoreFiles) renameStyleDirectory(directory(same.id), directory(id, true)); throw error; }
         }
-        try { write(index); }
-        catch (error) { if (restoreFiles) renameStyleDirectory(directory(same.id), directory(id, true)); throw error; }
         removePending(id);
         return { ...same, alreadyInstalled: !restored && !replaced.length, restored, replaced: replaced.length };
       }
@@ -144,4 +171,4 @@ function createComponentStyleStore(dataDir) {
   };
 }
 
-module.exports = { createComponentStyleStore };
+module.exports = { createComponentStyleStore, listComponentMediaStyleIds };

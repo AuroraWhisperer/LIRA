@@ -1,18 +1,14 @@
+import { createTextElement as element } from '../shared/dom-element.js';
+import { formatDanmakuAmount } from '../shared/display-format.js';
+import { hashCodePoints } from '../shared/string-hash.js';
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const SHAPES = {
   speech: 'M20 3C9 3 4 11 4 24L4 69C4 84 12 90 28 90L24 99L48 91L76 91C89 91 96 83 96 69L96 24C96 10 88 3 74 3C56 1 38 1 20 3Z',
   box: 'M5 6L94 4L96 93L4 95Z',
   burst: 'M6 5L16 8L20 2L29 7L35 3L42 8L50 2L57 7L65 3L72 8L82 3L85 9L95 5L92 16L99 22L93 30L98 39L92 47L99 55L92 64L97 74L91 81L95 94L84 91L78 98L70 92L61 97L53 91L44 98L36 92L27 97L20 91L7 95L10 83L2 77L8 69L3 59L9 51L2 43L8 34L3 24L9 18Z',
 };
 let clipSequence = 0;
-
-function element(document, tag, className, text) {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
-}
 
 function paper(document, shape) {
   const ink = element(document, 'div', 'comic-ink');
@@ -63,17 +59,11 @@ function paper(document, shape) {
 }
 
 function mixedShape(item) {
-  let hash = 2166136261;
-  for (const character of [item.id, item.uid, item.timestamp, item.name, item.message].join('|')) {
-    hash = Math.imul(hash ^ character.codePointAt(0), 16777619);
-  }
+  let hash = hashCodePoints([item.id, item.uid, item.timestamp, item.name, item.message].join('|'));
   return ['speech', 'box', 'speech', 'burst'][(hash >>> 0) % 4];
 }
 
-function amount(value) {
-  return Number.isFinite(value) && value >= 0
-    ? `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
-}
+const amount = value => formatDanmakuAmount(value, 2);
 
 // Recompose the shared safe message nodes. Placement, expiry and cleanup remain in the feed.
 export function createComicMessageRenderer(options, render) {

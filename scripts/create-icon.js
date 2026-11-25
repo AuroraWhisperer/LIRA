@@ -7,6 +7,7 @@ const zlib = require('node:zlib');
 const ROOT_DIR = path.resolve(__dirname, '..');
 const BUILD_DIR = path.join(ROOT_DIR, 'build');
 const SOURCE_ICON_PATH = path.join(BUILD_DIR, 'icon-source.png');
+const WINDOW_ICON_PATH = path.join(ROOT_DIR, 'public', 'img', 'shared', 'lira-app-icon.png');
 const SIZE = 256;
 const CRC32_TABLE = createCrc32Table();
 
@@ -18,7 +19,7 @@ if (fs.existsSync(SOURCE_ICON_PATH)) {
   removeEdgeBackground(square, 36);
   const resized = resizeNearest(square, SIZE, SIZE);
   const png = createPng(SIZE, SIZE, resized.pixels);
-  fs.writeFileSync(path.join(BUILD_DIR, 'icon.png'), png);
+  fs.writeFileSync(WINDOW_ICON_PATH, png);
   fs.writeFileSync(path.join(BUILD_DIR, 'icon.ico'), createIco(png, SIZE, SIZE));
   console.log(`Created icon from ${path.relative(ROOT_DIR, SOURCE_ICON_PATH)}`);
   process.exit(0);
@@ -56,7 +57,7 @@ drawCircle(192, 73, 9, [255, 252, 244, 255]);
 drawRect(78, 203, 101, 10, [255, 230, 166, 255]);
 
 const png = createPng(SIZE, SIZE, rgba);
-fs.writeFileSync(path.join(BUILD_DIR, 'icon.png'), png);
+fs.writeFileSync(WINDOW_ICON_PATH, png);
 fs.writeFileSync(path.join(BUILD_DIR, 'icon.ico'), createIco(png, SIZE, SIZE));
 
 function roundedRectAlpha(x, y, radius) {

@@ -112,16 +112,13 @@ function createUiFixture() {
           export const readJsonResponse = (response) => response.json();
           export const showError = (error) => window.messages.push(error.message);
           export const toast = (message) => window.messages.push(message);`;
-      } else if (url.pathname === '/js/shared/event-bus.js') {
-        body = `const listeners = new Map(); export const eventBus = {
-          on: (name, callback) => listeners.set(name, callback),
-          emit: (name, data) => listeners.get(name)?.(data),
-        };
-          export const Events = { STATE_LOADED: 'state', OVERTIME_UPDATED: 'overtime', GIFT_CATALOG_UPDATED: 'gifts' };
-          window.pushState = (state) => listeners.get('state')({ state: { overtime: state } });`;
-      } else if (url.pathname === '/js/overlays/socket-client.js') {
-        body =
-          'export const createOverlaySocket = (options) => { window.socketOptions = options; return { start() {}, dispose() {} }; };';
+      } else if (url.pathname === '/js/shared/event-bus.js' && !url.searchParams.has('actual')) {
+        body = `import { eventBus, Events } from '/js/shared/event-bus.js?actual=1';
+          export { eventBus, Events };
+          window.pushState = (state) => eventBus.emit(Events.STATE_LOADED, { state: { overtime: state } });`;
+      } else if (url.pathname === '/js/overlays/socket-client.js' && !url.searchParams.has('actual')) {
+        body = `export * from '/js/overlays/socket-client.js?actual=1';
+          export const createOverlaySocket = (options) => { window.socketOptions = options; return { start() {}, dispose() {} }; };`;
       } else if (/^\/js\/[a-z0-9/-]+\.js$/i.test(url.pathname)) {
         body = fs.readFileSync(path.join(publicRoot, url.pathname.slice(1)), 'utf8');
       } else {

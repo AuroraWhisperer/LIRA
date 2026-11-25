@@ -1,100 +1,63 @@
-# ADR-0012: Local Paid Gift Catalog After Authorization
+# ADR-0012: 授权后在本地维护付费礼物目录镜像
 
-- Status: Accepted
-- Date: 2026-09-05
+## 状态
 
-The original schema-v2 and server-image compatibility decisions below are
-superseded by the current server catalog protocol and
-[gift identity specification](../../../specs/gift-identity-overtime.md).
-Current clients request schema 3, require `imageUrl: null`, download validated
-Bilibili sources directly and keep schema-2 last-good images by `variantId`.
-The [bootstrap specification](../../../specs/local-gift-catalog-bootstrap_design.md)
-describes the current acceptance rules; this ADR's original fallback text is
-historical rationale, not a requirement to restore server image downloads.
+已采纳（2026-09-05）
 
-## Context
+下文原 schema v2 及服务端图片降级兼容决策，已由现行服务端目录协议、[ADR-0014](0014-gift-identity-bound-overtime.md) 与 [礼物身份绑定规格](../../../specs/gift-identity-overtime.md) 替代。当前客户端统一请求 schema 3、要求 `imageUrl: null`、直接从经过校验的 B 站来源下载图片，并按 `variantId` 保留 schema 2 最后一次有效的旧图片。现行验收细则见 [本地礼物目录初始化规格](../../../specs/local-gift-catalog-bootstrap_design.md)；下文原降级说明仅作历史背景保留，不再要求恢复从服务端下载图片。
 
-The overtime picker previously shipped a static Bilibili artwork tree, then
-moved to downloading only room and server-search matches. That reduced the
-installer but left global search and historical gift artwork dependent on a
-network request at the moment of use. A bundled JSON snapshot would become
-stale independently of the server catalog and would reintroduce release-owned
-catalog maintenance.
+## 背景
 
-## Decision
+加班机礼物选择器早期随安装包内置了一棵静态 B 站礼物图片树，后来改为仅按需下载当前房间和服务端搜索命中的图片。虽然缩小了安装包体积，但全局搜索和历史礼物图标仍强依赖实时网络请求；若改为在安装包内嵌 JSON 快照，又会与服务端目录脱节，重新把目录维护绑定到客户端发版周期。
 
-The desktop keeps a runtime-owned local mirror of the server's active paid gift
-catalog. A paid gift is an item whose `coinType` is `gold` and whose `priceRaw`
-is greater than zero. The server's public flat catalog adds a validated
-Bilibili `sourceUrl`; the client downloads artwork from trusted `hdslb.com`
-hosts and may fall back to the existing same-origin server image when a legacy
-row has no source URL.
+## 决策
 
-After authorization, Electron main process is the sole owner of navigation to
-the Admin page. If no completed local asset scan exists, the license page shows
-catalog and image progress and navigation waits for that scan. A missing
-catalog is retryable and blocks first entry; individual image failures are
-recorded but do not block forever. Later launches with a usable completed mirror
-enter immediately and refresh changed catalog versions in the background.
+桌面端在运行期维护服务端有效付费礼物目录的本地镜像。付费礼物定义为 `coinType === 'gold'` 且 `priceRaw > 0` 的条目。服务端公开扁平目录补充经校验的 B 站 `sourceUrl`，客户端从可信 `hdslb.com` 域名下载素材（历史时期对缺少源地址的旧条目允许降级读取同源服务端图片）。
 
-Authorized launches check once, and open runtimes repeat every 12 hours. A 304
-still checks local image availability. The validated source/server image URL
-pair identifies an artwork revision, and an atomic last-good image index keeps
-old images through replacement failures. CDN failure does not trigger server
-image fallback; server-only rows remain supported. Asset-ready local events
-refresh visible artwork, while subsequent actual downloads use one progress
-toast. Unchanged checks remain silent. Blind-box mapping and ledger data are
-not part of catalog publication.
+设备授权完成后，由 Electron 主进程独占管理页跳转控制权：若本地尚未完成首次资源扫描，授权页展示目录与图片进度并等待扫描完成；目录缺失可重试且阻断首次进入，单张图片失败则记录状态而不永久卡死。后续启动若已有可用镜像，则直接进入主界面并在后台刷新变更后的目录版本。
 
-The configured room panel and blind-box configuration remain the source of
-truth for the overtime room catalog. Global search, historical high-value gift
-artwork, blind-box artwork, and persisted rule artwork resolve by exact gift ID
-from the local mirror. Personal backpack data remains out of scope.
+每次授权启动校验一次，长运行客户端按既定周期刷新（现行 12 小时刷新间隔、HTTP 304 仍核查本地图片完整性、按最后有效图片索引原子防替换失败、静默检查与单条进度提示等细则见 [本地礼物目录初始化规格](../../../specs/local-gift-catalog-bootstrap_design.md)）。CDN 下载失败不触发服务端图片降级，盲盒映射与礼物账本数据不属于目录发布范围。
 
-## Consequences
+当前房间面板与盲盒配置仍以直播间配置为单一事实来源；全局搜索、历史高价礼物图标、盲盒图标及持久化规则图标则按精确礼物 ID 从本地镜像解析。个人背包数据不在本方案范围内。
 
-### Positive
+## 影响
 
-- Search and normal artwork lookup no longer depend on a live server request.
-- Same-name gifts retain independent IDs and image resolution.
-- Installers contain no stale Bilibili gift catalog or image tree.
-- Interrupted first-time initialization resumes from valid files already on
-  disk.
+### 正面影响
 
-### Negative
+- 礼物搜索与常规图标展示不再依赖实时服务端请求。
+- 同名不同 ID 的礼物各自保留独立标识与图片解析。
+- 安装包不再夹带易过时的 B 站礼物目录或静态图片树。
+- 首次初始化若中断，再次启动可复用磁盘上已校验通过的文件续传。
 
-- First authorization downloads roughly one thousand paid gift images before
-  entering the application.
-- The client owns a versioned runtime cache and an initialization state file.
-- The public server catalog exposes validated upstream image URLs.
+### 代价
 
-### Neutral
+- 首次授权进入应用前需下载约千张付费礼物图片。
+- 客户端需维护带版本的运行期目录缓存与初始化状态文件。
+- 服务端公开目录需对外暴露经过校验的上游图片地址。
 
-- The server remains authoritative for catalog membership and synchronization.
-- Room gift membership, gift settlement, authorization credentials, and local
-  session boundaries do not change.
+### 中性影响
 
-## Alternatives Considered
+- 服务端仍为目录成员与同步内容的权威来源。
+- 房间礼物列表、礼物结算、授权凭据与本地会话边界均不改变。
 
-**Bundle a paid-only JSON snapshot**
+## 备选方案
 
-- Rejected because it becomes stale between releases and duplicates the server
-  catalog's ownership.
+**随安装包内嵌付费礼物 JSON 快照**
 
-**Continue downloading only search and room matches**
+- 否决：版本间隙内必然过时，且与服务端目录职责重复。
 
-- Rejected because it cannot provide global local search or dependable artwork
-  for historical gifts while offline.
+**继续仅下载搜索与当前房间命中的图片**
 
-**Proxy every image through LIRA Server**
+- 否决：离线时无法提供全局本地搜索，也无法可靠显示历史礼物图标。
 
-- Retained only as a compatibility fallback because it doubles server bandwidth
-  for assets already available from the validated Bilibili CDN.
+**所有礼物图片均由 LIRA Server 代理转发**
 
-## References
+- 仅作为早期兼容降级：B 站可信 CDN 已可直接访问，全量经服务端中转会成倍放大服务端带宽开销。
 
-- `specs/local-gift-catalog-bootstrap_design.md`
-- `specs/remote-gift-catalog-sync_design.md`
-- `src/bilibili/gift/remote-catalog-cache.js`
-- `src/bilibili/gift/remote-gift-image-cache.js`
-- `src/electron/main.js`
+## 参考
+
+- [local-gift-catalog-bootstrap_design.md](../../../specs/local-gift-catalog-bootstrap_design.md)
+- [remote-gift-catalog-sync_design.md](../../../specs/remote-gift-catalog-sync_design.md)
+- [remote-catalog-cache.js](../../../src/bilibili/gift/remote-catalog-cache.js)
+- [remote-gift-image-cache.js](../../../src/bilibili/gift/remote-gift-image-cache.js)
+- [main.js](../../../src/electron/main.js)

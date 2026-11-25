@@ -9,7 +9,7 @@ const resizeObserver =
   typeof ResizeObserver === 'undefined'
     ? null
     : new ResizeObserver((entries) => {
-        entries.forEach(({ target }) => refreshParameterRange(target));
+        refreshParameterRanges(entries.map(({ target }) => target));
       });
 
 function isParameterRange(input) {
@@ -113,9 +113,18 @@ export function getParameterRangeOrigin(input) {
  * @param {HTMLInputElement} input 参数滑块。
  */
 export function refreshParameterRange(input) {
+  measureParameterRange(input)?.();
+}
+
+export function refreshParameterRanges(inputs) {
+  const updates = inputs.map(measureParameterRange);
+  for (const update of updates) update?.();
+}
+
+function measureParameterRange(input) {
   if (!isParameterRange(input)) return;
   // ResizeObserver refreshes these when their panel becomes visible.
-  if (input.closest?.('[hidden], details:not([open]) > :not(summary)')) return;
+  if (input.closest?.('[hidden], .main-page:not(.active), details:not([open]) > :not(summary)')) return;
 
   const progress = getParameterRangeProgress(input);
   const origin = getParameterRangeOrigin(input);
@@ -128,15 +137,17 @@ export function refreshParameterRange(input) {
   const originLength = trackLength * (origin.lengthProgress / 100);
   const zeroPosition = thumbSize / 2 + trackLength * (origin.zeroProgress / 100);
 
-  input.style.setProperty('--parameter-range-progress', `${progress}%`);
-  input.style.setProperty('--parameter-range-track-inset', `${thumbSize / 2}px`);
-  input.style.setProperty('--parameter-range-track-length', `${trackLength}px`);
-  input.style.setProperty('--parameter-range-fill-length', `${fillLength}px`);
-  input.style.setProperty('--parameter-range-origin-start', `${originStart}px`);
-  input.style.setProperty('--parameter-range-origin-length', `${originLength}px`);
-  input.style.setProperty('--parameter-range-zero-position', `${zeroPosition}px`);
-  input.style.setProperty('--parameter-range-thumb-offset', `${(trackLength * (progress - nativeProgress)) / 100}px`);
-  if (input.dataset) input.dataset.rangePolarity = origin.polarity;
+  return () => {
+    input.style.setProperty('--parameter-range-progress', `${progress}%`);
+    input.style.setProperty('--parameter-range-track-inset', `${thumbSize / 2}px`);
+    input.style.setProperty('--parameter-range-track-length', `${trackLength}px`);
+    input.style.setProperty('--parameter-range-fill-length', `${fillLength}px`);
+    input.style.setProperty('--parameter-range-origin-start', `${originStart}px`);
+    input.style.setProperty('--parameter-range-origin-length', `${originLength}px`);
+    input.style.setProperty('--parameter-range-zero-position', `${zeroPosition}px`);
+    input.style.setProperty('--parameter-range-thumb-offset', `${(trackLength * (progress - nativeProgress)) / 100}px`);
+    if (input.dataset) input.dataset.rangePolarity = origin.polarity;
+  };
 }
 
 function bindBalancedPointer(input) {
@@ -192,9 +203,8 @@ function getInputs(root) {
  */
 export function initParameterRanges(root = document) {
   const inputs = getInputs(root);
-
+  refreshParameterRanges(inputs);
   inputs.forEach((input) => {
-    refreshParameterRange(input);
     if (initializedInputs.has(input)) return;
 
     const refresh = () => refreshParameterRange(input);

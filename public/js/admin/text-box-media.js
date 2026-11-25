@@ -1,3 +1,4 @@
+import { readApiResponse } from '../shared/json-response.js';
 import { previewElement } from './component-preview-elements.js';
 import { createWishPicker } from './gifts/wish-picker.js';
 import { normalizeTextBoxImageSource } from '../shared/text-box-config.js';
@@ -18,8 +19,7 @@ export async function requestTextBoxMedia(kind, { source, file, signal } = {}, a
   if (file) headers['Content-Type'] = file.type;
   const response = await fetch(url, { method: file ? 'POST' : 'GET', headers, body: file,
     credentials: 'omit', cache: 'no-store', signal });
-  const payload = await response.json();
-  if (!response.ok || !payload.ok) throw new Error(payload.error || '素材读取失败，请重试。');
+  const payload = await readApiResponse(response, '素材读取失败，请重试。');
   return payload.data;
 }
 

@@ -118,7 +118,7 @@ export function createProviderOperations(deps) {
       type: state.ok ? 'success' : 'warning',
       title: state.ok ? '连接检查通过' : '音乐平台连接异常',
       message: state.message || '音乐平台连接检查完成',
-      className: state.ok ? 'playback-health-toast-good' : 'playback-health-toast-warn',
+      className: `toast-with-icon toast-icon-${state.ok ? 'success' : 'warn'}`,
       duration: state.ok ? 3800 : 6000,
     });
   }
@@ -172,7 +172,7 @@ export function createProviderOperations(deps) {
           : authState
             ? '登录窗口已关闭，可重新打开完成登录'
             : '请稍后刷新该平台的登录状态',
-        className: loggedIn ? 'music-cookie-refreshed-toast' : 'playback-health-toast-warn',
+        className: `toast-with-icon toast-icon-${loggedIn ? 'success' : 'warn'}`,
         duration: loggedIn ? 3600 : 6000,
       });
     } catch (error) {
@@ -197,7 +197,7 @@ export function createProviderOperations(deps) {
       key: `playback-login-required:${platform}`,
       title: `请先登录 ${sourceName}`,
       message: '登录后即可播放在线音乐',
-      className: 'playback-login-toast',
+      className: 'toast-with-icon playback-login-toast',
       duration: 5200,
       actionLabel: `登录 ${sourceName}`,
       onClick: () => loginSelectedMusicProvider(platform),

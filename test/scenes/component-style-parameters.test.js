@@ -21,7 +21,6 @@ test('effect parameters validate finite typed bounds and preserve old empty conf
   assert.deepEqual(normalizeStyleParameters('danmaku', { glow: { showEntryMessages: false } }), { glow: { showEntryMessages: false } });
   const oldTransform = normalizeStyleParameters('danmaku', { signal: { transform: { rotateY: -18 } } }).signal.transform;
   assert.equal(oldTransform.perspective, 1000, 'existing angles keep the original perspective');
-  assert.equal(normalizeStyleParameters('danmaku', { glowy: { transform: { perspective: 1800 } } }).glowy.transform.perspective, 1800);
   assert.throws(() => normalizeStyleParameters('danmaku', { signal: { transform: { perspective: 399 } } }), { code: 'INVALID_STYLE_PARAMETERS' });
 });
 
@@ -66,16 +65,18 @@ test('clock storage, scene instances and public output roundtrip only validated 
     .styleParameters.browser.transform.rotateZ, 15);
 });
 
-test('coffee and sea breeze effects survive browser edits and privileged validation', () => {
+test('built-in danmaku styles retain edited shadow, perspective and welcome settings through privileged validation', () => {
+  const { DANMAKU_STYLE_OPTIONS } = require('../../public/js/shared/danmaku-style-options.js');
   const common = require('../../src/shared/component-style-parameters');
-  for (const style of ['coffee', 'sea-breeze', 'sea-breeze-random']) {
+  for (const style of Object.keys(DANMAKU_STYLE_OPTIONS)) {
     let config = { style };
     config = { ...config, ...parameters.editStyleParameter(config, 'shadow', { blur: 16 }) };
+    config = { ...config, ...parameters.editStyleParameter(config, 'transform', { perspective: 1600, rotateY: -18 }) };
     config = { ...config, ...parameters.editStyleParameter(config, 'showEntryMessages', false) };
     const saved = common.normalizeStyleParameters('danmaku', config.styleParameters);
-    const restored = parameters.normalizeStyleParameters('danmaku', saved)[style];
-    assert.equal(restored.shadow.blur, 16);
-    assert.equal(restored.showEntryMessages, false);
+    assert.partialDeepStrictEqual(saved[style], {
+      shadow: { blur: 16 }, transform: { perspective: 1600, rotateY: -18 }, showEntryMessages: false,
+    }, style);
   }
 });
 

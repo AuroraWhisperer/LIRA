@@ -56,18 +56,6 @@
 .golden-lily-row.medal-red {
   --medal-bg: #9a6730;
 }
-.golden-lily-row.guard-1 {
-  --identity-bg: #f25f72;
-  --medal-bg: #f25f72;
-}
-.golden-lily-row.guard-2 {
-  --identity-bg: #8d67e8;
-  --medal-bg: #8d67e8;
-}
-.golden-lily-row.guard-3 {
-  --identity-bg: #4b91e8;
-  --medal-bg: #4b91e8;
-}
 
 .golden-lily-rank {
   position: absolute;

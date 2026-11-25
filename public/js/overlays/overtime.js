@@ -206,10 +206,14 @@ function renderBackground() {
   machine.classList.toggle('has-background', Boolean(imagePath));
 }
 
+let lastTicketsKey;
 function renderTickets() {
   const guide = byId('overtimeGiftGuide');
   const root = byId('overtimeTickets');
   const rules = Array.isArray(currentState?.rules) ? currentState.rules.filter((rule) => rule.enabled) : [];
+  const key = JSON.stringify(rules.map(rule => [rule.giftId, rule.giftName, rule.imagePath, describeRuleEffect(rule)]));
+  if (key === lastTicketsKey) return;
+  lastTicketsKey = key;
   const ticketCount = Math.max(1, rules.length);
   const wideColumns = Math.min(3, ticketCount);
   const narrowColumns = Math.min(2, ticketCount);

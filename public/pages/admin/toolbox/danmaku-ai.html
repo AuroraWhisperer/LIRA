@@ -52,14 +52,6 @@
               <option value="custom">自定义 / 第三方兼容</option>
             </select>
           </label>
-          <div class="xiaomi-ai-provider-note">
-            <span class="xiaomi-ai-provider-label"
-              ><span id="xiaomiAiProviderBadge">自动识别</span
-              ><lira-help
-                ><span id="xiaomiAiProviderNote">选择你使用的 AI 平台，也可以填写第三方平台地址。</span></lira-help
-              ></span
-            >
-          </div>
         </div>
         <label id="xiaomiAiAuthModeControl" class="wide" hidden>
           <span>接入方式</span>
@@ -106,8 +98,7 @@
             <button id="xiaomiAiDoubaoLogin" class="secondary" type="button">扫码登录豆包</button>
             <button id="xiaomiAiDoubaoLogout" class="secondary" type="button" hidden>退出豆包</button>
           </div>
-          <p class="hint">使用手机豆包扫码，电脑无需安装豆包。仅文字对话，不需要 API Key。提示需要验证时，点「打开豆包完成验证」，按网页提示操作，再点「测试 AI 连接」。网页未必显示验证码，以连接测试成功为恢复依据。</p>
-          <p class="hint">若提示「豆包未确认会话或上下文隔离」，先关闭「启用 AI」，保持选中豆包。开关保存成功后重启 LIRA，再点「测试 AI 连接」。测试通过后再按需开启 AI。</p>
+          <p class="hint">用手机豆包扫码，仅支持文字对话，无需 API Key。需要验证时点「打开豆包完成验证」；验证或会话异常的恢复步骤见<a data-usage-guide-link href="#ug-doubao-recovery">豆包接入排错</a>。</p>
           <p class="hint">测试连接使用单独对话。</p>
         </div>
         <label id="xiaomiAiKeyControl" class="wide"

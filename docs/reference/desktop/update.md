@@ -15,7 +15,7 @@
 | 开关 | 设置 `enableAutoUpdate === 'true'`（设置存储见 [../backend/storage.md](../backend/storage.md) §7） | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `readAutoUpdateSetting` |
 | 触发 | 主窗口 `ready-to-show` 后，仅**打包版且开关开启**时延迟 **1s** 首查 | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `scheduleStartupCheck`，由主进程注入窗口 `onReady` |
 
-控制器通过主进程注入的 `getAutoUpdateSetting` 读取开关；若已有待执行的启动检查定时器，则不重复调度；调用 `dispose()` 会取消定时器并禁止再次安排。用于界面推送的状态快照及定时器留在控制器内部，渲染进程只接收快照。
+控制器通过主进程注入的 `getAutoUpdateSetting` 读取开关；若已有待执行的启动检查定时器，则不重复调度；调用 `dispose()` 会取消定时器并禁止再次安排。更新状态由 `update-manager` 唯一持有，控制器通过 `getUpdateState()` 读取并推送快照，外部错误通过 `reportUpdateError()` 进入同一状态更新路径。控制器仅持有启动检查定时器与安装前排空钩子，渲染进程只接收快照。
 
 ## 2. 状态机
 
@@ -50,6 +50,8 @@ Windows 端复用 `electron-updater.autoUpdater` 及 Electron HTTP 下载器，�
 缓存根目录通过 `desktop-user-data.js` 按实际可执行文件位置解析，开发版按仓库根目录解析；不依赖迁移后的 Chromium `userData`，因此浏览器目录调整不会把更新文件写进 `data`。
 
 `configureAutoUpdater({onStateChange, writeLog, updater})`（[update-manager.js](../../../src/electron/update-manager.js)）：
+
+先安装状态通知与日志回调，再惰性初始化 updater 并绑定事件。生产启动在安排检查和创建正常管理页面前完成此配置；`reportUpdateError` 委托同一状态 owner，不在桌面控制器另建状态副本。
 
 | 配置 | 值 | 说明 |
 | --- | --- | --- |

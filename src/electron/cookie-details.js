@@ -30,4 +30,13 @@ function toElectronCookieDetails(cookie) {
   return details;
 }
 
-module.exports = { toSerializableCookie, toElectronCookieDetails };
+function matchesCookieDomains(cookie, allowedDomains) {
+  const domain = String(cookie.domain || '').toLowerCase();
+  return allowedDomains.some((allowed) => {
+    const cleanAllowed = allowed.toLowerCase();
+    const hostAllowed = cleanAllowed.replace(/^\./, '');
+    return domain === cleanAllowed || domain === hostAllowed || domain.endsWith(`.${hostAllowed}`);
+  });
+}
+
+module.exports = { toSerializableCookie, toElectronCookieDetails, matchesCookieDomains };

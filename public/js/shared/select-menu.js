@@ -420,6 +420,7 @@ function installSelectObserver() {
     for (const record of records) {
       for (const node of record.removedNodes) {
         if (node.nodeType !== Node.ELEMENT_NODE || node.isConnected) continue;
+        if (node.tagName !== 'SELECT' && !node.childElementCount) continue;
         const selects = node.tagName === 'SELECT' ? [node] : node.querySelectorAll('select');
         for (const select of selects) {
           const state = enhancedSelects.get(select);
@@ -430,7 +431,7 @@ function installSelectObserver() {
         }
       }
       for (const node of record.addedNodes) {
-        if (node.nodeType === Node.ELEMENT_NODE && node.isConnected) enhanceSelects(node);
+        if (node.nodeType === Node.ELEMENT_NODE && node.isConnected && (node.tagName === 'SELECT' || node.childElementCount)) enhanceSelects(node);
       }
     }
   });

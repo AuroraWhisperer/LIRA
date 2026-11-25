@@ -4,6 +4,7 @@ import { getBlindBoxIcon, readOfficialGiftCatalog } from './artwork-catalog.js';
 ('use strict');
 
 import { stateService } from '../state.js';
+import { observePanelVisibility } from '../panel-visibility.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
 import { escapeHtml, escapeAttr } from '../../shared/html-escape.js';
 import { formatMoney } from '../../shared/display-format.js';
@@ -20,6 +21,8 @@ export const giftBlindbox = (() => {
   let saleCatalogRevision = 0;
   let saleCatalogLoadPromise = Promise.resolve();
   let saleRoomId = '';
+  let saleVisible = false;
+  let pendingSaleRead;
 
   function isBlindBoxAvailable(item) {
     return item.variantId ? saleVariantIds.has(item.variantId) : saleGiftIds.has(String(item.giftId));
@@ -70,7 +73,7 @@ export const giftBlindbox = (() => {
       return;
     }
 
-    container.innerHTML = entries
+    const chips = entries
       .map((item) => {
         const name = escapeHtml(item.name || '未命名');
         const price = formatMoney(item.price);
@@ -111,12 +114,14 @@ export const giftBlindbox = (() => {
       `;
       })
       .join('');
+    let hint = '';
     if (!expanded && otherCount === entries.length) {
       const message = saleRoomId
         ? '暂未获取到当前直播间可送的盲盒，可展开查看其余映射'
         : '尚未设置直播间，可展开查看全部盲盒设置';
-      container.innerHTML = `<span class="hint">${message}</span>${container.innerHTML}`;
+      hint = `<span class="hint">${message}</span>`;
     }
+    container.innerHTML = hint + chips;
     setGiftArtworkFallbacks(container);
   }
 
@@ -194,6 +199,7 @@ export const giftBlindbox = (() => {
 
   function applySaleCatalogSnapshot(snapshot) {
     if (!saleRoomId || String(snapshot?.roomId || '') !== saleRoomId) return;
+    pendingSaleRead = null;
     saleCatalogRevision += 1;
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     saleGiftIds = new Set(gifts.map((gift) => String(gift.id)));
@@ -201,17 +207,37 @@ export const giftBlindbox = (() => {
     renderBlindBoxList();
   }
 
-  function loadSaleCatalog() {
-    const requestRevision = ++saleCatalogRevision;
+  function invalidateSaleCatalog(checkCache = false) {
+    ++saleCatalogRevision;
     saleGiftIds = new Set();
     saleVariantIds = new Set();
     renderBlindBoxList();
+    pendingSaleRead = checkCache ? 'cache' : 'refresh';
+    readSaleCatalog();
+  }
+
+  function readSaleCatalog() {
+    if (!saleVisible || !saleRoomId || !pendingSaleRead) return;
+    const requestRevision = saleCatalogRevision;
+    const read = pendingSaleRead;
+    pendingSaleRead = null;
     // Serialize room changes so the shared refresh cannot reuse our old room's
     // in-flight request. Skip queued contexts that have already been replaced.
     saleCatalogLoadPromise = saleCatalogLoadPromise.then(async () => {
       if (requestRevision !== saleCatalogRevision || !saleRoomId) return;
+      if (!saleVisible) { pendingSaleRead = read; return; }
       try {
+        if (read === 'cache') {
+          const response = await fetch('/api/overtime/gifts');
+          const payload = await readJsonResponse(response, '在售礼物目录加载失败');
+          if (requestRevision !== saleCatalogRevision) return;
+          if (response.ok && payload.ok && String(payload.data?.roomId) === saleRoomId) {
+            eventBus.emit(Events.GIFT_CATALOG_UPDATED, { snapshot: payload.data });
+            return;
+          }
+        }
         for (let attempt = 0; attempt < 2; attempt += 1) {
+          if (!saleVisible) { pendingSaleRead = 'refresh'; return; }
           const response = await fetch('/api/overtime/gifts/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -228,6 +254,8 @@ export const giftBlindbox = (() => {
           return;
         }
       } catch (error) {
+        if (requestRevision !== saleCatalogRevision) return;
+        pendingSaleRead = read;
         console.warn('[BlindBox] sale catalog load failed:', error.message || error);
       }
     });
@@ -237,8 +265,9 @@ export const giftBlindbox = (() => {
   function updateSaleRoom(settings, { force = false } = {}) {
     const roomId = String(settings?.roomId || '').trim();
     if (roomId === saleRoomId && !force) return;
+    const checkCache = !saleRoomId && !force;
     saleRoomId = roomId;
-    loadSaleCatalog();
+    invalidateSaleCatalog(checkCache);
   }
 
   function loadOfficialCatalog() {
@@ -262,19 +291,28 @@ export const giftBlindbox = (() => {
 
   function init() {
     if (disposeMapping) return disposeMapping;
+    const list = document.getElementById('blindBoxList');
+    const stopVisibility = list && observePanelVisibility(list, visible => {
+      saleVisible = visible;
+      if (visible) readSaleCatalog();
+    });
     const onSettings = (event) => updateSaleRoom(event.detail);
+    const onAuth = () => invalidateSaleCatalog();
     const unsubscribeCatalog = eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) => {
       if (Array.isArray(snapshot?.gifts)) applyOfficialCatalogSnapshot(snapshot);
     });
     const unsubscribeSaved = eventBus.on(Events.STATE_SAVED, ({ settings }) => updateSaleRoom(settings, { force: true }));
     window.addEventListener('app:settings-state', onSettings);
-    document.addEventListener('app:bilibili-auth-changed', loadSaleCatalog);
+    document.addEventListener('app:bilibili-auth-changed', onAuth);
     const dispose = () => {
       if (disposeMapping !== dispose) return;
       unsubscribeCatalog();
       unsubscribeSaved();
       window.removeEventListener('app:settings-state', onSettings);
-      document.removeEventListener('app:bilibili-auth-changed', loadSaleCatalog);
+      document.removeEventListener('app:bilibili-auth-changed', onAuth);
+      stopVisibility?.();
+      saleVisible = false;
+      pendingSaleRead = null;
       saleCatalogRevision += 1;
       officialCatalogRevision += 1;
       officialCatalogLoadPromise = null;

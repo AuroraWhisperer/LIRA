@@ -6,6 +6,8 @@ const { cleanText } = require('../shared/utils');
 
 function createHardwareSummaryService(options = {}) {
   let staticSummaryPromise = null;
+  let displayRequest;
+  let sampledAt = -Infinity;
   const readStatic = options.readStatic || readStaticHardwareSummary;
   const readTemperatures = options.readTemperatures || readHardwareTemperatures;
   const readDisplays = options.readDisplays || readDisplaySummary;
@@ -15,10 +17,19 @@ function createHardwareSummaryService(options = {}) {
     return staticSummaryPromise;
   }
 
+  function getDisplaySummary() {
+    const now = performance.now();
+    if (!displayRequest || now - sampledAt >= 5000) {
+      sampledAt = now;
+      displayRequest = Promise.resolve().then(readDisplays);
+    }
+    return displayRequest;
+  }
+
   return {
     async getHardwareSummary(includeTemperatures = false) {
-      const [summary, displaySummary] = await Promise.all([getStaticSummary(), readDisplays()]);
-      const result = { ...cloneHardwareSummary(summary), ...displaySummary };
+      const [summary, displaySummary] = await Promise.all([getStaticSummary(), getDisplaySummary()]);
+      const result = { ...cloneHardwareSummary(summary), ...structuredClone(displaySummary) };
       if (!includeTemperatures) return result;
 
       const temperatures = await readTemperatures(result.gpus);
@@ -206,8 +217,10 @@ function buildHardwareSummary(details = {}, osSnapshot = {}) {
   const memoryModules = toArray(details.memoryModules);
   const gpus = toArray(details.gpus).filter((gpu) => !isVirtualDisplayAdapter(gpu));
   const primaryCpu = cpus[0] || {};
-  const logicalCpuCount =
-    positiveInteger(primaryCpu.NumberOfLogicalProcessors) || positiveInteger(osSnapshot.logicalCpuCount) || null;
+  const threadsPerSocket = cpus.map(cpu => positiveInteger(cpu.NumberOfLogicalProcessors));
+  const logicalCpuCount = threadsPerSocket.length && threadsPerSocket.every(count => count > 0)
+    ? threadsPerSocket.reduce((total, count) => total + count, 0)
+    : positiveInteger(osSnapshot.logicalCpuCount) || null;
   const physicalCores = cpus.reduce((total, cpu) => total + positiveInteger(cpu.NumberOfCores), 0) || null;
   const buildNumber = hardwareText(details.operatingSystem?.BuildNumber) || hardwareText(osSnapshot.osBuild);
   const revision = details.windowsVersion?.UBR;

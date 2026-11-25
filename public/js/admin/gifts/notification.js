@@ -35,7 +35,12 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
       })
       .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
 
-    for (const [id, key] of currentKeys) giftNoticeKeys.set(id, key);
+    for (const [id, key] of currentKeys) {
+      giftNoticeKeys.delete(id);
+      giftNoticeKeys.set(id, key);
+    }
+    // Retain recent corrections beyond the server's 30-row display window.
+    while (giftNoticeKeys.size > 500) giftNoticeKeys.delete(giftNoticeKeys.keys().next().value);
 
     for (const item of changed) showGiftNotice(item);
   }

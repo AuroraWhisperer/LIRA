@@ -36,6 +36,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
   let giftRoleRevision = 0;
   let giftPickerSource = 'sale';
   let reselectingRule = null;
+  let searchTimer;
 
   async function loadCatalog() {
     // A pushed local-WS revision may arrive while this initial request is in
@@ -208,12 +209,14 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
   }
 
   function handleGiftSearchInput() {
-    renderGiftPicker();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderGiftPicker, 100);
   }
 
   function handleGiftSearchKeydown(event) {
     if (event.key !== 'Enter') return;
     event.preventDefault();
+    clearTimeout(searchTimer);
     renderGiftPicker();
   }
 
@@ -276,6 +279,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
   }
 
   function renderGiftPicker() {
+    clearTimeout(searchTimer);
     const root = byId('overtimeGiftResults');
     root.replaceChildren();
     if (giftPickerSource === 'global' && (globalGiftSearchPending || globalGiftSearchError)) {
@@ -303,7 +307,26 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
         `礼物库 · ${matches.length} / ${globalGiftMatches.length} 个`,
       );
     }
-    for (const gift of matches) root.append(createGiftOption(gift));
+    let shown = 0;
+    const more = document.createElement('button');
+    function appendPage() {
+      const start = shown;
+      shown = Math.min(shown + 80, matches.length);
+      for (const gift of matches.slice(start, shown)) root.append(createGiftOption(gift));
+      if (shown < matches.length) {
+        more.textContent = `显示更多（${shown} / ${matches.length}）`;
+        root.append(more);
+      }
+    }
+    more.type = 'button';
+    more.className = 'secondary';
+    more.addEventListener('click', () => {
+      more.remove();
+      const first = root.childElementCount;
+      appendPage();
+      root.children[first]?.focus();
+    });
+    appendPage();
     if (!matches.length)
       appendPickerMessage(
         root,
@@ -366,6 +389,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
     byId('overtimeGiftSearch').addEventListener('input', handleGiftSearchInput);
     byId('overtimeGiftSearch').addEventListener('keydown', handleGiftSearchKeydown);
     byId('overtimeGlobalGiftSearchBtn').addEventListener('click', toggleGiftPickerSource);
+    byId('overtimeGiftPicker').addEventListener('close', () => clearTimeout(searchTimer));
   }
   return { bind, open: openGiftPicker, load: loadCatalog, applyGiftCatalog, applyServerGiftArtwork,
     decorateRules: decorateOvertimeRules, renderStatus: renderGiftCatalogStatus };

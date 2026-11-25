@@ -2,7 +2,7 @@
 
 const crypto = require('node:crypto');
 
-const REQUIRED_COOKIE_NAMES = ['DedeUserID', 'SESSDATA', 'bili_jct'];
+const { BILIBILI_AUTH_COOKIES: REQUIRED_COOKIE_NAMES } = require('../shared/bilibili-auth-cookies');
 
 function createSessionError(code, message) {
   const error = new Error(message);

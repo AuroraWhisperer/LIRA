@@ -212,7 +212,12 @@ async function initializeApp() {
   window.addEventListener('pagehide', () => dynamicLottery.dispose(), {
     once: true,
   });
-  const transitionGuideSidebar = initUsageGuide();
+  const transitionGuideSidebar = initUsageGuide({
+    showGuide() {
+      setMainPage('otherAssistantPage');
+      other.selectFeatureById('otherUsageGuideFeature');
+    },
+  });
 
   // 初始化交互式引导（替代旧的对话框引导）
   const interactiveTour = initInteractiveTour({ toast: Utils.toast });
@@ -239,6 +244,7 @@ async function initializeApp() {
     onFeatureSelected: liveComponents.selectFeature,
     onNavigate: (pageId) => {
       setMainPage(pageId);
+      if (pageId !== 'otherAssistantPage') return;
       other.selectFeatureById('otherUsageGuideFeature');
       document.querySelector('#otherUsageGuideFeature a[href="#ug-scene-guide"]')?.click();
     },

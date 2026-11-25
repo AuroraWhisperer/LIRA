@@ -181,7 +181,7 @@ test('dispose removes both listeners and rejects queued callbacks and repeated s
   assert.equal(h.navigations.length, 1);
 });
 
-test('font and audio preparation start only after authorization and never delay gifts or navigation', async () => {
+test('authorized audio preparation waits for the first window paint while gifts and navigation proceed', async () => {
   const fontDownload = Promise.withResolvers();
   const audioDownload = Promise.withResolvers();
   let fontStarts = 0;
@@ -194,14 +194,28 @@ test('font and audio preparation start only after authorization and never delay 
   assert.equal(audioStarts, 0);
   h.change(LicenseState.AUTHORIZED);
   assert.equal(fontStarts, 1);
-  assert.equal(audioStarts, 1);
+  assert.equal(audioStarts, 0);
   assert.ok(h.calls.some(call => call[0] === 'catalog'));
   h.ready();
   assert.ok(h.navigations.some(navigation => navigation.url.endsWith('/admin?desktop=1')));
+  h.controller.onWindowReady();
+  h.controller.onWindowReady();
+  assert.equal(audioStarts, 1);
   fontDownload.reject(new Error('offline'));
   audioDownload.reject(new Error('offline'));
   await Promise.resolve();
   assert.ok(h.calls.some(call => call[1] === 'font-library'));
   assert.ok(h.calls.some(call => call[1] === 'audio-component'));
+  h.controller.dispose();
+});
+
+test('a visible activation window starts audio preparation only after authorization', () => {
+  let audioStarts = 0;
+  const h = createHarness({ authorized: false, initializeAudioComponent: async () => { audioStarts++; } });
+  h.controller.start();
+  h.controller.onWindowReady();
+  assert.equal(audioStarts, 0);
+  h.change(LicenseState.AUTHORIZED);
+  assert.equal(audioStarts, 1);
   h.controller.dispose();
 });

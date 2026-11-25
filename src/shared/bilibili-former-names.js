@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('./public-error');
+
 async function fetchBilibiliFormerNames(uid, { signal, fetchImpl = fetch } = {}) {
   const url = new URL('https://api.aicu.cc/api/v4/user/getusermark');
   url.searchParams.set('uid', uid);
@@ -17,7 +19,7 @@ async function fetchBilibiliFormerNames(uid, { signal, fetchImpl = fetch } = {})
       !/[\x00-\x1f\x7f]/.test(name)).map(name => name.trim()).filter(Boolean))];
   } catch (error) {
     if (signal?.aborted) throw error;
-    throw new Error('曾用名暂时无法获取，请稍后重试；已有记录已保留。');
+    throw createPublicError('曾用名暂时无法获取，请稍后重试；已有记录已保留。');
   }
 }
 

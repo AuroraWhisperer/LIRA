@@ -3,7 +3,7 @@ import { createComponentSaveBatch } from './component-save-batch.js';
 import { getCanvasPublicationEntries } from './component-preview-publication.js';
 import { requestScene, readComponentOutputSize } from './scene-api.js';
 import { validateSceneDocument } from './scene-template.js';
-import { startCanvasDataPolling } from './canvas-data-poller.js';
+import { createCanvasDataReader } from './canvas-data-poller.js';
 import { startGiftWishesCanvasData } from './gift-wishes-canvas-data.js';
 import { startNowPlayingCanvasData } from './now-playing-canvas-data.js';
 import { startGiftMotionCanvasData } from './gift-motion-canvas-data.js';
@@ -246,17 +246,35 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           Object.assign(previewData, data.previewData);
           emit({ previewData: { ...previewData } });
         };
-        const stopOpening = startCanvasDataPolling(controller, { type: 'opening', url: '/api/opening/config',
+        const opening = createCanvasDataReader({ url: '/api/opening/config',
           emit: opening => receive({ previewData: { opening } }) });
-        const stopGames = startCanvasDataPolling(controller, { type: 'games', url: '/api/games/session',
+        const games = createCanvasDataReader({ games: true, url: '/api/games/session',
           emit: session => receive({ previewData: { games: { preview: true, session } } }) });
+        let attached = false;
+        let types;
+        function updateReaders() {
+          opening.setActive(attached && types.has('opening'));
+          games.setActive(attached && types.has('games'));
+        }
+        const stopTypes = controller.subscribe(({ draft }) => {
+          types = new Set(draft.document.items.filter(item => item.visible !== false).map(item => item.type));
+          updateReaders();
+        });
         const stopWishes = startGiftWishesCanvasData(controller, receive);
         const stopNowPlaying = startNowPlayingCanvasData(controller, receive);
         const stopGiftMotion = startGiftMotionCanvasData(controller, receive);
         const stopRankings = startLiveRankingsCanvasData(controller, receive);
         const stopFavorites = danmakuStyleFavorites.subscribe(state => receive({ previewData: { danmakuStyleFavorites: state } }));
-        return Object.assign(() => { stopOpening(); stopGames(); stopWishes(); stopNowPlaying(); stopGiftMotion(); stopRankings(); stopFavorites(); },
-          { setActive: stopRankings.setActive });
+        function setActive(value) {
+          if (attached === value) return;
+          attached = value;
+          updateReaders();
+          stopRankings.setActive(value);
+        }
+        return Object.assign(() => {
+          stopTypes(); opening.setActive(false); games.setActive(false);
+          stopWishes(); stopNowPlaying(); stopGiftMotion(); stopRankings(); stopFavorites();
+        }, { setActive });
       },
       getComponentSize: (...args) => active?.getComponentSize(...args),
       favorite(change) { assertCurrent(); return danmakuStyleFavorites.set(change); },

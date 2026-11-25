@@ -74,6 +74,7 @@ test('appearance choices save immediately and commit only after success, with on
   fixture.init();
   const applying = fixture.choose('terracotta');
   assert.deepEqual(requests, ['terracotta']);
+  assert.equal(fixture.choices.find(choice => choice.checked).disabled, false, 'The focused radio stays enabled during save.');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'neutral');
   await fixture.choose('classic');
   assert.deepEqual(requests, ['terracotta']);

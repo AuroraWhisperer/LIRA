@@ -117,6 +117,41 @@ test('authenticated LIVE and PREPARING notifications update reply eligibility an
   assert.equal(states.at(-1), false);
 });
 
+for (const alwaysHistory of [false, true]) {
+  test(`offline startup reconciles history requests on LIVE and PREPARING (alwaysHistory=${alwaysHistory})`, async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    t.mock.property(global, 'WebSocket', FakeWebSocket);
+    let requests = 0;
+    t.mock.method(global, 'fetch', (input) => {
+      const url = new URL(input);
+      if (url.pathname.endsWith('/room_init')) return jsonResponse({ code: 0, data: { room_id: 123, uid: 456, live_status: 0 } });
+      if (url.pathname.endsWith('/Master/info')) return jsonResponse({ code: 0, data: { info: { uname: '主播' } } });
+      if (url.pathname.endsWith('/gethistory')) {
+        requests += 1;
+        return jsonResponse({ code: 0, data: { room: [] } });
+      }
+      return bilibiliFetch(input);
+    });
+    const client = new BilibiliDanmakuClient('123', { onStatus() {} }, { alwaysHistory });
+    t.after(() => client.stop());
+    await client.restart();
+    t.mock.timers.tick(1);
+    await new Promise(setImmediate);
+    assert.equal(requests, 1);
+
+    await client.ws.emit('message', { data: messagePacket({ cmd: 'LIVE' }) });
+    t.mock.timers.tick(2500);
+    await new Promise(setImmediate);
+    const liveRequests = alwaysHistory ? 2 : 1;
+    assert.equal(requests, liveRequests);
+
+    await client.ws.emit('message', { data: messagePacket({ cmd: 'PREPARING' }) });
+    t.mock.timers.tick(2500);
+    await new Promise(setImmediate);
+    assert.equal(requests, liveRequests + 1);
+  });
+}
+
 test('extracted danmaku client keeps runtime dependencies and diagnostics', async () => {
   const originalFetch = global.fetch;
   const originalWebSocket = global.WebSocket;

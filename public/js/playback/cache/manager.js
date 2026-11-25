@@ -113,13 +113,17 @@ export class CacheManager {
     const entries = [];
     let bytes = reservedBytes;
     for (const key of keys) {
+      if (key === reservedKey) {
+        localStorage.removeItem(key);
+        continue;
+      }
       const raw = localStorage.getItem(key);
       let timestamp;
       try { timestamp = JSON.parse(raw)?.timestamp; } catch (_) {
         localStorage.removeItem(key);
         continue;
       }
-      if (key === reservedKey || !Number.isFinite(timestamp) || Date.now() - timestamp >= DEFAULT_TTL_MS) {
+      if (!Number.isFinite(timestamp) || Date.now() - timestamp >= DEFAULT_TTL_MS) {
         localStorage.removeItem(key);
       } else {
         const size = (key.length + raw.length) * 2;

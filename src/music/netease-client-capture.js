@@ -1,5 +1,7 @@
 'use strict';
 
+const { isDeepStrictEqual } = require('node:util');
+
 const { createNeteaseClientMonitor } = require('./netease-client-monitor');
 const { findCurrentLyricLine } = require('./lyric-parser');
 
@@ -33,6 +35,7 @@ function createNeteaseClientCapture({
   let inferredPlayingAt = 0;
   let advancingSamples = 0;
   let lyrics = null;
+  let lastEmitted, lastLyrics;
   let resolved = false;
   let resolving = false;
   let lyricError = false;
@@ -56,7 +59,12 @@ function createNeteaseClientCapture({
   }
 
   function lyricStatus() { return ['ready', 'empty', 'loading'].includes(state.status) ? state.status : 'idle'; }
-  function emit() { onState(getStatus(), getLyricState()); }
+  function emit() {
+    if (lastLyrics === lyrics && isDeepStrictEqual(lastEmitted, state)) return;
+    lastEmitted = { ...state };
+    lastLyrics = lyrics;
+    onState(getStatus(), getLyricState());
+  }
 
   function resetLyrics() {
     trackVersion += 1;
@@ -113,7 +121,7 @@ function createNeteaseClientCapture({
   function acceptSample(sample) {
     if (!state.active) return;
     if (!sample || sample.error || !sample.detected || ['Stopped', 'Closed'].includes(sample.playbackStatus)) {
-      const hadTrack = Boolean(trackKey);
+      const clearTimeline = Boolean(trackKey) || (sample?.error && state.status !== 'error');
       const stoppedStamp = sample?.detected && !sample.error ? lastStamp : 0;
       const stoppedTimeline = stoppedStamp ? lastTimeline : null;
       resetTrack();
@@ -122,7 +130,7 @@ function createNeteaseClientCapture({
       state = { ...initial, active: true, detected: sample?.detected === true,
         status: sample?.error ? 'error' : 'waiting', message: sample?.error
           ? '无法读取网易云播放状态，正在重新检测' : '请打开网易云音乐客户端并播放歌曲' };
-      if (hadTrack || sample?.error) onTimeline(getTimeline());
+      if (clearTimeline) onTimeline(getTimeline());
       emit();
       return;
     }

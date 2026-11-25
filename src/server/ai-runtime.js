@@ -50,6 +50,7 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender,
       webSearch: createWebSearchTool({ fetchImpl: runtimeOptions.fetchImpl }),
     },
     sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true }),
+    trackDelivery: deliveryVerifier.trackSend,
     waitForDelivery: (delivery) => deliveryVerifier.waitForDelivery(delivery),
   });
   let shutdownPromise = null;

@@ -6,7 +6,7 @@ const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
-const { parseNeteaseWindowTitle, readNeteaseClientTrack, matchNeteaseRecord } = require('../../src/music/netease-client-track');
+const { parseNeteaseWindowTitle, createNeteaseTrackReader, matchNeteaseRecord } = require('../../src/music/netease-client-track');
 
 const RECORD = { id: 123, name: 'Song - Live', artists: [{ name: 'Artist A' }, { name: 'Artist B' }], duration: 180000 };
 const SAMPLE = { windowTitle: 'Song - Live - Artist A/Artist B', durationMs: 179000 };
@@ -23,7 +23,7 @@ test('NetEase local record matching requires the full title, artists and compati
   assert.equal(matchNeteaseRecord({ ...RECORD, artists: {} }, SAMPLE), null);
 });
 
-test('NetEase v3 reads only the latest history row using a read-only connection and never changes the DB', (t) => {
+test('NetEase v3 reuses the latest read-only history row until the database or WAL changes', async (t) => {
   const localAppData = createScratchDirectory('netease-track-', t);
   const filename = path.join(localAppData, 'NetEase', 'CloudMusic', 'Library', 'webdb.dat');
   fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -33,24 +33,38 @@ test('NetEase v3 reads only the latest history row using a read-only connection 
   writer.prepare('INSERT INTO historyTracks VALUES (?, ?)').run(1, JSON.stringify({ ...RECORD, id: 456 }));
   writer.close();
   const before = fs.readFileSync(filename);
-  const options = { localAppData, openDatabase(databasePath, settings) {
+  let opens = 0;
+  const readTrack = createNeteaseTrackReader({ localAppData, openDatabase(databasePath, settings) {
+    opens++;
     assert.deepEqual(settings, { readOnly: true, timeout: 100 });
     const connection = new DatabaseSync(databasePath, settings);
     return connection;
-  } };
-  assert.equal(readNeteaseClientTrack(SAMPLE, options).sourceTrackId, '123');
-  assert.equal(readNeteaseClientTrack({ windowTitle: 'Other - Artist' }, options), null);
+  } });
+  assert.equal((await readTrack(SAMPLE)).sourceTrackId, '123');
+  assert.equal(await readTrack({ windowTitle: 'Other - Artist' }), null);
+  assert.equal(opens, 1);
   assert.deepEqual(fs.readFileSync(filename), before);
+  const live = new DatabaseSync(filename);
+  try {
+    live.exec('PRAGMA journal_mode=WAL');
+    const write = live.prepare('INSERT INTO historyTracks VALUES (?, ?)');
+    for (const id of [345, 567]) {
+      write.run(id, JSON.stringify({ ...RECORD, id }));
+      assert.equal((await readTrack(SAMPLE)).sourceTrackId, String(id));
+    }
+  } finally { live.close(); }
 });
 
-test('NetEase v2 history is a fallback when the DB is unavailable and stale metadata is rejected', (t) => {
+test('NetEase v2 history is a fallback when the DB is unavailable and stale metadata is rejected', async (t) => {
   const localAppData = createScratchDirectory('netease-history-', t);
   const filename = path.join(localAppData, 'NetEase', 'CloudMusic', 'webdata', 'file', 'history');
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   fs.writeFileSync(filename, JSON.stringify([{ track: RECORD }]));
-  const options = { localAppData, openDatabase() { throw new Error('database unavailable'); } };
-  assert.equal(readNeteaseClientTrack(SAMPLE, options).sourceTrackId, '123');
-  assert.equal(readNeteaseClientTrack({ windowTitle: 'Old song - Artist' }, options), null);
+  const readTrack = createNeteaseTrackReader({ localAppData });
+  const reads = t.mock.method(fs.promises, 'readFile');
+  assert.equal((await readTrack(SAMPLE)).sourceTrackId, '123');
+  assert.equal(await readTrack({ windowTitle: 'Old song - Artist' }), null);
+  assert.equal(reads.mock.callCount(), 1);
   fs.writeFileSync(filename, '{');
-  assert.equal(readNeteaseClientTrack(SAMPLE, options), null);
+  assert.equal(await readTrack(SAMPLE), null);
 });

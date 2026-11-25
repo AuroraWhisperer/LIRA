@@ -109,7 +109,7 @@ test('rankings share viewing mode while retaining each layer board selection and
   assert.throws(() => createSceneSharedAppearance(ctx).patch('live-rankings', config, { showHot: true }));
 });
 
-test('resource lyric appearances preserve each scene layer through reads and saved appearance responses', t => {
+test('canvas resource saves notify the style library and preserve each lyric layer', async t => {
   const ctx = context(t);
   const store = createComponentStyleStore(ctx.system.dataDir);
   const pack = randomUUID();
@@ -123,7 +123,22 @@ test('resource lyric appearances preserve each scene layer through reads and sav
   const items = ['basic', 'advanced'].map(layer => ({ id: layer, type: 'lyrics',
     appearance: { mode: 'independent', config: { ...config, lyricLayer: layer } } }));
   const owner = createSceneSharedAppearance(ctx);
-  const saved = owner.patch('lyrics', items[0].appearance.config, { advancedLyricEnabled: 'true', advancedLyricLayout: 'corners' });
+  const componentPreviews = createComponentPreviewSessions();
+  const { id, token } = componentPreviews.open({ component: 'canvas', state: { generation: 0, loaded: true, draft: {}, saved: {} } });
+  const attachmentId = randomUUID();
+  componentPreviews.browser({ action: 'attach', id, attachmentId, previousAttachmentId: null }, token);
+  const reasons = [];
+  const req = new PassThrough();
+  req.method = 'POST';
+  req.headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  req.end(JSON.stringify({ action: 'patch', type: 'lyrics', config: items[0].appearance.config,
+    patch: { advancedLyricEnabled: 'true', advancedLyricLayout: 'corners' } }));
+  const res = { setHeader() {}, writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
+  await handleCanvasAppearance({ ...ctx, componentPreviews, broadcastSnapshot: reason => reasons.push(reason) }, req, res,
+    new URL(`http://localhost/api/component-preview/appearance?id=${id}&attachmentId=${attachmentId}`));
+  assert.equal(res.status, 200);
+  assert.deepEqual(reasons, ['component:styles']);
+  const saved = res.body.data;
   assert.equal(Object.hasOwn(saved, 'lyricLayer'), false, 'saving shared appearance must not replace the instance filter');
   const projected = readSceneSharedAppearances(ctx, items);
   for (const item of items) {

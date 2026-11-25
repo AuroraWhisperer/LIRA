@@ -93,20 +93,22 @@ function readMusicJsonCache(directory, key, ttlMs) {
   }
 }
 
-function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MAX_BYTES) {
-  if (!key || !data) return;
+async function readLyricJsonCache(directory, key) {
+  if (!directory) return null;
+  const filePath = path.join(directory, `${key}.json`);
+  try {
+    const stat = await fs.promises.stat(filePath);
+    if (Date.now() - stat.mtimeMs > MUSIC_LYRIC_CACHE_TTL_MS) return null;
+    return JSON.parse(await fs.promises.readFile(filePath, 'utf8'))?.data || null;
+  } catch (_) { return null; }
+}
+
+function commitMusicCacheFile(directory, key, maxBytes, publish) {
   try {
     fs.mkdirSync(directory, { recursive: true });
     const index = readDirectoryIndex(directory);
     const filePath = path.join(directory, `${key}.json`);
-    fs.writeFileSync(
-      filePath,
-      JSON.stringify({
-        savedAt: new Date().toISOString(),
-        data,
-      }),
-      'utf8',
-    );
+    publish(filePath);
     const stat = fs.statSync(filePath);
     index.bytes += stat.size - (index.files.get(filePath)?.size || 0);
     index.files.set(filePath, { path: filePath, size: stat.size, mtimeMs: stat.mtimeMs });
@@ -119,8 +121,28 @@ function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MA
     }
   } catch (_) {
     discardDirectoryIndex(directory);
-    /* Cache failures must not affect playback. */
+    return false;
   }
+  return true;
+}
+
+function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MAX_BYTES) {
+  if (!key || !data) return;
+  commitMusicCacheFile(directory, key, maxBytes, (filePath) =>
+    fs.writeFileSync(filePath, JSON.stringify({ savedAt: new Date().toISOString(), data }), 'utf8'));
+}
+
+async function writeLyricJsonCache(directory, key, data, canPublish) {
+  if (!directory) return;
+  // Stage away from the indexed files. Rename and quota accounting form one synchronous commit.
+  const staging = path.join(directory, '.pending');
+  const temp = path.join(staging, crypto.randomUUID());
+  try {
+    await fs.promises.mkdir(staging, { recursive: true });
+    await fs.promises.writeFile(temp, JSON.stringify({ savedAt: new Date().toISOString(), data }), { flag: 'wx' });
+    if (await canPublish() && commitMusicCacheFile(directory, key, MUSIC_LYRIC_CACHE_MAX_BYTES, filePath => fs.renameSync(temp, filePath))) return;
+  } catch (_) { /* Disk caching is optional. */ }
+  await fs.promises.unlink(temp).catch(() => {});
 }
 
 function pruneMusicCacheDirectory(directory, maxBytes) {
@@ -200,6 +222,8 @@ module.exports = {
   musicCacheKey,
   readMusicJsonCache,
   writeMusicJsonCache,
+  readLyricJsonCache,
+  writeLyricJsonCache,
   clearMusicCache,
   getMusicCacheStats,
 };

@@ -2,6 +2,7 @@
 // 首页服务 - 负责首页内容加载（推荐、每日、电台、歌单等）
 'use strict';
 
+import { assertApiResponse } from '../../shared/json-response.js';
 import { getHomeActionTitle } from '../utils.js';
 import { CACHEABLE_ACTIONS } from '../content/loader.js';
 
@@ -26,6 +27,7 @@ export class HomeService {
   }
 
   _beginRequest() {
+    this._openingContent = null;
     this._requestGeneration += 1;
     return this._requestGeneration;
   }
@@ -38,12 +40,33 @@ export class HomeService {
     return { stale: true };
   }
 
+  _setContent({ items, itemType, action }) {
+    this.homeItems = items;
+    this.homeItemType = itemType;
+    this.homeAction = action;
+    this.homePage = 1;
+  }
+
+  async _trackOpening(action, playlistId, ready) {
+    const opening = { platform: this.state?.selectedSource, action, playlistId, ready };
+    this._openingContent = opening;
+    try {
+      return await ready;
+    } finally {
+      if (this._openingContent === opening) this._openingContent = null;
+    }
+  }
+
   /**
    * 加载首页内容
    * @param {string} action - 动作类型
    * @returns {Promise<Object>} {items, itemType, action}
    */
-  async loadContent(action) {
+  loadContent(action) {
+    return this._trackOpening(action, undefined, this._loadContent(action));
+  }
+
+  async _loadContent(action) {
     const generation = this._beginRequest();
 
     // 本地历史记录特殊处理
@@ -64,10 +87,7 @@ export class HomeService {
         return this._staleResult();
       }
 
-      this.homeItems = result.items;
-      this.homeItemType = result.itemType;
-      this.homeAction = result.action;
-      this.homePage = 1;
+      this._setContent(result);
 
       return this.getHomeState();
     } catch (error) {
@@ -104,9 +124,13 @@ export class HomeService {
    * @param {number} playlistIndex - 歌单索引
    * @returns {Promise<Object>}
    */
-  async loadPlaylistTracks(playlistIndex) {
-    const generation = this._beginRequest();
+  loadPlaylistTracks(playlistIndex) {
     const playlist = this.homeItems[playlistIndex];
+    return this._trackOpening('playlist-tracks', playlist?.id, this._loadPlaylistTracks(playlist));
+  }
+
+  async _loadPlaylistTracks(playlist) {
+    const generation = this._beginRequest();
     if (!playlist) {
       throw new Error('Playlist not found');
     }
@@ -131,17 +155,8 @@ export class HomeService {
         return this._staleResult();
       }
 
-      // 记录当前歌单 ID，供刷新时使用
-      this._currentPlaylistId = playlist.id;
-
-      // 仅在请求仍然有效时保存当前状态到历史记录
-      this.pushHistory(previousState);
-
-      // ContentLoader 已经设置了 homeItems 等状态，同步到 HomeService
-      this.homeItems = result.items;
-      this.homeItemType = result.itemType;
-      this.homeAction = result.action;
-      this.homePage = 1;
+      this._enterPlaylist(playlist.id, previousState);
+      this._setContent(result);
 
       return {
         items: this.homeItems,
@@ -154,6 +169,49 @@ export class HomeService {
       this.onError(error);
       throw error;
     }
+  }
+
+  _enterPlaylist(playlistId, previousState) {
+    this._currentPlaylistId = playlistId;
+    this.pushHistory(previousState);
+  }
+
+  getPlaylistRemovalTarget(action) {
+    const platform = this.state.selectedSource;
+    const playlist = action === 'liked' ? { id: 'liked' } : this.getCurrentPlaylist();
+    if (!playlist) return null;
+    return { platform, playlist, items: this.homeItems, generation: this.contentLoader.getPlatformGeneration(platform) };
+  }
+
+  async refreshAfterPlaylistRemoval(target, removedTrack, receipt) {
+    const { platform, playlist, items, generation } = target;
+    if (generation !== this.contentLoader.getPlatformGeneration(platform)) return this._staleResult();
+    const liked = playlist.id === 'liked' || (platform === 'netease' && receipt?.isLikedPlaylist === true);
+    const playlistId = playlist.id === 'liked' ? (platform === 'netease' && receipt?.playlistId) : playlist.id;
+    if (liked) this.contentLoader.invalidateCachedContent(platform, 'liked');
+    if (playlistId) this.contentLoader.invalidateCachedContent(platform, 'playlist-tracks', playlistId);
+
+    const opening = this._openingContent;
+    const action = opening?.action ?? this.homeAction;
+    const visibleId = opening ? opening.playlistId : this._currentPlaylistId;
+    const matches = action === 'liked' ? liked :
+      action === 'playlist-tracks' && playlistId && String(visibleId) === String(playlistId);
+    if (!matches || this.state.selectedSource !== platform || (opening && opening.platform !== platform)) {
+      return this._staleResult();
+    }
+    if (opening) {
+      const openingGeneration = this._requestGeneration;
+      const result = await opening.ready;
+      if (!this._isCurrentRequest(openingGeneration)) return this._staleResult();
+      if (result.stale) {
+        // Discard the interrupted read. Use the last displayed list for this playlist until the re-read succeeds.
+        if (action === 'playlist-tracks') this._enterPlaylist(visibleId, this.getHomeState());
+        this._setContent({ items, itemType: 'track', action });
+      }
+    }
+    this.homeItems = this.homeItems.filter((item) => item.id !== removedTrack.id);
+    // refreshContent reports read failures separately. The confirmed removal still belongs in the drawer.
+    return this.refreshContent().catch(() => this.getHomeState());
   }
 
   /**
@@ -187,10 +245,7 @@ export class HomeService {
           return this._staleResult();
         }
 
-        this.homeItems = result.items;
-        this.homeItemType = result.itemType;
-        this.homeAction = result.action;
-        this.homePage = 1;
+        this._setContent(result);
 
         return this.getHomeState();
       } catch (error) {
@@ -222,9 +277,7 @@ export class HomeService {
       });
 
       const payload = await this.readJsonResponse(response, '刷新内容失败');
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || '刷新内容失败');
-      }
+      assertApiResponse(response, payload, '刷新内容失败');
 
       if (!this._isCurrentRequest(generation) || this.state.selectedSource !== platform || this.homeAction !== action) {
         return this._staleResult();

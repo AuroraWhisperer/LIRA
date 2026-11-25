@@ -2,7 +2,7 @@ import { giftAnalysis } from './blindbox-analysis.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
 import { escapeHtml, escapeAttr } from '../../shared/html-escape.js';
 import { formatMoney } from '../../shared/display-format.js';
-import { readJsonResponse } from '../../shared/json-response.js';
+import { readJsonResponse, assertApiResponse } from '../../shared/json-response.js';
 
 let disposeStats = null;
 
@@ -11,6 +11,7 @@ export function initBlindBoxStats() {
   let blindBoxStatsDirty = true;
   let blindBoxStatsController = null;
   let blindBoxStatsDisposed = false;
+  let timer = null;
 
   function isBlindBoxStatsVisible() {
     const page = document.getElementById('giftAssistantPage');
@@ -22,6 +23,8 @@ export function initBlindBoxStats() {
 
   function syncBlindBoxStatsVisibility() {
     if (!isBlindBoxStatsVisible()) {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
       blindBoxStatsDirty = true;
       blindBoxStatsController?.abort();
       blindBoxStatsController = null;
@@ -35,6 +38,15 @@ export function initBlindBoxStats() {
    */
   function loadBlindBoxStats({ reason } = {}) {
     blindBoxStatsDirty = true;
+    if (reason === 'bilibili:gift') {
+      if (isBlindBoxStatsVisible() && timer === null) timer = setTimeout(() => {
+        timer = null;
+        void refreshBlindBoxStats();
+      }, 500);
+      return;
+    }
+    clearTimeout(timer);
+    timer = null;
     if (reason === 'gift:source' || reason === 'connect') {
       blindBoxStatsController?.abort();
       blindBoxStatsController = null;
@@ -57,9 +69,7 @@ export function initBlindBoxStats() {
       const payload = await readJsonResponse(response, '盲盒统计加载失败');
       if (controller !== blindBoxStatsController) return;
       if (!isBlindBoxStatsVisible()) { blindBoxStatsDirty = true; return; }
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || `盲盒统计加载失败（HTTP ${response.status}）`);
-      }
+      assertApiResponse(response, payload, `盲盒统计加载失败（HTTP ${response.status}）`);
       renderBlindBoxStats(payload.data);
     } catch (error) {
       if (controller !== blindBoxStatsController) return;
@@ -81,7 +91,7 @@ export function initBlindBoxStats() {
     } finally {
       if (controller === blindBoxStatsController) {
         blindBoxStatsController = null;
-        if (blindBoxStatsDirty) void refreshBlindBoxStats();
+        if (blindBoxStatsDirty && timer === null) void refreshBlindBoxStats();
       }
     }
   }
@@ -127,7 +137,7 @@ export function initBlindBoxStats() {
               <span class="stat-chip-copy"><small>开出价值</small><strong>${formatMoney(summary.totalValue)}</strong></span>
             </div>
             <div class="stat-chip ${profitClass}">
-              <span class="stat-chip-icon">${summary.totalProfit >= 0 ? '↗' : '↘'}</span>
+              <span class="stat-chip-icon" aria-hidden="true">${summary.totalProfit > 0 ? '↗' : summary.totalProfit < 0 ? '↘' : '—'}</span>
               <span class="stat-chip-copy"><small>观众盈亏</small><strong>${profitSign}${formatMoney(Math.abs(summary.totalProfit))}</strong></span>
             </div>
           </div>
@@ -224,6 +234,7 @@ export function initBlindBoxStats() {
   const dispose = () => {
     if (blindBoxStatsDisposed) return;
     blindBoxStatsDisposed = true;
+    clearTimeout(timer);
     unsubscribe();
     observer.disconnect();
     document.removeEventListener('visibilitychange', syncBlindBoxStatsVisibility);

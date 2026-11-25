@@ -74,6 +74,8 @@ function fixture(t, options = {}) {
           if (this.captures <= (options.captureVizFailures || 0)) throw new Error('UnknownVizError');
           if (options.captureError) throw new Error('private C:/data/render-failed');
           return {
+            getScaleFactors: () => [1],
+            getSize: () => ({ width: options.captureWidth || 1920, height: 1080 }),
             toPNG: () => png(options.captureWidth || 1920),
             resize: size => {
               this.resized = size;

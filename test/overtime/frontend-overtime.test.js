@@ -10,6 +10,31 @@ const { createFixture: createServiceFixture } = require('../helpers/overtime-ser
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('unrelated snapshots keep the running clock anchored until an overtime update or connection baseline', async () => {
+  const { clock, document, namespace: { eventBus, Events }, state } = await createFixture();
+  const overtime = { revision: 8, status: 'running', effectiveRemainingMs: 10000, rules: [] };
+  const emit = (fields, options) => eventBus.emit(Events.STATE_LOADED, { state: { overtime, ...fields }, ...options });
+  const value = () => document.getElementById('overtimeClockValue').textContent;
+  emit({});
+  const before = state.ruleRenders;
+  const clears = state.timerClears;
+  for (let i = 0; i < 20; i++) {
+    clock.tick(250);
+    emit({ queue: [i], superChats: [i] }, { changedKeys: ['queue', 'superChats'] });
+  }
+  emit({ giftDetection: { consumers: { giftStatistics: true } } }, { changedKeys: ['giftDetection'] });
+  assert.deepEqual([value(), state.ruleRenders - before, state.timerClears - clears], ['00:00:05', 0, 0]);
+  assert.equal(document.getElementById('overtimeGiftStatsStatus').classList.contains('good'), true);
+  emit({ overtime: { ...overtime, revision: 1, effectiveRemainingMs: 3000 } },
+    { changedKeys: [], isConnectionSnapshot: true });
+  assert.equal(value(), '00:00:03');
+  state.setPanelVisible(false);
+  clock.tick(2000);
+  assert.equal(value(), '00:00:03', 'a hidden panel does not tick');
+  state.setPanelVisible(true);
+  assert.equal(value(), '00:00:01', 'return uses the existing monotonic anchor');
+});
+
 test('cancelling reset or applying a new duration leaves the overtime countdown untouched', async () => {
   const fixture = await createFixture({
     initialState: { overtime: { initialSeconds: 3600, effectiveRemainingMs: 9000000, status: 'running' } },
@@ -20,8 +45,8 @@ test('cancelling reset or applying a new duration leaves the overtime countdown 
   await fixture.document.getElementById('overtimeApplyTimeBtn').dispatchEvent('click');
   assert.equal(fixture.state.apiCalls.length, 0);
   assert.equal(fixture.state.confirmationCalls.length, 2);
-  assert.match(fixture.state.confirmationCalls[0].message, /3600 秒/);
-  assert.match(fixture.state.confirmationCalls[1].message, /7200 秒/);
+  assert.match(fixture.state.confirmationCalls[0].message, /01:00:00/);
+  assert.match(fixture.state.confirmationCalls[1].message, /02:00:00/);
 });
 
 test('pending time confirmation blocks duplicate resets and applies only the accepted action', async () => {

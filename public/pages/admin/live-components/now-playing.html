@@ -48,7 +48,7 @@
           </div>
           <div class="now-playing-preview-stage" aria-label="唱片实时预览">
             <div id="nowPlayingPreview" class="now-playing-preview-content now-playing-record-preview"></div>
-            <p id="nowPlayingRecordEmpty" class="now-playing-preview-empty">等待播放，也可以切换到示例歌曲调试样式。</p>
+            <p id="nowPlayingRecordEmpty" class="now-playing-preview-empty">暂无歌曲</p>
           </div>
         </div>
       </section>
@@ -64,7 +64,7 @@
           <div id="nowPlayingTextParameters" class="now-playing-settings"></div>
           <div class="now-playing-preview-stage" aria-label="歌名与歌手实时预览">
             <div id="nowPlayingTextPreview" class="now-playing-preview-content"></div>
-            <p id="nowPlayingTextEmpty" class="now-playing-preview-empty">等待播放，也可以切换到示例歌曲调试样式。</p>
+            <p id="nowPlayingTextEmpty" class="now-playing-preview-empty">暂无歌曲</p>
           </div>
         </div>
       </section>
@@ -77,8 +77,8 @@
       <p id="nowPlayingSaveState" class="hint" role="status">正在读取外观…</p>
       <div class="component-toolbar-group">
         <button id="nowPlayingReload" class="secondary" type="button">重新读取</button>
-        <button id="nowPlayingDiscard" class="secondary" type="button" disabled>放弃未保存修改</button>
-        <button id="nowPlayingSave" class="primary" type="button" disabled>保存外观</button>
+        <button id="nowPlayingDiscard" class="secondary" type="button" hidden disabled>放弃未保存修改</button>
+        <button hidden id="nowPlayingSave" class="primary" type="button" disabled>重试保存</button>
       </div>
     </div>
   </div>

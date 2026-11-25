@@ -84,6 +84,7 @@ const serverRuntimeModule = require('../server');
 const { createComponentWebPicker } = require('./component-web-picker');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
+const WINDOW_ICON = path.join(ROOT_DIR, 'public', 'img', 'shared', 'lira-app-icon.png');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
 let paths = { dataDir: '', logDir: '', logFile: '', terminalLogFile: '' };
 let runtime = null;
@@ -103,7 +104,7 @@ const desktopAuth = createDesktopAuthController({
 });
 const {
   getMusicAuthState,
-  getMusicCookieHeader,
+  musicProviderAuth,
   getMusicProviderRegistry,
   loginMusicAccount,
   logoutMusicAccount,
@@ -179,12 +180,13 @@ const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 const desktopWindow = createDesktopMainWindow({
   BrowserWindow,
   preloadPath: path.join(__dirname, 'preload.js'),
-  iconPath: path.join(ROOT_DIR, 'build', 'icon.png'),
+  iconPath: WINDOW_ICON,
   getThemeId: () => clientAppearance.getThemeId(),
   bindRequestAuth: window => requestAuth.bindWindow(window, shell),
   onCloseRequest: () => desktopLifecycle.requestClose(),
   onReady: () => {
     runtime?.startBackgroundMaintenance?.();
+    readinessController?.onWindowReady();
     logStartupPhase('ready-to-show', startupTiming.startedAt || Date.now());
     sendUpdateState();
     desktopUpdate.scheduleStartupCheck();
@@ -419,7 +421,7 @@ async function startDesktopApp() {
     dataDir: paths.dataDir,
     Notification,
     getMainWindow: () => desktopWindow.getWindow(),
-    icon: path.join(ROOT_DIR, 'build', 'icon.png'),
+    icon: WINDOW_ICON,
     writeLog,
     onPlannerRemindersChanged: (enabled) => plannerReminderController?.setEnabled(enabled),
   });
@@ -431,7 +433,7 @@ async function startDesktopApp() {
     Notification,
     powerMonitor,
     getMainWindow: () => desktopWindow.getWindow(),
-    icon: path.join(ROOT_DIR, 'build', 'icon.png'),
+    icon: WINDOW_ICON,
     writeLog,
     enabled: desktopNotifications.getState().settings.plannerRemindersEnabled,
   });
@@ -473,7 +475,6 @@ async function startDesktopApp() {
     logoutMusicAccount,
     clearMusicBrowserCache,
     getMusicProviderRegistry,
-    isPathAllowedForLocalMedia,
     acknowledgePlaybackFlush: playbackFlush.acknowledgePlaybackFlush,
     writePlaybackSnapshot: (payload, clientId) => {
       if (!runtime || typeof runtime.persistPlaybackSnapshot !== 'function') {
@@ -515,10 +516,7 @@ async function startDesktopApp() {
     },
     host: process.env.HOST || '127.0.0.1',
     startPort: 3000,
-    musicAuth: {
-      getAuthState: getMusicAuthState,
-      getCookieHeader: getMusicCookieHeader,
-    },
+    musicAuth: musicProviderAuth,
     bilibiliAuth: {
       getAuthState: getBilibiliAuthState,
       getCookieHeader: getBilibiliCookieHeader,
@@ -665,7 +663,7 @@ async function startDesktopApp() {
     licenseManager,
     runtime,
     bilibiliAuth: {
-      getAuthState: getBilibiliAuthState,
+      getAuthState: desktopAuth.getBilibiliSessionState,
       getCookieHeader: getBilibiliCookieHeader,
       getSessionRevision: desktopAuth.getBilibiliSessionRevision,
       replaceCookieHeader: replaceBilibiliCookieHeader,
@@ -685,6 +683,7 @@ async function startDesktopApp() {
       app,
       BrowserWindow,
       dialog,
+      nativeImage,
       shell,
       runtime,
       getBaseUrl: () => serverInfo.baseUrl,
@@ -750,6 +749,7 @@ async function startDesktopApp() {
     getLicenseManager: () => licenseManager,
     afterResume: async () => {
       if (!licenseManager?.isAuthorized()) return;
+      void fanProfileController?.start().catch(error => writeLog('fan-profile-resume', error));
       try {
         await cloudSyncController?.syncNow();
       } catch (error) {
@@ -830,7 +830,8 @@ function isPathAllowedForLocalMedia(filePath) {
 }
 
 function configureLocalMediaProtocol() {
-  registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, () => desktopWindow.getBaseUrl());
+  registerLocalMediaProtocol(protocol, (canonical) => localMediaAccess?.isCanonicalAllowed(canonical),
+    () => desktopWindow.getBaseUrl());
 }
 
 function logStartupPhase(phase, startedAt, extra = {}) {

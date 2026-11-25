@@ -104,9 +104,10 @@ class FansMedalPoller {
         const result = this.sink.ingestHint(toRankIdentityHint(userMeta), {
           ...context,
           source: 'fans_rank',
+          projectSnapshot: false,
           roomIdentityVerified: userMeta.currentRoomVerified === true,
         });
-        if (result?.snapshot) scan.count += 1;
+        if (result?.accepted || result?.snapshot) scan.count += 1;
       }
       const complete = items.length < PAGE_SIZE || (expectedCount > 0 && scan.page * PAGE_SIZE >= expectedCount);
       scan.page += 1;

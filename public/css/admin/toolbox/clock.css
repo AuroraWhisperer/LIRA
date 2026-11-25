@@ -361,44 +361,22 @@
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-medium);
 }
-.clock-toggle-field input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  min-height: 0;
-  opacity: 0;
-}
-.clock-toggle-field > i {
-  position: relative;
+
+.clock-toggle-field .switch-track {
   width: 36px;
   height: 20px;
-  border-radius: 999px;
+  border: 0;
   background: color-mix(in srgb, var(--border) 78%, var(--muted));
-  transition: background 160ms ease;
 }
-.clock-toggle-field > i::after {
-  position: absolute;
+.clock-toggle-field .switch-track::after {
   top: 3px;
   left: 3px;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
-  background: var(--color-range-thumb);
-  content: '';
   box-shadow: 0 1px 3px rgba(24, 24, 22, 0.22);
-  transition: transform 160ms ease;
 }
-.clock-toggle-field input:checked + i {
-  background: var(--accent);
-}
-.clock-toggle-field input:checked + i::after {
-  background: var(--color-on-control-accent);
-  transform: translateX(16px);
-}
-.clock-toggle-field input:focus-visible + i {
-  outline: 3px solid var(--color-control-focus);
-  outline-offset: 2px;
-}
+.clock-toggle-field input:checked + .switch-track { background: var(--accent); }
+.clock-toggle-field input:checked + .switch-track::after { transform: translateX(16px); }
 
 .clock-form-field {
   --color-control-height: 35px;

@@ -1,6 +1,7 @@
+import { createTextElement } from '../shared/dom-element.js';
 import { setGuardIcon } from '../shared/bilibili-guard-icons.js';
 
-const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
+import { GUARD_LABELS as GUARDS } from '../shared/bilibili-guard-labels.js';
 const ICONS = {
   gift: 'M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3zM12 8h4a3 3 0 1 0-3-3z',
   sc: 'M5 3h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-8l-6 4v-4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 8h8M8 12h5',
@@ -8,12 +9,7 @@ const ICONS = {
 
 // Keep the safe renderer's text/emote nodes. The shared feed owns all scheduling.
 export function createGlowyMessageRenderer({ document, classNames }, render) {
-  const element = (tag, className, text) => {
-    const node = document.createElement(tag);
-    node.className = className;
-    if (text !== undefined) node.textContent = text;
-    return node;
-  };
+  const element = createTextElement.bind(null, document);
   function guardIcon(level, className) {
     const image = element('img', className);
     image.alt = GUARDS[level];

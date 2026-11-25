@@ -195,6 +195,16 @@ test('fan detail renders platform companion days independently of unknown local 
   assert.doesNotMatch(view.renderDetail({ ...profile, guardAccompany: null }, 'membership'), /499 天/);
 });
 
+test('an inactive observation is recorded without presenting it as a past membership', async t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.record(p.id, 'membership', { type: 'observation', level: 3, status: 'inactive', observedAt: '2026-09-17T04:00:00Z' });
+  const { renderDetail } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const detail = renderDetail(f.detail(p.id), 'membership');
+  assert.match(detail, /当时未在舰/);
+  assert.doesNotMatch(detail, /上次上舰记录/);
+});
+
 test('roster notices separate success, skips and lookup failures and omit empty categories', async () => {
   const { rosterUpdateNotices } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const result = { roomId: '1234', total: 30, created: 0, updated: 30, skipped: 0,

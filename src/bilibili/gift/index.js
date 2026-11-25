@@ -44,7 +44,7 @@ function createGiftService({ queryStore, maintenanceStore, projectionStore, stat
   });
   return {
     ...projectionService,
-    getSnapshot: () => getGiftSnapshot(giftContext),
+    getSnapshot: (options) => getGiftSnapshot(giftContext, options),
     getHistory: (queryOptions) => getGiftHistory(giftContext, queryOptions),
     getSelection: (queryOptions) => getGiftSelection(giftContext, queryOptions),
     getViewRevision: () => getGiftViewRevision(giftContext),

@@ -1,6 +1,10 @@
+import { GUARD_LABELS } from '../shared/bilibili-guard-labels.js';
+import { bilibiliAvatarSource } from '../shared/bilibili-avatar.js';
 import { createGameSessionStream, mergeGameSession } from './games-session.js';
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { createDrawController } from './games-drawing.js';
+import { sameDisplayValue } from './same-display-value.js';
+import { createVisibleCountdown } from './visible-countdown.js';
 import { createGameResult } from './games-result.js';
 import { startOverlayPages } from './auto-pages.js';
 import { createOverlaySocket } from './socket-client.js';
@@ -19,7 +23,11 @@ const gameStream = createGameSessionStream({
   recover: () => loadSnapshot(),
 });
 let drawDanmakuFeed = null;
+let scheduledDrawChat = null;
+let displayedScores = null;
+let displayedCorrect = null;
 let drawController = null;
+let countdown = null;
 let componentConfig = null;
 let componentData = null;
 let componentCanvasKey = '';
@@ -46,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
       stopPages.forEach((stop) => stop());
       gameStream.dispose();
       clearTimeout(snapshotRetryTimer);
+      countdown?.dispose();
       socketController?.dispose();
       gameResult.dispose();
     },
@@ -69,8 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDanmaku: renderDrawDanmaku,
   });
   drawController.init();
+  countdown = createVisibleCountdown(drawController.updateCountdown);
   if (isComponentPreview()) {
-    const timer = setInterval(() => drawController?.updateCountdown(), 250);
     mountSceneExtraClient('games', {
       onConfig(config) {
         componentConfig = config;
@@ -83,13 +92,12 @@ document.addEventListener('DOMContentLoaded', () => {
         componentData = data ? { ...data, session: mergeGameSession(componentData?.session, data.session) } : data;
         renderComponent();
       },
-      onDispose() { clearInterval(timer); stopPages.forEach((stop) => stop()); drawDanmakuFeed?.destroy(); drawController?.resetDanmakuRenderScheduler(); },
+      onDispose() { countdown.dispose(); stopPages.forEach((stop) => stop()); drawDanmakuFeed?.destroy(); drawController?.resetDanmakuRenderScheduler(); },
     });
     return;
   }
   connectSocket();
   gameResult.bind();
-  setInterval(() => drawController?.updateCountdown(), 250);
 });
 
 function renderComponent() {
@@ -176,7 +184,7 @@ function applyGameDelta(payload, replaying) {
       if (item.uid === payload.avatar.uid && !item.avatarUrl) item.avatarUrl = payload.avatar.avatarUrl;
     }
   }
-  if (payload.item || payload.avatar) drawController?.scheduleDrawDanmakuRender(session.danmaku);
+  if (payload.item || payload.avatar) syncDrawChat(true);
   if (payload.state) {
     session.state = { ...payload.state, canvas: session.state.canvas };
     session.restartBlocked = payload.restartBlocked;
@@ -188,7 +196,11 @@ function renderGame(nextSession, redraw = true) {
   session = nextSession || null;
   const game = nextSession?.game || '';
   document.body.dataset.game = game;
-  if (!session || game !== 'draw-guess') drawController?.resetDanmakuRenderScheduler();
+  if (game !== 'draw-guess') {
+    scheduledDrawChat = null;
+    drawController?.resetDanmakuRenderScheduler();
+    countdown?.sync();
+  }
   byId('gameEmptyView').hidden = Boolean(session);
   byId('numberBombView').hidden = game !== 'number-bomb' || !session;
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
@@ -201,6 +213,7 @@ function renderGame(nextSession, redraw = true) {
   }
   const state = session.state;
   if (game === 'draw-guess') {
+    syncDrawChat();
     renderDrawGuess(state, redraw);
     gameResult.hide(session.restartBlocked);
     return;
@@ -292,7 +305,6 @@ function renderDrawGuess(state, redraw = true) {
       : state.phase === 'drawing' ? `${state.wordLength} 个字` : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
   byId('drawWordWaiting').hidden = state.phase !== 'choosing';
   byId('drawClueHint').textContent = state.phase === 'choosing' ? '主播选定后开始计时' : '输入答案即可抢答';
-  drawController?.scheduleDrawDanmakuRender(session.danmaku || []);
   byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
   renderDrawScoreboard(state.scores || []);
   renderDrawCorrectFeed(state.correct || []);
@@ -305,7 +317,20 @@ function renderDrawGuess(state, redraw = true) {
   else if (state.phase === 'round-result')
     byId('gameTurn').textContent = state.answerRevealed ? '答案已公布 · 等待下一题' : '时间到 · 等待主播公布答案';
   else if (state.phase === 'finished') byId('gameTurn').textContent = `${state.totalRounds} 局结束 · 最终排行`;
-  else drawController?.updateCountdown();
+  countdown?.sync();
+}
+
+function syncDrawChat(patched = false) {
+  if (componentConfig && !componentConfig.showDanmaku) {
+    if (scheduledDrawChat) drawController?.resetDanmakuRenderScheduler();
+    scheduledDrawChat = null;
+    return;
+  }
+  const items = session.danmaku || [];
+  // The standalone game patches messages and late avatars in place.
+  if (!patched && sameDisplayValue(scheduledDrawChat, items)) return;
+  scheduledDrawChat = items;
+  drawController?.scheduleDrawDanmakuRender(items);
 }
 
 function renderDrawDanmaku(items) {
@@ -314,32 +339,35 @@ function renderDrawDanmaku(items) {
 }
 
 function guardLabel(level) {
-  if (Number(level) === 3) return '舰长';
-  if (Number(level) === 2) return '提督';
-  if (Number(level) === 1) return '总督';
-  return '';
+  return GUARD_LABELS[Number(level)] || '';
 }
 
 function renderDrawScoreboard(scores) {
+  const rows = scores.slice(0, 6);
+  if (sameDisplayValue(displayedScores, rows)) return;
+  displayedScores = rows;
   const root = byId('drawScoreboard');
   root.replaceChildren();
   if (!scores.length) {
     root.append(createEmptyDrawItem('还没有观众得分'));
     return;
   }
-  scores.slice(0, 6).forEach((player, index) => {
+  rows.forEach((player, index) => {
     root.append(createDrawListItem(index + 1, player.name, `${player.score} 分`));
   });
 }
 
 function renderDrawCorrectFeed(correct) {
+  const rows = correct.slice(0, 6);
+  if (sameDisplayValue(displayedCorrect, rows)) return;
+  displayedCorrect = rows;
   const root = byId('drawCorrectFeed');
   root.replaceChildren();
   if (!correct.length) {
     root.append(createEmptyDrawItem('等待第一条正确弹幕'));
     return;
   }
-  correct.slice(0, 6).forEach((item) => {
+  rows.forEach((item) => {
     root.append(createDrawListItem(item.rank, item.name, `+${item.points}`));
   });
 }
@@ -431,8 +459,5 @@ async function submitGameResultAction(action) {
 
 function avatarSource(value) {
   if (isComponentPreview()) return sceneAvatarSource(value);
-  const source = String(value || '').trim();
-  if (!source) return '';
-  const token = String(window.__API_TOKEN__ || '');
-  return `/api/bilibili/avatar?url=${encodeURIComponent(source)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+  return bilibiliAvatarSource(value, window.__API_TOKEN__);
 }

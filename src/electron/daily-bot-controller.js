@@ -2,10 +2,12 @@
 
 const { randomUUID } = require('node:crypto');
 const { hostname } = require('node:os');
+const { readAuthorizedIdentity } = require('./authorized-identity');
 const { CHECKIN_BLESSINGS, FORTUNES } = require('../shared/bot-defaults');
 const {
   canonical,
   digest,
+  digestCanonical,
   invalid,
   exact,
   sanitizeSettings,
@@ -23,13 +25,13 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
     context();
   });
   function context() {
-    const identity = licenseManager.getCloudSyncIdentity();
+    const identity = readAuthorizedIdentity(licenseManager);
     const owner =
-      !disposed && licenseManager.isAuthorized() && identity?.streamerId
+      !disposed && identity
         ? JSON.stringify([
-            licenseManager.getRemoteBaseUrl(),
+            identity.origin,
             identity.streamerId,
-            licenseManager.getAuthorizationGeneration(),
+            identity.generation,
           ])
         : null;
     if (current?.owner !== owner) {
@@ -97,8 +99,9 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
     };
     // Invalid libraries remain visible for one-time correction, never silently replaced.
     if (data.blessings === undefined || data.fortunes === undefined) invalid();
-    if (Buffer.byteLength(canonical(data)) > 16 * 1024 * 1024) invalid('DAILY_BOT_IMPORT_TOO_LARGE');
-    const hash = digest(data);
+    const json = canonical(data);
+    if (Buffer.byteLength(json) > 16 * 1024 * 1024) invalid('DAILY_BOT_IMPORT_TOO_LARGE');
+    const hash = digestCanonical(json);
     if (status && hash !== status.digest) invalid('DAILY_BOT_SOURCE_CHANGED');
     draft = {
       id: status?.id || randomUUID(),
@@ -217,7 +220,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
           const response = await call(captured, 'readLibrary', {
             kind: input.kind, ...(cached ? { version: cached.version } : {}),
           });
-          const library = sanitizeLibrary(response, input.kind, cached);
+          const library = sanitizeLibrary(response, input.kind, { cached });
           captured.libraries[input.kind] = library;
           result = { library };
           break;
@@ -230,7 +233,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
           const response = await call(captured, 'updateLibrary', {
             kind: input.kind, body: { expectedVersion: input.expectedVersion, library: submitted },
           });
-          const library = sanitizeLibrary(response, input.kind, { library: submitted, version: digest(submitted) });
+          const library = sanitizeLibrary(response, input.kind, { submitted });
           captured.libraries[input.kind] = library;
           result = { library };
           break;

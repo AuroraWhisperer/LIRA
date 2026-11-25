@@ -139,9 +139,6 @@ body.player-dock-expanded .other-workspace {
 .other-feature-panel-header h2 {
   margin: 0;
   color: var(--text);
-  font-size: var(--type-size-page-title);
-  font-weight: var(--type-weight-bold);
-  line-height: var(--type-leading-page-title);
 }
 
 .other-feature-panel-header p {

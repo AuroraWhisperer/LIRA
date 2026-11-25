@@ -15,6 +15,12 @@ const { routes } = require('../../src/server/routes/dynamic-lottery-routes');
 const URL = 'https://t.bilibili.com/888';
 const RULES = { winnerCount: 1, requireLike: false, requireRepost: false, requireFollow: false };
 
+function verifiedAccountResponse() {
+  return Response.json({ code: 0, data: { isLogin: true, mid: '999',
+    wbi_img: { img_url: 'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png',
+      sub_url: 'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png' } } });
+}
+
 let recordSequence = 100;
 function seedTask(store, id, streamerId, overrides = {}) {
   store.createTask({
@@ -244,6 +250,38 @@ test('task actions validate the action and revision before any upstream request'
   assert.deepEqual(f.resumed, []);
 });
 
+test('each draw pause is recorded once and retries check the same candidate', async (t) => {
+  const f = createFixture(t);
+  const task = seedTask(f.store, 'pause-draw', '42', { rules: { requireFollow: true } });
+  const act = action => f.service.actOnTask({ taskId: task.id, action, revision: f.store.getTask(task.id).revision });
+  const events = () => f.db.prepare(
+    "SELECT payload_json FROM lottery_events WHERE task_id = ? AND event_type = 'paused' ORDER BY id",
+  ).all(task.id).map(row => JSON.parse(row.payload_json));
+  act('draw');
+  (await f.nextRequest()).resolve(verifiedAccountResponse());
+  const relation = await f.nextRequest();
+  assert.equal(relation.input.kind, 'relation');
+  const paused = act('pause');
+  act('pause');
+  await f.settle();
+  assert.equal(f.store.getTask(task.id).revision, paused.task.revision);
+  assert.deepEqual(events(), [{ reason: 'LOTTERY_OPERATION_PAUSED', nextIndex: 0 }]);
+
+  act('resume');
+  (await f.nextRequest()).resolve(Response.json({ code: 0, data: { be_relation: { attribute: 7 } } }));
+  await f.settle();
+  assert.deepEqual(events(), [
+    { reason: 'LOTTERY_OPERATION_PAUSED', nextIndex: 0 },
+    { reason: 'LOTTERY_RELATION_UNKNOWN', nextIndex: 0 },
+  ]);
+  act('resume');
+  (await f.nextRequest()).resolve(Response.json({ code: 0, data: { be_relation: { attribute: 2 } } }));
+  await f.settle();
+  const result = f.drawStore.getResult(task.id);
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(result.winners.map(winner => winner.uid), ['7']);
+});
+
 test('failures expose only a public code to the same identity and pause the shared budget on challenges', async (t) => {
   const f = createFixture(t);
   const task = seedTask(f.store, 'task', '42');
@@ -306,10 +344,7 @@ test('identity cancellation reaches a collecting page and drains it without stor
     nowMs: 1_000,
   });
   f.service.actOnTask({ taskId: task.id, action: 'resume', revision: task.revision });
-  (await f.nextRequest()).resolve(new Response(JSON.stringify({ code: 0, data: { isLogin: true, mid: '999',
-    wbi_img: { img_url: 'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png',
-      sub_url: 'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png' } } }),
-  { headers: { 'content-type': 'application/json' } }));
+  (await f.nextRequest()).resolve(verifiedAccountResponse());
   const page = await f.nextRequest();
   assert.equal(page.input.kind, 'comment_page');
   authorization.abort(Object.assign(new Error('identity changed'), { code: 'LOTTERY_SESSION_CHANGED' }));

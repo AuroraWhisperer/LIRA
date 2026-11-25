@@ -4,7 +4,7 @@
 
 const { cleanText } = require('../shared/utils');
 const { toSimplifiedChinese } = require('../shared/chinese-text');
-const { createLibraryTagMatcher } = require('./tag-aliases');
+const { createNormalizedTagMatcher, normalizeTag } = require('./tag-aliases');
 const { splitSongArtists, splitSongLanguages, splitSongTags } = require('./song-field-utils');
 
 const LANGUAGE_ALIAS_GROUPS = [
@@ -40,11 +40,15 @@ function parseRandomSongTerms(scopeText) {
  * 返回同时满足全部筛选词的歌曲。每个词可以命中语言、歌手、分类或独立标签，
  * 但不同筛选词必须落在同一首歌曲上，不能由多首歌分别满足。
  */
-function filterRandomSongCandidates(songs, scopeText) {
+function filterRandomSongCandidates(songs, scopeText, prepared) {
   const terms = parseRandomSongTerms(scopeText).map(compileScopeTerm);
   if (terms.length === 0) return songs.slice();
   return songs.filter((song) => {
-    const fields = prepareSongFields(song);
+    let fields = prepared?.get(song);
+    if (!fields) {
+      fields = prepareSongFields(song);
+      prepared?.set(song, fields);
+    }
     return terms.every((term) => songMatchesScopeTerm(fields, term));
   });
 }
@@ -80,7 +84,7 @@ function compileScopeTerm(term) {
 
 function compileTerm(term) {
   return {
-    matchesTag: createLibraryTagMatcher(term),
+    matchesTag: createNormalizedTagMatcher(term),
     normalized: normalizeComparable(term),
     languages: randomLanguageAliases(term),
     categories: randomCategoryAliases(term),
@@ -94,6 +98,7 @@ function prepareSongFields(song) {
     languages: splitSongLanguages(song.language).map(normalizeComparable),
     categories: song.category_is_enabled !== 0 ? splitSongCategories(song.category_name).map(normalizeComparable) : [],
     tags: splitSongTags(song.tags),
+    normalizedTags: null,
   };
 }
 
@@ -110,7 +115,7 @@ function songMatchesTerm(song, term) {
   return !term.normalized || song.artist === term.normalized || song.artists.includes(term.normalized) ||
     song.languages.some((language) => term.languages.includes(language)) ||
     song.categories.some((category) => term.categories.includes(category)) ||
-    song.tags.some(term.matchesTag);
+    (song.normalizedTags ??= song.tags.map(normalizeTag)).some(term.matchesTag);
 }
 
 function splitSongCategories(value) {

@@ -9,6 +9,8 @@ const { extractBilibiliGiftIdentity } = require('../users/gift-identity-hints');
 const { extractBilibiliSuperChatDeleteIds } = require('../parsers/superchat-parser');
 const { extractBilibiliLiveLotteryEvents } = require('../parsers/live-lottery-parser');
 const { isBilibiliCommandText } = require('./command-text');
+const { toSimplifiedChinese } = require('../../shared/chinese-text');
+const { readDanmakuOptions } = require('../parsers/danmaku-parser');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 const { logBilibiliDiagnostic, logSongRequest } = require('../diagnostics');
 
@@ -24,7 +26,9 @@ class MessageHandlers {
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
     this.roomRunContext = null;
     this.resetLikeState();
-    this.isCommandText = typeof options.isCommandText === 'function' ? options.isCommandText : isBilibiliCommandText;
+    this.isCommandText = typeof options.isCommandText === 'function'
+      ? options.isCommandText
+      : (text, simplified) => isBilibiliCommandText(text, null, simplified);
   }
 
   updateStartTime(startedAtMs) {
@@ -99,8 +103,10 @@ class MessageHandlers {
   handleDanmaku(message, ingress) {
     const info = message.info || [];
     const userInfo = info[2] || [];
-    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info, this.roomOwnerUid);
+    const options = readDanmakuOptions(info);
+    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info, this.roomOwnerUid, options);
     const text = String(info[1] || '');
+    const simplified = toSimplifiedChinese(text.trim());
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
     if (ingress) {
       const rawTime = Number(info[0]?.[4]);
@@ -115,8 +121,8 @@ class MessageHandlers {
         eventId: null,
       });
     }
-    const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info);
-    const emotes = packetParser.extractBilibiliDanmakuEmotes(info);
+    const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info, options);
+    const emotes = packetParser.extractBilibiliDanmakuEmotes(info, options);
     const diagnosticMessage = {
       message: text,
       uid: userInfo[0],
@@ -134,9 +140,9 @@ class MessageHandlers {
         nameMasked: /\*{2,}/.test(String(userInfo[1] || '')),
       });
     }
-    logSongRequest('command-ingress', diagnosticMessage);
+    logSongRequest('command-ingress', diagnosticMessage, undefined, simplified);
 
-    const isCommand = this.isCommandText(text);
+    const isCommand = this.isCommandText(text, simplified);
     if (
       isCommand &&
       !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)
@@ -186,7 +192,7 @@ class MessageHandlers {
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
       cmd: normalizeBilibiliCommandName(message.cmd),
-    });
+    }, simplified);
   }
 
   handleSuperChat(message) {

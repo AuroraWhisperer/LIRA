@@ -7,6 +7,7 @@ const host = document.getElementById('app');
 let engine = '';
 let currentConfig = {};
 let items;
+let appended = false;
 let previewTimer;
 let previewIndex = 0;
 const previewMessages = createDanmakuPreviewItems();
@@ -70,7 +71,12 @@ function append(item) {
   if (item.kind === 'superchat' && item.messageId) row.dataset.superchatMessageId = item.messageId;
   items.append(row);
   while (items.children.length > 100) items.firstElementChild.remove();
+  appended = true;
+}
+function scrollAfterAppends() {
+  if (!appended) return;
   items.parentElement.scrollTop = items.parentElement.scrollHeight;
+  appended = false;
 }
 function removeSuperChats(messageIds) {
   const deleted = new Set(messageIds);
@@ -88,6 +94,7 @@ function playSample() {
   if (isSceneComponent() || document.hidden || !items) return;
   const messages = samples();
   append(messages[previewIndex++ % messages.length]);
+  scrollAfterAppends();
   previewTimer = setTimeout(playSample, 1500);
 }
 function renderSamples() {
@@ -96,6 +103,7 @@ function renderSamples() {
   items.replaceChildren();
   previewIndex = 0;
   for (const item of samples()) append(item);
+  scrollAfterAppends();
   if (!document.hidden) previewTimer = setTimeout(playSample, 1500);
 }
 if (!isSceneComponent()) document.addEventListener('visibilitychange', playSample);
@@ -116,7 +124,10 @@ createComponentPreviewClient({
     }
     renderSamples();
   },
-  onData: display.update,
+  onData(data) {
+    display.update(data);
+    scrollAfterAppends();
+  },
   onDispose() {
     clearTimeout(previewTimer);
     document.removeEventListener('visibilitychange', playSample);

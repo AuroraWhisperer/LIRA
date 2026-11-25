@@ -41,10 +41,15 @@ function listStyleFiles(directory, relative = '') {
   return files;
 }
 
+function inspectStyleRoot(root) {
+  const stat = fs.lstatSync(root, { throwIfNoEntry: false });
+  if (stat && (stat.isSymbolicLink() || !stat.isDirectory())) throw fileError();
+  return stat;
+}
+
 function pruneStyleTemporaryFiles(root, now = Date.now()) {
-  if (!fs.existsSync(root)) return;
-  const rootStat = fs.lstatSync(root);
-  if (rootStat.isSymbolicLink()) throw fileError();
+  const rootStat = inspectStyleRoot(root);
+  if (!rootStat) return;
   const previous = lastPruned.get(root);
   if (previous?.ino === rootStat.ino && now >= previous.at && now - previous.at < 60 * 60 * 1000) return;
   for (const name of fs.readdirSync(root)) {
@@ -62,4 +67,4 @@ function pruneStyleTemporaryFiles(root, now = Date.now()) {
   lastPruned.set(root, { ino: rootStat.ino, at: now });
 }
 
-module.exports = { activeImports, beginStyleFileUse, endStyleFileUse, PENDING_TTL_MS, listStyleFiles, pruneStyleTemporaryFiles, renameStyleDirectory };
+module.exports = { activeImports, beginStyleFileUse, endStyleFileUse, PENDING_TTL_MS, listStyleFiles, inspectStyleRoot, pruneStyleTemporaryFiles, renameStyleDirectory };

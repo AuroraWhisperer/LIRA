@@ -4,7 +4,7 @@ const { createHash } = require('node:crypto');
 const { canonicalGiftText } = require('../../shared/processed-gift-contract');
 
 function queryError(code, message) {
-  return Object.assign(new Error(message), { code });
+  return Object.assign(new Error(message), { code, publicMessage: message });
 }
 
 function normalizeHistoryFilters(options = {}) {

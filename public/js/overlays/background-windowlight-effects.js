@@ -37,7 +37,7 @@ void main() {
 }`;
 
 function createIllumination(canvas, images) {
-  const gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false, preserveDrawingBuffer: true });
+  const gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false });
   if (!gl) return null;
   const compile = (type, source) => {
     const shader = gl.createShader(type);
@@ -182,9 +182,12 @@ function createGlassWater(canvas, painting) {
       }
       if (dirty || time >= nextCondensation) {
         still.clearRect(0, 0, WIDTH, HEIGHT);
-        for (const bead of beads) if (bead.hiddenUntil <= time) lens(still, bead);
+        nextCondensation = Infinity;
+        for (const bead of beads) {
+          if (bead.hiddenUntil <= time) lens(still, bead);
+          else nextCondensation = Math.min(nextCondensation, bead.hiddenUntil);
+        }
         dirty = false;
-        nextCondensation = time + 1;
       }
       context.drawImage(attached, 0, 0);
       for (const drop of runners) {
@@ -221,7 +224,7 @@ export function createWindowlightEffects(root, images) {
   if (!illumination) light.hidden = true;
   const rain = canvas('windowlight-rain');
   rain.style.maskImage = `url("${images.get('window-mask').src}")`;
-  const water = createGlassWater(rain, images.get('rainy'));
+  let water;
   const levels = { sunny: [1, .75, 0], sunset: [1.2, 1, .14], rainy: [0, 0, .08], night: [0, 0, 1] };
   let scene = root.dataset.scene;
   let amounts = [...levels[scene]];
@@ -234,7 +237,10 @@ export function createWindowlightEffects(root, images) {
   function draw(delta) {
     elapsed += delta;
     illumination?.draw(elapsed, amounts, warmth);
-    if (scene === 'rainy') water.draw(delta, elapsed);
+    if (scene === 'rainy') {
+      water ??= createGlassWater(rain, images.get('rainy'));
+      water.draw(delta, elapsed);
+    }
   }
 
   function animate(now) {

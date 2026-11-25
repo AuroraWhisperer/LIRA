@@ -232,6 +232,7 @@ test('song service only returns enabled library songs satisfying every term', (t
     isEnabled: false,
   });
 
+  const rows = t.mock.method(songStore, 'listRandomRows');
   const matches = songService.listRandomSongCandidates(songStore, '国语+周杰伦+抒情');
   assert.deepEqual(
     matches.map((song) => song.name),
@@ -244,6 +245,10 @@ test('song service only returns enabled library songs satisfying every term', (t
   );
   assert.equal(songDb.prepare('SELECT tags FROM songs WHERE name = ?').get('完整匹配').tags, '抒情');
   assert.deepEqual(songService.listRandomSongCandidates(songStore, '国语+周杰伦+摇滚'), []);
+  assert.equal(rows.mock.callCount(), 1);
+  songService.toggleSong(songStore, matches[0].id);
+  assert.deepEqual(songService.listRandomSongCandidates(songStore, '国语+周杰伦+情歌'), []);
+  assert.equal(rows.mock.callCount(), 2);
 });
 
 test('danmaku bridge passes combined terms through unchanged', () => {

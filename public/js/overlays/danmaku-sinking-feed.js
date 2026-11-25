@@ -1,7 +1,9 @@
+import { hashCodePoints } from '../shared/string-hash.js';
 import { componentEffectBounds, componentEffectProfiles, effectTransform } from './component-effect-filters.js';
 import { DEFAULT_DANMAKU_CLASSES, createDanmakuMessageRenderer } from './danmaku-message-renderer.js';
 import { FULLSCREEN_SAFE_INSET_PX, findRandomDanmakuPosition } from './danmaku-random-position.js';
 import { projectSinkingPoint, sinkingBubblePoint } from './danmaku-sinking-geometry.js';
+import { createSinkingBubbleLayer } from './danmaku-sinking-bubbles.js';
 
 const DEFAULTS = { sinkingDurationSeconds: 10, sinkingTravel: 24, sinkingSway: 18, sinkingBubbleDensity: 50 };
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -10,10 +12,7 @@ const entranceSeconds = duration => Math.min(1.6, duration * 0.22);
 const exitSeconds = duration => Math.min(2.3, duration * 0.25);
 
 function messageRandom(item) {
-  let seed = 2166136261;
-  for (const character of [item.id, item.uid, item.timestamp, item.message].join('|')) {
-    seed = Math.imul(seed ^ character.codePointAt(0), 16777619);
-  }
+  let seed = hashCodePoints([item.id, item.uid, item.timestamp, item.message].join('|'));
   return () => {
     seed = Math.imul(seed ^ (seed >>> 15), 2246822519);
     seed = Math.imul(seed ^ (seed >>> 13), 3266489917);
@@ -41,14 +40,18 @@ export function createSinkingDanmakuFeed(root, options = {}) {
   let frame = null;
   let nextAdmission = 0;
   let disposed = false;
-  const bubbles = document.createElement('div');
-  bubbles.className = 'sinking-bubbles';
-  bubbles.setAttribute('aria-hidden', 'true');
-  root.replaceChildren(bubbles);
+  const bubbles = createSinkingBubbleLayer(document);
+  bubbles.resize(root.clientWidth, root.clientHeight);
+  root.replaceChildren(bubbles.canvas);
   root.dataset.layout = 'sinking';
-  const observer = new ResizeObserver(layout);
+  const observer = new ResizeObserver(records => {
+    if (!records || records.some(record => record.target === root)) layout();
+    else layout(records.map(record => record.target));
+  });
   observer.observe(root);
-  view.addEventListener('lira:effects-updated', layout);
+  function effectsChanged(event) { layout(event.detail?.cards); }
+  view.addEventListener('lira:effects-updated', effectsChanged);
+  document.addEventListener('visibilitychange', visibilityChanged);
   reduced.addEventListener('change', motionChanged);
 
   function poseAt(entry, age) {
@@ -70,12 +73,11 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       pitch: reduced.matches ? 0 : 18 * (1 - arrival) - 12 * departure,
       yaw: reduced.matches ? 0 : entry.side * (7 * (1 - arrival) - 9 * departure),
       angle: reduced.matches ? 0 : Math.sin(theta + 0.5) * entry.tilt + entry.side * (2.8 * (1 - arrival) - 2.1 * departure),
-      arrival, departure, progress,
+      arrival, departure,
     };
   }
 
   function clearBubbles(entry) {
-    entry.bubbles.forEach(bubble => bubble.node.remove());
     entry.bubbles = [];
   }
 
@@ -84,22 +86,15 @@ export function createSinkingDanmakuFeed(root, options = {}) {
     const rate = bubbleRate(settings.sinkingBubbleDensity);
     const count = Math.min(390, Math.ceil(rate * 3.25));
     const random = messageRandom({ ...entry.item, id: `${entry.item.id}:${entry.generation++}` });
-    const fragment = document.createDocumentFragment();
     for (let index = 0; index < count; index += 1) {
-      const node = document.createElement('i');
-      node.className = 'sinking-bubble';
       const size = 2.2 + random() ** 0.8 * 6.3;
-      node.style.width = `${size}px`;
-      node.style.height = `${size}px`;
-      fragment.append(node);
       const edge = random();
-      entry.bubbles.push({ node, first: offset + (index + 0.2 + random() * 0.6) / rate,
+      entry.bubbles.push({ first: offset + (index + 0.2 + random() * 0.6) / rate,
         period: count / rate, life: 2 + random() * 1.2, stopAt: entry.duration - exitSeconds(entry.duration) + 0.15,
         edge: edge < 0.28 ? 'left' : edge < 0.56 ? 'right' : 'top', fraction: random(), size,
         velocity: 20 + size * 4.5, drift: (random() - 0.5) * 13,
         phase: random() * Math.PI * 2, opacity: 0.4 + random() * 0.4 });
     }
-    bubbles.append(fragment);
   }
 
   function drawBubbles(entry, age) {
@@ -108,11 +103,7 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       const birth = bubble.first + Math.max(0, cycle) * bubble.period;
       const life = Math.min(bubble.life, entry.duration - birth - 0.02);
       const bubbleAge = age - birth;
-      if (cycle < 0 || bubbleAge < 0 || bubbleAge >= life || life <= 0) {
-        if (bubble.visible) bubble.node.style.opacity = '0';
-        bubble.visible = false;
-        continue;
-      }
+      if (cycle < 0 || bubbleAge < 0 || bubbleAge >= life || life <= 0) continue;
       // Birth position stays fixed within a cycle; layout changes invalidate it.
       if (bubble.birth !== birth || !bubble.origin) {
         bubble.birth = birth;
@@ -127,10 +118,9 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       const rise = bubble.velocity * (bubbleAge - 0.35 * (1 - Math.exp(-bubbleAge / 0.35)));
       const wobble = (Math.sin(bubble.phase + bubbleAge * 2.4) - bubble.sinPhase) * 3;
       const opacity = bubble.opacity * smooth(bubbleAge / 0.25) * (1 - smooth((bubbleAge - life + 0.9) / 0.9));
-      bubble.visible = true;
-      bubble.node.style.opacity = opacity.toFixed(3);
-      const scale = entry.scale * (0.78 + 0.22 * smooth(bubbleAge / 0.3));
-      bubble.node.style.transform = `translate(${origin.x + (wobble + bubble.drift * bubbleAge) * entry.scale - bubble.size * scale / 2}px, ${origin.y - rise * entry.scale - bubble.size * scale / 2}px) scale(${scale})`;
+      const size = bubble.size * entry.scale * (0.78 + 0.22 * smooth(bubbleAge / 0.3));
+      bubbles.draw(origin.x + (wobble + bubble.drift * bubbleAge) * entry.scale,
+        origin.y - rise * entry.scale, size, opacity);
     }
   }
 
@@ -147,7 +137,8 @@ export function createSinkingDanmakuFeed(root, options = {}) {
     const width = root.clientWidth;
     const height = root.clientHeight;
     if (width <= inset * 2 || height <= inset * 2) return false;
-    const bounds = componentEffectBounds(entry.node, entry.node.offsetWidth, entry.node.offsetHeight);
+    const naturalWidth = entry.node.offsetWidth, naturalHeight = entry.node.offsetHeight;
+    const bounds = componentEffectBounds(entry.node, naturalWidth, naturalHeight);
     const scale = Math.min(1, (width - inset * 2) / (bounds.width + 64), (height - inset * 2) / (bounds.height + 20));
     const cardWidth = bounds.width * scale;
     const cardHeight = bounds.height * scale;
@@ -164,8 +155,8 @@ export function createSinkingDanmakuFeed(root, options = {}) {
     entry.box = box;
     entry.x = position.left + marginX - bounds.x * scale;
     entry.y = position.top + 10 * scale - bounds.y * scale;
-    entry.width = entry.node.offsetWidth;
-    entry.height = entry.node.offsetHeight;
+    entry.width = naturalWidth;
+    entry.height = naturalHeight;
     entry.scale = scale;
     entry.travel = travel;
     entry.amplitude = amplitude;
@@ -180,6 +171,8 @@ export function createSinkingDanmakuFeed(root, options = {}) {
   }
 
   function draw() {
+    if (document.hidden) return;
+    bubbles.clear();
     const time = now();
     for (const entry of [...entries]) {
       if (entry.startedAt === undefined) {
@@ -199,8 +192,8 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       entry.node.style.transform = `translate(${pose.x}px, ${pose.y}px) scale(${entry.scale}) ${effect}`;
       entry.panel.style.transform = `perspective(800px) translateZ(${pose.depth}px) rotateX(${pose.pitch}deg) rotateY(${pose.yaw}deg) rotateZ(${pose.angle}deg)`;
       entry.node.style.opacity = pose.opacity.toFixed(4);
-      entry.surface.style.filter = pose.blur < 0.015 ? 'none' : `blur(${pose.blur.toFixed(3)}px)`;
-      entry.node.dataset.progress = pose.progress.toFixed(3);
+      const filter = pose.blur < 0.015 ? 'none' : `blur(${pose.blur.toFixed(3)}px)`;
+      if (entry.surface.style.filter !== filter) entry.surface.style.filter = filter;
       if (entry.arrival !== pose.arrival || entry.departure !== pose.departure) {
         entry.arrival = pose.arrival;
         entry.departure = pose.departure;
@@ -220,13 +213,21 @@ export function createSinkingDanmakuFeed(root, options = {}) {
   }
 
   function wake() {
-    if (!disposed && frame === null && entries.length) frame = view.requestAnimationFrame(tick);
+    if (!disposed && !document.hidden && frame === null && entries.length) frame = view.requestAnimationFrame(tick);
   }
 
-  function layout() {
-    if (disposed) return;
+  function visibilityChanged() {
+    if (document.hidden) {
+      if (frame !== null) view.cancelAnimationFrame(frame);
+      frame = null;
+    } else layout();
+  }
+
+  function layout(cards) {
+    if (disposed || document.hidden) return;
+    if (!cards) bubbles.resize(root.clientWidth, root.clientHeight);
     const time = now();
-    for (const entry of entries) if (entry.startedAt !== undefined) place(entry, time);
+    for (const entry of entries) if (entry.startedAt !== undefined && (!cards || cards.includes(entry.node))) place(entry, time);
     draw();
     wake();
   }
@@ -288,10 +289,11 @@ export function createSinkingDanmakuFeed(root, options = {}) {
     destroy() {
       disposed = true;
       observer.disconnect();
-      view.removeEventListener('lira:effects-updated', layout);
+      view.removeEventListener('lira:effects-updated', effectsChanged);
+      document.removeEventListener('visibilitychange', visibilityChanged);
       reduced.removeEventListener('change', motionChanged);
       clear();
-      bubbles.remove();
+      bubbles.canvas.remove();
       delete root.dataset.layout;
     },
   };

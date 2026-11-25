@@ -5,7 +5,7 @@ const { createReadStream } = require('node:fs');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const yauzl = require('yauzl');
-const { setTimeout: delay } = require('node:timers/promises');
+const { renameWithRetry } = require('./atomic-file');
 const { writeResource } = require('../resources/resource-download');
 const { isOwnedDirectory } = require('../shared/file-retention');
 
@@ -45,7 +45,9 @@ async function ensureAudioRoot(dataDir) {
 }
 
 async function verifyAudioDirectory(directory, manifest, signal) {
+  signal.throwIfAborted();
   const expected = new Map(manifest.files.map(file => [file.path, file]));
+  const files = [];
   async function visit(current, prefix = '') {
     signal.throwIfAborted();
     const stat = await fs.lstat(current);
@@ -59,17 +61,42 @@ async function verifyAudioDirectory(directory, manifest, signal) {
         const file = expected.get(name);
         if (!file) { if (entry.isFile() && name.endsWith('.pdb')) continue; return false; }
         const filename = path.join(current, entry.name);
-        if (!entry.isFile() || (await fs.stat(filename)).size !== file.size) return false;
-        const hash = createHash('sha256');
-        for await (const chunk of createReadStream(filename, { signal })) hash.update(chunk);
-        if (hash.digest('hex') !== file.sha256) return false;
+        const stat = await fs.lstat(filename);
+        if (!entry.isFile() || !stat.isFile() || stat.size !== file.size) return false;
+        files.push(file);
         expected.delete(name);
       }
     }
     return true;
   }
-  try { return await visit(directory) && expected.size === 0; }
-  catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+  try {
+    const root = await fs.realpath(directory);
+    const complete = await visit(directory);
+    signal.throwIfAborted();
+    if (!complete || expected.size) return false;
+    async function matches(file) {
+      signal.throwIfAborted();
+      const filename = path.join(root, file.path);
+      if (await fs.realpath(path.join(directory, file.path)) !== filename) return false;
+      const hash = createHash('sha256');
+      for await (const chunk of createReadStream(filename, { signal, highWaterMark: 256 * 1024 })) hash.update(chunk);
+      return hash.digest('hex') === file.sha256;
+    }
+    for (let index = 0; index < files.length; index += 4) {
+      const batch = await Promise.allSettled(files.slice(index, index + 4).map(matches));
+      signal.throwIfAborted();
+      for (const result of batch) {
+        if (result.status === 'rejected') throw result.reason;
+        if (!result.value) return false;
+      }
+    }
+    return true;
+  }
+  catch (error) {
+    signal.throwIfAborted();
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
 }
 
 async function extractAudioComponent(filename, manifest, directory, signal) {
@@ -95,14 +122,7 @@ async function extractAudioComponent(filename, manifest, directory, signal) {
 }
 
 async function renameDirectory(source, destination) {
-  for (let attempt = 0; ; attempt++) {
-    try { await fs.rename(source, destination); return; }
-    catch (error) {
-      // Windows scanners can briefly hold a freshly extracted executable.
-      if (attempt >= 4 || !['EPERM', 'EACCES', 'EBUSY'].includes(error.code)) throw error;
-      await delay(50 * (attempt + 1));
-    }
-  }
+  await renameWithRetry(source, destination, { fileSystem: fs, retryCodes: ['EPERM', 'EACCES', 'EBUSY'] });
 }
 
 async function publishAudioDirectory(staging, destination) {

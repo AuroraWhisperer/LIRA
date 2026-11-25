@@ -6,7 +6,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { createFixture } = require('../helpers/gift-query-fixture');
 const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
 const { getGiftHistory } = require('../../src/bilibili/gift/query-service');
-const { runAllMigrations } = require('../../src/storage/database-migrations');
+const { getMigrationPlan, runAllMigrations } = require('../../src/storage/database-migrations');
 const schema = require('../../src/storage/schema');
 
 function observe(db) {
@@ -145,7 +145,7 @@ test('fan cascade indexes upgrade without ANALYZE and preserve scope data', (t) 
   assert.match(plan, /SEARCH fan_records USING COVERING INDEX idx_fan_records_profile_id \(profile_id=\?\)/u);
   assert.match(plan, /SEARCH fan_reminder_states USING COVERING INDEX idx_fan_reminder_states_profile_id \(profile_id=\?\)/u);
   assert.doesNotMatch(plan, /SCAN fan_(records|reminder_states)/u);
-  assert.equal(schema.getSchemaVersion(db, 'song_db'), 19);
+  assert.equal(schema.getSchemaVersion(db, 'song_db'), getMigrationPlan().find(({ key }) => key === 'song_db').steps.length);
   db.prepare('DELETE FROM fan_profiles WHERE scope = ?').run('first');
   for (const [i, table] of tables.entries()) {
     assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
@@ -432,5 +432,5 @@ test('remote recent index upgrades without data changes and preserves source and
     assert.match(plan, new RegExp(`SEARCH g USING INDEX ${index} \\(source_id=\\?\\)`, 'u'));
     assert.doesNotMatch(plan, /TEMP B-TREE/u);
   }
-  assert.equal(schema.getSchemaVersion(db, 'gift_db'), 24);
+  assert.equal(schema.getSchemaVersion(db, 'gift_db'), 25);
 });

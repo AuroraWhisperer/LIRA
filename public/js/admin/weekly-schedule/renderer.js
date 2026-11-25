@@ -320,11 +320,10 @@ export function renderWeeklySchedule(container, template, { documentRef = contai
     buildAssets(template, builder),
   );
   container.replaceChildren(root);
-  fitWeeklyScheduleText(root);
   return root;
 }
 
-// The editor and export page rerun this after their chosen font finishes loading.
+// The editor and export page fit after their chosen font and images are ready.
 // Content that cannot fit at a readable print size is reported, never clipped away.
 export function fitWeeklyScheduleText(root) {
   if (!root.isConnected || !root.getClientRects().length) return [];

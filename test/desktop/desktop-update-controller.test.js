@@ -18,16 +18,18 @@ function createWindow() {
 
 function createController(options = {}) {
   let publish;
+  let state = {};
   const controller = createDesktopUpdateController({
     getMainWindow: () => null,
     ...options,
     updateManager: {
       configureAutoUpdater({ onStateChange }) { publish = onStateChange; },
+      getUpdateState: () => state,
       ...options.updateManager,
     },
   });
   controller.configureAutoUpdater();
-  return { controller, publish: value => publish(value) };
+  return { controller, publish: value => { state = value; publish(value); } };
 }
 
 test('update installation drains resource checking first without stopping scans for download or invalid install', async () => {
@@ -88,16 +90,15 @@ test('update state reaches only a live window without forcing navigation', () =>
   assert.deepEqual(mainWindow.sent.at(-1), ['desktop:update-state', { status: 'error' }]);
 });
 
-test('update errors are logged and disable download and install with the running version', () => {
-  const logs = [];
+test('update errors are sent to the update manager without creating another state owner', () => {
+  const errors = [];
   const error = new Error('signature mismatch');
   const mainWindow = createWindow();
   const { controller, publish } = createController({
     app: { getVersion: () => '9.9.9' },
     getMainWindow: () => mainWindow,
-    writeLog: (...args) => logs.push(args),
     updateManager: {
-      friendlyUpdateError: () => ({ status: 'error', message: 'friendly message' }),
+      reportUpdateError: (error) => errors.push(error),
     },
   });
   publish({ status: 'downloaded', canDownload: true, canInstall: true, progress: { percent: 100 }, extra: 'kept' });
@@ -105,12 +106,9 @@ test('update errors are logged and disable download and install with the running
 
   controller.setUpdateError(error);
 
-  assert.deepEqual(logs, [['update-error', error]]);
-  assert.equal(controller.getState().status, 'error');
-  assert.equal(controller.getState().canDownload, false);
-  assert.equal(controller.getState().canInstall, false);
-  assert.equal(controller.getState().version, '9.9.9');
-  assert.deepEqual(mainWindow.sent, [['desktop:update-state', controller.getState()]]);
+  assert.deepEqual(errors, [error]);
+  assert.equal(controller.getState().status, 'downloaded');
+  assert.deepEqual(mainWindow.sent, []);
 });
 
 test('disposing the update owner cancels its delayed startup check', () => {

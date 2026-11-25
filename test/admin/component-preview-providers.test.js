@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { getEventListeners } = require('node:events');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -60,7 +61,7 @@ test('wish previews follow saved wishes across layers and cancel replies after l
   let listener;
   let finish;
   const { startGiftWishesCanvasData } = await loadModuleExports(path.join(adminPath, 'gift-wishes-canvas-data.js'), {
-    AbortController,
+    AbortController, document: new EventTarget(),
     setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
     fetch(url, options) { reads.push({ url, options }); return new Promise(resolve => { finish = resolve; }); },
@@ -73,7 +74,7 @@ test('wish previews follow saved wishes across layers and cancel replies after l
   listener(state);
   listener(state);
   assert.equal(reads.length, 1);
-  assert.equal(reads[0].url, '/api/gifts/wishes');
+  assert.equal(reads[0].url, '/api/gifts/wishes?includeSession=0');
   const wish = { id: 'saved-wish', period: 'long', giftName: '保存的礼物', count: 3, target: 12,
     textPendingColor: '#123456', textReceivedColor: '#abcdef' };
   finish({ ok: true, json: async () => ({ ok: true, data: { items: [wish] } }) });
@@ -104,17 +105,70 @@ test('wish previews follow saved wishes across layers and cancel replies after l
   assert.equal(emitted.length, before);
 });
 
+test('visibility pauses wish and heart-box polling and discards replies from before resuming', async () => {
+  const document = Object.assign(new EventTarget(), { hidden: true });
+  const timers = new Map();
+  let timerId = 0;
+  const reads = [];
+  const values = [];
+  const { createGiftWishFeed } = await loadModuleExports(path.join(adminPath, '../shared/gift-wish-client.js'), {
+    document, AbortController,
+    setTimeout(fn, ms) { timers.set(++timerId, ms); return timerId; },
+    clearTimeout(id) { timers.delete(id); },
+    fetch(url, { signal }) { return new Promise(resolve => reads.push({ url, signal, resolve })); },
+  });
+  const listener = { includeSession: false, onData: value => values.push(value), onError: assert.fail };
+  const first = createGiftWishFeed(listener);
+  const second = createGiftWishFeed(listener);
+  const boxes = createGiftWishFeed({ ...listener, path: '/api/gifts/heart-box-collection' });
+  const visible = (show) => {
+    document.hidden = !show;
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+  const finish = async (batch, data) => {
+    batch.forEach(read => read.resolve({ ok: true, json: async () => ({ ok: true, data }) }));
+    await new Promise(resolve => setImmediate(resolve));
+  };
+  first.start();
+  second.start();
+  boxes.start();
+  assert.equal(reads.length, 0);
+  visible(true);
+  assert.deepEqual(reads.map(read => read.url), ['/api/gifts/wishes?includeSession=0', '/api/gifts/heart-box-collection']);
+  await finish(reads, 'initial');
+  assert.equal([...timers.values()].filter(ms => ms === 3000).length, 2);
+  visible(false);
+  assert.equal(timers.size, 0);
+  first.refresh();
+  boxes.refresh();
+  assert.equal(reads.length, 2);
+  visible(true);
+  assert.equal(reads.length, 4);
+  visible(false);
+  assert.ok(reads.slice(2).every(read => read.signal.aborted));
+  first.stop();
+  visible(true);
+  assert.equal(reads.length, 6);
+  await finish(reads.slice(4), 'current');
+  await finish(reads.slice(2, 4), 'late');
+  assert.deepEqual(values, ['initial', 'initial', 'initial', 'current', 'current']);
+  second.stop();
+  boxes.stop();
+  assert.equal(timers.size, 0);
+  assert.equal(getEventListeners(document, 'visibilitychange').length, 0);
+});
+
 test('wish editors and canvases share a feed until the last consumer closes', async () => {
   const reads = [];
   const desktop = [];
   const canvas = [];
   let finish;
   const { createGiftWishFeed } = await loadModuleExports(path.join(adminPath, '../shared/gift-wish-client.js'), {
-    AbortController, setTimeout, clearTimeout,
+    AbortController, setTimeout, clearTimeout, document: new EventTarget(),
     fetch(url, options) { reads.push({ url, options }); return new Promise(resolve => { finish = resolve; }); },
   });
-  const first = createGiftWishFeed({ onData: value => desktop.push(value), onError: () => {} });
-  const second = createGiftWishFeed({ onData: value => canvas.push(value), onError: () => {} });
+  const first = createGiftWishFeed({ includeSession: false, onData: value => desktop.push(value), onError: () => {} });
+  const second = createGiftWishFeed({ includeSession: false, onData: value => canvas.push(value), onError: () => {} });
   const pending = first.start();
   second.start();
   assert.equal(reads.length, 1);
@@ -122,25 +176,30 @@ test('wish editors and canvases share a feed until the last consumer closes', as
   await pending;
   assert.equal(desktop[0].items[0].id, 'saved');
   assert.equal(canvas[0].items[0].id, 'saved');
+  first.setIncludeSession(true);
+  assert.equal(reads[1].url, '/api/gifts/wishes');
+  finish({ ok: true, json: async () => ({ ok: true, data: { session: { state: 'offline' }, items: [] } }) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(desktop.at(-1).session.state, 'offline');
+  assert.equal(canvas.at(-1), desktop.at(-1));
   first.stop();
-  assert.equal(reads[0].options.signal.aborted, false);
-  const update = second.refresh();
+  assert.deepEqual(reads.map(read => read.url), ['/api/gifts/wishes?includeSession=0', '/api/gifts/wishes', '/api/gifts/wishes?includeSession=0']);
   finish({ ok: true, json: async () => ({ ok: true, data: { items: [] } }) });
-  await update;
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(canvas.at(-1).items.length, 0);
-  assert.equal(desktop.length, 1);
+  assert.equal(desktop.length, 2);
   const cancelled = second.refresh();
   second.stop();
   assert.equal(reads.at(-1).options.signal.aborted, true);
   finish({ ok: true, json: async () => ({ ok: true, data: { items: [{ id: 'late' }] } }) });
   await cancelled;
-  assert.equal(canvas.length, 2);
+  assert.equal(canvas.length, 3);
 });
 
 test('wish previews explain missing wishes and clear unavailable data', async () => {
   for (const failed of [false, true]) {
     const { startGiftWishesCanvasData } = await loadModuleExports(path.join(adminPath, 'gift-wishes-canvas-data.js'), {
-      AbortController, setTimeout, clearTimeout,
+      AbortController, setTimeout, clearTimeout, document: new EventTarget(),
       fetch: async () => {
         if (failed) throw new Error('Unavailable');
         return { ok: true, json: async () => ({ ok: true, data: { items: [] } }) };
@@ -163,38 +222,57 @@ test('canvas data shares requests, clears failures and cancels late replies', as
   const timers = new Map();
   const reads = [];
   const emitted = [];
-  let items = [];
-  let finish;
-  let reject;
-  const api = await loadModuleExports(path.join(adminPath, 'canvas-data-poller.js'), {
-    AbortController,
-    window: { setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } },
-    fetch(url, options) { reads.push({ url, options }); return new Promise((resolve, fail) => { finish = resolve; reject = fail; }); },
-  });
-  const stop = api.startCanvasDataPolling({ getState: () => ({ draft: { document: { items } } }) }, {
-    type: 'games', url: '/api/games/session', emit: value => emitted.push(value),
+  const window = new EventTarget();
+  window.setTimeout = (callback, delay) => { timers.set(1, { callback, delay }); return 1; };
+  window.clearTimeout = id => timers.delete(id);
+  const { createCanvasDataReader } = await loadModuleExports(path.join(adminPath, 'canvas-data-poller.js'), {
+    AbortController, window,
+    fetch(url, options) { return new Promise((resolve, reject) => reads.push({ url, options, resolve, reject })); },
+  }, { moduleFixtures: new Map([[path.resolve(adminPath, '../shared/event-bus.js'), {
+    eventBus: { on: () => () => {} },
+  }]]) });
+  const reader = createCanvasDataReader({
+    games: true, url: '/api/games/session', emit: value => emitted.push(value),
   });
   const latest = () => emitted.at(-1);
   assert.equal(reads.length, 0);
-  assert.equal(latest(), null);
-  items = [{ type: 'games' }, { type: 'games' }];
-  const refresh = timers.get(1)();
-  assert.equal(reads.length, 1, 'Multiple layers share a single request.');
+  reader.setActive(true);
+  reader.setActive(true);
+  assert.equal(reads.length, 1, 'Repeated activation shares the pending request.');
   assert.equal(reads[0].url, '/api/games/session');
-  finish({ ok: true, json: async () => ({ ok: true, data: { marker: 10 } }) });
-  await refresh;
+  reads[0].resolve({ ok: true, json: async () => ({ ok: true, data: { marker: 10 } }) });
+  await new Promise(setImmediate);
   assert.equal(latest().marker, 10);
-  const failed = timers.get(1)();
-  reject(new Error('Unavailable'));
-  await failed;
-  assert.equal(latest(), null, 'Failed reads clear stale display data.');
-  const pending = timers.get(1)();
-  const count = emitted.length;
-  stop();
+  assert.equal(timers.get(1).delay, 30000);
+  const failures = [
+    request => request.resolve({ ok: false, status: 503, json: async () => ({ ok: true, data: { marker: 'invalid-http' } }) }),
+    request => request.resolve({ ok: true, status: 200, json: async () => ({ ok: false, data: { marker: 'invalid-business' } }) }),
+    request => request.resolve({ ok: true, status: 200, json: async () => { throw new SyntaxError('invalid JSON'); } }),
+    request => request.reject(new Error('Unavailable')),
+  ];
+  for (const fail of failures) {
+    const failed = timers.get(1).callback();
+    fail(reads.at(-1));
+    await failed;
+    assert.equal(latest(), null, 'Failed reads clear stale display data.');
+    assert.equal(timers.get(1).delay, 1000, 'Failed reads retain the bounded retry cadence.');
+  }
+  assert.equal(reads.length, 5);
+  const pending = timers.get(1).callback();
+  const cancelled = reads.at(-1);
+  reader.setActive(false);
   assert.equal(reads.at(-1).options.signal.aborted, true);
-  finish({ ok: true, json: async () => ({ ok: true, data: { marker: 20 } }) });
+  assert.equal(timers.size, 0);
+  reader.setActive(true);
+  const count = emitted.length;
+  cancelled.resolve({ ok: true, json: async () => ({ ok: true, data: { marker: 20 } }) });
   await pending;
-  assert.equal(emitted.length, count, 'A late reply cannot restore a disposed preview.');
+  assert.equal(emitted.length, count, 'A cancelled reply cannot replace a newer request.');
+  reads.at(-1).resolve({ ok: true, json: async () => ({ ok: true, data: { marker: 30 } }) });
+  await new Promise(setImmediate);
+  assert.equal(latest().marker, 30);
+  reader.setActive(false);
+  assert.equal(reads.length, 7);
   assert.equal(timers.size, 0);
 });
 

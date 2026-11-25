@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const {
   normalizeRemoteCatalog,
   normalizeRemoteGift,
@@ -104,9 +105,13 @@ function createRemoteGiftCatalogCache(options = {}) {
           checkedAt: isoTime(currentTimeMs(now)),
         };
         if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
-        if (writePersistedCache(cachePath, nextCache, logger)) {
-          cache = nextCache;
-          revision += 1;
+        if (nextCache.etag === cache.etag && nextCache.checkedAt === cache.checkedAt) return getSnapshot();
+        if (cache.cacheGeneration && nextCache.etag === cache.etag && cache.checkedAt && nextCache.checkedAt > cache.checkedAt) {
+          const check = { cacheGeneration: cache.cacheGeneration, checkedAt: nextCache.checkedAt };
+          if (writeCacheFile(`${cachePath}.check.json`, check, logger)) cache = nextCache;
+        } else {
+          nextCache.cacheGeneration = randomUUID();
+          if (writePersistedCache(cachePath, nextCache, logger)) cache = nextCache;
         }
         return getSnapshot();
       }
@@ -124,6 +129,7 @@ function createRemoteGiftCatalogCache(options = {}) {
       const fingerprint = snapshotFingerprint(snapshot);
       const changed = !cache || cache.fingerprint !== fingerprint;
       const nextCache = {
+        cacheGeneration: randomUUID(),
         etag: nextEtag || cache?.etag || '',
         imageBaseUrl,
         fingerprint,
@@ -214,11 +220,15 @@ function readPersistedCache(filePath, logger, imageBaseUrl = '', nowMs = Date.no
       imageBaseUrl: imageBaseUrl || undefined,
     });
     const fingerprint = snapshotFingerprint(snapshot);
+    const cacheGeneration = typeof parsed.cacheGeneration === 'string' ? parsed.cacheGeneration : '';
+    const lastCheck = cacheGeneration && checkedMs
+      ? readLastCheck(filePath, cacheGeneration, checkedMs, currentMs) : checkedMs;
     return {
+      cacheGeneration,
       etag: safeHeaderValue(parsed.etag),
       imageBaseUrl: imageBaseUrl || '',
       fingerprint,
-      checkedAt: futureChecked ? '' : checkedMs ? isoTime(checkedMs) : '',
+      checkedAt: lastCheck ? isoTime(lastCheck) : '',
       snapshot: {
         ...snapshot,
         fetchedAt: validIso(parsed.fetchedAt) || validIso(snapshot.fetchedAt) || snapshot.updatedAt,
@@ -230,30 +240,42 @@ function readPersistedCache(filePath, logger, imageBaseUrl = '', nowMs = Date.no
   }
 }
 
+function readLastCheck(cachePath, generation, catalogTime, nowMs) {
+  // A restored catalog must never inherit a newer file's validation time.
+  const checkPath = `${cachePath}.check.json`;
+  try {
+    const stat = fs.statSync(checkPath);
+    if (!stat.isFile() || stat.size > 1024) return catalogTime;
+    const check = JSON.parse(fs.readFileSync(checkPath, 'utf8'));
+    const time = parseTime(check.checkedAt);
+    return check.cacheGeneration === generation && time > catalogTime && time <= nowMs ? time : catalogTime;
+  } catch {
+    return catalogTime;
+  }
+}
+
 function writePersistedCache(filePath, value, logger) {
+  return writeCacheFile(filePath, {
+    etag: value.etag,
+    imageBaseUrl: value.imageBaseUrl || '',
+    schemaVersion: value.snapshot.schemaVersion,
+    version: value.snapshot.version,
+    updatedAt: value.snapshot.updatedAt,
+    stale: value.snapshot.stale,
+    sources: value.snapshot.sources,
+    gifts: value.snapshot.gifts,
+    blindBoxes: value.snapshot.blindBoxes,
+    ...(value.snapshot.rawCatalog || {}),
+    cacheGeneration: value.cacheGeneration,
+    fetchedAt: value.snapshot.fetchedAt,
+    checkedAt: value.checkedAt,
+  }, logger);
+}
+
+function writeCacheFile(filePath, value, logger) {
   const tempPath = `${filePath}.tmp-${process.pid}`;
   try {
-    fs.writeFileSync(
-      tempPath,
-      `${JSON.stringify(
-        {
-          etag: value.etag,
-          imageBaseUrl: value.imageBaseUrl || '',
-          schemaVersion: value.snapshot.schemaVersion,
-          version: value.snapshot.version,
-          updatedAt: value.snapshot.updatedAt,
-          stale: value.snapshot.stale,
-          sources: value.snapshot.sources,
-          gifts: value.snapshot.gifts,
-          blindBoxes: value.snapshot.blindBoxes,
-          ...(value.snapshot.rawCatalog || {}),
-          fetchedAt: value.snapshot.fetchedAt,
-          checkedAt: value.checkedAt,
-        },
-        null,
-        2,
-      )}\n`,
-    );
+    fs.writeFileSync(tempPath, `${JSON.stringify(value, null, 2)}\n`);
     fs.renameSync(tempPath, filePath);
     return true;
   } catch (error) {

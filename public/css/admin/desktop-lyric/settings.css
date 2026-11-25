@@ -280,6 +280,7 @@
   display: none;
 }
 
+.advanced-lyric-section > summary::after,
 .desktop-lyric-settings-group > summary::after {
   width: 7px;
   height: 7px;
@@ -291,6 +292,7 @@
   transition: transform 160ms ease;
 }
 
+.advanced-lyric-section[open] > summary::after,
 .desktop-lyric-settings-group[open] > summary::after {
   transform: rotate(225deg) translate(-1px, -1px);
 }

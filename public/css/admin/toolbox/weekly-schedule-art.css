@@ -354,7 +354,9 @@
 .weekly-schedule-art[data-layout='magazine'] .wsa-day.is-highlight { padding-left: 10px; background: var(--wsa-accent); border-color: var(--wsa-accent); }
 .weekly-schedule-art[data-layout='magazine'] .is-highlight .wsa-weekday { color: inherit; }
 .weekly-schedule-art[data-layout='magazine'] .wsa-day.is-rest { background: #ffffff55; border-color: #95939b; }
-.weekly-schedule-art[data-layout='magazine'] .wsa-event-label { top: -18px; right: 5px; font-size: 20px; padding-inline: 9px; }
+.weekly-schedule-art[data-layout='magazine'] .wsa-day:has(.wsa-event-label) { grid-template: minmax(0, 1fr) / 82px minmax(0, 1fr) fit-content(24%) fit-content(28%); }
+.weekly-schedule-art[data-layout='magazine'] .wsa-day:has(.wsa-event-label) .wsa-times { grid-area: 1 / 4; }
+.weekly-schedule-art[data-layout='magazine'] .wsa-event-label { position: static; grid-area: 1 / 3; justify-self: end; max-height: 100%; font-size: 20px; padding-inline: 9px; transform: none; }
 .weekly-schedule-art[data-layout='magazine'] .wsa-modules { flex-direction: row; gap: 16px; }
 .weekly-schedule-art[data-layout='magazine'] .wsa-module { padding: 14px; border: 1px solid var(--wsa-line); border-radius: 0; box-shadow: none; }
 .weekly-schedule-art[data-layout='magazine'] .wsa-message { flex: 1; min-height: 0; }
@@ -475,22 +477,18 @@
 .weekly-schedule-art.wsa-edition .wsa-day.is-rest { background: var(--wsa-paper); color: var(--wsa-muted); border-bottom-style: dashed; }
 .weekly-schedule-art.wsa-edition .is-highlight .wsa-note { opacity: 1; }
 .weekly-schedule-art.wsa-edition .is-rest .wsa-note { color: inherit; }
-.weekly-schedule-art.wsa-edition .wsa-modules { gap: 18px; }
-.weekly-schedule-art.wsa-edition .wsa-module { min-height: 0; border: 1px solid var(--wsa-line); border-radius: 0; padding: 22px; background: var(--wsa-paper); box-shadow: none; }
-.weekly-schedule-art.wsa-edition .wsa-module-title { font-size: 27px; line-height: 1.25; font-weight: 600; }
+.weekly-schedule-art.wsa-edition .wsa-module { min-height: 0; border: 1px solid var(--wsa-line); border-radius: 0; background: var(--wsa-paper); box-shadow: none; }
+.weekly-schedule-art.wsa-edition .wsa-module-title { line-height: 1.25; font-weight: 600; }
 .weekly-schedule-art.wsa-edition .wsa-message { min-height: 160px; }
 .weekly-schedule-art.wsa-edition .wsa-message .wsa-module-title { position: static; padding: 0; border: 0; border-radius: 0; background: none; color: var(--wsa-accent-ink); box-shadow: none; }
-.weekly-schedule-art.wsa-edition .wsa-message-text { margin-top: 14px; font-size: 25px; line-height: 1.55; background: none; }
+.weekly-schedule-art.wsa-edition .wsa-message-text { margin-top: 14px; background: none; }
 .weekly-schedule-art.wsa-edition .wsa-ranking { min-height: 220px; }
-.weekly-schedule-art.wsa-edition .wsa-ranks { gap: 14px; margin-top: 14px; }
-.weekly-schedule-art.wsa-edition .wsa-avatar { width: 78px; height: 78px; padding: 6px; border-width: 2px; }
-.weekly-schedule-art.wsa-edition .wsa-avatar > .wsa-icon { width: 42px; height: 42px; }
+.weekly-schedule-art.wsa-edition .wsa-avatar { padding: 6px; border-width: 2px; }
 .weekly-schedule-art.wsa-edition .wsa-rank-number { font-size: 17px; border-width: 2px; }
-.weekly-schedule-art.wsa-edition .wsa-rank-name { font-size: 23px; font-weight: 500; }
+.weekly-schedule-art.wsa-edition .wsa-rank-name { font-weight: 500; }
 .weekly-schedule-art.wsa-edition .wsa-rank-subtitle { font-size: 21px; }
-.weekly-schedule-art.wsa-edition .wsa-module-row { min-height: 200px; gap: 18px; }
+.weekly-schedule-art.wsa-edition .wsa-module-row { min-height: 200px; }
 .weekly-schedule-art.wsa-edition .wsa-qr { padding: 14px; transform: none; }
-.weekly-schedule-art.wsa-edition .wsa-qr-image { max-height: 175px; }
 .weekly-schedule-art.wsa-edition .wsa-qr-empty { min-height: 90px; }
 .weekly-schedule-art.wsa-edition .wsa-qr-caption { font-size: 20px; text-wrap: balance; }
 .weekly-schedule-art.wsa-edition .wsa-benefits-text { font-size: 23px; line-height: 1.5; }

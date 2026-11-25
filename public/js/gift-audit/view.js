@@ -1,3 +1,4 @@
+import { escapeHtml } from '../shared/html-escape.js';
 import { createToastStack } from '../shared/toast.js';
 
 let toastStack;
@@ -129,7 +130,7 @@ export function updateStats({ bubbleCount, serverCount, results }) {
 export function showToast(msg, type) {
   if (!toastStack) {
     const container = document.createElement('div');
-    container.className = 'audit-toast-stack';
+    container.className = 'toast-stack audit-toast-stack';
     document.body.appendChild(container);
     toastStack = createToastStack({ container, systemLimit: 1 });
   }
@@ -138,12 +139,7 @@ export function showToast(msg, type) {
     update: true,
     message: msg,
     type: type === 'warn' ? 'warning' : 'success',
-    className: type === 'warn' ? 'warn' : 'ok',
   });
 }
 
-function escHtml(s) {
-  const div = document.createElement('div');
-  div.textContent = String(s ?? '');
-  return div.innerHTML;
-}
+const escHtml = value => escapeHtml(String(value ?? ''));

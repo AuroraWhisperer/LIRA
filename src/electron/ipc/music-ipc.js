@@ -1,5 +1,7 @@
 'use strict';
 
+const { LOCAL_AUDIO_EXTENSIONS } = require('../local-audio-formats');
+
 const fs = require('node:fs');
 const path = require('node:path');
 const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
@@ -17,7 +19,6 @@ function registerMusicIpc({
   logoutMusicAccount,
   clearMusicBrowserCache,
   getMusicProviderRegistry,
-  isPathAllowedForLocalMedia,
   acknowledgePlaybackFlush,
   writePlaybackSnapshot,
 }) {
@@ -44,7 +45,7 @@ function registerMusicIpc({
       filters: [
         {
           name: '音频文件',
-          extensions: ['mp3', 'flac', 'wav', 'aac', 'ogg', 'm4a', 'wma'],
+          extensions: LOCAL_AUDIO_EXTENSIONS.map((extension) => extension.slice(1)),
         },
       ],
     });
@@ -102,7 +103,8 @@ function registerMusicIpc({
     for (const filePath of list) {
       try {
         const resolved = path.resolve(filePath);
-        if (fs.existsSync(resolved) && isPathAllowedForLocalMedia(resolved)) {
+        const canonical = await fs.promises.realpath(resolved).catch(() => null);
+        if (canonical && getLocalMediaAccess()?.isCanonicalAllowed(canonical)) {
           const encoded = Buffer.from(filePath, 'utf8').toString('base64url');
           results[filePath] = {
             ok: true,
@@ -111,7 +113,7 @@ function registerMusicIpc({
         } else {
           results[filePath] = {
             ok: false,
-            reason: fs.existsSync(resolved) ? 'not-allowed' : 'missing',
+            reason: canonical ? 'not-allowed' : 'missing',
           };
         }
       } catch (_) {

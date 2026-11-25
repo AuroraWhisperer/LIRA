@@ -46,9 +46,11 @@ const SEA_BREEZE = {
   nickname: '.sea-breeze-name > strong', badge: '.sea-breeze-medal, .sea-breeze-role', amount: '.sea-breeze-amount',
 };
 const DANMAKU_TEXT_TARGETS = Object.freeze({
+  'pastel-scrapbook': { nickname: '.scrapbook-name', amount: '.scrapbook-amount' },
   coffee: { nickname: '.coffee-heading > strong',
     amount: '.coffee-price', timestamp: '.coffee-time', event: '.coffee-event-note' },
   astral: { nickname: '.astral-name', badge: '.astral-role', amount: '.astral-amount', event: '.astral-event-label' },
+  'charm-thread': { nickname: '.thread-name', amount: '.thread-amount', event: '.thread-event' },
   'celestial-horizontal': { nickname: '.celestial-name', amount: '.celestial-amount' },
   'horizontal-charm': { nickname: '.charm-name', badge: '.charm-role', amount: '.charm-amount', event: '.charm-event-label' },
   'neon-glass': { nickname: '.neon-glass-name', amount: '.neon-glass-amount' },
@@ -119,8 +121,10 @@ const DANMAKU_TEXT_TARGETS = Object.freeze({
 
 // Authored CSS sizes, measured on real message types and rounded to a tenth of a pixel.
 const TEXT_SIZE_DEFAULTS = {
+  'pastel-scrapbook': { nickname: 27, amount: 27 },
   coffee: { nickname: 20, amount: 16, timestamp: 13, event: 16 },
   astral: { nickname: 21, badge: 15, amount: 17.8, event: 16.7 },
+  'charm-thread': { nickname: 17, amount: 15, event: 14 },
   'celestial-horizontal': { nickname: 23, amount: 26 },
   'horizontal-charm': { nickname: 19, badge: 14, amount: 20.4, event: 14 },
   'neon-glass': { nickname: 24, amount: 20.4 },

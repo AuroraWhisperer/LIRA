@@ -318,10 +318,13 @@ test('component defaults are isolated copies from the local appearance owner', (
 
 test('local scene consumers receive only the shared room icon projection', () => {
   const fixture = componentFixture();
+  let songReads = 0;
+  Object.defineProperty(fixture.state.queue.current, 'song_name', { get() { songReads++; return '歌曲'; } });
   fixture.setState({ ...fixture.state, roomGuard: { roomId: '52030', count: 1000, cookie: 'PRIVATE' } });
   for (const type of ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'text-box']) {
     assert.deepEqual(fixture.ports.getDisplayData([type], {}).roomGuard, { roomId: '52030', count: 1000 });
   }
+  assert.equal(songReads, 1, 'only the requested queue projection reads the song');
   assert.equal(fixture.ports.getDisplayData(['clock'], {}).roomGuard, undefined);
 });
 

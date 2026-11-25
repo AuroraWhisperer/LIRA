@@ -21,10 +21,11 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
   const getState = displayPorts.system.getState;
   const getOwner = runtimeOptions.getSceneOwner || (() => null);
   const getAppearanceOwner = runtimeOptions.getPreviewOwner || getOwner;
+  const getRoomId = () => displayPorts.settings.get(['roomId']).roomId;
   const demand = createDisplayDemand();
   const liveRankings = createLiveRankService({
     provider: runtimeOptions.liveRankProvider || createLiveRankProvider(), demand: createDisplayDemand({ idleTimeoutMs: 3000 }),
-    getScope: () => ({ owner: getOwner(), roomId: String(displayPorts.settings.get().roomId || '') }),
+    getScope: () => ({ owner: getOwner(), roomId: String(getRoomId() || '') }),
     getRoomProfile: () => displayPorts.bilibili.getRoomProfile(),
     onUpdate: () => notify({ types: ['live-rankings'] }),
   });
@@ -39,7 +40,7 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
   }
   const roomProfile = createSceneRoomProfile({
     getOwner,
-    getRoomId: () => displayPorts.settings.get().roomId,
+    getRoomId,
     getRoomRevision: displayPorts.settings.getRoomRevision,
     loadProfile: displayPorts.bilibili?.getRoomProfile,
     onUpdate: () => events.notify({ types: ['danmaku'] }),
@@ -73,6 +74,7 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
       settings: displayPorts.settings,
       system: displayPorts.system,
       readState: displayContext?.readState,
+      opening: displayContext?.opening,
       readDanmakuDisplay: () => ({ config: appearance.getSettings() }),
     }, items),
     onOutputChanged: notify,

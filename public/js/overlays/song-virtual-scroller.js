@@ -82,6 +82,7 @@ export class SongVirtualScroller {
   }
 
   start() {
+    if (this.running) return;
     this.running = true;
     this.lastFrameTime = null;
     if (!this.isScrollable || this.frameId !== null) return;
@@ -120,8 +121,12 @@ export class SongVirtualScroller {
   advanceBy(distance) {
     if (!this.isScrollable || !(distance > 0)) return;
     this.setScrollPosition(this.viewport.scrollTop + this.scrollRemainder + distance);
-    this.recycleTopRecords();
-    this.fillAfterBuffer();
+    const top = this.viewport.scrollTop;
+    if (top >= this.recycleAt || top > this.fillAt) {
+      this.recycleTopRecords();
+      this.fillAfterBuffer();
+      this.updateBufferLimits();
+    }
   }
 
   setScrollPosition(position) {
@@ -165,7 +170,15 @@ export class SongVirtualScroller {
     const targetScrollTop = Math.max(0, beforeHeight + Number(anchor?.offset ?? 0));
     this.fillAfterBuffer(targetScrollTop);
     this.setScrollPosition(targetScrollTop);
+    this.updateBufferLimits();
     this.isScrollable = true;
+  }
+
+  updateBufferLimits() {
+    const height = Math.max(1, this.viewport.clientHeight);
+    const first = this.content.firstElementChild;
+    this.recycleAt = this.recordTop(first) + first.offsetHeight + height * this.beforeViewports;
+    this.fillAt = this.content.scrollHeight - height * (1 + this.afterViewports);
   }
 
   probeOverflow(startIndex) {

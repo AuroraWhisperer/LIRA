@@ -4,19 +4,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ACCESS_FILE_NAME = 'local-media-access.json';
-const ALLOWED_AUDIO_EXTENSIONS = new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']);
+const { LOCAL_AUDIO_EXTENSIONS } = require('./local-audio-formats');
 
 function createLocalMediaAccess(dataDir) {
   const dataRoot = path.resolve(dataDir);
   const accessFilePath = path.join(dataRoot, ACCESS_FILE_NAME);
   let allowedPaths = loadAllowedPaths(accessFilePath);
 
+  function isCanonicalAllowed(canonical) {
+    return allowedPaths.has(canonical) && LOCAL_AUDIO_EXTENSIONS.includes(path.extname(canonical).toLowerCase());
+  }
+
   function isAllowed(filePath) {
     try {
-      const canonical = fs.realpathSync(filePath);
-      if (!allowedPaths.has(canonical)) return false;
-      const ext = path.extname(canonical).toLowerCase();
-      return ALLOWED_AUDIO_EXTENSIONS.has(ext);
+      return isCanonicalAllowed(fs.realpathSync(filePath));
     } catch (_) {
       return false;
     }
@@ -32,7 +33,7 @@ function createLocalMediaAccess(dataDir) {
       try {
         const canonical = fs.realpathSync(filePath);
         const ext = path.extname(canonical).toLowerCase();
-        if (ALLOWED_AUDIO_EXTENSIONS.has(ext)) {
+        if (LOCAL_AUDIO_EXTENSIONS.includes(ext)) {
           resolvedPaths.push(canonical);
         }
       } catch (_) {
@@ -51,7 +52,7 @@ function createLocalMediaAccess(dataDir) {
     return [...allowedPaths];
   }
 
-  return { allowPath, allowPaths, isAllowed, getAllowedPaths };
+  return { allowPath, allowPaths, isAllowed, isCanonicalAllowed, getAllowedPaths };
 }
 
 // Shared by desktop IPC, permissions and media adapters; compares origins only.

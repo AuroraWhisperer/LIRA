@@ -21,6 +21,8 @@ node scripts/usage-guide-shots/to-webp.cjs
 
 `supplement.cjs` 使用 `electron-fixture.cjs`，不启动生产 `main.js`，也不要求关闭用户正在运行的 LIRA。不要同时运行两个使用同一示例数据库的截图进程。
 
+注册规则与激活码的历史原图保存在 `docs/images/usage-guide/A/`。核对当前注册界面时，用 `supplement.cjs --only=A3,A4,A5` 单独补拍到 `tmp/`。现行礼物概览使用 `supplement.cjs --only=D1`，旧礼物页的查询开关镜头 D2 已退役。[历史截图评审](../../docs/reports/2026-09-22-usage-guide-review.md)
+
 历史镜头 `S6`、`S6b` 对应已退役的服务器弹幕页，已从执行清单移除。网页脚本默认只拍摄当前歌单外观设置 `F3b`，不再点击旧的折叠面板。该镜头使用 1440 × 1320 视口完整展示外观表单，并检查标题与恢复默认按钮是否在画面内。
 
 早期浏览器样张工具仍可按以下方式使用，但客户端截图以 Electron 路径为准：
@@ -53,10 +55,10 @@ tmp/screenshots/usage-guide/
 
 ## 本轮截图环境
 
-- 2026-09-22 按审阅报告重截 16 张、补充 36 张，共 52 张修订图片；方案现在保留 124 张候选图，另复用 10 张既有素材。
+- 2026-09-22 按审阅报告重截 16 张、补充 36 张，共 52 张修订图片。当时的方案收录 124 张候选图，另复用 10 张既有素材。E6b、E6c 的旧图可从该方案的 Git 历史查阅，补拍配方见 `supplement-toolbox.cjs`。
 - `supplement.cjs`：客户端各镜头的导航、裁切、标题与编号；输出 `supplement-results.json`，记录实际像素尺寸。长面板按滚动位置拆图，带 `mustShow` 的镜头检查关键控件是否完整处于窗口和滚动容器内；仍需目视核对文字与页面定位。
 - `electron-fixture.cjs`：真实 Electron/preload 与本机运行时；授权、更新、云端设置等响应使用合成数据，外部渲染请求被拦截。
-- `web-fixture.cjs`：导出 `start(serverRoot?)`，返回 `{ server, baseUrl }`。默认读取相邻 `lira-server/public/` 的实际前端，用内存数据提供 GET 接口；不启动服务器应用、不读取其配置或真实数据。网页端图片通过 Playwright 访问该临时服务拍摄。
+- `web-fixture.cjs` 的 `start(serverRoot?)` 返回 `{ server, baseUrl }`。F3b 从相邻 `lira-server/public/` 加载主播中心 `/manage`，使用内存中的示例账号、歌单与礼物数据。Playwright 打开歌单外观后截图。
 - `web-supplement.cjs`：提供 F3b 的网页端镜头，以及 F7 / F8 的本机投屏镜头；输出 `web-supplement-results.json`。CLI 只运行网页端镜头，本机投屏按下方示例复用隔离 Electron 的地址。
 - 浏览器源：在 Electron 示例运行时提供的本机地址打开 `/queue`、`/songlist`、`/blindbox`、`/gift-wishes`；`/danmaku?preview=1&style=signal` 为产品内置布局预览，循环显示本地示例消息，不代表实际直播事件。
 

@@ -1,20 +1,10 @@
 'use strict';
 
-const { hasExactOrigin } = require('../local-media-access');
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
 function registerDailyBotIpc({ ipcMain, controller, getMainWindow, getDesktopBaseUrl }) {
+  const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl, allowedPaths: new Set(['/', '/admin', '/settings']) });
   const channel = 'daily-bots:invoke';
-  ipcMain.handle(channel, async (event, request) => {
-    const win = getMainWindow();
-    if (
-      !win ||
-      win.isDestroyed() ||
-      event.sender !== win.webContents ||
-      event.senderFrame !== win.webContents.mainFrame ||
-      !hasExactOrigin(event.senderFrame.url, getDesktopBaseUrl()) ||
-      !['/', '/admin', '/settings'].includes(new URL(event.senderFrame.url).pathname)
-    ) {
-      return { ok: false, error: 'IPC_SOURCE_INVALID' };
-    }
+  register(channel, async (event, request) => {
     try {
       return { ok: true, ...(await controller.invoke(request)) };
     } catch (error) {

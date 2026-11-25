@@ -171,7 +171,7 @@ function createLicenseManager(options = {}) {
               renewalSessionId: sessionId || undefined,
               beforeAccept(result) {
                 if (result.deviceId !== identity.deviceId)
-                  throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。');
+                  throw new RemoteLicenseError('INVALID_RESPONSE');
                 pending.commit();
                 identity = stateStore.write({
                   ...identity,
@@ -399,7 +399,7 @@ function createLicenseManager(options = {}) {
 
   function acceptAuthenticationResult(result, beforeAccept) {
     if (typeof result.sessionId !== 'string' || !result.sessionId.trim())
-      throw new RemoteLicenseError('DEVICE_SESSION_INVALID', '授权服务器未返回有效会话标识。');
+      throw new RemoteLicenseError('DEVICE_SESSION_INVALID');
     const nextAccessToken = String(result.accessToken || '');
     if (!nextAccessToken) throw new RemoteLicenseError('SIGNATURE_INVALID', '授权服务器未返回有效会话。');
     beforeAccept?.(result);
@@ -431,7 +431,7 @@ function createLicenseManager(options = {}) {
       if (!identity || ![LicenseState.AUTHORIZED, LicenseState.NEEDS_CONNECTION].includes(state)) return false;
       const expectedToken = accessToken;
       try {
-        if (!sessionId) throw new RemoteLicenseError('DEVICE_SESSION_INVALID', '授权服务器未返回有效会话标识。');
+        if (!sessionId) throw new RemoteLicenseError('DEVICE_SESSION_INVALID');
         const privateKeyPem = keyStore.loadPrivateKey();
         const result = await authenticate({
           identity,

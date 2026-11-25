@@ -174,6 +174,42 @@ test('lyric and stream provider calls retain QQ numeric source identifiers', asy
   assert.equal(streamTrack.sourceSongType, 1);
 });
 
+test('concurrent lyric misses share only the current account request and leave failures retryable', async (t) => {
+  const lyricCacheDir = createScratchDirectory('lyrics-in-flight-', t);
+  const service = createLyricsService({ lyricCacheDir });
+  const track = { source: 'qq', sourceTrackId: 'mid', sourceSongId: 123, title: 'Test song' };
+  let revision = 1, revisionReads = 0;
+  const pending = [];
+  const provider = { getLyrics() {
+    const request = Promise.withResolvers();
+    pending.push(request);
+    return request.promise;
+  } };
+  const registry = { get: () => provider, getAuthorizationRevision: () => { revisionReads++; return revision; } };
+  const fetch = () => service.getMusicTrackLyrics(registry, { track });
+  const old = [fetch(), fetch()];
+  await t.waitFor(() => assert.deepEqual([pending.length, revisionReads], [1, 2]));
+  revision++;
+  const current = fetch();
+  await t.waitFor(() => assert.equal(pending.length, 2));
+  pending[0].resolve({ lines: [{ text: 'old' }] });
+  const [first, shared] = await Promise.all(old);
+  shared.lines[0].text = '';
+  assert.equal(first.lines[0].text, 'old');
+  pending[1].reject(new Error('retry'));
+  await assert.rejects(current, /retry/);
+  const retry = fetch();
+  await t.waitFor(() => assert.equal(pending.length, 3));
+  pending[2].resolve({ lines: [] });
+  assert.equal((await retry).lines.length, 0);
+  const last = fetch();
+  await t.waitFor(() => assert.equal(pending.length, 4));
+  pending[3].resolve({ lines: [{ text: 'current' }] });
+  await last;
+  assert.equal((await fetch()).lines[0].text, 'current');
+  assert.equal(pending.length, 4);
+});
+
 test('lyric service ignores incomplete v4 lyric cache entries', async (t) => {
   const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-cache-version-'));
   t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));

@@ -14,7 +14,7 @@ internal sealed class AudioEngine : IDisposable
   public double PositionSeconds => file?.CurrentTime.TotalSeconds ?? 0;
   public double DurationSeconds => file?.TotalTime.TotalSeconds ?? 0;
 
-  public AudioEngine(string? filePath, int? processId, string? outputId, int strength, int semitones, int speedPercent = 100,
+  public AudioEngine(string? filePath, int? processId, string? outputId,
     AudioInputDevice? inputDevice = null, bool loopback = false, string inputChannels = "auto", string outputBackend = "wasapi")
   {
     try
@@ -44,7 +44,7 @@ internal sealed class AudioEngine : IDisposable
         capture.Failed += error => Stopped?.Invoke(error);
         input = incoming.ToSampleProvider();
       }
-      dsp = new DspSource(input) { StrengthPercent = strength, Semitones = semitones, SpeedPercent = filePath == null ? 100 : speedPercent };
+      dsp = new DspSource(input);
       output = PlaybackOutputs.Create(outputBackend, string.IsNullOrEmpty(outputId) ? AudioDevices.DefaultOutputId() : outputId, dsp.ToWaveProvider());
       output.PlaybackStopped += (_, args) => Stopped?.Invoke(args.Exception);
       ProcessId = processId;
@@ -78,7 +78,11 @@ internal sealed class AudioEngine : IDisposable
       finally
       {
         try { output?.Dispose(); }
-        finally { dsp?.Dispose(); file?.Dispose(); }
+        finally
+        {
+          try { dsp?.Dispose(); }
+          finally { file?.Dispose(); }
+        }
       }
     }
   }
@@ -87,7 +91,9 @@ internal sealed class AudioEngine : IDisposable
 internal sealed class DspSource : ISampleProvider, IDisposable
 {
   readonly ISampleProvider source;
-  readonly StemSeparator separator;
+  readonly object readGate = new();
+  bool closed;
+  volatile StemSeparator? separator;
   readonly RubberBandProcessor pitch = new();
   readonly float[] input = new float[2048];
   int directOffset, directCount;
@@ -110,9 +116,17 @@ internal sealed class DspSource : ISampleProvider, IDisposable
   public long InputFrames { get; private set; }
   public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
 
-  public DspSource(ISampleProvider source) { this.source = source; separator = new StemSeparator(source); }
+  public DspSource(ISampleProvider source) { this.source = source; }
+
+  // The control thread prepares the model before enabling separation on the audio callback.
+  public void PrepareSeparation(StemModel model) => separator ??= new StemSeparator(source, model);
 
   public int Read(float[] buffer, int offset, int count)
+  {
+    lock (readGate) return closed ? 0 : ReadAudio(buffer, offset, count);
+  }
+
+  int ReadAudio(float[] buffer, int offset, int count)
   {
     long work = Stopwatch.GetTimestamp();
     int written = 0;
@@ -132,7 +146,8 @@ internal sealed class DspSource : ISampleProvider, IDisposable
       // Once an effect is started, keep its stream alive until Stop so returning to
       // zero does not discard buffered music or introduce a second timing jump.
       if (semitones != 0 || speed != 100) pitchActive = true;
-      if (!original && StrengthPercent != 0) separationActive = true;
+      var activeSeparator = separator;
+      if (!original && StrengthPercent != 0 && activeSeparator != null) separationActive = true;
       if (semitones != appliedSemitones)
       {
         pitch.PitchSemiTones = semitones;
@@ -147,28 +162,28 @@ internal sealed class DspSource : ISampleProvider, IDisposable
       {
         if (original && separationActive)
         {
-          separator.Reset();
+          activeSeparator!.Reset();
           strengthNeedsUpdate = true;
         }
         wasOriginal = original;
       }
       float nextStrength = appliedStrength + (Math.Clamp(StrengthPercent, -100, 100) / 100f - appliedStrength) * 0.35f;
-      if (nextStrength != appliedStrength || strengthNeedsUpdate)
+      if (activeSeparator != null && (nextStrength != appliedStrength || strengthNeedsUpdate))
       {
         appliedStrength = nextStrength;
-        separator.SetStrength(appliedStrength);
+        activeSeparator.SetStrength(appliedStrength);
         strengthNeedsUpdate = false;
       }
       // A/B bypass omits both effects; returning to processing resets its rate bridge.
       bool separating = !original && separationActive;
-      int read = (separating ? separator : source).Read(input, 0, input.Length);
+      int read = (separating ? activeSeparator! : source).Read(input, 0, input.Length);
       if (read == 0)
       {
         if (pitchActive) pitch.Flush();
         finished = true;
         continue;
       }
-      if (separating) InputPeak = separator.InputPeak;
+      if (separating) InputPeak = activeSeparator!.InputPeak;
       else
       {
         float peak = 0;
@@ -196,5 +211,14 @@ internal sealed class DspSource : ISampleProvider, IDisposable
     else { directOffset = 0; directCount = frames * 2; }
   }
 
-  public void Dispose() { pitch.Dispose(); separator.Dispose(); }
+  public void Dispose()
+  {
+    // Drain the callback even when the output driver threw during shutdown.
+    lock (readGate)
+    {
+      if (closed) return;
+      closed = true;
+      pitch.Dispose();
+    }
+  }
 }

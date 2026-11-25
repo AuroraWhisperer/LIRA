@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { normalizeGuardAccompany, newerGuardAccompany } = require('../shared/bilibili-guard-accompany');
 const { dayOf, daysBetween } = require('./dates');
 
@@ -10,7 +12,7 @@ function accompanySettings(input = {}) {
   if (!Array.isArray(milestones) || milestones.length > 10 ||
     milestones.some((day) => !Number.isSafeInteger(day) || day < 1 || day > 100000) ||
     (input.showAccompanyInCalendar !== undefined && typeof input.showAccompanyInCalendar !== 'boolean')) {
-    throw new Error('陪伴纪念日须为 1–100000 的整数，最多 10 个；请选择是否在日历显示。');
+    throw createPublicError('陪伴纪念日须为 1–100000 的整数，最多 10 个；请选择是否在日历显示。');
   }
   return {
     accompanyMilestones: [...new Set(milestones)].sort((a, b) => a - b),

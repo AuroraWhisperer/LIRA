@@ -1,10 +1,12 @@
 'use strict';
 
+import { readApiResponse } from '../shared/json-response.js';
 import { localOverlayOrigin, toast } from '../shared/utils.js';
 import { bindCopyUrl } from '../shared/copy-url.js';
 import { renderSaveStatus } from '../shared/save-status.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { mountOpeningStylePicker } from './opening-style-picker.js';
+import { refreshOnPanelReturn } from './panel-visibility.js';
 import { stateService } from './state.js';
 import {
   OPENING_DEFAULTS,
@@ -249,9 +251,8 @@ function initStartAnimation() {
       const response = await fetch(OPENING_CONFIG_ENDPOINT, {
         cache: 'no-store',
       });
-      if (!response.ok) throw new Error('开播配置读取失败');
-      const payload = await response.json();
-      if (!payload?.ok || !payload.data) throw new Error('开播配置读取失败');
+      const payload = await readApiResponse(response, '开播配置读取失败');
+      if (!payload.data) throw new Error('开播配置读取失败');
       activeStyle = payload.data.style === 'pixel-cassette' ? 'pixel-cassette' : 'classic';
       styleConfigs = payload.data.styles || { classic: payload.data,
         'pixel-cassette': { ...OPENING_DEFAULTS, style: 'pixel-cassette' } };
@@ -291,8 +292,8 @@ function initStartAnimation() {
     const before = JSON.stringify(readStartAnimationConfig(root));
     try {
       const response = await fetch(OPENING_CONFIG_ENDPOINT, { cache: 'no-store' });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok || !payload.data) throw new Error('开播设置同步失败');
+      const payload = await readApiResponse(response, '开播设置同步失败');
+      if (!payload.data) throw new Error('开播设置同步失败');
       if (saveInFlight || Object.keys(pendingSettings).length
         || before !== JSON.stringify(readStartAnimationConfig(root))) return;
       styleConfigs = payload.data.styles;
@@ -310,7 +311,10 @@ function initStartAnimation() {
     settingsRefreshPending = true;
     return refreshSharedSettings();
   }
-  window.addEventListener('focus', requestSettingsRefresh);
+  const stopFocusRefresh = refreshOnPanelReturn(form, () => {
+    if (hydrated) void requestSettingsRefresh();
+  });
+  window.addEventListener('pagehide', stopFocusRefresh, { once: true });
   window.addEventListener('app:settings-state', (event) => {
     const signature = openingSettingsSignature(event.detail);
     if (signature === receivedSettingsSignature) return;
@@ -350,8 +354,7 @@ function initStartAnimation() {
         method: 'POST',
         body,
       });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '歌曲上传失败');
+      const payload = await readApiResponse(response, '歌曲上传失败');
       if (audioStatus) audioStatus.textContent = '歌曲已保存到开播音乐文件夹。';
       updateMediaConfig(payload.data);
       render();
@@ -388,8 +391,7 @@ function initStartAnimation() {
         method: 'POST',
         body,
       });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '人物图片上传失败');
+      const payload = await readApiResponse(response, '人物图片上传失败');
       if (characterStatus) characterStatus.textContent = `${imageLabel}已保存。`;
       updateMediaConfig(payload.data);
       render();
@@ -408,8 +410,7 @@ function initStartAnimation() {
       const response = await fetch(endpoint, {
         method: 'DELETE',
       });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '清除人物图失败');
+      const payload = await readApiResponse(response, '清除人物图失败');
       if (characterStatus) characterStatus.textContent = style === 'pixel-cassette' ? '已清除大头贴。' : '已清除人物图。';
       updateMediaConfig(payload.data);
       render();
@@ -424,8 +425,7 @@ function initStartAnimation() {
       const response = await fetch(activeStyle === 'pixel-cassette' ? `${OPENING_AUDIO_ENDPOINT}?style=pixel-cassette` : OPENING_AUDIO_ENDPOINT, {
         method: 'DELETE',
       });
-      const payload = await response.json();
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || '清除音乐失败');
+      const payload = await readApiResponse(response, '清除音乐失败');
       if (audioStatus) audioStatus.textContent = '已清除音乐。';
       updateMediaConfig(payload.data);
       render();

@@ -13,6 +13,7 @@ const { TEXT_IMAGE_PREFIX, serveSceneTextImage } = require('./scene-text-images'
 const { serveComponentMedia } = require('./component-media-files');
 const { WOODLAND_GIFT_VIDEO, serveGiftFrameResource } = require('./gift-frame-resource');
 const { serveComponentWeb } = require('./component-web-files');
+const { ADMIN_PAGE_PATHS } = require('../shared/admin-page-paths');
 
 /**
  * Build the HTTP/upgrade transport for one server runtime.
@@ -80,12 +81,7 @@ function createHttpServer(options = {}) {
 
       if (!isLicenseAuthorized()) {
         componentPreviews.clear();
-        if (
-          requestUrl.pathname === '/admin' ||
-          requestUrl.pathname === '/' ||
-          requestUrl.pathname === '/settings' ||
-          requestUrl.pathname === '/songs'
-        ) {
+        if (ADMIN_PAGE_PATHS.includes(requestUrl.pathname)) {
           res.writeHead(302, {
             Location: '/license',
             'Cache-Control': 'no-store',

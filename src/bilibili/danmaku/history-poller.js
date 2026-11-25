@@ -23,24 +23,31 @@ class HistoryPoller {
   }
 
   start(context) {
+    if (this.timer && this.context === context) return;
     this.stop();
     if (!context || !context.roomId || !context.ownerUid) return;
+    this.context = context;
     const localGeneration = ++this.localGeneration;
     logBilibiliDiagnostic('history-start', { roomId: context.roomId });
-    this.pollHistory(context, localGeneration).catch((error) => {
-      console.warn(`[Bilibili] history polling failed: ${error.message}`);
-    });
-    this.timer = setInterval(() => {
-      this.pollHistory(context, localGeneration).catch((error) => {
+    let delayMs = 2500;
+    const poll = async () => {
+      try {
+        await this.pollHistory(context, localGeneration);
+        delayMs = 2500;
+      } catch (error) {
+        delayMs = Math.min(60000, delayMs * 2);
         console.warn(`[Bilibili] history polling failed: ${error.message}`);
-      });
-    }, 2500);
+      }
+      if (localGeneration === this.localGeneration) this.timer = setTimeout(poll, delayMs);
+    };
+    this.timer = setTimeout(poll, 0);
   }
 
   stop() {
     if (this.timer) logBilibiliDiagnostic('history-stop');
-    clearInterval(this.timer);
+    clearTimeout(this.timer);
     this.timer = null;
+    this.context = null;
     this.localGeneration += 1;
   }
 

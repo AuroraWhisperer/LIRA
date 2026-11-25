@@ -1,12 +1,6 @@
+import { createTextElement as node } from '../shared/dom-element.js';
 const ART = '/img/overlays/danmaku-notebook/';
 const GUARDS = { 1: ['governor', '总督'], 2: ['admiral', '提督'], 3: ['captain', '舰长'] };
-
-function node(document, tag, className, text) {
-  const element = document.createElement(tag);
-  element.className = className;
-  if (text !== undefined) element.textContent = text;
-  return element;
-}
 
 function guard(value) {
   return GUARDS[Number(value)] || ['ordinary', ''];

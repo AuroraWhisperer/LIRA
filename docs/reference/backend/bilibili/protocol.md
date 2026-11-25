@@ -2,9 +2,9 @@
 
 > 涉及文件:[api-client.js](../../../../src/bilibili/danmaku/api-client.js)、[wbi-signer.js](../../../../src/bilibili/wbi-signer.js)、[websocket-connection.js](../../../../src/bilibili/danmaku/websocket-connection.js)、[packet-decoder.js](../../../../src/bilibili/parsers/packet-decoder.js)、[protobuf-decoder.js](../../../../src/bilibili/protocols/protobuf-decoder.js)、[danmaku-parser.js](../../../../src/bilibili/parsers/danmaku-parser.js)、[superchat-parser.js](../../../../src/bilibili/parsers/superchat-parser.js)、[gift-identity-hints.js](../../../../src/bilibili/users/gift-identity-hints.js)、[gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js)、[user-meta-extractor.js](../../../../src/bilibili/utils/user-meta-extractor.js)、[helpers.js](../../../../src/bilibili/helpers.js)、[danmaku-client.js](../../../../src/bilibili/danmaku-client.js) 的连接部分、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js) 的分发部分
 
-本文档是 **Bilibili 平台出向协议**的唯一事实源:HTTP 端点、WBI 签名、WebSocket 二进制帧、自实现 Protobuf 解码与消息解析规则只在此成表。平台侧 API 的完整参考(用户/直播间信息、管理、消息流等)见 [`docs/bilibili-live-api/`](../../../bilibili-live-api/info.md) 目录,本文不复述。消息经解析后进入的监听管线见 [danmaku.md](danmaku.md),礼物/SC 的入库与服务层见 [gift.md](gift.md)。
+本文档是 **Bilibili 平台请求与通信协议**的单一事实来源，涵盖 HTTP 端点、WBI 签名、WebSocket 二进制帧、自研 Protobuf 解码与消息解析规则。平台侧 API 的完整参考（用户/直播间信息、管理、消息流等）见 [`docs/bilibili-live-api/`](../../../bilibili-live-api/info.md) 目录，本文不复述。消息经解析后进入的监听管线见 [danmaku.md](danmaku.md)，礼物/SC 的入库与服务层见 [gift.md](gift.md)。
 
-**礼物相关消息边界：** `gift-command-utils.js` 只识别消息命令和重复舰队提示；`users/gift-identity-hints.js` 只读取发送者 UID、昵称、头像及已验证的舰队身份。客户端没有原始礼物解析器，不计算金额、数量、连击、盲盒或订单身份；礼物账本接收服务器确认的结果。
+**礼物相关消息边界：** 客户端不解析原始礼物金额、连击或盲盒，礼物账本只接收服务器确认的结果（[gift.md](gift.md) §2/§6.1）；本地连接仅通过 `gift-command-utils.js` 路由命令并由 `users/gift-identity-hints.js` 提取发送者身份线索（详见 §6.3–§6.4）。
 
 ## 1. 架构总览
 
@@ -13,20 +13,20 @@ BilibiliDanmakuClient (顶层编排, 见 danmaku.md)
 ├─ BilibiliApiClient        HTTP API 层 (9 个 JSON/表单端点 + 头像图片读取, 见 §2)
 ├─ WBI 签名 (wbi-signer)     getDanmuInfo / getInfoByRoom 的签名与 nav 密钥缓存
 ├─ WebSocketConnection       二进制帧封装 + 心跳 (30s, 见 §4)
-├─ parseBilibiliPackets      帧解码 + Brotli/zlib 解压 (见 §4.4)
-├─ Protobuf 解码器           自实现 LEB128 解码 (见 §5)
+├─ parseBilibiliPackets      帧解码 + Brotli/zlib 解压 (见 §4.5)
+├─ Protobuf 解码器           自研 LEB128 解码 (见 §5)
 └─ MessageHandlers           分发: 弹幕/SC/礼物身份/点赞总数 (见 §6)
 ```
 
 ## 2. HTTP API(BilibiliApiClient)
 
-`BilibiliApiClient`([api-client.js:9](../../../../src/bilibili/danmaku/api-client.js#L9))封装全部出向 HTTP 调用。**这是平台 API,不是本服务的 `/api/*`**(本服务端点见 [api.md](../api.md))。
+`BilibiliApiClient`（[api-client.js:9](../../../../src/bilibili/danmaku/api-client.js#L9)）封装全部出向 HTTP 调用。**这是平台 API，不是本服务的 `/api/*`**（本服务端点见 [api.md](../api.md)）。
 
-JSON 响应通过[共享读取器](../../../../src/shared/response-body.js)限制为 4 MiB；普通调用和弹幕发送有 15 秒期限，额外调用方信号与期限合并。头像沿用 8 秒期限和 2 MiB 预算；HTTP 错误、非支持图片 MIME 在拒绝前取消未读正文。共享读取器在保留分块前检查累计字节数，并以单个几何扩容缓冲区限制微小分块对象开销。
+JSON 响应通过[共享响应体读取器](../../../../src/shared/response-body.js)限制为 4 MiB；普通接口与弹幕发送超时为 15 秒，调用方传入的取消信号会与该超时合并。头像下载超时 8 秒、上限 2 MiB；遇到 HTTP 错误或不支持的图片 MIME 类型时，先中止未读响应体再报错。
 
 ### 2.1 通用请求头
 
-统一由 `requestHeaders()`([api-client.js:173-185](../../../../src/bilibili/danmaku/api-client.js#L173-L185)) 生成:
+统一由 `requestHeaders()`（[api-client.js:173-185](../../../../src/bilibili/danmaku/api-client.js#L173-L185)）生成：
 
 | 头                   | 值                                                                 | 出处                                                                              |
 | -------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
@@ -34,25 +34,25 @@ JSON 响应通过[共享读取器](../../../../src/shared/response-body.js)限�
 | `Accept`             | `application/json, text/plain, */*`                                | [api-client.js:176](../../../../src/bilibili/danmaku/api-client.js#L176)          |
 | `Accept-Language`    | `zh-CN,zh;q=0.9,en;q=0.8`                                          | [api-client.js:177](../../../../src/bilibili/danmaku/api-client.js#L177)          |
 | `Origin` / `Referer` | `https://live.bilibili.com` / `https://live.bilibili.com/{roomId}` | [api-client.js:178-179](../../../../src/bilibili/danmaku/api-client.js#L178-L179) |
-| `Cookie`             | 可选,有登录 Cookie 时附加,缓解 -352 风控                           | [api-client.js:181-183](../../../../src/bilibili/danmaku/api-client.js#L181-L183) |
+| `Cookie`             | 可选，有登录 Cookie 时附加，缓解 -352 风控                           | [api-client.js:181-183](../../../../src/bilibili/danmaku/api-client.js#L181-L183) |
 
-Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [desktop/auth.md](../../desktop/auth.md),此处只消费 `cookieHeader` 字符串。运行中可用 `updateAuth(cookieHeader, uid)` 热更新([api-client.js:17-20](../../../../src/bilibili/danmaku/api-client.js#L17-L20))。
+Cookie 的来源与加密存储（登录分区 / `bilibili-auth/cookies.enc`）见 [desktop/auth.md](../../desktop/auth.md)，此处只读取 `cookieHeader` 字符串。运行中可用 `updateAuth(cookieHeader, uid)` 热更新（[api-client.js:17-20](../../../../src/bilibili/danmaku/api-client.js#L17-L20)）。
 
 ### 2.2 错误码速查
 
-`bilibiliErrorHint(code)`([api-client.js:201-215](../../../../src/bilibili/danmaku/api-client.js#L201-L215))对平台业务码给出中文提示;`formatBilibiliApiError` 统一拼接 `http status + code + message`([api-client.js:193-199](../../../../src/bilibili/danmaku/api-client.js#L193-L199))。`fetchJson` 对非 JSON 响应单独抛错([api-client.js:149-171](../../../../src/bilibili/danmaku/api-client.js#L149-L171)),日志中的 `w_rid` 会被脱敏([api-client.js:217-219](../../../../src/bilibili/danmaku/api-client.js#L217-L219))。
+`bilibiliErrorHint(code)`（[api-client.js:201-215](../../../../src/bilibili/danmaku/api-client.js#L201-L215)）对平台业务码给出中文提示；`formatBilibiliApiError` 统一拼接 `http status + code + message`（[api-client.js:193-199](../../../../src/bilibili/danmaku/api-client.js#L193-L199)）。`fetchJson` 对非 JSON 响应单独抛错（[api-client.js:149-171](../../../../src/bilibili/danmaku/api-client.js#L149-L171)），日志中的 `w_rid` 会被脱敏（[api-client.js:217-219](../../../../src/bilibili/danmaku/api-client.js#L217-L219)）。
 
 | code    | 含义                                                      | 出处                                                                              |
 | ------- | --------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `0`     | 成功                                                      | —                                                                                 |
-| `-352`  | 风控/校验失败(WBI 签名、请求头、Cookie/设备标识、网络 IP) | [api-client.js:202-204](../../../../src/bilibili/danmaku/api-client.js#L202-L204) |
+| `-352`  | 风控/校验失败（WBI 签名、请求头、Cookie/设备标识、网络 IP） | [api-client.js:202-204](../../../../src/bilibili/danmaku/api-client.js#L202-L204) |
 | `-400`  | 请求参数错误                                              | [api-client.js:208-210](../../../../src/bilibili/danmaku/api-client.js#L208-L210) |
 | `-412`  | 请求被风控拦截                                            | [api-client.js:211-213](../../../../src/bilibili/danmaku/api-client.js#L211-L213) |
 | `60004` | 直播间不存在                                              | [api-client.js:205-207](../../../../src/bilibili/danmaku/api-client.js#L205-L207) |
 
 ### 2.3 端点清单
 
-`fetchRoomGuardCount({ signal })` 调用 WBI 签名的 `https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id={roomId}&wts=...&w_rid=...`，只读取 `data.guard_info.count`。接受非负安全整数及十进制数字字符串，未知或无效字段返回 `null`；非成功响应拒绝。首次 `-352` 淘汰当前签名密钥并重试一次；请求沿用通用期限及调用方取消信号。不得使用在线人数、榜单长度或礼物累计数量替代大航海总人数。
+`fetchRoomGuardCount({ signal })` 调用 WBI 签名的 `https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByRoom?room_id={roomId}&wts=...&w_rid=...`，只读取 `data.guard_info.count`。支持非负安全整数及十进制数字字符串，缺失或非法时返回 `null`，接口报错时直接抛错。首次遇到 `-352` 时清除当前 WBI 密钥缓存并重试一次；超时与取消信号沿用通用配置。不得使用在线人数、榜单长度或礼物累计数量替代大航海总人数。
 
 | 端点                | URL                                                                                                           | 用途与关键响应                                                                                                                                                         | 出处                                                                                                                                                         |
 | ------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -80,9 +80,9 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 2. `extractBilibiliWbiKey(url)`:取 URL pathname 最后一段,按 `.` 分割取第一部分([wbi-signer.js:81-85](../../../../src/bilibili/wbi-signer.js#L81-L85))。例:`…/wbi/7cd084941338484aae1ad9425b84077c.png` → `7cd084941338484aae1ad9425b84077c`。
 3. `rawKey = imgKey + subKey`(两个 32 字符 hex 拼接)。
 4. `mixinKey = WBI_MIXIN_KEY_ENC_TAB.map(i => rawKey[i]).join('').slice(0, 32)`([wbi-signer.js:70-73](../../../../src/bilibili/wbi-signer.js#L70-L73))。
-5. 成功获取后缓存 10 分钟；有效缓存直接复用，冷启动或过期时的并发调用共用同一个在途 Promise。请求失败后释放在途引用，后续调用可以重新获取。缓存只保存 `mixinKey` 与到期时间，见 [wbi-signer.js](../../../../src/bilibili/wbi-signer.js)。
+5. 获取成功后缓存 10 分钟；有效缓存直接复用，冷启动或缓存过期时的并发调用复用同一个在途请求，请求失败后清除引用以便后续重试。缓存只保存 `mixinKey` 与到期时间，见 [wbi-signer.js](../../../../src/bilibili/wbi-signer.js)。
 
-`BilibiliApiClient.resolveDanmuInfo` 首次 HTTP 成功响应的 `code` 严格为数值 `-352` 时，失效本次使用的密钥代次并重新签名读取一次；第二次仍失败就按原错误路径返回，不循环刷新。代次以缓存对象身份判断，因此迟到的旧请求失败不会清除新缓存，即使两代密钥字符串相同。此重试只属于 `getDanmuInfo` 读取，不用于 `msg/send` 写请求，见 [api-client.js](../../../../src/bilibili/danmaku/api-client.js)。
+`BilibiliApiClient.resolveDanmuInfo` 首次收到业务码严格为数值 `-352` 的响应时，清除本次使用的密钥代次缓存并重新签名请求一次；若第二次仍失败则按原错误路径返回，不再循环重试。代次按缓存对象身份判定，因此迟到的旧请求失败不会清除新缓存（即使两代密钥字符串相同）。该重试仅用于 `getDanmuInfo` 读取，不用于 `msg/send` 写请求，见 [api-client.js](../../../../src/bilibili/danmaku/api-client.js)。
 
 ### 3.2 置换表(64 个下标)
 
@@ -158,11 +158,11 @@ WebSocket 打开后最多等 10 秒接收认证回包。整数 `code=0` 确认�
 
 ### 4.5 帧解析与解压
 
-`parseBilibiliPackets(buffer, { onDiscard } = {})` 见 [packet-decoder.js](../../../../src/bilibili/parsers/packet-decoder.js)。每个 WebSocket message 独立解析，不跨消息保存半包；同一 buffer 内按头部长度逐个消费 Bilibili packet，只对 operation `5` 提取事件。协议版本 `3` 用 Brotli、`2` 用 zlib 解压后递归读取，其他版本按 UTF-8 JSON 对象拆分；普通心跳等非事件包不算丢弃。
+`parseBilibiliPackets(buffer, { onDiscard } = {})` 独立解析每个 WebSocket 消息，在同一 buffer 内按包头长度顺序拆包，仅对 `operation === 5` 提取事件。`protoVer === 3` 经 Brotli、`protoVer === 2` 经 zlib 解压后递归解析。普通 UTF-8 单对象直接调用 `JSON.parse`，拼接对象与坏片段进入原拆分器以恢复完整事件。心跳等非事件包不计入丢弃。[帧解析实现](../../../../src/bilibili/parsers/packet-decoder.js)
 
-输入 buffer 与累计解压预算各为 8 MiB，最多输出 10,000 条消息，压缩嵌套深度最多 8 层。解析器自身校验 `packetLength >= 16`、`headerLength >= 16`、头不超过包长且包不越界；长度非法停止当前 buffer，超限或解压失败停止本次解码，已解析出的有效消息保留。
+单次输入 buffer 与累计解压大小上限均为 8 MiB，单次最多输出 10,000 条消息，解压嵌套深度不超过 8 层。解析器校验 `packetLength >= 16`、`headerLength >= 16`、包头不超包长且包不越界；遇到非法长度、超限或解压失败时停止当前解码，但保留已成功解析的有效消息。
 
-可选 `onDiscard(reason)` 报告固定原因：`frame-size-limit`、`invalid-packet-length`、`incomplete-header`、`compression-depth-limit`、`decompressed-size-limit`、`decompression-error`、`invalid-json`、`message-limit`。默认返回消息数组的接口不变。原因计数表示观察到的拒绝，不是丢失消息总数，也不能证明上游完整率；捕获脚本将它与抛出的解析异常分开统计。
+可选回调 `onDiscard(reason)` 上报具体丢弃原因：`frame-size-limit`、`invalid-packet-length`、`incomplete-header`、`compression-depth-limit`、`decompressed-size-limit`、`decompression-error`、`invalid-json`、`message-limit`，不影响原消息数组返回值。该计数只反映本次解码丢弃的次数，不代表实际丢失消息总数，也不用于衡量上游完整率；抓包脚本将其与抛出的解析异常分开统计。
 
 `splitJsonObjects` 跟踪 `{}` 嵌套与字符串/转义状态，逐个切出 JSON 块；坏 JSON 被跳过并记录诊断，未闭合片段或不完整包头也可区分。
 
@@ -191,7 +191,7 @@ WebSocket 打开后最多等 10 秒接收认证回包。整数 `code=0` 确认�
 
 ### 5.3 SEND_GIFT_V2 身份字段
 
-[gift-identity-hints.js](../../../../src/bilibili/users/gift-identity-hints.js) 从根字段 `1` 读取 UID、`2` 读取昵称、`3` 读取头像 URL，直接复用包中已有资料。它不解释 giftInfo 的金额、数量或连击字段，也不要求这些字段存在。解码失败时继续尝试包中的 JSON 发送者字段；缺少 UID 则忽略。头像校验与资料合并仍由用户信息服务持有。
+身份入口从根字段 `1`、`2`、`3` 分别读取 UID、昵称和头像 URL。其余根字段仍校验 wire type 与边界，然后按长度跳过字段内容。通用解码入口保留完整字段和嵌套解码。坏包回退到 JSON 发送者字段，缺少 UID 则忽略。头像校验与资料合并由 `UserInfoService` 负责。[身份提取实现](../../../../src/bilibili/users/gift-identity-hints.js)
 
 ## 6. 消息解析与分发(协议 → 领域事件)
 
@@ -222,9 +222,9 @@ info[0][13]       → 整条图片表情（对象或 JSON 字符串），正文�
 info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 user、emoticon、emots、extra
 ```
 
-发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，并只接受 HTTPS 的 B 站 `*.hdslb.com` 地址；在线榜和历史消息里的头像字段经 `UserInfoService` 按 uid 合并。解析器只产出 hint，不访问 cache、profile provider 或头像代理。
+发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，仅接受通过 §2.3 B 站白名单校验的 HTTPS `*.hdslb.com` 地址；在线榜和历史消息里的头像字段经 `UserInfoService` 按 UID 合并。解析器只产出身份线索（hint），不直接访问缓存、资料拉取器或头像代理。
 
-弹幕表情由 `extractBilibiliDanmakuEmotes(info)` 从 `danmakuOptions` 及其 JSON `extra` 中归一化：`emoticon` 表示整条表情，`emots` 表示正文中的行内表情映射；随后补读 `info[0][13]` 的整条图片表情，即使 `info[0][15]` 缺失也必须保留该图片。输出为 `{text,url,kind,width,height}` 数组，其中 `emots` 固定标记 `kind:inline`，`emoticon` 和 slot 13 固定标记 `kind:sticker`；按来源分类，不按正文是否仅有一个表情或图片像素大小猜测，触发文本去重；同一触发文本在多个来源重复出现时保持既有 `danmakuOptions` / `extra` 的优先级。图片地址只接受 B 站 `*.hdslb.com`，并把可信的 HTTP 地址升级为 HTTPS。两种输入编码、缺少 options、来源重复及非法图片回退由 `test/bilibili/bilibili-danmaku-parser.test.js` 验证；此输出沿既有弹幕流传递，feed buffer 和公开投影保留可选的 `emotes[].kind`；不增加设置、端点或事件类型。
+弹幕表情由 `extractBilibiliDanmakuEmotes(info)` 提取：先从 `danmakuOptions` 及其 JSON `extra` 中读取整条表情（`emoticon`）与行内表情映射（`emots`），再补读 `info[0][13]` 的整条图片表情（即使 `info[0][15]` 缺失也保留）。结果归一化为 `{text,url,kind,width,height}` 数组，直接按字段来源区分类型（`emots` 标记 `kind:'inline'`，`emoticon` 与 `info[0][13]` 标记 `kind:'sticker'`），不按正文长度或图片尺寸猜测；按触发文本去重时沿用 `danmakuOptions` / `extra` 优先。图片地址只接受 `*.hdslb.com` 并将可信 HTTP 升级为 HTTPS；结果随既有弹幕流透传，feed buffer 和公开投影保留可选的 `emotes[].kind`。
 
 用户元数据(勋章/大航海)由 `extractBilibiliDanmakuUserMeta`([user-meta-extractor.js:38-60](../../../../src/bilibili/utils/user-meta-extractor.js#L38-L60))提取:
 
@@ -258,23 +258,19 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 ### 6.3 礼物类命令路由
 
-`USER_TOAST_MSG_V2` 仅在 `option.source` 为数值或字符串 2 时识别为附带提示；缺失、null、空串和 0 均保留，不回退顶层 `data.source`。该判定用于身份解析，不构成礼物结算或去重账本变更。
-
-[gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js) 识别 SEND_GIFT、BLIND_GIFT、COMBO_SEND、GUARD_BUY、USER_TOAST_MSG 和开放平台 SEND_GIFT/GUARD 前缀。`isBilibiliGiftLikeCommand` 也识别含 GIFT/COMBO/GUARD 的命令，排除 COMBO_END、GIFT_STAR_PROCESS、WIDGET_GIFT_STAR_PROCESS。它只用于路由身份提示及显式诊断抓包，不生成礼物记录；已删除动态检测前缀注册。
+[gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js) 识别 `SEND_GIFT`、`BLIND_GIFT`、`COMBO_SEND`、`GUARD_BUY`、`USER_TOAST_MSG` 和开放平台 `SEND_GIFT` / `GUARD` 前缀。`isBilibiliGiftLikeCommand` 亦识别含 `GIFT` / `COMBO` / `GUARD` 的命令，排除 `COMBO_END`、`GIFT_STAR_PROCESS` 与 `WIDGET_GIFT_STAR_PROCESS`。该路由仅用于提取发送者身份线索与显式诊断抓包，不生成礼物记录。
 
 ### 6.4 独立发送者身份读取
 
-`MessageHandlers.handleIdentityMessage` 调用 [extractBilibiliGiftIdentity](../../../../src/bilibili/users/gift-identity-hints.js)，把 `{uid, name, avatarUrl, roomIdentity?}` 交给用户信息服务。JSON 身份读取支持 sender_uinfo/user_info 的 base 与消息根字段；SEND_GIFT_V2 只读取 §5.3 的发送者字段。
+`MessageHandlers.handleIdentityMessage` 调用 [extractBilibiliGiftIdentity](../../../../src/bilibili/users/gift-identity-hints.js)，将 `{uid, name, avatarUrl, roomIdentity?}` 提交给 `UserInfoService`。JSON 身份读取支持 `sender_uinfo` / `user_info` 的 `base` 与消息根字段；`SEND_GIFT_V2` 只读取 §5.3 的发送者字段。
 
-仅 USER_TOAST_MSG 的等级或舰队名称可形成已验证的本房间大航海提示。GUARD_BUY 不进入本地身份提示；USER_TOAST_MSG_V2 仅在 `option.source=2` 时作为附带提示忽略。普通送礼包不能据其中的 guard_level 提升房间身份。后续身份合并、头像校验和连接代次隔离仍由用户信息服务负责。
-
-该路径没有礼物数量/金额计算、付费判定、平台 ID 生成、盲盒匹配、礼物日志或 onGift 记账回调。服务器结果经独立投影器导入，见 [gift.md](gift.md) §2/§6.1。
+仅 `USER_TOAST_MSG` 的等级或舰队名称可形成已验证的本房间大航海提示。`GUARD_BUY` 不进入本地身份提示；`USER_TOAST_MSG_V2` 仅在 `option.source` 为数值或字符串 `2` 时识别为附带提示忽略（缺失、`null`、空串和 `0` 均保留，不回退顶层 `data.source`）；普通送礼包不能据其中的 `guard_level` 提升房间身份。后续身份合并、头像校验和连接代次隔离由 `UserInfoService` 负责，服务器确认的礼物记账结果经独立投影器导入（见 [gift.md](gift.md) §2/§6.1）。
 
 ### 6.5 直播间累计点赞
 
 `LIKE_INFO_V3_UPDATE.data.click_count` 是平台推送的房间累计总数快照。仅接受非负安全整数，直接覆盖上次值；重复值不相加，0 和下降值均有效。`LIKE_INFO_V3_CLICK` 是个人互动提示，不参与总数计算，也不据此统计点赞人数。非法值不改变已有快照。
 
-`MessageHandlers` 只保留 `{count,updatedAt}`，`updatedAt` 是本机收到有效更新时的 ISO 时间。初始化、连接代次/连接尝试切换、销毁以及 `LIVE`/`PREPARING` 时清空为两个 `null`。本地读取合同见 [danmaku.md](danmaku.md#42-直播间点赞状态)。这是最近一次上游快照；不保证 B 站何时推送或按哪一时点归零，不按收到的提示自行累加本场总数。
+`MessageHandlers` 只保留 `{count,updatedAt}`，`updatedAt` 是本机收到有效更新时的 ISO 时间。初始化、连接代次/连接尝试切换、销毁以及 `LIVE`/`PREPARING` 时清空为两个 `null`。本地读取规则见 [danmaku.md](danmaku.md#42-直播间点赞状态)。这是最近一次上游快照；不保证 B 站何时推送或按哪一时点归零，不按收到的提示自行累加本场总数。
 
 ### 6.6 直播红包与天选事件
 
@@ -290,7 +286,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 `new` 是新红包/排队提示，可能只有发送者和等待数量，此时 `id` 为空字符串，不能当作已经开放参与。天选 `end` 表示参与结束，结果通过独立 `award` 消息读取。红包 `start` 支持单对象、数组及 `{list:[...]}` / `{lot_info:[...]}` 队列，每个活动分别生成事件。
 
-| 事件字段 | 合同 |
+| 事件字段 | 说明 |
 | --- | --- |
 | `kind` / `phase` / `command` | 活动类别、消息阶段及去掉冒号后缀的命令 |
 | `id` | 天选 `data.id`；红包 `data.lot_id`，普通红包回退 `data.id`；预告可能未知 |
@@ -304,8 +300,8 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 天选中奖者读取 `award_users`，红包读取 `winner_info`，均优先采用 `uinfo.uid/base.name`，保留神秘身份标记。红包 `version>0` 的数组行按 `[uid,name,bagId,giftId,isMystery,...,uinfo]` 读取身份，以 `awards[giftId]` 补充奖品信息，按平台逐礼物行格式将 `giftCount` 设为 1；对象行读取自身字段。不会改写原数组或因某一无效行丢弃其他中奖者。天选公共奖品信息仍从活动 `data` 读取。
 
-协议核对：2026-11-02 读取的 [B 站直播页线上脚本](https://s1.hdslb.com/bfs/static/blive/blfe-live-room/static/js/app.def5abc442f569d5ad25.js) 包含上述天选、普通红包、`V2` 命令及新版身份/中奖行处理；旧版红包字段同时参照仓库[消息流资料](../../../bilibili-live-api/message_stream.md#直播间发红包弹幕)。核对确认的是平台代码中的协议处理，未用真实账号捕获活动推送；当日匿名 `getLotteryInfoWeb` 请求返回业务码 `-352`，未据此新增或承诺 HTTP 活动快照。离线合成消息覆盖见 [bilibili-live-lottery.test.js](../../../../test/bilibili/bilibili-live-lottery.test.js)。运行时调用与交付边界见 [danmaku.md §4.3](danmaku.md#43-直播红包与天选订阅)。
+协议依据：上述天选、普通红包、`V2` 命令及中奖行格式对照自 [B 站直播页线上脚本](https://s1.hdslb.com/bfs/static/blive/blfe-live-room/static/js/app.def5abc442f569d5ad25.js)（2026-11-02 核对）与仓库[消息流资料](../../../bilibili-live-api/message_stream.md#直播间发红包弹幕)，当前基于离线合成消息回归（[bilibili-live-lottery.test.js](../../../../test/bilibili/bilibili-live-lottery.test.js)），尚未采集真实直播间推送样本。因匿名请求 `getLotteryInfoWeb` 会触发 `-352`，暂不提供 HTTP 活动快照接口。运行时订阅与边界见 [danmaku.md §4.3](danmaku.md#43-直播红包与天选订阅)。
 
 ## 7. 参数归属
 
-WBI 缓存、WS 心跳/超时和 protobuf 预算分别随本文 §3–§5 的协议 owner 维护；弹幕发送预算见 [danmaku.md](danmaku.md#7-danmakusender-发送服务)，SC 入库与展示资格见 [gift.md](gift.md#7-醒目留言服务superchat-service)。这里不另维护数值副本。
+WBI 缓存、WS 心跳/超时与 Protobuf 限额分别归属本文 §3–§5；弹幕发送限额见 [danmaku.md §7](danmaku.md#7-danmakusender-发送服务)，SC 入库与展示阈值见 [gift.md §7](gift.md#7-醒目留言服务superchat-service)，此处不另维护数值副本。

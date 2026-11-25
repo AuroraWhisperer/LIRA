@@ -152,12 +152,12 @@ function installColorObserver() {
         syncColorValue(record.target);
       } else {
         for (const node of record.addedNodes) {
-          if (node.nodeType === Node.ELEMENT_NODE && node.isConnected) enhanceColorControls(node);
+          if (node.nodeType === Node.ELEMENT_NODE && node.isConnected && (node.matches(COLOR_INPUT) || node.childElementCount)) enhanceColorControls(node);
         }
         for (const node of record.removedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE && !node.isConnected) {
             if (node.matches(COLOR_INPUT)) closeColorPicker(node);
-            node.querySelectorAll(COLOR_INPUT).forEach(closeColorPicker);
+            if (node.childElementCount) node.querySelectorAll(COLOR_INPUT).forEach(closeColorPicker);
           }
         }
       }

@@ -49,7 +49,7 @@ const SHOTS = [
   {
     id: 'E6',
     file: 'danmaku-params',
-    title: '青墨笺字体、颜色与透明度',
+    title: '夜航讯号字体、颜色与透明度',
     feature: 'liveDanmakuFeature',
     clip: '.danmaku-parameters',
   },
@@ -65,7 +65,7 @@ const SHOTS = [
   {
     id: 'E6c',
     file: 'danmaku-apply-style',
-    title: '青墨笺参数与应用到直播画面',
+    title: '夜航讯号参数与应用到直播画面',
     feature: 'liveDanmakuFeature',
     license: { state: 'authorized' },
     scroll: '.danmaku-parameters',
