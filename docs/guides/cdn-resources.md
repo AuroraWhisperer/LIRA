@@ -75,26 +75,27 @@ https://assets.lirahub.cn/client/resources/manifest.json
 
 ## 客户端安装包与自动更新
 
-安装包放在 `client/downloads/`，字体、图片和音频放在 `client/resources/`：
+安装包放在 `downloads/`，字体、图片和音频放在 `client/resources/`：
 
 ```text
-lirahub/client/
+lirahub/
 ├─ downloads/
 │  ├─ lira-setup-6.0.0.exe
 │  ├─ lira-setup-6.0.0.exe.blockmap
 │  └─ latest.yml
-└─ resources/
+└─ client/resources/
+   ├─ audio/
    ├─ fonts/
    ├─ images/
    └─ manifest.json
 ```
 
-手动下载入口为 `https://lirahub.cn/download/client`，服务器在点击时读取 `https://assets.lirahub.cn/client/downloads/latest.yml`，再跳转到清单 `path` 声明的安装包。客户端自动更新读取同一清单，比较版本号，再下载并校验 SHA-512。两边都不扫描目录或按文件数量猜测最新版；没有可用清单时，官网入口返回暂不可用，客户端会报「更新清单暂不可用」。服务器入口的配置与部署验收由服务器仓库 `docs/operations/client-download.md` 维护。
+手动下载入口为 `https://lirahub.cn/download/client`，服务器在点击时读取 `https://assets.lirahub.cn/downloads/latest.yml`，再跳转到清单 `path` 声明的安装包。客户端自动更新读取同一清单，比较版本号，再下载并校验 SHA-512。两边都不扫描目录或按文件数量猜测最新版；没有可用清单时，官网入口返回暂不可用，客户端会报「更新清单暂不可用」。服务器入口的配置与部署验收由服务器仓库 `docs/operations/client-download.md` 维护。
 
 每次正常构建仍生成 `release/lira-setup-X.Y.Z.exe`、`release/lira-setup-X.Y.Z.exe.blockmap` 和 `release/latest.yml`，GitHub 按原文件名发布，清单引用带版本号的安装包。发布流程与 v5.7.4 相同；发布任务在 GitHub 附件上传成功后结束，多吉云由维护者自行手动同步。
 
 - **上传顺序与增量下载：** 同步多吉云时，直接上传同次构建的 `lira-setup-X.Y.Z.exe`、`lira-setup-X.Y.Z.exe.blockmap` 和原始 `latest.yml`，不要重命名、修改清单或混用不同构建的文件（混用会导致增量下载失败或 SHA-512 校验拦截安装）。务必先传 EXE 和 blockmap 并确认对应 URL 返回 200，最后再覆盖 `latest.yml`，保持 `version`、`files[].url`、`path`、`sha512`、`size` 的原始对应关系。新版客户端优先增量下载，CDN 对 EXE 的单段 `Range: bytes=起点-终点` 请求须返回 206、正确的 `Content-Range` 和实际范围字节（无需多段 multipart 响应）。
 - **旧版兼容与清理：** 保留仍受支持旧版本的原始 blockmap（首次启用时需一并补传历史构建的原始 blockmap，不能用新包冒充），供本机缺少缓存块映射的客户端增量升级；若本机旧包、远端 blockmap 缺失或分段失败，客户端会自动回退整包下载并校验 SHA-512。旧版客户端仍走整包下载，新策略随新版生效。新版本验收通过后再清理不再供下载的旧 EXE（不要提前删除造成发布窗口中断，也不要误删仍在使用的旧 blockmap）；旧版帮助文档仍可能引用固定的 `lira-setup.exe`，请保留该兼容文件。
-- **缓存与响应头：** 只需为持续覆盖的 `/client/downloads/latest.yml` 配置 CDN 不缓存规则（优先级高于全局规则，并设 `Cache-Control: no-store`）；调整规则、响应头或覆盖清单后记得刷新 CDN 缓存（含此前的 404）。带版本号的 EXE 和 blockmap 发布后不会覆盖，可长期缓存，`Content-Type` 设为 `application/octet-stream`，`Content-Disposition` 附件名使用带版本号的实际文件名（切勿把 EXE 的附件头套给清单）；兼容固定文件若原地覆盖也保持不缓存。字体和图片的缓存策略沿用上文规则。
+- **缓存与响应头：** 只需为持续覆盖的 `/downloads/latest.yml` 配置 CDN 不缓存规则（优先级高于全局规则，并设 `Cache-Control: no-store`）；调整规则、响应头或覆盖清单后记得刷新 CDN 缓存（含此前的 404）。带版本号的 EXE 和 blockmap 发布后不会覆盖，可长期缓存，`Content-Type` 设为 `application/octet-stream`，`Content-Disposition` 附件名使用带版本号的实际文件名（切勿把 EXE 的附件头套给清单）；兼容固定文件若原地覆盖也保持不缓存。字体和图片的缓存策略沿用上文规则。
 
-更新地址修改随下一次客户端构建生效。已经安装或上传的旧 EXE 保留其原来的更新配置；旧版本继续使用空间根目录的 `downloads/` 和 `resources/`。支持期间先在两套路径发布并校验文件，再同步更新两套清单。构建和发布要求见[发布指南](../../RELEASE_GUIDE.md)与[构建参考](../reference/engineering/build.md)。
+更新地址修改随下一次客户端构建生效。已经安装或上传的旧 EXE 保留其原来的更新配置；根目录 `downloads/` 是官网和更新器共用的发布目录。CDN 把 `/client/downloads/` 的请求改写到该目录，并把旧客户端请求的 `/resources/manifest.json`、字体、图片和音频改写到 `client/resources/`。每个文件只需上传到对应的发布目录。构建和发布要求见[发布指南](../../RELEASE_GUIDE.md)与[构建参考](../reference/engineering/build.md)。

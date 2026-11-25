@@ -162,7 +162,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://assets.lirahub.cn/client/downloads/",
+        "url": "https://assets.lirahub.cn/downloads/",
         "useMultipleRangeRequest": false
       },
       {

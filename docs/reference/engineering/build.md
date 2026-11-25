@@ -111,7 +111,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 | `nsis.shortcutName` / `uninstallDisplayName`             | LIRA                                                          | [package.json](../../../package.json) | 快捷方式与卸载显示名                                                                   |
 | `nsis.createDesktopShortcut` / `createStartMenuShortcut` | `true`                                                        | [package.json](../../../package.json) | 桌面 + 开始菜单快捷方式                                                                |
 | `nsis.include`                                           | `build/installer.nsh`                                         | [package.json](../../../package.json)        | 自定义 NSIS 宏(见 §6)                                                                  |
-| `publish`                                                | 首个 generic 为 `https://assets.lirahub.cn/client/downloads/`；GitHub `AuroraWhisperer/LIRA` 保留 `releaseType: release`          | [package.json](../../../package.json) | generic 供 electron-updater 使用；发布脚本按 provider 显式选择 GitHub                                                  |
+| `publish`                                                | 首个 generic 为 `https://assets.lirahub.cn/downloads/`；GitHub `AuroraWhisperer/LIRA` 保留 `releaseType: release`          | [package.json](../../../package.json) | generic 供 electron-updater 使用；发布脚本按 provider 显式选择 GitHub                                                  |
 
 `artifactName` 在顶层 `build` 与 `build.nsis` 各声明一次([package.json](../../../package.json));发布脚本按 `build.nsis.artifactName` 计算产物文件名([publish-release.js:14-16](../../../scripts/publish-release.js#L14-L16))。
 
