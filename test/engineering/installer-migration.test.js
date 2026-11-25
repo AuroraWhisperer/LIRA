@@ -24,9 +24,6 @@ test(
     const functions = source.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}');
     const installer = fs.readFileSync(path.join(__dirname, '../../build/installer-uninstall.nsh'), 'utf8');
     const removal = installer.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}')
-      // This fixture executes cleanup inline in the installer context; native
-      // uninstaller compilation and execution are covered by its owning suites.
-      .replace(/!ifdef BUILD_UNINSTALLER(\r?\nFunction \$\{LIRA_UNINSTALL_PREFIX\}liraRemoveApplicationFile\b)/, '!if 1$1')
       .replace('  liraRemoveFailed:', `  liraRemoveFailed:
     FileOpen $R2 "\${FIXTURE_TEMP}\\removal-failure.txt" w
     FileWriteUTF16LE /BOM $R2 "$R6"
@@ -179,6 +176,7 @@ test(
             fixtureFunctions
               .replace(/Function liraCopyData\r?\n/, `Function liraCopyData\nFileOpen $R0 "${definePath(copied)}" a\nFileWrite $R0 "copy$\\r$\\n"\nFileClose $R0\n`),
             removal,
+            '!insertmacro liraDeclareApplicationFileRemoval',
             'Function .onInit',
             `StrCpy $INSTDIR "${definePath(oldInstall)}"`,
             ['verified-update', 'changed-uninstaller', 'different-uninstaller', 'change-directory', 'backup-conflict', 'bundled-audio-upgrade'].includes(scenario)

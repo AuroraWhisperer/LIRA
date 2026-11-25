@@ -172,7 +172,10 @@ ManifestDPIAware true
 
 !macro customHeader
   !include "installer-process.nsh"
-  !ifndef BUILD_UNINSTALLER
+  !ifdef BUILD_UNINSTALLER
+    ; common.nsh has now defined the application and uninstaller filenames.
+    !insertmacro liraDeclareApplicationFileRemoval
+  !else
     !insertmacro liraInstallerUi
     !include "installer-data.nsh"
     !include "installer-per-user.nsh"

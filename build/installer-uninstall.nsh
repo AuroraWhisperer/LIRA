@@ -52,7 +52,7 @@ FunctionEnd
 
 ; Delete only a named package file. Unknown directories and linked parents are
 ; not package ownership evidence, even when their names resemble package files.
-!ifdef BUILD_UNINSTALLER
+!macro liraDeclareApplicationFileRemoval
 Function ${LIRA_UNINSTALL_PREFIX}liraRemoveApplicationFile
   Exch $R3
   Push $R4
@@ -105,7 +105,7 @@ Function ${LIRA_UNINSTALL_PREFIX}liraRemoveApplicationFile
     Pop $R4
     Pop $R3
 FunctionEnd
-!endif
+!macroend
 
 !macro liraRemoveApplicationFile RELATIVE_PATH
   StrCpy $R6 "$INSTDIR\${RELATIVE_PATH}"

@@ -185,6 +185,7 @@ Windows 发布验证要求使用 Node.js 24 LTS 最新补丁版（至少 `24.16.
 
 - **卸载清理（[installer-uninstall.nsh](../../../build/installer-uninstall.nsh)）**：仅删除明确列出的 Electron 根文件、语言包和 LIRA 资源文件（逐级校验父目录以防重解析点，不递归删除 `resources/` 或无关文件）。普通卸载自动清理 `logs/` 与 `updates/`，默认保留 `data/` 和 `lira-installation.ini`；勾选「同时删除用户数据」后须二次确认（默认「否」），确认后才清理归属标记、本目录数据及 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`。静默卸载不删数据，`--updated` 升级保留全部运行目录。删除前拒绝空路径、磁盘根与安装目录链接（验证见 [installer-uninstall.test.js](../../../test/engineering/installer-uninstall.test.js)）。
   删除主程序或卸载器遇到 Windows 共享冲突（错误码 32）时，依次等待 50、100、150、200 毫秒，每次重新校验安装目录后再试。持续占用时退出码为 `2`，保留卸载器供关闭占用程序后重试。
+  构建卸载器时，electron-builder 先加载项目的 `installer.nsh`，再由 `common.nsh` 定义主程序和卸载器的文件名。使用这两个名称的清理函数在 `customHeader` 中展开。
 - **失败报告与诊断收集**：交互安装迁移失败时将详细输出以 UTF-16 保存至 `%TEMP%/LIRA-install-error.txt` 并弹窗提示。[collect-install-diagnostics.cmd](../../../scripts/collect-install-diagnostics.cmd) 调用同目录 [collect-install-diagnostics.ps1](../../../scripts/collect-install-diagnostics.ps1) 生成只读诊断文本（限于系统版本、同目录安装包摘要/签名、相关进程、近期迁移报告与崩溃事件，不读取业务数据库或上传）。
 
 ## 7. 发布流程(scripts/publish-release.js)

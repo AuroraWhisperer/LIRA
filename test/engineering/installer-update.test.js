@@ -48,6 +48,7 @@ test('builder upgrade runs the current safe uninstaller instead of a destructive
     '!define APP_EXECUTABLE_FILENAME "LIRA.exe"', '!define UNINSTALL_FILENAME "Uninstall LIRA.exe"',
     '!define APP_PACKAGE_NAME "lira"', `!define FIXTURE_APPDATA "${quote(path.join(root, 'roaming'))}"`,
     `!define FIXTURE_TEMP "${quote(root)}"`, 'Var installMode', flags.build(), removal,
+    '!insertmacro liraDeclareApplicationFileRemoval',
     'Function .onInit', `WriteUninstaller "${quote(safe)}"`, 'SetErrorLevel 0', 'Quit', 'FunctionEnd',
     'Section', 'SectionEnd', 'Section "Uninstall"',
     'StrCpy $installMode CurrentUser', '!insertmacro customUnInit', '!insertmacro customRemoveFiles', 'SectionEnd',
