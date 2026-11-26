@@ -76,6 +76,7 @@
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 160px);
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   padding: 16px;
   border-radius: var(--radius-lg);
   background: var(--surface);

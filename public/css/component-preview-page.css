@@ -94,7 +94,7 @@
 .component-preview-page .scene-editor-item.is-selected { outline-color: var(--color-selection-marker, var(--primary-strong)); }
 .component-preview-page .scene-editor-resize-handle::after { border-color: var(--color-selection-marker, var(--primary-strong)); }
 .preview-canvas-sidebar { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; border-left: 1px solid var(--border); background: var(--surface); }
-.component-preview-page .component-preview-panel { min-height: 0; padding: 20px 8px 20px 16px; border: 0; scrollbar-gutter: stable; scrollbar-width: thin; }
+.component-preview-page .component-preview-panel { min-height: 0; padding: 20px 8px; border: 0; scrollbar-gutter: stable both-edges; scrollbar-width: thin; }
 .component-preview-page .component-preview-panel :is(label, input, select, textarea, button) { font-size: var(--type-size-body); }
 .component-preview-page .component-preview-panel > h3,
 .component-preview-page .preview-canvas-parameters > h3 { margin: 0 0 16px; font-size: var(--type-size-card-title); font-weight: var(--type-weight-semibold); }
@@ -139,7 +139,7 @@
   .preview-canvas-toolbar { flex-wrap: wrap; }
   .preview-canvas-actions { flex-basis: 100%; justify-content: flex-end; }
   .component-preview-navigation { gap: 8px; padding: 4px 8px; }
-  .component-preview-page .component-preview-panel { padding: 16px 8px 16px 12px; }
+  .component-preview-page .component-preview-panel { padding: 16px 4px; }
 }
 
 .preview-component-picker { --picker-accent: var(--color-selection-text, var(--primary-strong)); width: min(1120px, calc(100vw - 48px)); height: min(760px, calc(100dvh - 48px)); max-width: none; max-height: none; overflow: hidden; padding: 0; border: 0; border-radius: var(--radius-xl); background: var(--surface); color: var(--text); box-shadow: var(--shadow-dialog); }
@@ -165,8 +165,8 @@
 .preview-picker-submenu[hidden] { display: none; }
 .preview-picker-submenu button { gap: 8px; min-height: 34px; padding: 6px 12px; }
 .preview-picker-submenu svg { width: 16px; height: 16px; }
-.preview-picker-content { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px 24px 24px; scrollbar-gutter: stable; }
-.preview-picker-categories, .preview-picker-content { scrollbar-width: auto; scrollbar-color: auto; }
+.preview-picker-content { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px 24px 24px; }
+.preview-picker-categories, .preview-picker-content { scrollbar-gutter: stable both-edges; scrollbar-width: auto; scrollbar-color: auto; }
 .preview-picker-categories::-webkit-scrollbar, .preview-picker-content::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
 .preview-picker-categories::-webkit-scrollbar-track, .preview-picker-content::-webkit-scrollbar-track,
 .preview-picker-categories::-webkit-scrollbar-corner, .preview-picker-content::-webkit-scrollbar-corner { background: transparent; }

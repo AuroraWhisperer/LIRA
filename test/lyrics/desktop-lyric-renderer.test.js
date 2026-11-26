@@ -55,7 +55,7 @@ async function createLiveRenderer({ advanced = false, layer, reducedMotion = fal
     };
     return element;
   };
-  const elements = new Map(['Stage', 'Playback', 'Timeline', 'Viewport', 'Status'].map((name) => [
+  const elements = new Map(['Stage', 'Playback', 'Timeline', 'Viewport', 'Status', 'Notice'].map((name) => [
     `desktopLyricPreview${name}`, createElement(),
   ]));
   elements.set('desktopLyricSurface', createElement());
@@ -386,17 +386,26 @@ test('a playing song without lyrics stops frame work until lyric content arrives
   renderer.dispose();
 });
 
-test('empty lyric preview status follows layer changes without waiting for another lyric event', async () => {
+test('editor layers share the waiting notice and yield to the selected lyric content immediately', async () => {
   const { renderer, elements, state } = await createLiveRenderer({ advanced: true });
   const status = elements.get('desktopLyricPreviewStatus');
+  const notice = elements.get('desktopLyricPreviewNotice');
+  renderer.updateLyricState({ ...state, status: 'idle', playing: false, lineText: '', words: [] });
+  for (const layer of ['basic', 'advanced']) {
+    renderer.setPreviewLayer(layer);
+    assert.equal(notice.hidden, false);
+    assert.equal(status.hidden, true);
+  }
   renderer.updateLyricTimeline({ status: 'empty', lines: [] });
-  renderer.updateLyricState({ ...state, status: 'empty', lineText: '', words: [] });
-  assert.equal(status.hidden, true);
+  renderer.setPreviewLayer('basic');
+  renderer.applySettings({ desktopLyricNoLyricText: '器乐演奏' });
+  assert.equal(notice.hidden, true);
+  assert.ok(elements.get('desktopLyricPreviewTimeline').textContent.includes('器乐演奏'));
   renderer.setPreviewLayer('advanced');
-  assert.equal(status.hidden, false);
-  renderer.setPreviewLayer('both');
-  assert.equal(status.hidden, true);
-  renderer.applySettings({ desktopLyricEnabled: 'false' });
+  assert.equal(notice.hidden, false);
+  renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0, text: state.lineText }] });
+  renderer.updateLyricState({ ...state, sequence: 2 });
+  assert.equal(notice.hidden, true);
   assert.equal(status.hidden, false);
   renderer.dispose();
 });

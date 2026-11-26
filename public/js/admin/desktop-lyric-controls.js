@@ -33,12 +33,21 @@ export function syncDesktopLyricKaraokeColorControls(settings) {
   input.value = settings.desktopLyricSungColor || '#ffcf4a';
 }
 
+const PREVIEW_BACKGROUNDS = new Set(['dark', 'grid', 'light']);
+
+export function normalizeDesktopLyricBackground(background) {
+  if (background === 'solid') return 'dark';
+  return PREVIEW_BACKGROUNDS.has(background) ? background : 'dark';
+}
+
 export function setDesktopLyricBackground(background) {
-  const solid = background === 'solid';
-  document.getElementById('desktopLyricPreviewStage')?.classList.toggle('is-solid', solid);
+  const mode = normalizeDesktopLyricBackground(background);
+  const stage = document.getElementById('desktopLyricPreviewStage');
+  if (stage) stage.dataset.previewBg = mode;
   document.querySelectorAll('[data-lyric-preview-background]').forEach((button) => {
-    const active = button.dataset.lyricPreviewBackground === (solid ? 'solid' : 'grid');
+    const active = button.dataset.lyricPreviewBackground === mode;
     button.classList.toggle('active', active);
     button.setAttribute('aria-pressed', String(active));
   });
+  return mode;
 }

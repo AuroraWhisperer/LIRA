@@ -87,12 +87,13 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
   padding: 8px 0;
 }
 
 .queue-popup-body .playback-queue-section {
-  padding: 0 10px;
+  padding: 0 max(0px, calc(10px - var(--desktop-scrollbar-space, 0px)));
 }
 
 .queue-popup-body .empty {

@@ -99,32 +99,19 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
         src: normalizeTextBoxImageSource(selectedGift.imagePath, 'gift') });
     } catch (error) { onError(error); }
   }, { parent: giftRow });
-  const dialog = previewElement('dialog', 'text-box-gift-picker');
-  dialog.setAttribute('aria-label', '选择要插入的礼物');
-  function identified(tag, id, text, className) {
-    const node = previewElement(tag, className, text); node.dataset.wishId = id; return node;
-  }
-  const heading = previewElement('header');
-  heading.append(previewElement('h3', '', '选择礼物'));
-  const close = identified('button', 'giftWishPickerClose', '关闭', 'secondary'); close.type = 'button'; heading.append(close);
-  const scopes = previewElement('div', 'text-box-gift-scopes');
-  for (const [source, title] of [['room', '本房间礼物'], ['all', '全部礼物']]) {
-    const node = previewElement('button', 'secondary', title); node.type = 'button'; node.dataset.wishSource = source; scopes.append(node);
-  }
-  const search = identified('input', 'giftWishSearch'); search.type = 'search'; search.placeholder = '搜索礼物名称或 ID'; search.setAttribute('aria-label', '搜索礼物');
-  const status = identified('p', 'giftWishPickerStatus', '', 'hint'); status.setAttribute('role', 'status');
-  const results = identified('div', 'giftWishResults', '', 'text-box-gift-results');
-  dialog.dataset.wishId = 'giftWishPicker';
-  const scope = previewElement('div'); scope.append(dialog);
-  dialog.append(heading, scopes, search, status, results);
-  document.body.append(scope);
   const picker = createWishPicker(gift => {
     selectedGift = gift;
     giftName.textContent = gift.name;
     setGiftArtwork(giftImage, gift.imagePath);
     giftRow.hidden = false;
-  }, { root: scope, requireVariant: false,
-    request: (path, _body, signal) => request('gifts', { source: path.endsWith('/catalog') ? 'all' : 'room', signal }) });
+  }, {
+    title: '选择礼物',
+    guardSubtitle: '大航海',
+    requireVariant: false,
+    showRefresh: false,
+    useDefaultIds: false,
+    request: (path, _body, signal) => request('gifts', { source: path.endsWith('/catalog') ? 'all' : 'room', signal }),
+  });
   button('礼物', () => picker.open(), { icon: 'gift', title: '插入礼物图片' });
   const upload = previewElement('input'); upload.type = 'file'; upload.accept = '.png,.jpg,.jpeg,.gif,.webp'; upload.hidden = true;
   const uploadButton = button('图片', () => upload.click(), {
@@ -173,6 +160,6 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
       for (const input of [...tools.querySelectorAll('button'), ...giftRow.querySelectorAll('button'), ...faces.querySelectorAll('button')]) input.disabled = value;
       uploadButton.disabled = value || uploading;
     },
-    dispose() { requests.abort(); picker.close(); scope.remove(); },
+    dispose() { requests.abort(); picker.dispose(); },
   };
 }

@@ -267,6 +267,7 @@
   max-height: min(var(--usage-guide-toc-max-height, 32dvh), 32dvh);
   padding: 12px 16px;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   border: 1px solid var(--usage-guide-nav-border);

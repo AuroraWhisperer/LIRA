@@ -287,6 +287,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
 }
 .danmaku-fixed-editor-heading {
@@ -328,7 +329,7 @@
 }
 .danmaku-fixed-reply-section [data-fixed-editor] {
   min-width: 0;
-  padding: 20px;
+  padding: 20px calc(20px - var(--desktop-scrollbar-space, 0px));
   border: 0;
   border-radius: 0;
   background: var(--surface);

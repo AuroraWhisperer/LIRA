@@ -2,7 +2,7 @@
 .gift-effect-tool-panel {
   width: 100%;
   max-width: none;
-  padding: 24px;
+  padding: 24px calc(24px - var(--feature-panel-gutter, 0px));
 }
 
 #giftEffectLookupState {

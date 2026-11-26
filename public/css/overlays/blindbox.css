@@ -28,6 +28,7 @@ body.blindbox-overlay-body {
   border-color: rgba(255, 255, 255, 0.12);
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   container-type: inline-size;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;

@@ -58,8 +58,9 @@
   display: grid;
   gap: 8px;
   min-height: 120px;
-  padding: 12px;
+  padding: 12px calc(12px - var(--desktop-scrollbar-space, 0px));
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
 }
 

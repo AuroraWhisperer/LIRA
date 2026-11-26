@@ -436,6 +436,7 @@
   max-height: calc(100% - 24px);
   margin: 12px;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   padding: 16px;
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -661,6 +662,7 @@
 .world-clock-results {
   max-height: min(280px, calc(100vh - 260px));
   overflow: auto;
+  scrollbar-gutter: stable both-edges;
   margin-top: 12px;
 }
 
@@ -750,7 +752,7 @@
   .world-clock-actions { gap: 6px; }
   .world-clock-format button { padding-inline: 6px; }
   .world-clock-add { padding-inline: 8px; }
-  .world-clock-body { grid-template-columns: 1fr; overflow-y: auto; }
+  .world-clock-body { grid-template-columns: 1fr; overflow-y: auto; scrollbar-gutter: stable both-edges; }
   .world-clock-world { min-height: 490px; grid-row: 1; }
   .world-clock-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; overflow: visible; border-right: 0; border-top: 1px solid var(--border); }
   .world-clock-city { margin: 0; }

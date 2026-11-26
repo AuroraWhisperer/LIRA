@@ -44,7 +44,7 @@ export function createGiftWishes() {
   const picker = createWishPicker((gift) => {
     selected = gift;
     showSelected();
-  });
+  }, { title: '选择许愿礼物' });
   const feed = createGiftWishFeed({
     includeSession: false,
     onData(data) {

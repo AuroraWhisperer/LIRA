@@ -1,7 +1,7 @@
 import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
 import { setGiftArtwork } from '../shared/gift-image.js';
 import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
-import { createGiftPickerButton } from './gifts/picker-option.js';
+import { createGiftPickerDialog, isGuardGift } from './gifts/gift-picker-dialog.js';
 import { api, readJsonResponse, showError } from '../shared/utils.js';
 
 const GUARD_GIFTS = [
@@ -9,20 +9,24 @@ const GUARD_GIFTS = [
     id: 'guard-1',
     name: '总督',
     guardLevel: 1,
+    giftCategory: 'guard',
   },
   {
     id: 'guard-2',
     name: '提督',
     guardLevel: 2,
+    giftCategory: 'guard',
   },
   {
     id: 'guard-3',
     name: '舰长',
     guardLevel: 3,
+    giftCategory: 'guard',
   },
 ];
 
 export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
+  let picker = null;
   let catalog = [];
   let catalogRefreshing = false;
   let globalGiftSearchPending = false;
@@ -36,7 +40,45 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
   let giftRoleRevision = 0;
   let giftPickerSource = 'sale';
   let reselectingRule = null;
-  let searchTimer;
+
+  function ensurePicker() {
+    if (picker) return picker;
+    const dialog = byId('overtimeGiftPicker');
+    if (!dialog) return null;
+    picker = createGiftPickerDialog({
+      dialog,
+      title: '添加礼物',
+      optionClassName: 'overtime-gift-option',
+      ids: {
+        title: 'overtimeGiftPickerTitle',
+        search: 'overtimeGiftSearch',
+        results: 'overtimeGiftResults',
+        status: 'overtimeGiftCatalogStatus',
+        refresh: 'overtimeRefreshGiftsBtn',
+        roomTab: 'overtimeRoomGiftTab',
+        allTab: 'overtimeGlobalGiftSearchBtn',
+      },
+      sourceAttribute: 'overtimeSource',
+      roomLabel: '本直播间',
+      allLabel: '全部礼物',
+      showRefresh: true,
+      guardSubtitle: '大航海',
+      getRoleLabel: (gift) => giftRoleLookup(gift),
+      isDisabled: (gift) => /^\d+$/u.test(gift.id) && !gift.giftIdentity,
+      onSelect: addGiftRule,
+      onSourceChange: switchGiftPickerSource,
+      onRefresh: refreshGiftCatalog,
+      onClose() {
+        giftPickerGeneration += 1;
+        globalGiftSearchPending = false;
+        syncSourceTabs();
+      },
+    });
+    renderGiftCatalogStatus();
+    syncCatalogRefreshButton();
+    syncSourceTabs();
+    return picker;
+  }
 
   async function loadCatalog() {
     // A pushed local-WS revision may arrive while this initial request is in
@@ -79,13 +121,16 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
       .map((gift) => ({
         variantId: gift.variantId,
         giftIdentity: gift.giftIdentity,
+        giftCategory: gift.giftCategory,
+        guardLevel: gift.guardLevel,
         id: String(gift.id),
         name: String(gift.name || gift.id),
         rmb: Number(gift.rmb) || 0,
         catalogGroup: gift.catalogGroup,
         catalogOrder: gift.catalogOrder,
         imagePath: String(
-          (gift.guardLevel ? getGuardIcon(gift.guardLevel) : '') || serverGiftArtworkById.get(giftArtworkKey(gift)) ||
+          (gift.guardLevel ? getGuardIcon(gift.guardLevel) : '') ||
+            serverGiftArtworkById.get(giftArtworkKey(gift)) ||
             gift.imagePath ||
             (gift.image ? `/img/${String(gift.image).replace(/^\/+/, '')}` : ''),
         ),
@@ -96,8 +141,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
       );
     renderGiftCatalogStatus();
     // Keep an open picker in sync without changing its source or search query.
-    const picker = byId('overtimeGiftPicker');
-    if (picker?.open) renderGiftPicker();
+    if (picker?.dialog?.open) renderGiftPicker();
   }
 
   function applyServerGiftArtwork(snapshot) {
@@ -128,8 +172,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
       const image = row.querySelector('.overtime-rule-gift img');
       if (image) setGiftArtwork(image, imagePath);
     }
-    const picker = byId('overtimeGiftPicker');
-    if (picker?.open) renderGiftPicker();
+    if (picker?.dialog?.open) renderGiftPicker();
   }
 
   function applyGiftRoleCatalog(snapshot) {
@@ -153,12 +196,8 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
       : '';
   }
 
-  function renderGiftCatalogStatus() {
-    const status = byId('overtimeGiftCatalogStatus');
-    if (!giftCatalogSnapshot?.refreshedAt) {
-      status.textContent = '在售目录：未刷新';
-      return;
-    }
+  function formatCatalogStatusText() {
+    if (!giftCatalogSnapshot?.refreshedAt) return '在售目录：未刷新';
     const refreshedAt = new Date(giftCatalogSnapshot.refreshedAt);
     const timeLabel = Number.isNaN(refreshedAt.getTime())
       ? ''
@@ -171,7 +210,17 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
           minute: '2-digit',
         });
     const sourceLabel = catalogRoomLabel(giftCatalogSnapshot, getLiveStatus());
-    status.textContent = `在售目录：${Number(giftCatalogSnapshot.count) || 0} 个 · ${sourceLabel}${timeLabel ? ` · ${timeLabel}` : ''}`;
+    const count = Number(giftCatalogSnapshot.count) || Math.max(0, catalog.length - GUARD_GIFTS.length);
+    return `在售目录：${count} 个 · ${sourceLabel}${timeLabel ? ` · ${timeLabel}` : ''}`;
+  }
+
+  function renderGiftCatalogStatus() {
+    if (!picker) return;
+    const sourceLabel = catalogRoomLabel(giftCatalogSnapshot, getLiveStatus());
+    const statusText = formatCatalogStatusText();
+    picker.setFooterStatus(giftPickerSource === 'global' ? '本机已收录全量礼物目录' : statusText);
+    picker.setSubtitle(giftPickerSource === 'global' ? '全量目录' : sourceLabel !== '—' ? sourceLabel : '');
+    picker.setRefreshing(catalogRefreshing, statusText);
   }
 
   function catalogRoomLabel(snapshot, liveStatus) {
@@ -182,62 +231,71 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
   }
 
   function syncCatalogRefreshButton() {
-    const button = byId('overtimeRefreshGiftsBtn');
-    if (!button) return;
-    button.disabled = catalogRefreshing;
-    button.textContent = catalogRefreshing ? '刷新中…' : '刷新在售礼物';
+    if (!picker) return;
+    picker.setRefreshing(catalogRefreshing, formatCatalogStatusText());
+  }
+
+  function syncSourceTabs() {
+    if (!picker) return;
+    picker.setSource(giftPickerSource === 'global' ? 'all' : 'room');
+    picker.setSourceDisabled('all', globalGiftSearchPending);
   }
 
   function openGiftPicker(row = null) {
+    const view = ensurePicker();
+    if (!view) return;
     reselectingRule = row?.dataset?.overtimeRule ? row : null;
-    byId('overtimeGiftPickerTitle').textContent = reselectingRule ? '重新选择礼物' : '添加礼物';
     giftPickerGeneration += 1;
-    const search = byId('overtimeGiftSearch');
-    search.value = '';
     globalGiftMatches = [];
     globalGiftSearchPending = false;
     globalGiftSearchError = '';
     giftPickerSource = 'sale';
-    syncGlobalGiftSearchButton();
+    view.setSourceCount('all', null);
+    syncSourceTabs();
+    renderGiftCatalogStatus();
+    view.open({
+      title: reselectingRule ? '重新选择礼物' : '添加礼物',
+      source: 'room',
+    });
     renderGiftPicker();
-    byId('overtimeGiftPicker').showModal();
-    search.focus();
     // Refresh the room's live sale list whenever the picker opens. The backend
     // coalesces/throttles requests, so repeated opens do not spam Bilibili, while
     // a changed room is picked up without requiring a separate button click.
     void refreshGiftCatalog();
   }
 
-  function handleGiftSearchInput() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(renderGiftPicker, 100);
-  }
-
-  function handleGiftSearchKeydown(event) {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    clearTimeout(searchTimer);
-    renderGiftPicker();
-  }
-
-  async function toggleGiftPickerSource() {
-    if (globalGiftSearchPending) return;
-    if (giftPickerSource === 'global') {
+  async function switchGiftPickerSource(nextSource) {
+    const view = ensurePicker();
+    if (!view) return;
+    if (nextSource === 'room') {
+      giftPickerGeneration += 1;
+      globalGiftSearchPending = false;
+      globalGiftSearchError = '';
       giftPickerSource = 'sale';
-      syncGlobalGiftSearchButton();
+      syncSourceTabs();
+      renderGiftCatalogStatus();
       renderGiftPicker();
-      byId('overtimeGiftSearch').focus();
+      view.focusSearch();
       return;
     }
+
+    if (globalGiftSearchPending) return;
+    if (giftPickerSource === 'global' && !globalGiftSearchError && globalGiftMatches.length) {
+      view.focusSearch();
+      return;
+    }
+
     const requestGeneration = ++giftPickerGeneration;
     const requestRoleRevision = giftRoleRevision;
     giftPickerSource = 'global';
     globalGiftMatches = [];
     globalGiftSearchError = '';
     globalGiftSearchPending = true;
-    syncGlobalGiftSearchButton();
+    syncSourceTabs();
+    renderGiftCatalogStatus();
     renderGiftPicker();
-    byId('overtimeGiftSearch').focus();
+    view.focusSearch();
+
     try {
       const response = await fetch('/api/overtime/gifts/catalog');
       const result = await readJsonResponse(response, '读取礼物库失败');
@@ -250,6 +308,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
       globalGiftMatches = result.data.gifts.map((gift) => ({
         variantId: gift.variantId,
         giftIdentity: gift.giftIdentity,
+        giftCategory: gift.giftCategory,
         id: String(gift.id),
         name: String(gift.name || gift.id),
         rmb: Number(gift.rmb) || 0,
@@ -261,36 +320,14 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
     } finally {
       if (requestGeneration === giftPickerGeneration) {
         globalGiftSearchPending = false;
-        syncGlobalGiftSearchButton();
+        syncSourceTabs();
+        renderGiftCatalogStatus();
         renderGiftPicker();
       }
     }
   }
 
-  function syncGlobalGiftSearchButton() {
-    const button = byId('overtimeGlobalGiftSearchBtn');
-    if (!button) return;
-    button.disabled = globalGiftSearchPending;
-    button.textContent = globalGiftSearchPending
-      ? '加载中…'
-      : giftPickerSource === 'global'
-        ? '返回在售礼物'
-        : '搜索全部礼物';
-  }
-
-  function renderGiftPicker() {
-    clearTimeout(searchTimer);
-    const root = byId('overtimeGiftResults');
-    root.replaceChildren();
-    if (giftPickerSource === 'global' && (globalGiftSearchPending || globalGiftSearchError)) {
-      appendPickerMessage(
-        root,
-        'overtime-rule-empty overtime-local-gift-search-status',
-        globalGiftSearchPending ? '正在读取礼物库…' : globalGiftSearchError,
-      );
-      return;
-    }
-    const query = byId('overtimeGiftSearch').value.trim().toLocaleLowerCase();
+  function readSelectedIds() {
     const selectedIds = new Set();
     const rows = byId('overtimeRules').querySelectorAll('[data-overtime-rule]');
     for (const row of rows) {
@@ -298,101 +335,64 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
       const gift = { ...row.dataset, giftIdentity: rowGiftIdentity(row) };
       selectedIds.add(giftSelectionKey(gift));
     }
-    const source = giftPickerSource === 'global' ? globalGiftMatches : catalog;
-    const matches = filterGiftOptions(source, selectedIds, query);
-    if (giftPickerSource === 'global' && matches.length) {
-      appendPickerMessage(
-        root,
-        'overtime-rule-empty overtime-local-gift-search-status',
-        `礼物库 · ${matches.length} / ${globalGiftMatches.length} 个`,
-      );
-    }
-    let shown = 0;
-    const more = document.createElement('button');
-    function appendPage() {
-      const start = shown;
-      shown = Math.min(shown + 80, matches.length);
-      for (const gift of matches.slice(start, shown)) root.append(createGiftOption(gift));
-      if (shown < matches.length) {
-        more.textContent = `显示更多（${shown} / ${matches.length}）`;
-        root.append(more);
+    return selectedIds;
+  }
+
+  function renderGiftPicker() {
+    const view = ensurePicker();
+    if (!view) return;
+    const selectedIds = readSelectedIds();
+    const unselectedRoom = catalog.filter((gift) => !selectedIds.has(giftSelectionKey(gift)));
+    view.setSourceCount('room', unselectedRoom.length);
+
+    if (giftPickerSource === 'global') {
+      if (globalGiftSearchPending) {
+        view.setItems({ message: '正在读取礼物库…' });
+        return;
       }
+      if (globalGiftSearchError) {
+        view.setItems({ message: globalGiftSearchError, tone: 'error' });
+        return;
+      }
+      const unselectedGlobal = globalGiftMatches.filter((gift) => !selectedIds.has(giftSelectionKey(gift)));
+      view.setSourceCount('all', unselectedGlobal.length);
+      view.setItems({
+        guards: [],
+        gifts: unselectedGlobal,
+        empty: globalGiftMatches.length ? '全部礼物中没有匹配项。' : '礼物库暂无礼物。',
+      });
+      return;
     }
-    more.type = 'button';
-    more.className = 'secondary';
-    more.addEventListener('click', () => {
-      more.remove();
-      const first = root.childElementCount;
-      appendPage();
-      root.children[first]?.focus();
+
+    const guards = unselectedRoom.filter(isGuardGift);
+    const gifts = unselectedRoom.filter((gift) => !isGuardGift(gift));
+    view.setItems({
+      guards,
+      gifts,
+      empty: '没有找到当前在售礼物。',
     });
-    appendPage();
-    if (!matches.length)
-      appendPickerMessage(
-        root,
-        'overtime-rule-empty',
-        giftPickerSource === 'global'
-          ? globalGiftMatches.length
-            ? '全部礼物中没有匹配项。'
-            : '礼物库暂无礼物。'
-          : '没有找到当前在售礼物。',
-      );
-  }
-
-  function filterGiftOptions(source, selectedIds, query) {
-    return source.filter(
-      (gift) =>
-        !selectedIds.has(giftSelectionKey(gift)) &&
-        (!query || gift.id.toLocaleLowerCase().includes(query) || gift.name.toLocaleLowerCase().includes(query)),
-    );
-  }
-
-  function createGiftOption(gift) {
-    const button = createGiftPickerButton(gift, { className: 'overtime-gift-option',
-      disabled: /^\d+$/u.test(gift.id) && !gift.giftIdentity, onSelect: addGiftRule });
-    const text = document.createElement('span');
-    const name = document.createElement('strong');
-    name.textContent = gift.name;
-    text.append(name);
-    if (!gift.id.startsWith('guard-')) {
-      const meta = document.createElement('small');
-      meta.textContent = [
-        `ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`,
-        giftRoleLookup(gift),
-        gift.giftIdentity?.bagGift ? '背包礼物' : '',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-      if (button.disabled) meta.textContent += ' · 资料待同步，请刷新礼物库';
-      text.append(meta);
-    }
-    button.append(text);
-    return button;
-  }
-
-  function appendPickerMessage(root, className, message) {
-    const node = document.createElement('div');
-    node.className = className;
-    node.textContent = message;
-    root.append(node);
   }
 
   function addGiftRule(gift) {
     onSelect(gift, reselectingRule);
     reselectingRule = null;
-    byId('overtimeGiftPicker').close();
+    picker?.close();
   }
 
   function bind() {
-    byId('overtimeRefreshGiftsBtn').addEventListener('click', refreshGiftCatalog);
-    byId('overtimeAddGiftBtn').addEventListener('click', openGiftPicker);
-    byId('overtimeGiftSearch').addEventListener('input', handleGiftSearchInput);
-    byId('overtimeGiftSearch').addEventListener('keydown', handleGiftSearchKeydown);
-    byId('overtimeGlobalGiftSearchBtn').addEventListener('click', toggleGiftPickerSource);
-    byId('overtimeGiftPicker').addEventListener('close', () => clearTimeout(searchTimer));
+    ensurePicker();
+    byId('overtimeAddGiftBtn').addEventListener('click', () => openGiftPicker());
   }
-  return { bind, open: openGiftPicker, load: loadCatalog, applyGiftCatalog, applyServerGiftArtwork,
-    decorateRules: decorateOvertimeRules, renderStatus: renderGiftCatalogStatus };
+
+  return {
+    bind,
+    open: openGiftPicker,
+    load: loadCatalog,
+    applyGiftCatalog,
+    applyServerGiftArtwork,
+    decorateRules: decorateOvertimeRules,
+    renderStatus: renderGiftCatalogStatus,
+  };
 }
 
 function byId(id) {

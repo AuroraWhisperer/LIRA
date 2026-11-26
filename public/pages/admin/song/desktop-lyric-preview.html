@@ -1,13 +1,14 @@
 <section id="desktopLyricLivePreview" class="desktop-lyric-preview-card" aria-label="直播歌词预览">
   <header class="desktop-lyric-preview-header">
     <strong class="ui-section-title">歌词预览</strong>
-    <span id="desktopLyricPreviewStatus" class="pill warn">等待播放</span>
+    <span id="desktopLyricPreviewStatus" class="pill good" hidden></span>
     <div class="desktop-lyric-preview-source">
       <button id="desktopLyricCopyUrlBtn" type="button">复制基础歌词地址</button>
-      <lira-help label="歌词预览说明">复制地址并添加到 OBS 或直播姬的「浏览器源」。预览框底色仅方便调样式，实际推流背景是透明的。高级样式可直接在预览框里拖动位置（也可以去「编排」里微调）。</lira-help>
+      <lira-help label="歌词预览说明">复制地址并添加到 OBS 或直播姬的「浏览器源」。预览底色仅方便核对样式，实际推流背景是透明的。高级样式可直接在取景框内拖动位置（也可以去「编排」里微调）。</lira-help>
     </div>
   </header>
-  <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage is-solid">
+  <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage" data-preview-bg="dark" data-preview-layer="basic">
+    <span id="desktopLyricPreviewNotice" class="desktop-lyric-preview-notice" data-subtext="透明背景 · 720 × 960" aria-hidden="true">等待播放</span>
     <div id="desktopLyricPreviewCanvas" class="desktop-lyric-preview-canvas">
       <div
         id="desktopLyricPreviewViewport"
@@ -15,23 +16,33 @@
         tabindex="0"
         aria-label="完整歌词，可上下滚动查看"
       >
-        <div id="desktopLyricPreviewTimeline" class="desktop-lyric-preview-timeline" role="list">
-          <div class="desktop-lyric-preview-empty">等待播放 · 歌词将在载入后完整显示</div>
-        </div>
+        <div id="desktopLyricPreviewTimeline" class="desktop-lyric-preview-timeline" role="list"></div>
       </div>
       <div id="advancedLyricPreviewStage" class="advanced-lyric-preview-stage" hidden></div>
       <div id="desktopLyricPreviewPlayback" class="sr-only" aria-live="polite"></div>
     </div>
+    <div id="desktopLyricPreviewFrame" class="desktop-lyric-preview-frame" aria-hidden="true">
+      <span class="desktop-lyric-preview-corners"></span>
+      <div class="desktop-lyric-preview-guides">
+        <span class="desktop-lyric-preview-guide-h"></span>
+        <span class="desktop-lyric-preview-guide-v"></span>
+        <span class="desktop-lyric-preview-crosshair"></span>
+        <span id="desktopLyricPreviewCoords" class="desktop-lyric-preview-coords">50% · 50%</span>
+      </div>
+      <span id="desktopLyricPreviewFrameSize" class="desktop-lyric-preview-frame-size">720 × 960</span>
+      <span id="desktopLyricPreviewCaption" class="desktop-lyric-preview-caption">推流范围 · 悬停可拖动位置</span>
+    </div>
   </div>
   <footer class="desktop-lyric-preview-footer">
     <div class="desktop-lyric-preview-backgrounds" role="group" aria-label="预览背景">
-      <button class="active" type="button" data-lyric-preview-background="solid" aria-pressed="true">纯色</button>
-      <button type="button" data-lyric-preview-background="grid" aria-pressed="false">网格</button>
+      <button class="active" type="button" data-lyric-preview-background="dark" aria-pressed="true">暗幕</button>
+      <button type="button" data-lyric-preview-background="grid" aria-pressed="false">棋盘</button>
+      <button type="button" data-lyric-preview-background="light" aria-pressed="false">浅幕</button>
     </div>
     <div class="desktop-lyric-preview-size" role="group" aria-label="预览画面尺寸">
-      <label>宽 <span class="lira-number-field"><input aria-label="预览画面宽度（像素）" id="desktopLyricPreviewWidth" type="number" min="160" max="7680" step="1" value="960" /><span class="lira-number-field-unit" aria-hidden="true">px</span></span></label>
-      <label>高 <span class="lira-number-field"><input aria-label="预览画面高度（像素）" id="desktopLyricPreviewHeight" type="number" min="90" max="4320" step="1" value="360" /><span class="lira-number-field-unit" aria-hidden="true">px</span></span></label>
-      <lira-help label="预览尺寸说明">填写 OBS 或直播姬中浏览器源的宽和高，预览框会按相同比例显示，方便核对换行和排版。</lira-help>
+      <label>宽 <span class="lira-number-field"><input aria-label="预览画面宽度（像素）" id="desktopLyricPreviewWidth" type="number" min="160" max="7680" step="1" value="720" /><span class="lira-number-field-unit" aria-hidden="true">px</span></span></label>
+      <label>高 <span class="lira-number-field"><input aria-label="预览画面高度（像素）" id="desktopLyricPreviewHeight" type="number" min="90" max="4320" step="1" value="960" /><span class="lira-number-field-unit" aria-hidden="true">px</span></span></label>
+      <lira-help label="预览尺寸说明">填写 OBS 或直播姬中浏览器源的宽和高，预览框会按相同比例显示，基础与高级样式分别记住各自尺寸。</lira-help>
     </div>
   </footer>
 </section>

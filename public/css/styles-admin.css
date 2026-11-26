@@ -10,6 +10,9 @@
 /* Shared confirmation surface */
 @import url('./components/confirmation-dialog.css');
 
+/* Shared gift picker dialog */
+@import url('./components/gift-picker.css');
+
 /* Context-aware select option panels */
 @import url('./components/select-menu.css');
 

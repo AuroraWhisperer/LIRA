@@ -6,6 +6,11 @@ body.desktop-shell * {
 }
 
 @media (forced-colors: none) {
+  /* Only this skin has a known gutter width that panels can count inside their padding. */
+  body.desktop-shell {
+    --desktop-scrollbar-space: var(--scrollbar-size);
+  }
+
   body.desktop-shell::-webkit-scrollbar,
   body.desktop-shell ::-webkit-scrollbar {
     width: var(--scrollbar-size);

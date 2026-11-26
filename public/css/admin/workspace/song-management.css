@@ -202,6 +202,7 @@
 .song-import-table {
   max-height: min(380px, 45vh);
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .song-import-table th {

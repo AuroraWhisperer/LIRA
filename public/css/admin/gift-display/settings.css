@@ -124,15 +124,16 @@
 
 .gift-appearance-controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  align-items: end;
   gap: 16px;
-  max-width: 640px;
+  max-width: 960px;
   margin-bottom: var(--spacing-md);
 }
 
-.gift-appearance-controls > label {
+.gift-appearance-controls > * {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   margin: 0;
 }
 
@@ -141,10 +142,33 @@
   min-width: 0;
 }
 
-.gift-appearance-controls > .gift-sheen-control {
+.gift-sheen-caption {
   display: flex;
-  grid-column: 1 / -1;
   align-items: center;
+}
+
+.gift-appearance-controls .gift-sheen-control {
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 6px 10px 6px 12px;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius-control);
+  background: var(--color-control-surface);
+  box-shadow: var(--shadow-sm);
+  font-weight: var(--type-weight-medium);
+}
+
+.gift-sheen-control:hover {
+  border-color: var(--color-control-border-hover);
+}
+
+.gift-sheen-control .switch-track {
+  order: 1;
+}
+
+.gift-sheen-control input:checked ~ .gift-sheen-off,
+.gift-sheen-control input:not(:checked) ~ .gift-sheen-on {
+  display: none;
 }
 
 #giftStylePreview {

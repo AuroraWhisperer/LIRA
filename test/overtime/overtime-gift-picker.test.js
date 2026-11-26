@@ -71,7 +71,7 @@ test('global picker pages the local catalog and searches every unselected gift i
   assert.equal(optionNodes(fixture).length, 1);
 
   fixture.elements.search.value = '';
-  await fixture.elements.globalSearchButton.dispatchEvent('click');
+  await fixture.elements.roomTab.dispatchEvent('click');
   assert.equal(optionNodes(fixture).length, 4);
 
   fixture.elements.search.value = 'guard';
@@ -129,7 +129,7 @@ test('global picker shows fetch failures and can return to sale gifts', async ()
   assert.match(nodeText(fixture.elements.results), /catalog unavailable/);
   assert.equal(fixture.elements.globalSearchButton.disabled, false);
 
-  await fixture.elements.globalSearchButton.dispatchEvent('click');
+  await fixture.elements.roomTab.dispatchEvent('click');
   assert.ok(optionNodes(fixture).length > 0);
 });
 
@@ -144,7 +144,7 @@ test('off-sale global gifts remain selectable and are added through the rule edi
   await fixture.elements.search.dispatchEvent('input');
   fixture.clock.tick(100);
   assert.equal(optionNodes(fixture).length, 1);
-  assert.equal(nodeText(optionNodes(fixture)[0]), 'Off SaleID gift-off-sale · ¥2.00');
+  assert.equal(nodeText(optionNodes(fixture)[0]), 'Off Sale¥2.00·#gift-off-sale');
   await optionNodes(fixture)[0].dispatchEvent('click');
 
   assert.equal(fixture.state.addedGifts[0].id, 'gift-off-sale');
@@ -215,4 +215,36 @@ test('reopening the picker invalidates a pending global catalog response', async
   assert.ok(optionNodes(fixture).length > 0);
   assert.equal(nodeText(fixture.elements.results).includes('Stale Gift'), false);
   assert.match(nodeText(fixture.elements.results), /Newer Gift/);
+});
+
+test('unified picker filters by guard, direct and blind-box categories and resets on reopen', async () => {
+  const saleGifts = [
+    { id: '100', name: '小花花', rmb: 0.1, giftCategory: 'directGift' },
+    { id: '200', name: '心动盲盒', rmb: 15, giftCategory: 'blindBox' },
+  ];
+  const fixture = await createFixture({ globalGifts: saleGifts, saleGifts });
+  await openPicker(fixture);
+
+  const filter = (category) => fixture.elements.picker.querySelector(`[data-picker-category="${category}"]`);
+  assert.equal(optionNodes(fixture).length, 5);
+  assert.deepEqual(
+    optionNodes(fixture).slice(0, 3).map((node) => node.querySelector('.lira-gp-guard-name').textContent),
+    ['总督', '提督', '舰长'],
+  );
+
+  await filter('guard').dispatchEvent('click');
+  assert.equal(optionNodes(fixture).length, 3);
+
+  await filter('blind').dispatchEvent('click');
+  assert.equal(optionNodes(fixture).length, 1);
+  assert.match(nodeText(optionNodes(fixture)[0]), /心动盲盒/);
+
+  await filter('direct').dispatchEvent('click');
+  assert.equal(optionNodes(fixture).length, 1);
+  assert.match(nodeText(optionNodes(fixture)[0]), /小花花/);
+
+  fixture.elements.picker.close();
+  await openPicker(fixture);
+  assert.equal(optionNodes(fixture).length, 5);
+  assert.equal(filter('all').getAttribute('aria-pressed'), 'true');
 });

@@ -1,10 +1,3 @@
-.overtime-gift-catalog-status {
-  max-width: min(100%, 420px);
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: 1.4;
-  text-align: right;
-}
 .overtime-rules-heading-title {
   display: flex;
   align-items: center;
@@ -83,12 +76,6 @@
   min-width: 0;
   gap: 10px;
 }
-.overtime-rule-row img,
-.overtime-gift-option img {
-  width: 44px;
-  height: 44px;
-  object-fit: contain;
-}
 .overtime-rule-row img {
   width: 42px;
   height: 42px;
@@ -96,6 +83,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  object-fit: contain;
 }
 .overtime-rule-identity {
   min-width: 0;

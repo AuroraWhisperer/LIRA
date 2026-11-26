@@ -284,6 +284,7 @@ body.blind-analysis-open .playback-player-panel {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .blind-analysis-table {
@@ -475,6 +476,7 @@ body.blind-analysis-open .playback-player-panel {
 @media (max-height: 600px) {
   .blind-analysis-content {
     overflow-y: auto;
+    scrollbar-gutter: stable both-edges;
   }
   .blind-analysis-results {
     flex: 0 0 320px;

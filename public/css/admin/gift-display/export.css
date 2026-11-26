@@ -133,7 +133,8 @@
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 20px;
+  scrollbar-gutter: stable both-edges;
+  padding: 20px calc(20px - var(--desktop-scrollbar-space, 0px));
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border));
   background-color: var(--export-checker-a);
@@ -277,7 +278,8 @@
   min-height: 0;
   flex: 1;
   overflow-y: auto;
-  padding: 20px 20px 14px;
+  scrollbar-gutter: stable both-edges;
+  padding: 20px calc(20px - var(--desktop-scrollbar-space, 0px)) 14px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -789,6 +791,7 @@
     display: flex;
     flex-direction: column;
     overflow: auto;
+    scrollbar-gutter: stable both-edges;
   }
   .gift-export-preview {
     flex: 0 0 auto;
@@ -805,6 +808,7 @@
   .gift-export-options-scroll {
     flex: 0 0 auto;
     overflow: visible;
+    padding-inline: 20px;
   }
   .gift-export-actions {
     position: sticky;

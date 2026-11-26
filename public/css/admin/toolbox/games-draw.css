@@ -255,6 +255,7 @@
 .draw-word-choices {
   min-height: 140px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
 }
 .draw-word-group + .draw-word-group {

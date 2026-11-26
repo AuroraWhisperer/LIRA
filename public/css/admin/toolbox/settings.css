@@ -103,7 +103,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
 }
 
 @media (min-height: 680px) and (min-width: 820px) {
@@ -708,6 +708,7 @@
   height: min(540px, calc(100vh - 150px));
   padding: 18px 22px 24px;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
   overflow-wrap: anywhere;
   outline-offset: -3px;
   white-space: pre-wrap;

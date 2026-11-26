@@ -51,6 +51,7 @@
   max-height: 260px;
   margin-top: 8px;
   overflow-y: auto;
+  scrollbar-gutter: stable both-edges;
 }
 .planner-task-row {
   display: grid;

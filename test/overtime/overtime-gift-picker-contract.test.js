@@ -96,6 +96,10 @@ test('a slower picker fetch cannot restore removed pool labels after a catalog u
   await activation;
   assert.match(nodeText(optionNodes(fixture)[1]), /直送礼物/);
   assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物/);
+  const directFilter = fixture.elements.picker.querySelector('[data-picker-category="direct"]');
+  assert.equal(directFilter.hidden, false);
+  await directFilter.dispatchEvent('click');
+  assert.equal(optionNodes(fixture).length, heart.outputs.length);
 });
 
 test('same-ID gift identities remain separately selectable and keep their own artwork', async () => {

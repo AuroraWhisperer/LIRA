@@ -73,6 +73,7 @@ async function createFixture({
       picker: document.getElementById('overtimeGiftPicker'),
       search: document.getElementById('overtimeGiftSearch'),
       results: document.getElementById('overtimeGiftResults'),
+      roomTab: document.getElementById('overtimeRoomGiftTab'),
       globalSearchButton: document.getElementById('overtimeGlobalGiftSearchBtn'),
     },
   };
@@ -224,13 +225,28 @@ function createGifts(count) {
 
 function createFakeDocument() {
   const elements = new Map();
+  function findById(node, id) {
+    if (node.id === id) return node;
+    for (const child of node.children || []) {
+      const found = findById(child, id);
+      if (found) return found;
+    }
+    return null;
+  }
   const document = {
     activeElement: null,
     visibilityState: 'visible',
     createElement(tagName) {
       return new FakeElement(tagName, document);
     },
+    createElementNS(_ns, tagName) {
+      return new FakeElement(tagName, document);
+    },
     getElementById(id) {
+      for (const root of elements.values()) {
+        const found = findById(root, id);
+        if (found) return found;
+      }
       if (!elements.has(id)) {
         const node = new FakeElement('div', document);
         node.id = id;

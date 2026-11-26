@@ -193,7 +193,7 @@ function syncLayerVisibility() {
     && !['idle', 'loading', 'empty'].includes(latestState?.status);
   renderer?.setEnabled((basicVisible || advancedVisible) && hasContent);
   advancedRenderer?.setVisible(advancedVisible && renderer?.isVisible() !== false);
-  updatePreviewStatus();
+  updatePreviewStatus(hasContent);
 }
 
 function updateLyricState(state) {
@@ -234,7 +234,6 @@ function applyLyricState(state) {
     updateActiveWordProgress(resolveLyricTime(currentPreviewPosition(), currentDisplaySettings), true);
   }
   applyPlaybackVisibility();
-  updatePreviewStatus();
 }
 
 function updateLyricTimeline(timeline) {
@@ -253,7 +252,6 @@ function updateLyricTimeline(timeline) {
   viewport?.classList.remove('is-manual-browsing');
   renderTimeline();
   syncLayerVisibility();
-  updatePreviewStatus();
 }
 
 function displayLines(currentMs) {
@@ -626,22 +624,31 @@ function pauseAutomaticFollow() {
   }, MANUAL_FOLLOW_PAUSE_MS);
 }
 
-function updatePreviewStatus() {
+function updatePreviewStatus(hasContent) {
   const status = document.getElementById('desktopLyricPreviewStatus');
   if (!status) return;
-  const lineCount = latestTimeline.lines.length;
-  const hasLyric = lineCount > 0 || Boolean(latestState?.lineText || latestState?.words?.length);
-  status.hidden = basicVisible && !hasLyric;
-  if (latestTimeline.status === 'loading' || latestState?.status === 'loading') {
-    status.textContent = '正在载入歌词';
-  } else if (latestTimeline.status === 'empty' || latestState?.status === 'empty') {
-    status.textContent = '这首歌暂无歌词';
-  } else if (hasLyric) {
-    status.textContent = latestState?.playing ? `播放中 · ${lineCount} 行` : `已载入 · ${lineCount} 行`;
-  } else {
-    status.textContent = '等待播放';
+  status.hidden = !hasContent;
+  if (hasContent) {
+    const lineCount = latestTimeline.lines.length;
+    const playback = latestState?.playing ? '播放中' : '已载入';
+    status.textContent = lineCount ? `${playback} · ${lineCount} 行` : playback;
   }
-  status.className = `pill ${hasLyric ? 'good' : 'warn'}`;
+
+  const notice = document.getElementById('desktopLyricPreviewNotice');
+  if (!notice) return;
+  const loading = latestTimeline.status === 'loading' || latestState?.status === 'loading';
+  // The basic output itself shows the configured song title or no-lyrics text.
+  const hasBasicFallback = basicVisible && latestTimeline.status === 'empty' && !loading;
+  notice.hidden = hasContent || hasBasicFallback;
+  if (notice.hidden) return;
+
+  if (loading) {
+    notice.textContent = '正在载入歌词';
+  } else if (latestTimeline.status === 'empty' || latestState?.status === 'empty') {
+    notice.textContent = '这首歌暂无歌词';
+  } else {
+    notice.textContent = '等待播放';
+  }
 }
 
 function applySettings(settings = {}) {

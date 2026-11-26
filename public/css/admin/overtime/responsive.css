@@ -20,10 +20,6 @@
   .overtime-rules-heading-title {
     justify-content: space-between;
   }
-  .overtime-gift-catalog-status {
-    max-width: none;
-    text-align: left;
-  }
   .overtime-heading-actions > button {
     flex: 1 1 150px;
   }
@@ -96,9 +92,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .overtime-gift-picker::backdrop {
-    backdrop-filter: none;
-  }
   .overtime-rule-enabled > span,
   .overtime-rule-enabled > span::after {
     transition: none;

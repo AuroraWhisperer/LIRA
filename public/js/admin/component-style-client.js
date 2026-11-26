@@ -35,6 +35,10 @@ export function initComponentStyleLibraries() {
   let manager; let updateEditor;
   document.getElementById('componentLibraryManage')?.addEventListener('click', () => {
     manager = openComponentLibraryManager({ request: requestComponentStyles,
+      async onRestored() {
+        const { refreshComponentPreviewPresets } = await import('./component-preview-canvas-controller.js');
+        await refreshComponentPreviewPresets();
+      },
       onUpdate(pack, file) {
         updateEditor = openComponentStyleLibrary({ type: pack.importTarget === 'suite' ? undefined : pack.importTarget,
           suitesOnly: pack.importTarget === 'suite', initialFile: file, updatePack: pack, onUse: addStyleToCanvas });

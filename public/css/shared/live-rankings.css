@@ -46,4 +46,10 @@
 .ranking-freshness:empty { display: none; }
 .ranking-freshness.is-delayed { color: #b77914; }
 .ranking-empty { margin: 0; min-height: 6em; display: grid; place-items: center; padding: 18px; color: var(--ranking-muted); font-size: .82em; text-align: center; }
-.rankings-scrollable .ranking-body { overflow-y: auto; scrollbar-gutter: stable; }
+.rankings-scrollable .ranking-body { overflow-y: auto; }
+/* The pinned row uses the same columns as the scrollable rows above it. */
+.rankings-scrollable .ranking-footer { overflow: hidden; }
+.rankings-scrollable :is(.ranking-body, .ranking-footer) {
+  scrollbar-gutter: stable both-edges;
+  padding-inline: max(0px, calc(10px - var(--desktop-scrollbar-space, 0px)));
+}

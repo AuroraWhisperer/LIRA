@@ -251,6 +251,7 @@ span.song-request-tier-mark::before {
 .song-user-blacklist-table {
   max-height: min(380px, 45vh);
   overflow: auto;
+  scrollbar-gutter: stable;
   margin-top: var(--spacing-sm);
 }
 

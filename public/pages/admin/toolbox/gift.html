@@ -228,11 +228,26 @@
             <div class="gift-appearance-controls">
               <label>条带外形<select id="giftTailStyle" required></select></label>
               <label>条带内部<select id="giftTextureStyle" required></select></label>
-              <label class="switch-control gift-sheen-control">
-                <input id="giftSheen" type="checkbox" />
-                <span class="switch-track" aria-hidden="true"></span>
-                <span>白色扫光 <lira-help label="白色扫光说明">卡片表面从左向右的流光动效；仅在直播动态画面中显示，导出静态图片时不带扫光。</lira-help></span>
-              </label>
+              <div>
+                <div class="gift-sheen-caption">
+                  <label for="giftSheen" id="giftSheenLabel">白色扫光</label>
+                  <lira-help label="白色扫光说明" tooltip-id="giftSheenHint">
+                    卡片表面从左向右的流光动效；仅在直播动态画面中显示，导出静态图片时不带扫光。
+                  </lira-help>
+                </div>
+                <label class="switch-control switch-control--fill-hit gift-sheen-control">
+                  <input
+                    id="giftSheen"
+                    type="checkbox"
+                    role="switch"
+                    aria-labelledby="giftSheenLabel"
+                    aria-describedby="giftSheenHint"
+                  />
+                  <span class="switch-track" aria-hidden="true"></span>
+                  <span class="gift-sheen-off" aria-hidden="true">关闭</span>
+                  <span class="gift-sheen-on" aria-hidden="true">开启</span>
+                </label>
+              </div>
             </div>
             <div class="gift-style-preview-scroll">
               <div id="giftStylePreview" class="gift-banner-stage" role="img" aria-label="礼物卡片四色样式预览"></div>

@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  scrollbar-gutter: auto;
   padding: 12px;
   color: var(--text);
   font-size: var(--type-size-control);
@@ -26,6 +27,7 @@
 #fanSettingsPage {
   min-height: 0;
   overflow: auto;
+  scrollbar-gutter: stable both-edges;
   scrollbar-color: var(--color-border-default) transparent;
 }
 .fan-profiles [hidden],
@@ -717,6 +719,7 @@
   gap: 8px;
   max-height: 240px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   overscroll-behavior: contain;
   margin-top: 10px;
   padding-right: 6px;

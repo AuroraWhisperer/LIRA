@@ -532,11 +532,14 @@ body.desktop-shell #giftHistoryDrawer .gift-drawer-head button {
 
 #giftHistoryDrawer .gift-drawer-body {
   position: relative;
-  padding: 0 var(--spacing-lg);
+  padding: 0;
+  padding-inline-start: var(--spacing-lg);
   scrollbar-gutter: stable;
 }
 
 #giftHistoryDrawer .gift-history-table {
+  /* This drawer fills the viewport. Leave the trailing inset available to the native scrollbar. */
+  width: min(100%, calc(100vw - 2 * var(--spacing-lg)));
   min-width: 880px;
   font-size: var(--type-size-body);
 }

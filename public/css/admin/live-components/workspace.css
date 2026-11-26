@@ -230,10 +230,10 @@
 }
 
 .live-components-page .other-feature-panel-body {
+  --component-page-inline-padding: calc(var(--component-page-padding) - var(--feature-panel-gutter, 0px));
   box-sizing: border-box;
   width: 100%;
-  padding: var(--component-page-padding);
-  scrollbar-gutter: stable;
+  padding: var(--component-page-padding) var(--component-page-inline-padding);
 }
 
 @media (max-width: 1100px) and (min-width: 901px) {

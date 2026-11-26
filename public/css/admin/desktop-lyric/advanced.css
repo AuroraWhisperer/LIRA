@@ -298,7 +298,3 @@
 
 #desktopLyricPage.is-advanced #advancedLyricPreviewStage { pointer-events: auto; cursor: grab; touch-action: none; }
 #desktopLyricPage.is-advanced #advancedLyricPreviewStage.is-positioning { cursor: grabbing; }
-
-@media (max-width: 980px) {
-  #desktopLyricPage.is-advanced .desktop-lyric-preview-stage { height: clamp(220px, 32vh, 300px); }
-}

@@ -81,7 +81,7 @@
   --danmaku-sample-height: 52px;
   grid-template-columns: none;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: fit-content(208px);
   gap: var(--spacing-sm);
 }
 
@@ -126,11 +126,7 @@
   grid-template-columns: 80px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 6px;
-}
-
-.live-components-page .danmaku-recent-styles > :only-child {
-  max-width: 320px;
+  padding: 6px 12px 6px 6px;
 }
 
 .live-components-page .danmaku-recent-styles .danmaku-style-sample {
@@ -268,7 +264,8 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 20px 20px;
+  scrollbar-gutter: stable both-edges;
+  padding: 16px calc(20px - var(--desktop-scrollbar-space, 0px)) 20px;
 }
 
 .live-components-page :is(.danmaku-library-results, .danmaku-imported-styles) {
@@ -298,9 +295,6 @@
 @container (max-width: 960px) {
   .live-components-page .danmaku-style-picker .danmaku-recent-styles {
     grid-auto-flow: row;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .live-components-page .danmaku-recent-styles > :only-child {
-    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, fit-content(208px));
   }
 }

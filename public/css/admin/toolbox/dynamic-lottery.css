@@ -2,7 +2,7 @@
   width: 100%;
   margin-inline: 0;
   gap: var(--spacing-lg);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-lg) calc(var(--spacing-lg) - var(--feature-panel-gutter, 0px));
   container: dynamic-lottery / inline-size;
   font-size: var(--type-size-body);
   line-height: var(--type-leading-body);

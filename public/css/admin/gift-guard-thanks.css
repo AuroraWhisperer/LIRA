@@ -6,7 +6,7 @@
   padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: var(--surface);
+  background: var(--surface-2);
 }
 .guard-thanks-heading {
   display: flex;

@@ -100,11 +100,11 @@
 | 导航行 | 一级行 ≥ 40px，礼物姬子项 34px（缩进 24px），侧栏图标 20px、图文间距 12px | 导航承担持续定位，留足点击空间 |
 | 弹幕姬分组与样式入口 | 上方「监控弹幕」「弹幕过滤」为 60px 设置行卡片；下方隔 24px 为「弹幕外观」，主页「最近使用」最多 4 款（80×52px 缩略图横向卡），右侧「全部样式」打开样式库 | 接收与外观分区清晰，常用样式可快速返回；样式库四组筛选采用高 30px 分段控件 |
 | 侧栏 | 常规 184px（901–1100px 窗口 176px），底部「使用指南」下留 32px 避开播放器把手 | 收紧占宽为右侧留空间；选中态用填充 + 3px `--color-selection-marker` 竖条 + 600 字重（玄黑 · 银红竖条改用红色保证辨识） |
-| 素材管理入口 | 集中在「组件」侧栏底部与画布顶部；弹窗宽上限 640px，直接以「已导入素材」开头，下接存储空间与备份恢复。每份备份的保存布局与发布快照合计最多 1,000 份，见[素材备份指南](../../guides/component-style-packages.md#主播怎么用) | 全局管理不混入单组件分类，分区 16/22px、正文 14/20px、间距 8/16/24px |
+| 素材管理入口 | 集中在「组件」侧栏底部与画布顶部；弹窗宽上限 640px，顶部为「素材管理」与素材包计数徽标，主体上方为「已导入素材」清单（含分类图标、版本与体积，最多显示 5 行，超出后区域内无滚动条独立滚动并带边缘渐隐提示），下方为并排的「存储空间」（含分布条与 `<lira-help>` 说明）与「备份与恢复」双卡（窄容器自动折叠为单列）。每份备份的保存布局与发布快照合计最多 1,000 份，见[素材备份指南](../../guides/component-style-packages.md#主播怎么用) | 全局管理不混入单组件分类，样式由 `component-library-manager.css` 独立维护，外边距 12px、卡片内边距 11/13px，空库不误报副本未保存警告 |
 | 样式选择卡 / 折叠行 | 样式卡：2px 选中环 + 右上角「已选」徽标，「添加样式」为虚线透明框；折叠行 ≥ 56px（弹幕过滤 60px、参数组 44px），右侧显示状态摘要 | 收起时直接展示配置摘要；占位操作不喧宾夺主 |
 | 外观效果参数 | 每项一行：104px 标签 + 主题色滑块 + 64px 数值框，最多两列（列间 40px，单列不足 340px 切单列） | 紧凑属性行减少纵向高度，滑块统一使用 `parameter-range` |
 | 开关行 / 开播动画 | 开关行文字在前、开关在后；开播动画首行样式/状态/开关，次行可点击复制网址与预览，下方两列圆角框（< 760px 转单列） | 统一阅读方向，减少重复按钮和多层嵌套 |
-| 工作区 / 内容区 | 双栏顶部与右侧外边距 4px、左侧及栏间 16px，面板内边距 24px（窄窗口 20px），正文填满可用宽度；字段间距 8/12/16px，分区 24px | 窗口放大时正文自适应展开，滚动条预留空间防跳动 |
+| 工作区 / 内容区 | 双栏顶部与右侧外边距 4px、左侧及栏间 16px。面板两侧各留 24px（窄双栏为 20px），含桌面滚动条占位。字段间距 8/12/16px，分区 24px | 长短内容和吸底保存栏共用左右边线，切换时正文宽度稳定 |
 | 弹幕/时钟卡片与双栏预览 | 弹幕卡 ≥ 208×152px（预览高 104px）；时钟卡 ≥ 152×64px（预览高 ≥ 192px）；设置/预览双栏预览宽 320px（≤ 880px 堆叠）；加班机计时 32/40px 等宽数字 | 保持素材辨识度、数字不抖动，空间不足自动重排 |
 
 右侧主体随窗口高度填充并独立滚动；移动浏览器不是桌面设置页验收目标，已有窄窗口回退保留。通用操作按钮复用 `styles-base.css` 的 `.primary` / `.secondary` / `.danger` 变体（`.danger` 默认带主题危险色描边，不得用透明边框覆盖），按钮事件与业务逻辑归所属模块维护。需要次级按钮外观的导航链接可使用 `a.secondary`，链接在操作区内的对齐和内边距由面板样式控制。
@@ -251,7 +251,7 @@ bindCopyUrl(button);
 | `start-animation.js` / `clock-card.js` | 开播动画与时钟固定地址、样式设置与预览 | [app.md](app.md) §6 |
 | `fans/` / `audio-assistant.js` / `weekly-schedule.js` / `world-clock/` / `pk-score-calculator.js` | 粉丝搜索与分类复用有效到期徽标。周表保留本机字体名，默认目录不可用时可另选导出位置。世界地图按本机整点更新天气，城市按钮支持读屏，8K 日图失败时使用随包日图。PK 算分接受三位分组金额。电音助手按需加载 | [粉丝档案](../../../specs/fan-profiles.md)、[周表](app.md#周表生成器)、[世界地图](app.md#世界地图)、[PK 算分](app.md#61-pk-算分) |
 | `song-library-filters.js` | 曲风/标签多选、语言/歌手筛选与多选弹层定位 | [app.md](app.md) §4 |
-| `gifts/index.js` / `notification.js` / `detection.js` / `sprint.js` / `recent.js` / `blindbox*.js` / `history.js` / `wishes.js` / `heart-box-collection.js` | 礼物面板渲染、通知/检测/冲刺/最近/盲盒映射与分析/历史抽屉/许愿/心动盲盒 | [app.md](app.md#5-礼物主页面gifts) |
+| `gifts/index.js` / `notification.js` / `detection.js` / `sprint.js` / `recent.js` / `blindbox*.js` / `history.js` / `wishes.js` / `gift-picker-dialog.js` / `heart-box-collection.js` | 礼物面板渲染、通知/检测/冲刺/最近/盲盒映射与分析/历史抽屉/许愿/统一礼物选择弹窗/心动盲盒 | [app.md](app.md#5-礼物主页面gifts) |
 
 - Admin 登录、房间资料、粉丝档案及礼物/弹幕/游戏头像共用 [shared/bilibili-avatar.js](../../../public/js/shared/bilibili-avatar.js) 校验与构造 B 站头像地址（仅接受 HTTPS `.hdslb.com` 子域且禁止 URL 凭据，查询参数经 `URLSearchParams` 编码）。
 - `admin/canvas-item-entry.js` 负责样式库、大航海感谢、礼物动效及实时榜单的查找与插入画布公共流程（`MAX_NON_TEXT_BOX_SCENE_ITEMS` 仍为 32，已有图层可在满画布时复用）；`admin/rich-text-selection.js` 仅负责三个富文本编辑器的 DOM Range、原子边界与格式替换。
@@ -320,7 +320,7 @@ bindCopyUrl(button);
 | `css/components/content-state.css` | 播放队列、粉丝档案、主播工作台共用空态/加载/失败提示层级与语义色 |
 | `css/components/color-control.css` | 公共颜色控件与选色弹层（`--color-control-height` 默认 36px） |
 | `css/components/contextual-help.css` | Admin `<lira-help>` 问号与顶层说明样式 |
-| `css/admin/*.css` | 管理后台分模块（`component-styles.css` 卡片与边框使用 `--color-border-default` 跟随客户端主题） |
+| `css/admin/*.css` | 管理后台分模块（`component-styles.css` 卡片与边框使用 `--color-border-default` 跟随客户端主题，并导入 `component-library-manager.css` 独立承载素材管理弹窗样式） |
 | `css/playback/*.css` | 播放助手分模块 |
 | `css/overlays/base.css` | 叠加层框架（classic/identity 队列主题、滚动动画、歌单板） |
 | `css/overlays/blindbox.css` | 盲盒叠加层动画与布局 |

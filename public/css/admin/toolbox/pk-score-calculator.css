@@ -9,7 +9,7 @@
   flex-direction: column;
   justify-content: safe center;
   gap: var(--spacing-xl);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-xl) calc(var(--spacing-xl) - var(--feature-panel-gutter, 0px));
 }
 
 .pk-score-calculator,
@@ -301,7 +301,7 @@
 
 @media (max-width: 1000px) {
   .other-feature-panel-body.pk-score-panel {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-lg) calc(var(--spacing-lg) - var(--feature-panel-gutter, 0px));
   }
 
   .pk-score-main {

@@ -159,8 +159,8 @@
   gap: 12px;
   position: sticky;
   bottom: calc(-1 * var(--component-page-padding));
-  margin: 0 calc(-1 * var(--component-page-padding)) calc(-1 * var(--component-page-padding));
-  padding: 8px var(--component-page-padding);
+  margin: 0 calc(-1 * var(--component-page-inline-padding)) calc(-1 * var(--component-page-padding));
+  padding: 8px var(--component-page-inline-padding);
   border-top: 1px solid var(--border);
   background: var(--surface);
   z-index: 2;

@@ -129,7 +129,7 @@
 body:has(.weekly-schedule-editor[data-weekly-expanded='true']) .topbar :is(.primary-nav-slot, .status-strip) { visibility: hidden; }
 .weekly-schedule-editor[data-weekly-expanded='true'] > .weekly-template-toolbar { display: none; }
 .weekly-schedule-editor[data-weekly-expanded='true'] .weekly-editor-workspace { flex: 1; min-height: 0; grid-template-columns: 300px minmax(0, 1fr); align-items: stretch; }
-.weekly-schedule-editor[data-weekly-expanded='true'] .weekly-editor-fields { overflow-y: auto; min-height: 0; }
+.weekly-schedule-editor[data-weekly-expanded='true'] .weekly-editor-fields { overflow-y: auto; scrollbar-gutter: stable both-edges; min-height: 0; }
 .weekly-schedule-editor[data-weekly-expanded='true'] .weekly-preview-panel { position: static; display: flex; flex-direction: column; grid-row: auto; min-height: 0; }
 .weekly-schedule-editor[data-weekly-expanded='true'] .weekly-preview-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
 .weekly-schedule-editor[data-weekly-expanded='true'] .weekly-preview-actions { display: none; }

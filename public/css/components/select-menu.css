@@ -234,6 +234,12 @@
   overscroll-behavior: contain;
 }
 
+/* Keep option labels aligned as filtering changes the number of rows. */
+.lira-select-searchable > [role='listbox'],
+.lira-multiselect-options {
+  scrollbar-gutter: stable;
+}
+
 .lira-select-option,
 .lira-multiselect-option {
   position: relative;

@@ -1,4 +1,5 @@
 .other-feature-panel-body.audio-assistant-settings {
+  --feature-panel-gutter: 0px;
   width: 100%;
   max-width: none;
   padding-top: 10px;

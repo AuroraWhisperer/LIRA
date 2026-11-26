@@ -899,25 +899,12 @@
 .text-box-face-tabs button { min-height: 28px; border: 0; border-radius: 999px; padding: 4px 10px; font-size: 12px; background: transparent; color: var(--muted); box-shadow: none; }
 #textBoxPage .text-box-face-tabs button[aria-pressed='true'],
 .text-box-face-tabs button[aria-pressed='true'] { background: var(--color-selection-fill, var(--color-primary-light)); color: var(--color-selection-text, var(--primary-strong)); }
-.text-box-face-options { display: flex; flex-wrap: wrap; gap: 6px; max-height: 156px; overflow-y: auto; }
+.text-box-face-options { display: flex; flex-wrap: wrap; gap: 6px; max-height: 156px; overflow-y: auto; scrollbar-gutter: stable; }
 #textBoxPage .text-box-face-options button,
 .text-box-face-options button { min-height: 30px; padding: 5px 9px; font-size: 13px; font-weight: 400; border-radius: var(--radius-md, 8px); }
 
 .text-box-error, .text-box-page-status [data-state='error'] { color: var(--danger); font-size: 13px; line-height: 1.5; }
 
-/* Gift Picker Dialog */
-.text-box-gift-picker { width: min(740px, calc(100vw - 48px)); max-height: min(740px, calc(100vh - 64px)); padding: 22px; border: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow-dialog); }
-.text-box-gift-picker header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-.text-box-gift-picker h3 { margin: 0; font-size: 19px; }
-.text-box-gift-scopes { display: flex; gap: 8px; margin-bottom: 14px; }
-.text-box-gift-scopes [aria-pressed='true'] { color: var(--color-selection-text, var(--primary-strong)); border-color: var(--color-border-primary); background: var(--color-primary-light); }
-.text-box-gift-picker input[type='search'] { width: 100%; }
-.text-box-gift-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; margin-top: 16px; }
-.text-box-gift-results .gift-wish-option { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; padding: 12px 8px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text); background: var(--surface); box-shadow: none; }
-.text-box-gift-results .gift-wish-option:hover { background: var(--surface-2); border-color: var(--primary-strong); }
-.text-box-gift-results img { width: 48px; height: 48px; object-fit: contain; }
-.text-box-gift-results span { max-width: 100%; font-size: 14px; overflow-wrap: anywhere; }
-.text-box-gift-results small { font-size: 11px; font-weight: 400; color: var(--muted); }
 .preview-picker-text-card .preview-picker-caption { min-height: 64px; gap: 12px; }
 .preview-picker-text-card .preview-picker-caption svg { color: var(--muted); }
 .preview-picker-text-card .preview-picker-caption strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

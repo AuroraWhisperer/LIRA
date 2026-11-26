@@ -1,5 +1,6 @@
 /* Local aliases keep audit layout independent from desktop window rules. */
 :root {
+  scrollbar-gutter: stable both-edges;
   --bg: var(--page-bg, var(--color-bg-page));
   --surface: var(--color-bg-primary);
   --surface2: var(--color-bg-secondary);
@@ -252,6 +253,7 @@ textarea:disabled {
 .table-wrap {
   max-height: 400px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   border: 1px solid var(--border);
   border-radius: 6px;
 }

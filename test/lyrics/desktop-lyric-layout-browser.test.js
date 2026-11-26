@@ -117,6 +117,7 @@ test('preview scales the whole output canvas without changing configured sizes o
   const outputLayouts = new Map();
   for (const surface of ['output', 'preview']) {
     if (surface === 'preview') {
+      await page.setViewportSize({ width: 1000, height: 800 });
       await useAdminPreview(page, 1800, 360);
     }
     for (const fontSize of [24, 56, 72]) {
