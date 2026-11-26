@@ -8,13 +8,13 @@ const { beginStyleFileUse, endStyleFileUse, listStyleFiles } = require('../stora
 const { receiveMedia, identifyMedia } = require('./component-media-files');
 const { checkReferences } = require('./component-web-library');
 const { MAX_BACKUP_BYTES, MAX_BACKUP_FILES, invalidBackup, backupFileName, encodeBackup, extractBackup } = require('./component-library-archive');
-const { transferId, mapConfigReferences, backupDependencies, portableDocuments, validateBackupManifest } = require('./component-library-transfer-contract');
+const { transferId, mapConfigReferences, backupDependencies, portableDocuments, validateBackupManifest, checkBackupDocumentCount } = require('./component-library-transfer-contract');
 
 function createComponentLibraryTransfer({ dataDir, scenes }) {
   const store = createComponentStyleStore(dataDir);
-  const capture = () => {
+  const capture = (includeDocuments = false) => {
     if (!scenes?.captureBackup || !scenes?.restoreBackup) throw Object.assign(new Error('场景尚未准备完成，请稍后重试。'), { statusCode: 503 });
-    return scenes.captureBackup();
+    return scenes.captureBackup({ includeDocuments });
   };
   async function validateFiles(manifest, directory, authorize) {
     listStyleFiles(directory);
@@ -57,7 +57,8 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
 
   return {
     async *backup(authorize) {
-      const session = capture(); authorize();
+      const session = capture(true); authorize();
+      checkBackupDocumentCount(session.documents);
       const portable = portableDocuments(session.documents);
       const index = store.read();
       const dependencies = backupDependencies(portable.documents);

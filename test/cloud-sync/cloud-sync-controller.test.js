@@ -155,7 +155,7 @@ test('a settings upload applies the server-assigned custom id and mapping state'
         giftBlindBoxConfig: LOCAL_BLIND_BOX_CONFIG,
         giftBlindBoxCustomConfigV2: submitted,
       }),
-      setBlindBoxMappingState: (state) => fixture.calls.push(['mapping-state', state]),
+      applyCloudSettingsSnapshot: (values, _accountKey, mapping) => fixture.calls.push(['apply-settings', values, mapping]),
     },
   });
 
@@ -164,7 +164,7 @@ test('a settings upload applies the server-assigned custom id and mapping state'
 
   const applied = fixture.calls.find((call) => call[0] === 'apply-settings');
   assert.deepEqual(applied[1].giftBlindBoxCustomConfigV2, assigned);
-  assert.deepEqual(fixture.calls.find((call) => call[0] === 'mapping-state')[1], mappingState);
+  assert.deepEqual(applied[2], mappingState, 'the upload acknowledgement publishes the assigned ID and its mapping together');
   fixture.controller.dispose();
 });
 

@@ -351,7 +351,9 @@ npm run verify
 
 ### 重点测试夹具与隔离说明
 
-- **电音助手原生与桌面测试**：`test/admin/audio-assistant*.test.js` 覆盖入口与连续参数同步，`test/desktop/audio-assistant*.test.js` 覆盖 IPC 来源、输入授权、进程复用和退出。`npm run test:audio-native` 单独编译验证 C# 音频核心与真实管道（源码位于 `test/desktop/audio-assistant-native/`，中间产物与状态在 `tmp/`，`InstallationExitChecks.cs` 验证安装退出事件与延期记录跨进程接管，不修改真实声卡路由）。
+- **电音助手原生与桌面测试**
+  - `test/admin/audio-assistant*.test.js` 覆盖入口与连续参数保存。按“开始”时会等待本批保存请求，任一请求失败都会阻止当次启动，后续独立编辑仍可保存。`test/desktop/audio-assistant*.test.js` 覆盖 IPC 来源、输入授权、进程复用和退出。
+  - `npm run test:audio-native` 默认验证 C# 音频核心与真实管道，播放检查会逐个打开枚举到的非 ASIO 输出并写入静音 PCM。原生测试源码位于 `test/desktop/audio-assistant-native/`，中间产物与状态在 `tmp/`。其中 `InstallationExitChecks.cs` 验证安装退出事件与延期记录跨进程接管。仅使用合成输入输出时，见[原生音频与状态帧验证命令](../../../native/audio-assistant/README.md#验证)。
 - **周表生成器与导出**：[weekly-schedule-model.test.js](../../../test/admin/weekly-schedule-model.test.js) 与 [weekly-schedule-storage.test.js](../../../test/admin/weekly-schedule-storage.test.js) 覆盖日期、模板隔离与写入顺序；[weekly-schedule-export.test.js](../../../test/desktop/weekly-schedule-export.test.js) 覆盖参数校验、重试、取消与文件/窗口生命周期；[weekly-schedule-electron.test.js](../../../test/desktop/weekly-schedule-electron.test.js)（`desktop` 组）在隔离 Electron 环境下验证真实 preload、IndexedDB、图片编辑保存与 1920×1080 四角像素标记（版式可读性仍需人工查看）。
 - **外置样式包与网页组件导入**：[woodland-style-package.test.js](../../../test/scenes/woodland-style-package.test.js) 覆盖 ZIP 校验/导入、哈希与旧媒体 URL Range/HEAD 兼容；[woodland-style-import-electron.test.js](../../../test/desktop/woodland-style-import-electron.test.js)（`desktop` 组）在隔离 Electron 中验证真实导入与画布重载；[component-web-import.test.js](../../../test/scenes/component-web-import.test.js) 注入包目录暂态锁与索引提交失败，验证安装前允许锁重试但禁止索引失败后重放安装。
 - **豆包会话夹具**：豆包会话的 Electron 测试夹具保持窗口隐藏并拦截 `show()` / `focus()`，避免发布验证弹窗抢焦点，同时保留真实会话、加密存储与导航限制校验。

@@ -1,7 +1,7 @@
 'use strict';
 
 const { readGiftDisplaySettings } = require('../bilibili/gift/display-settings');
-const { buildGiftCards, addGiftCardTotals } = require('../../public/js/shared/gift-card-model.js');
+const { buildGiftCards, addGiftCardTotals, giftCardSettledCents } = require('../../public/js/shared/gift-card-model.js');
 const { shanghaiToday } = require('../../public/js/shared/gift-feed-state.js');
 const { createGiftCardRuntime } = require('./gift-card-runtime');
 const { normalizeGiftCardAvatarResult, GIFT_CARD_AVATAR_BATCH_SIZE } = require('../shared/gift-card-profiles');
@@ -36,6 +36,11 @@ async function completeExportAvatars(items, profiles, readAvatars, assertCurrent
   return items.map((item) => avatars.has(item.eventId)
     ? { ...item, gift: { ...item.gift, avatarUrl: avatars.get(item.eventId) } }
     : item);
+}
+
+function addExportTotals(card, item) {
+  card.settledTotalCents = (giftCardSettledCents(card) + giftCardSettledCents(item)).toString();
+  addGiftCardTotals(card, item);
 }
 
 // Only the first selected event of a confirmed daily card is needed as identity evidence.
@@ -81,7 +86,7 @@ async function mergeAcrossDates(snapshot, readGroups, signal) {
       if (card.gift.giftId !== item.gift.giftId || card.gift.giftName !== item.gift.giftName) {
         return { ...snapshot, cardsPartial: true };
       }
-      addGiftCardTotals(card, item);
+      addExportTotals(card, item);
     } else {
       const card = { ...item, gift: { ...item.gift } };
       merged.set(group, card);
@@ -122,6 +127,7 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       // Source recovery and activated history can reveal records without changing viewEpoch.
       if (
         previous?.viewEpoch !== next?.viewEpoch ||
+        previous?.displayEpoch !== next?.displayEpoch ||
         (previous?.syncState === 'SOURCE_SWITCHING' && next?.syncState !== 'SOURCE_SWITCHING') ||
         (previous?.syncState === 'BOOTSTRAPPING' && next?.syncState === 'CATCHING_UP')
       ) {
@@ -132,7 +138,7 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
     getGiftViewRevision: () => getServices().gifts.getViewRevision(),
     async prepareGiftExport(selection) {
       const services = getServices();
-      const snapshot = services.gifts.getSelection(selection);
+      const snapshot = services.gifts.getSelection({ ...selection, sortField: 'created_at', sortDirection: 'desc' });
       const day = shanghaiToday();
       const assertCurrent = () => {
         if (services.gifts.getViewRevision() !== snapshot.viewRevision || shanghaiToday() !== day) {
@@ -157,15 +163,17 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
     mergeGiftExport(snapshot, signal) {
       const profiles = profilesBySnapshot.get(snapshot);
       const items = profiles?.items?.length
-        ? buildGiftCards(snapshot.items, { day: profiles.day, profiles: profiles.items, keepSourceEventId: true })
+        ? buildGiftCards(snapshot.items, { day: profiles.day, profiles: profiles.items, keepSourceEventId: true, addTotals: addExportTotals })
         : snapshot.items;
       return mergeAcrossDates({ ...snapshot, items }, sync.cardGroups, signal);
     },
     setGiftExportDirectory: (directory) => getSettingsStore().setSetting('giftExportDirectory', directory),
-    setGiftExportSettings: ({ mode, background, mergeAcrossDates, directory }) =>
+    setGiftExportSettings: ({ mode, background, sortBy, rowGap, mergeAcrossDates, directory }) =>
       getSettingsStore().setSettings({
         giftExportMode: mode,
         giftExportBackground: background,
+        giftExportSortBy: sortBy,
+        giftExportRowGap: String(rowGap),
         giftExportMergeAcrossDates: String(mergeAcrossDates),
         giftExportDirectory: directory,
       }),

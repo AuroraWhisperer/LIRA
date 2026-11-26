@@ -28,6 +28,7 @@ function createTestService(overrides = {}) {
   };
   const service = createAiAssistantService({
     store,
+    quotaStore: overrides.quotaStore,
     modelClient: overrides.modelClient || {
       createResponse: async () => ({
         text: 'ok',

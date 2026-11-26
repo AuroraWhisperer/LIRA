@@ -184,7 +184,7 @@ for (const accountAction of ['login', 'logout']) {
     await app.emit(accountAction === 'login' ? 'playbackLoginBtn' : 'playbackLogoutBtn', 'click');
     pending.resolve({ tracks: [track('private-old', '旧账号私人收藏')] });
     await flushAsyncWork();
-    assert.equal(storage.has('playbackCache:v2:qq:liked'), false);
+    assert.equal(storage.has('playbackCache:v2:qq:liked:201'), false);
     assert.doesNotMatch(app.element('playbackDrawerBody').innerHTML, /旧账号私人收藏/);
     assert.deepEqual(app.errors(), []);
   });

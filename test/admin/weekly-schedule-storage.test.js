@@ -83,6 +83,7 @@ test('saved snapshots serialize in edit order and preserve images across a new s
   const database = memoryIndexedDB();
   const storage = createStorage({ indexedDB: database.indexedDB });
   const state = await storage.load();
+  state.templates[0].fontId = '"M+ 1p"';
   state.templates[0].assets.logo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jQ1sAAAAASUVORK5CYII=';
   database.deferWrites();
   state.templates[0].days[0].theme = '第一次编辑';
@@ -102,6 +103,7 @@ test('saved snapshots serialize in edit order and preserve images across a new s
   storage.close();
   const reopened = createStorage({ indexedDB: database.indexedDB });
   const restored = await reopened.load();
+  assert.equal(restored.templates[0].fontId, '"M+ 1p"');
   assert.equal(restored.templates[0].days[0].theme, '第二次编辑');
   assert.equal(restored.templates[0].assets.logo, state.templates[0].assets.logo);
   reopened.close();

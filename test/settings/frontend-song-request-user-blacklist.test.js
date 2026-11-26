@@ -85,19 +85,19 @@ test('blacklist snapshots preserve edits and focus, then update same-length rows
   assert.equal(ui.row(0).name, row.name);
   row.name.value = '编辑中的昵称';
   row.name.fire('input');
-  ui.editor.render('[{"uid":"34","name":"远端昵称","expiresAt":0}]');
+  ui.editor.render('[{"uid":"12","name":"远端昵称","expiresAt":0}]');
   assert.equal(ui.row(0).name, row.name);
   assert.equal(ui.documentRef.activeElement, row.name);
   assert.equal(JSON.parse(ui.field.value)[0].name, '编辑中的昵称');
 
   ui.field.dataset.dirty = 'false';
   // formsService may fill the hidden field before the editor receives the snapshot.
-  ui.field.value = '[{"uid":"34","name":"已保存昵称","expiresAt":0}]';
+  ui.field.value = '[{"uid":"12","name":"已保存昵称","expiresAt":0}]';
   ui.editor.render(ui.field.value);
   assert.equal(ui.row(0).name, row.name, 'autosave must not replace a focused input');
   ui.documentRef.activeElement = null;
   ui.editor.render(ui.field.value);
-  assert.equal(ui.row(0).uid.value, '34');
+  assert.equal(ui.row(0).uid.value, '12');
   assert.equal(ui.row(0).name.value, '已保存昵称');
   const saved = ui.field.value;
   ui.row(0).name.value = '另一次草稿';
@@ -153,6 +153,143 @@ test('editing a note preserves the maximum supported expiry in the local time zo
   row.name.value = '修改备注';
   row.name.fire('input');
   assert.equal(JSON.parse(ui.field.value)[0].expiresAt, 253402300799999);
+});
+
+test('a focused note keeps concurrent additions, removals and edits in the next saved blacklist', async t => {
+  const entry = (uid, name, expiresAt = 0) => ({ uid, name, expiresAt });
+  const ui = await createEditor([entry('12', '甲'), entry('34', '旧备注'), entry('56', '将删除')]);
+  const note = ui.row(0).name;
+  note.focus();
+  const remote = [entry('12', '甲'), entry('34', '新备注'), entry('78', '新增')];
+  ui.receive({ settings: { songRequestUserBlacklist: JSON.stringify(remote) } });
+  note.value = '甲编辑中';
+  note.fire('input');
+  assert.deepEqual(JSON.parse(ui.field.value), [entry('12', '甲编辑中'), ...remote.slice(1)]);
+  assert.equal(ui.documentRef.activeElement, note);
+
+  const expiresAt = Date.parse('2030-03-17T16:00:00Z');
+  ui.receive({ settings: { songRequestUserBlacklist: JSON.stringify([entry('12', '甲', expiresAt), entry('78', '再更新')]) } });
+  assert.deepEqual(JSON.parse(ui.field.value), [entry('12', '甲编辑中', expiresAt), entry('78', '再更新')]);
+  assert.equal(ui.row(0).name, note);
+  assert.equal(ui.count.textContent, '2 人');
+
+  const { DatabaseSync } = require('node:sqlite');
+  const { createSettingsStore, DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
+  const { routes } = require('../../src/server/routes/settings-routes');
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
+  const store = createSettingsStore(db);
+  const context = { settings: { defaults: DEFAULT_SETTINGS, setMany: store.setSettings },
+    bilibili: { configure() {} }, broadcastSnapshot() {}, system: { getState: () => ({ settings: store.getSettings() }) } };
+  await routes['POST /api/settings'](context, { body: async () => ({ songRequestUserBlacklist: ui.field.value }) },
+    { writeHead(status) { assert.equal(status, 200); }, end() {} });
+  assert.deepEqual(JSON.parse(store.getSettings().songRequestUserBlacklist), [entry('12', '甲编辑中', expiresAt), entry('78', '再更新')]);
+});
+
+test('a snapshot removing the focused UID cannot turn a stale keystroke into a new user', async () => {
+  const ui = await createEditor([{ uid: '12', name: '甲' }]);
+  const stale = ui.row(0).name;
+  stale.focus();
+  stale.value = '本地草稿';
+  stale.fire('input');
+  ui.receive({ settings: { songRequestUserBlacklist: '[{"uid":"78","name":"乙","expiresAt":0}]' } });
+  assert.equal(ui.row(0).uid.value, '78');
+  assert.notEqual(ui.row(0).name, stale);
+  stale.fire('input');
+  assert.deepEqual(JSON.parse(ui.field.value), [{ uid: '78', name: '乙', expiresAt: 0 }]);
+});
+
+test('an autosave echo keeps a reverted note and a deletion made after submission', async () => {
+  const original = { uid: '12', name: '甲', expiresAt: 0 };
+  const ui = await createEditor([original]);
+  const note = ui.row(0).name;
+  note.value = '中间版本';
+  note.fire('input');
+  ui.add.fire('click');
+  const added = ui.row(1);
+  added.uid.value = '34';
+  added.uid.fire('input');
+  const submitted = ui.field.value;
+  const finish = ui.editor.beginSave();
+
+  note.value = original.name;
+  note.fire('input');
+  added.remove.fire('click');
+  ui.receive({ settings: { songRequestUserBlacklist: submitted } });
+  finish();
+  assert.deepEqual(JSON.parse(ui.field.value), [original]);
+  const other = { uid: '56', name: '同时添加', expiresAt: 0 };
+  ui.receive({ settings: { songRequestUserBlacklist: JSON.stringify([...JSON.parse(submitted), other]) } });
+  assert.deepEqual(JSON.parse(ui.field.value), [original, other]);
+});
+
+for (const edit of ['note', 'delete']) {
+  test(`a submitted row reusing a deleted UID retains its later ${edit} across snapshots`, async () => {
+    const original = { uid: '12', name: '原用户', expiresAt: 0 };
+    const survivor = { uid: '34', name: '原备注', expiresAt: 0 };
+    const other = { uid: '56', name: '远端新增', expiresAt: 0 };
+    const ui = await createEditor([original, survivor]);
+    const receive = entries => ui.receive({ settings: { songRequestUserBlacklist: JSON.stringify(entries) } });
+    ui.row(0).remove.fire('click');
+    const row = ui.row(0);
+    row.uid.value = original.uid;
+    row.uid.fire('input');
+    row.name.value = '已提交备注';
+    row.name.fire('input');
+    const submitted = JSON.parse(ui.field.value);
+    const finish = ui.editor.beginSave();
+    if (edit === 'delete') {
+      row.remove.fire('click');
+    } else {
+      row.name.focus();
+      row.name.value = survivor.name;
+      row.name.fire('input');
+    }
+    const local = edit === 'delete' ? [] : [{ ...original, name: survivor.name }];
+    receive([original, survivor, other]);
+    assert.deepEqual(JSON.parse(ui.field.value), [...local, other]);
+    receive([...submitted, other]);
+    finish();
+    assert.deepEqual(JSON.parse(ui.field.value), [...local, other]);
+    const remoteEdit = { ...other, name: '远端已更新' };
+    receive([...submitted, remoteEdit]);
+    assert.deepEqual(JSON.parse(ui.field.value), [...local, remoteEdit]);
+    if (edit === 'note') assert.equal(ui.documentRef.activeElement, ui.row(0).name);
+  });
+}
+
+test('a late snapshot recognizes an explicitly reused UID after the save request has finished', async () => {
+  const ui = await createEditor([{ uid: '12', name: '删除' }, { uid: '34', name: '原备注' }]);
+  ui.row(0).remove.fire('click');
+  const row = ui.row(0);
+  row.uid.value = '12';
+  row.uid.fire('input');
+  row.name.value = '已提交';
+  row.name.fire('input');
+  const submitted = ui.field.value;
+  const finish = ui.editor.beginSave();
+  finish();
+  row.name.value = '原备注';
+  row.name.fire('input');
+  ui.receive({ settings: { songRequestUserBlacklist: submitted } });
+  assert.deepEqual(JSON.parse(ui.field.value), [{ uid: '12', name: '原备注', expiresAt: 0 }]);
+  assert.equal(ui.row(0).name, row.name);
+});
+
+test('an autosave echo matches a renamed UID even when it was edited again after submission', async () => {
+  const ui = await createEditor([{ uid: '12', name: '甲', expiresAt: 0 }]);
+  const uid = ui.row(0).uid;
+  uid.value = '34';
+  uid.fire('input');
+  const submitted = ui.field.value;
+  const finish = ui.editor.beginSave();
+  uid.value = '56';
+  uid.fire('input');
+  ui.receive({ settings: { songRequestUserBlacklist: submitted } });
+  finish();
+  assert.deepEqual(JSON.parse(ui.field.value), [{ uid: '56', name: '甲', expiresAt: 0 }]);
+  assert.equal(ui.row(0).uid, uid);
 });
 
 test('user editor enforces the saved list limit and restores add after deleting an entry', async () => {

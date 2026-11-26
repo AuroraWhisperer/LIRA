@@ -101,6 +101,21 @@ test('component preparation keeps browser playback available and preserves a pen
   browser.output.dispose();
 });
 
+test('a saved ASIO choice can switch to the system output while the component is preparing', async t => {
+  const calls = [];
+  const f = await fixture({ deviceId: 'asio:studio', name: 'Studio' }, {
+    async enumerate() { throw Object.assign(new Error('preparing'), { code: 'AUDIO_COMPONENT_NOT_READY' }); },
+    async browser(id) { calls.push(id); },
+    async prepare() {}, dispose() {},
+  });
+  t.after(() => f.output.dispose());
+  await assert.rejects(f.output.prepare());
+  assert.equal(await f.output.select(''), true);
+  await f.output.prepare();
+  assert.deepEqual(calls, ['']);
+  assert.equal(f.savedPreference().deviceId, '');
+});
+
 test('native output choices reach their backend, persist after success and never use setSinkId as a fake backend', async () => {
   const calls = [];
   let reject = false;

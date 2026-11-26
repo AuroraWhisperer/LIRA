@@ -4,6 +4,8 @@ const { isDeepStrictEqual } = require('node:util');
 
 const { createNeteaseClientMonitor } = require('./netease-client-monitor');
 const { findCurrentLyricLine } = require('./lyric-parser');
+const { recordingDurationChanged } = require('./external-client-lyrics');
+const { hasTrackClockReset, readSmtcClock, smtcPositionAt } = require('./smtc-clock');
 
 function createNeteaseClientCapture({
   platform = process.platform,
@@ -16,7 +18,7 @@ function createNeteaseClientCapture({
   const initial = {
     active: false, supported: platform === 'win32', detected: false, status: 'inactive',
     message: '未启用外部网易云音乐', trackTitle: '', artists: [], currentMs: 0, durationMs: 0,
-    playing: false, lyricSource: '', coverUrl: '',
+    playing: false, playbackRate: 1, lyricSource: '', coverUrl: '',
   };
   let state = { ...initial };
   let monitor = null;
@@ -35,6 +37,7 @@ function createNeteaseClientCapture({
   let inferredPlayingAt = 0;
   let advancingSamples = 0;
   let lyrics = null;
+  let lyricDurationMs = 0;
   let lastEmitted, lastLyrics;
   let resolved = false;
   let resolving = false;
@@ -48,7 +51,7 @@ function createNeteaseClientCapture({
     return structuredClone({
       trackTitle: state.trackTitle, artists: state.artists, currentMs: state.currentMs,
       durationMs: state.durationMs, progress: state.durationMs > 0 ? state.currentMs / state.durationMs : 0,
-      playing: state.playing && state.status === 'ready', status: lyricStatus(),
+      playing: state.playing && state.status === 'ready', playbackRate: state.playbackRate, status: lyricStatus(),
       lineText: line?.text || '', translation: line?.translation || '', words: line?.words || [],
     });
   }
@@ -69,6 +72,7 @@ function createNeteaseClientCapture({
   function resetLyrics() {
     trackVersion += 1;
     lyrics = null;
+    lyricDurationMs = 0;
     resolved = resolving = lyricError = false;
     state.lyricSource = '';
     state.coverUrl = '';
@@ -97,6 +101,7 @@ function createNeteaseClientCapture({
   async function loadLyrics() {
     if (resolving || resolved) return;
     resolving = true;
+    lyricDurationMs = state.durationMs;
     const version = trackVersion;
     try {
       const result = await resolveLyrics({ title: state.trackTitle, artists: [...state.artists],
@@ -140,12 +145,25 @@ function createNeteaseClientCapture({
       .map((artist) => String(artist || '').trim().slice(0, 80)).filter(Boolean).slice(0, 8);
     const key = JSON.stringify([title, artists]);
     const id = /^\d{1,32}$/.test(String(sample.sourceTrackId || '')) ? String(sample.sourceTrackId) : '';
-    if (key !== trackKey) {
+    const { positionMs: position, durationMs: duration, timelineUpdatedAt: stamp } = sample;
+    const isUIA = sample.clockSource === 'uia';
+    const isSampledClock = isUIA || sample.clockSource === 'native';
+    const clockSource = isSampledClock ? sample.clockSource : 'smtc';
+    const sameClock = lastTimeline?.clockSource === clockSource;
+    const validClock = Number.isFinite(position) && position >= 0 && Number.isFinite(duration) && duration > 0 &&
+      position <= duration && Number.isFinite(stamp) && stamp > 0 && stamp <= time + 2000;
+    const orderedStamp = !sameClock || stamp >= lastStamp;
+    const withinSampleWindow = !isSampledClock || time - stamp <= 2500;
+    const changedRecording = !id && validClock && orderedStamp && withinSampleWindow &&
+      recordingDurationChanged(lyricDurationMs, duration);
+    const changedId = id && sourceTrackId && id !== sourceTrackId;
+    if (key !== trackKey || changedId || changedRecording) {
       const hadTrack = Boolean(trackKey || lastStamp);
       previousStamp = hadTrack ? Math.max(lastStamp, Number(sample.timelineUpdatedAt) || 0) : 0;
       previousTimeline = lastTimeline;
       trackChangedAt = hadTrack ? time : 0;
       resetLyrics();
+      if (changedRecording) lyricDurationMs = duration;
       trackKey = key;
       sourceTrackId = id;
       stableTrack = false;
@@ -158,7 +176,7 @@ function createNeteaseClientCapture({
       onTimeline(getTimeline());
     } else {
       stableTrack = true;
-      if (id && id !== sourceTrackId) {
+      if (id && !sourceTrackId) {
         sourceTrackId = id;
         resetLyrics();
         state.status = 'loading';
@@ -168,13 +186,6 @@ function createNeteaseClientCapture({
     state.detected = true;
     const previousPlaying = state.playing;
     const previousClockReady = clockReady;
-    const position = sample.positionMs;
-    const duration = sample.durationMs;
-    const stamp = sample.timelineUpdatedAt;
-    const isUIA = sample.clockSource === 'uia';
-    const isSampledClock = isUIA || sample.clockSource === 'native';
-    const validClock = Number.isFinite(position) && position >= 0 && Number.isFinite(duration) && duration > 0 &&
-      position <= duration && Number.isFinite(stamp) && stamp > 0 && stamp <= time + 2000;
     if (isSampledClock && validClock && (position !== observedPosition || (sample.playbackStatus === 'Playing' && !previousPlaying))) {
       const delta = position - observedPosition;
       const elapsed = time - positionChangedAt;
@@ -191,14 +202,12 @@ function createNeteaseClientCapture({
     const knownPlayback = playing || sample.playbackStatus === 'Paused';
     // A new SMTC song can publish its only anchor together with the title.
     // Require a reset position or different duration before reusing that anchor.
-    const clockSource = isSampledClock ? sample.clockSource : 'smtc';
-    const sameClock = lastTimeline?.clockSource === clockSource;
     const newTrackClock = previousTimeline &&
       (previousTimeline.clockSource !== clockSource || stamp >= previousTimeline.stamp) &&
-      (duration !== previousTimeline.duration || position + 1000 < previousTimeline.position);
+      hasTrackClockReset(previousTimeline, sample);
     const freshClock = isSampledClock
-      ? (!trackChangedAt || time - trackChangedAt >= 1500) && time - stamp <= 2500 && (!playing || time - positionChangedAt <= 2500)
-      : (!sameClock || stamp >= lastStamp) && (stamp > previousStamp || newTrackClock);
+      ? withinSampleWindow && (!trackChangedAt || time - trackChangedAt >= 1500) && (!playing || time - positionChangedAt <= 2500)
+      : orderedStamp && (stamp > previousStamp || newTrackClock);
     clockReady = Boolean(title && stableTrack && validClock && knownPlayback && freshClock);
     if (!clockReady) {
       const wasReady = state.status === 'ready';
@@ -209,16 +218,23 @@ function createNeteaseClientCapture({
       emit();
       return;
     }
+    if (isSampledClock) {
+      const elapsed = playing ? Math.max(0, time - (isUIA ? positionChangedAt : stamp)) : 0;
+      const predicted = state.currentMs + Math.max(0, time - (lastTimeline?.receivedAt ?? time));
+      // UIA exposes a whole-second interval; a later observation is not a backward seek.
+      const continuousUIA = isUIA && playing && previousPlaying && previousClockReady && sameClock
+        && position >= lastTimeline.position && predicted >= position && predicted < position + 1000;
+      state.currentMs = Math.round(Math.min(duration, continuousUIA ? predicted : position + elapsed));
+      state.playbackRate = 1;
+      lastTimeline = { stamp, position, duration, clockSource, receivedAt: time };
+    } else {
+      lastTimeline = readSmtcClock(sample, time, previousTimeline ? null : lastTimeline);
+      state.playbackRate = lastTimeline.rate;
+      state.currentMs = Math.round(smtcPositionAt(lastTimeline, time));
+    }
     lastStamp = stamp;
     previousStamp = 0;
     previousTimeline = null;
-    const elapsed = playing ? Math.max(0, time - (isUIA ? positionChangedAt : stamp)) : 0;
-    const predicted = state.currentMs + Math.max(0, time - (lastTimeline?.receivedAt ?? time));
-    // UIA exposes a whole-second interval; a later observation is not a backward seek.
-    const continuousUIA = isUIA && playing && previousPlaying && previousClockReady && sameClock
-      && position >= lastTimeline.position && predicted >= position && predicted < position + 1000;
-    state.currentMs = Math.round(Math.min(duration, continuousUIA ? predicted : position + elapsed));
-    lastTimeline = { stamp, position, duration, clockSource, receivedAt: time };
     state.durationMs = Math.round(duration);
     if (resolved) applyLyrics();
     else {

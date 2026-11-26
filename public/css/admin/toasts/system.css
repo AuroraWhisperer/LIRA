@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
+  gap: 8px;
   pointer-events: none;
 }
 
@@ -33,26 +33,58 @@
   --toast-success: var(--color-toast-success, var(--color-success));
   --toast-warning: var(--color-toast-warning, var(--color-warning));
   --toast-error: var(--color-toast-error, var(--danger));
-  --toast-on-accent: var(--color-toast-on-accent);
-  width: max-content;
-  max-width: min(460px, calc(100vw - 48px));
-  border: 1px solid color-mix(in srgb, var(--toast-accent) 23%, transparent);
-  border-radius: 12px;
-  background: linear-gradient(
-    125deg,
-    var(--color-toast-start, var(--surface)) 0%,
-    var(--color-toast-mid, var(--surface)) 45%,
-    var(--color-toast-end, var(--surface)) 100%
+  --toast-on-accent: var(--color-toast-on-accent, #ffffff);
+  --toast-surface-a: light-dark(
+    color-mix(in srgb, var(--color-toast-start, var(--surface)) 88%, #ffffff),
+    color-mix(in srgb, var(--color-toast-start, var(--surface)) 94%, #ffffff)
   );
+  --toast-surface-b: light-dark(
+    color-mix(in srgb, var(--color-toast-mid, var(--surface)) 92%, #ffffff),
+    var(--color-toast-end, var(--surface))
+  );
+  --toast-border: light-dark(
+    color-mix(in srgb, var(--toast-accent) 20%, var(--border)),
+    color-mix(in srgb, var(--toast-accent) 26%, rgba(255, 255, 255, 0.12))
+  );
+  --toast-highlight: light-dark(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.08));
+  --toast-shadow-near: light-dark(color-mix(in srgb, var(--toast-text) 6%, transparent), rgba(0, 0, 0, 0.28));
+  --toast-shadow-far: light-dark(color-mix(in srgb, var(--toast-text) 18%, transparent), rgba(0, 0, 0, 0.58));
+  --toast-icon-bg: light-dark(
+    color-mix(in srgb, var(--toast-accent) 11%, transparent),
+    color-mix(in srgb, var(--toast-accent) 18%, transparent)
+  );
+  --toast-rail-bg: light-dark(
+    color-mix(in srgb, var(--toast-accent) 4%, transparent),
+    color-mix(in srgb, var(--toast-accent) 8%, transparent)
+  );
+  --toast-rail-hover: light-dark(
+    color-mix(in srgb, var(--toast-accent) 11%, transparent),
+    color-mix(in srgb, var(--toast-accent) 16%, transparent)
+  );
+  --toast-rail-active: light-dark(
+    color-mix(in srgb, var(--toast-accent) 17%, transparent),
+    color-mix(in srgb, var(--toast-accent) 23%, transparent)
+  );
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 10.5v6'/%3E%3Ccircle cx='12' cy='7.2' r='1.15' fill='black' stroke='none'/%3E%3C/svg%3E");
+
+  width: fit-content;
+  max-width: min(392px, calc(100vw - 48px));
+  border: 1px solid var(--toast-border);
+  border-radius: 14px;
+  background: linear-gradient(165deg, var(--toast-surface-a) 0%, var(--toast-surface-b) 100%);
   color: var(--toast-text);
-  padding: 14px 20px;
+  padding: 0;
   font-family: var(--font-ui);
-  font-size: calc(var(--type-size-body) + 2px);
+  font-size: 13.5px;
   font-weight: var(--type-weight-regular);
-  line-height: var(--type-leading-body);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--toast-text) 10%, transparent);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  box-shadow:
+    inset 0 1px 0 var(--toast-highlight),
+    0 1px 2px var(--toast-shadow-near),
+    0 14px 30px -12px var(--toast-shadow-far);
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-6px);
   pointer-events: auto;
   cursor: pointer;
 }
@@ -64,34 +96,53 @@
 
 .toast-success {
   --toast-accent: var(--toast-success);
-  --toast-on-accent: var(--color-toast-on-success);
+  --toast-on-accent: var(--color-toast-on-success, #ffffff);
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5.5 12.6 4.2 4.2L18.5 7.8'/%3E%3C/svg%3E");
 }
 .toast-warning {
   --toast-accent: var(--toast-warning);
-  --toast-on-accent: var(--color-toast-on-warning);
+  --toast-on-accent: var(--color-toast-on-warning, #ffffff);
+  --toast-border: light-dark(
+    color-mix(in srgb, var(--toast-warning) 28%, var(--border)),
+    color-mix(in srgb, var(--toast-warning) 30%, rgba(255, 255, 255, 0.12))
+  );
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 4 8.8 15.5H3.2L12 4Z'/%3E%3Cpath d='M12 10.2v3.6'/%3E%3Ccircle cx='12' cy='16.7' r='1' fill='black' stroke='none'/%3E%3C/svg%3E");
 }
 .toast-error {
   --toast-accent: var(--toast-error);
-  --toast-on-accent: var(--color-toast-on-error);
-  background: color-mix(in srgb, var(--toast-error) 10%, var(--surface));
-  color: var(--text);
-  --toast-text: var(--text);
-  --toast-secondary: var(--muted);
-}
-.toast-detailed {
-  width: 400px;
-  padding: 18px 20px;
+  --toast-on-accent: var(--color-toast-on-error, #ffffff);
+  --toast-surface-a: light-dark(
+    color-mix(in srgb, var(--color-danger-light) 78%, #ffffff),
+    color-mix(in srgb, var(--color-danger-light) 68%, var(--color-toast-start, var(--surface)))
+  );
+  --toast-surface-b: light-dark(
+    var(--color-danger-light),
+    color-mix(in srgb, var(--color-danger-light) 55%, var(--color-toast-end, var(--surface)))
+  );
+  --toast-border: light-dark(
+    color-mix(in srgb, var(--toast-error) 28%, var(--border)),
+    color-mix(in srgb, var(--toast-error) 34%, rgba(255, 255, 255, 0.12))
+  );
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 7v6.5'/%3E%3Ccircle cx='12' cy='17.2' r='1.2' fill='black' stroke='none'/%3E%3C/svg%3E");
 }
 
-/* Shared surface, typography and controls for all business variants. */
+.toast-detailed {
+  min-width: 224px;
+}
+
+.toast-has-action {
+  max-width: min(444px, calc(100vw - 48px));
+}
+
+/* Shared surface, typography and Apple-style split action rail for all variants. */
 .toast-stack .toast {
   position: relative;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: center;
-  row-gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
   flex: 0 0 auto;
+  overflow: hidden;
   overflow-wrap: anywhere;
   transition:
     opacity 180ms ease,
@@ -101,13 +152,20 @@
 .toast-action[hidden] {
   display: none;
 }
+
 .toast-content {
-  grid-column: 1 / -1;
+  grid-column: 1;
   min-width: 0;
   max-height: calc(100dvh - 220px);
   overflow: auto;
   scrollbar-width: thin;
+  padding: 14px 18px 14px 15px;
 }
+
+.toast-has-action > .toast-content {
+  padding: 15px 20px 15px 15px;
+}
+
 .toast-content > strong,
 .toast-content > span {
   display: block;
@@ -116,72 +174,119 @@
 }
 .toast-content > strong {
   color: var(--toast-text);
-  font-size: calc(var(--type-size-card-title) + 2px);
+  font-size: 14px;
   font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-card-title);
+  line-height: 1.38;
+  letter-spacing: -0.01em;
+}
+.toast-content > strong:has(> .toast-meta) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.toast-title-text {
+  min-width: 0;
+}
+.toast-meta {
+  flex: none;
+  color: color-mix(in srgb, var(--toast-accent) 88%, var(--toast-text));
+  font-size: 12px;
+  font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
 }
 .toast-content > span {
   color: var(--toast-secondary);
-  font-size: inherit;
-  line-height: var(--type-leading-body);
+  font-size: 13px;
+  line-height: 1.5;
+  text-wrap: pretty;
 }
 .toast-content > strong + span {
   margin-top: 4px;
 }
+
 .toast-content-compact {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr);
-  align-items: start;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
   column-gap: 10px;
+  padding: 10px 15px 10px 11px;
+}
+.toast-has-action > .toast-content-compact {
+  padding: 10px 16px 10px 11px;
 }
 .toast-content-compact > .toast-symbol {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--toast-icon-bg);
   color: var(--toast-accent);
-  margin-top: 2px;
   line-height: 0;
 }
 .toast-symbol svg {
-  width: 20px;
-  height: 20px;
+  width: 15px;
+  height: 15px;
 }
 .toast-content-compact > .toast-message {
   color: var(--toast-text);
+  font-size: 13.5px;
   font-weight: var(--type-weight-medium);
+  line-height: 1.42;
 }
+
+/* Apple-style hairline-separated full-height right action rail */
 .toast-action {
-  grid-column: 1 / -1;
-  justify-self: start;
-  min-height: 36px;
-  max-width: 100%;
-  padding: 6px 12px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  background: var(--toast-accent);
-  color: var(--toast-on-accent);
+  grid-column: 2;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 0;
+  max-width: 168px;
+  padding: 0 16px 0 17px;
+  border: 0;
+  border-left: 1px solid light-dark(color-mix(in srgb, var(--toast-accent) 14%, var(--border)), color-mix(in srgb, var(--toast-accent) 18%, rgba(255, 255, 255, 0.12)));
+  border-radius: 0 13px 13px 0;
+  background: var(--toast-rail-bg);
+  color: color-mix(in srgb, var(--toast-accent) 88%, var(--toast-text));
   font-family: inherit;
-  font-size: calc(var(--type-size-control) + 2px);
-  font-weight: var(--type-weight-medium);
-  line-height: var(--type-leading-control);
-  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: var(--type-weight-semibold);
+  line-height: 1.25;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background-color 140ms ease;
 }
-.toast-content-compact + .toast-action {
-  margin-left: 30px;
-  max-width: calc(100% - 30px);
+.toast-action::after {
+  content: '';
+  width: 13px;
+  height: 13px;
+  flex: none;
+  opacity: 0.78;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9.5 6.5 5 5.5-5 5.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
 }
 .toast-action:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--toast-accent) 88%, var(--toast-text));
+  background: var(--toast-rail-hover);
 }
 .toast-action:active:not(:disabled) {
-  background: color-mix(in srgb, var(--toast-accent) 76%, var(--toast-text));
+  background: var(--toast-rail-active);
 }
 .toast-action:focus-visible {
   outline: 2px solid var(--toast-accent);
-  outline-offset: 2px;
+  outline-offset: -3px;
 }
+
 @media (prefers-reduced-motion: reduce) {
   .toast-stack .toast,
   .toast-stack .toast::before,
-  .toast-stack .toast::after {
+  .toast-stack .toast::after,
+  .toast-action {
     animation: none !important;
     transition: none !important;
   }
@@ -190,35 +295,54 @@
   }
 }
 
-/* Icon placement is shared; each notification supplies its own symbol. */
-.toast-with-icon {
-  padding-left: 64px;
+/* Shared squircle icon badge for detailed cards; variants supply their own symbol. */
+.toast-with-icon > .toast-content {
+  padding-left: 59px;
 }
 .toast-with-icon::before {
   content: '';
   position: absolute;
-  left: 20px;
-  top: 18px;
+  left: 15px;
+  top: 50%;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--toast-accent) 10%, transparent);
+  transform: translateY(-50%);
+  border-radius: 10px;
+  background: var(--toast-icon-bg);
+  pointer-events: none;
 }
 .toast-with-icon::after {
   content: '';
   position: absolute;
-  left: 26px;
-  top: 24px;
-  width: 20px;
-  height: 20px;
+  left: 22.5px;
+  top: 50%;
+  width: 17px;
+  height: 17px;
+  transform: translateY(-50%);
   background: var(--toast-accent);
   mask: var(--toast-icon) center / contain no-repeat;
+  pointer-events: none;
 }
+/* Progress cards and tall multi-line errors anchor the icon optically to the first row. */
+.toast-with-icon:has(progress)::before,
+.toast-with-icon.toast-icon-top::before {
+  top: 15px;
+  transform: none;
+}
+.toast-with-icon:has(progress)::after,
+.toast-with-icon.toast-icon-top::after {
+  top: 22.5px;
+  transform: none;
+}
+
 .toast-icon-success {
-  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8 12 3 3 5-6'/%3E%3C/svg%3E");
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5.5 12.6 4.2 4.2L18.5 7.8'/%3E%3C/svg%3E");
 }
 .toast-icon-warn {
   --toast-accent: var(--toast-warning);
-  --toast-on-accent: var(--color-toast-on-warning);
-  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3 10 18H2L12 3Z'/%3E%3Cpath d='M12 9v4m0 4h.01'/%3E%3C/svg%3E");
+  --toast-on-accent: var(--color-toast-on-warning, #ffffff);
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 4 8.8 15.5H3.2L12 4Z'/%3E%3Cpath d='M12 10.2v3.6'/%3E%3Ccircle cx='12' cy='16.7' r='1' fill='black' stroke='none'/%3E%3C/svg%3E");
+}
+.toast-icon-offline {
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.55a11 11 0 0 1 14.08 0'/%3E%3Cpath d='M8.53 16.11a6 6 0 0 1 6.95 0'/%3E%3Ccircle cx='12' cy='19.2' r='1.2' fill='black' stroke='none'/%3E%3Cpath d='m3.5 3.5 17 17'/%3E%3C/svg%3E");
 }

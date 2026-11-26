@@ -6,9 +6,20 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { pngHasSize, encodeExportPng } = require('./png-size');
+const { BANNER_WIDTH, EXPORT_SCALE, DEFAULT_EXPORT_GAP, giftExportRowLayout } = require('../../public/js/shared/gift-banner-layout.js');
+const { giftCardSettledCents } = require('../../public/js/shared/gift-card-model.js');
 
 const MAX_ROWS_PER_IMAGE = 39; // 39 × 144 + 38 × 16 = 6224 pixels.
-const EXPORT_WIDTH = 856;
+const EXPORT_WIDTH = BANNER_WIDTH * EXPORT_SCALE;
+
+function isValidRowGap(value) {
+  return Number.isInteger(value) && value >= 0 && value <= DEFAULT_EXPORT_GAP * 2;
+}
+
+function validateOrderAndGap(sortBy = 'time', rowGap = DEFAULT_EXPORT_GAP) {
+  if (!['time', 'amount'].includes(sortBy)) throw createPublicError('排序方式无效。');
+  if (!isValidRowGap(rowGap)) throw createPublicError('词条间距无效。');
+}
 
 function validateExportLayout(count, mode) {
   if (!Number.isSafeInteger(count) || count < 1 || count > 10000 || !['combined', 'separate'].includes(mode)) {
@@ -41,10 +52,14 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
   function readSettings() {
     const mode = runtime.getSetting('giftExportMode');
     const background = runtime.getSetting('giftExportBackground');
+    const storedGap = runtime.getSetting('giftExportRowGap');
+    const rowGap = storedGap ? Number(storedGap) : DEFAULT_EXPORT_GAP;
     const directory = runtime.getSetting('giftExportDirectory') || defaultRoot();
     return {
       mode: mode === 'separate' ? mode : 'combined',
       background: background === 'white' ? background : 'transparent',
+      sortBy: runtime.getSetting('giftExportSortBy') === 'amount' ? 'amount' : 'time',
+      rowGap: isValidRowGap(rowGap) ? rowGap : DEFAULT_EXPORT_GAP,
       mergeAcrossDates: runtime.getSetting('giftExportMergeAcrossDates') === 'true',
       directory,
       custom: directory !== defaultRoot(),
@@ -58,11 +73,12 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       !input ||
       typeof input !== 'object' ||
       Array.isArray(input) ||
-      Object.keys(input).some((key) => !['mode', 'background', 'mergeAcrossDates', 'directoryAction'].includes(key))
+      Object.keys(input).some((key) => !['mode', 'background', 'sortBy', 'rowGap', 'mergeAcrossDates', 'directoryAction'].includes(key))
     ) {
       throw createPublicError('导出设置参数无效。');
     }
-    const { mode, background, mergeAcrossDates, directoryAction } = input;
+    const { mode, background, sortBy, rowGap, mergeAcrossDates, directoryAction } = input;
+    validateOrderAndGap(sortBy, rowGap);
     if (mergeAcrossDates !== undefined && typeof mergeAcrossDates !== 'boolean') throw createPublicError('合并选项无效。');
     if (mode !== undefined && !['combined', 'separate'].includes(mode)) throw createPublicError('输出方式无效。');
     if (background !== undefined && !['transparent', 'white'].includes(background)) throw createPublicError('背景参数无效。');
@@ -87,6 +103,8 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
     runtime.setGiftExportSettings({
       mode: next.mode,
       background: next.background,
+      sortBy: sortBy ?? next.sortBy,
+      rowGap: rowGap ?? next.rowGap,
       mergeAcrossDates: mergeAcrossDates ?? next.mergeAcrossDates,
       directory: next.directory === defaultRoot() ? '' : next.directory,
     });
@@ -100,23 +118,20 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
     const snapshot = await runtime.prepareGiftExport(selection);
     if (disposed || generation !== preparationGeneration) throw createPublicError('导出预览已取消。');
     if (!snapshot.items.length) throw createPublicError('请选择礼物记录。');
-    const defaults = readSettings();
+    const { mode, background, sortBy, rowGap, mergeAcrossDates, directory } = readSettings();
     task = {
       id: randomUUID(),
       snapshot,
       originalSnapshot: snapshot,
       mergeAcrossDates: false,
       abort: new AbortController(),
-      root: defaults.directory,
+      root: directory,
       saved: 0,
       running: false,
       cancelled: false,
-      mode: defaults.mode,
-      background: defaults.background,
     };
     setDirectory(task);
-    if (defaults.mergeAcrossDates) return configure({ id: task.id, mode: task.mode, background: task.background, mergeAcrossDates: true });
-    return describe(task);
+    return configure({ id: task.id, mode, background, sortBy, rowGap, mergeAcrossDates });
   }
 
   function setDirectory(current) {
@@ -136,6 +151,8 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       directory: current.directory,
       mode: current.mode,
       background: current.background,
+      sortBy: current.sortBy,
+      rowGap: current.rowGap,
       mergeAcrossDates: current.mergeAcrossDates,
       files: exportLayout(current.snapshot.items.length, current.mode),
       custom: current.root !== defaultRoot(),
@@ -160,9 +177,13 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
     }
   }
 
-  async function configureTask(current, { mode, background, mergeAcrossDates = current.mergeAcrossDates, directoryAction, remember }) {
+  async function configureTask(current, {
+    mode, background, sortBy = current.sortBy, rowGap = current.rowGap,
+    mergeAcrossDates = current.mergeAcrossDates, directoryAction, remember,
+  }) {
     if (typeof mergeAcrossDates !== 'boolean') throw createPublicError('合并选项无效。');
     validateExportLayout(current.snapshot.items.length, mode);
+    validateOrderAndGap(sortBy, rowGap);
     if (!['transparent', 'white'].includes(background)) throw createPublicError('背景参数无效。');
     if (directoryAction && !['default', 'choose'].includes(directoryAction)) throw createPublicError('保存位置参数无效。');
     let root;
@@ -178,7 +199,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       if (!directoryCancelled) root = result.filePaths[0];
     } else if (directoryAction === 'default') root = defaultRoot();
     if (directoryCancelled && mode === current.mode && background === current.background
-      && mergeAcrossDates === current.mergeAcrossDates) {
+      && sortBy === current.sortBy && rowGap === current.rowGap && mergeAcrossDates === current.mergeAcrossDates) {
       return describe(current);
     }
     if (mergeAcrossDates && !current.mergedSnapshot) {
@@ -188,10 +209,17 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
     }
     if (root !== undefined) current.root = root;
     if (root !== undefined || current.attempted) setDirectory(current);
-    current.snapshot = mergeAcrossDates ? current.mergedSnapshot : current.originalSnapshot;
+    if (mergeAcrossDates !== current.mergeAcrossDates || sortBy !== current.sortBy) {
+      const snapshot = mergeAcrossDates ? current.mergedSnapshot : current.originalSnapshot;
+      current.snapshot = sortBy === 'amount'
+        ? { ...snapshot, items: snapshot.items.toSorted((a, b) => Number(giftCardSettledCents(b) - giftCardSettledCents(a))) }
+        : snapshot;
+    }
     current.mergeAcrossDates = mergeAcrossDates;
     current.mode = mode;
     current.background = background;
+    current.sortBy = sortBy;
+    current.rowGap = rowGap;
     if (current.attempted) {
       current.saved = 0;
       current.completed = false;
@@ -215,10 +243,9 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       await fs.mkdir(current.directory); // Exclusive task directory; never reuse an existing one.
       assertCurrent(current);
       const files = exportLayout(current.snapshot.items.length, current.mode);
-      const firstRows = files[0].count;
       renderWindow = new BrowserWindow({
         width: EXPORT_WIDTH,
-        height: firstRows * 144 + (firstRows - 1) * 16,
+        height: giftExportRowLayout(files[0].count, current.rowGap).height,
         useContentSize: true,
         show: false,
         transparent: true,
@@ -247,10 +274,11 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       })})`));
       for (const file of files) {
         assertCurrent(current);
-        const height = file.count * 144 + (file.count - 1) * 16;
+        const { gap, height } = giftExportRowLayout(file.count, current.rowGap);
         const payload = {
           items: current.snapshot.items.slice(file.start, file.start + file.count),
           background: current.background,
+          rowGap: gap,
         };
         const { width } = await bounded(
           win.webContents.executeJavaScript(`window.renderGiftExport(${JSON.stringify(payload)})`),

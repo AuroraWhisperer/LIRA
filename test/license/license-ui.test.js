@@ -8,6 +8,18 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT = path.join(__dirname, '../..');
 
+test('a rejected build shows the documented official installer link', async () => {
+  const { createLicensePage } = require('../helpers/license-page');
+  const html = fs.readFileSync(path.join(ROOT, 'public/pages/license.html'), 'utf8');
+  for (const error of ['BUILD_NOT_ALLOWED', 'NETWORK_UNAVAILABLE']) {
+    const page = createLicensePage({ state: 'blocked', error });
+    page.getElementById('licensePassword').value = 'synthetic-password';
+    await page.submit();
+    assert.equal(page.getElementById('licenseUpdateLink').hidden, error !== 'BUILD_NOT_ALLOWED');
+  }
+  assert.match(html, /<a\b[^>]*id="licenseUpdateLink"[^>]*href="https:\/\/lirahub\.cn\/download\/client"[^>]*>/);
+});
+
 test('license renderer keeps credentials and navigation inside the main-process boundary', () => {
   const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
   assert.match(script, /window\.liraLicense/);

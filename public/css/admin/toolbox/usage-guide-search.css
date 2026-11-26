@@ -143,7 +143,7 @@
 
 .usage-guide-search-result mark {
   background: var(--usage-guide-accent-soft);
-  color: var(--usage-guide-accent);
+  color: var(--usage-guide-accent-text, var(--color-selection-text, var(--color-primary-text, var(--usage-guide-accent))));
 }
 
 .usage-guide-search-match {

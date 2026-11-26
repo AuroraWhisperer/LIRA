@@ -52,3 +52,10 @@ test('preview instances do not share mutable messages, emotes or room medals', (
   assert.equal(second[0].roomMedal.name, medalName);
   assert.ok(first[1].emotes[0].url);
 });
+
+test('Ranked preview supplies each viewer’s medal as a room medal', () => {
+  for (const item of createDanmakuPreviewItems('ranked')) {
+    assert.equal(item.roomMedal?.name, item.medalName);
+    assert.equal(item.roomMedal?.level, item.medalLevel);
+  }
+});

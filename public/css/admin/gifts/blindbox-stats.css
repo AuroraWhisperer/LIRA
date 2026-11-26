@@ -5,7 +5,7 @@
   border-color: var(--color-border-light);
   border-radius: 12px;
   background: linear-gradient(180deg, var(--surface) 0%, var(--color-bg-tertiary) 100%);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--text) 6%, transparent);
+  box-shadow: 0 8px 24px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(0, 0, 0, 0.36));
 }
 
 .gift-blindbox-panel > .panel-header {
@@ -115,7 +115,7 @@
   background: var(--color-bg-primary);
   color: var(--muted);
   font-weight: var(--type-weight-bold);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--text) 7%, transparent);
+  box-shadow: 0 2px 8px light-dark(color-mix(in srgb, var(--text) 7%, transparent), rgba(0, 0, 0, 0.32));
 }
 
 .gift-blindbox-panel .stat-chip-copy {

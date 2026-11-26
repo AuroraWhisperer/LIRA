@@ -71,6 +71,7 @@
 .gift-effect-tool-grid {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  container: gift-effect-tools / inline-size;
   gap: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -81,13 +82,12 @@
 .gift-effect-command-card,
 .gift-effect-address-card {
   min-width: 0;
-  padding: 20px 24px;
+  padding: 16px 20px;
 }
 
 .gift-effect-control-card,
 .gift-effect-command-card {
   --type-size-section-title: var(--type-size-page-title);
-  padding: 16px 20px;
 }
 
 .gift-effect-command-card {
@@ -119,10 +119,27 @@
 .gift-effect-address-card {
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(max-content, 1.35fr);
   align-items: center;
-  gap: 24px;
+  gap: 14px 32px;
   border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 55%, var(--surface-2));
+}
+
+@container gift-effect-tools (max-width: 44rem) {
+  .gift-effect-address-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gift-effect-address-intro h3 {
+  margin: 0;
+}
+
+.gift-effect-address-intro .hint {
+  margin: 4px 0 0;
+  text-wrap: pretty;
 }
 
 .gift-effect-card-heading {
@@ -141,14 +158,6 @@
 
 .gift-effect-lookup-form {
   margin-top: 12px;
-}
-
-.gift-effect-url-block > span {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--muted);
-  font-size: var(--type-size-control);
-  font-weight: 500;
 }
 
 .gift-effect-input-row {
@@ -200,17 +209,33 @@
   min-width: 0;
 }
 
+.gift-effect-url-block > label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
 .gift-effect-url-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: 10px;
+  gap: 8px;
 }
 
-.gift-effect-url-actions {
-  display: flex;
-  align-items: stretch;
-  gap: 10px;
+.gift-effect-url-row .copy-url {
+  height: auto;
+  min-height: 36px;
+  padding-block: 6px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--type-size-control);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.gift-effect-url-row .secondary {
+  padding-inline: 12px;
+  white-space: nowrap;
 }
 
 /* 全屏礼物感谢：内置与导入样式同列，每张卡片独立开关、金额、预览与保存。 */
@@ -610,7 +635,7 @@
   margin: 0;
   padding: 10px 18px;
   border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--color-warning, #b7791f) 8%, var(--surface));
+  background: var(--color-warning-light);
 }
 
 .gift-effect-notice[hidden] {
@@ -763,21 +788,7 @@
     padding: 16px;
   }
 
-  .gift-effect-input-row,
-  .gift-effect-address-card,
-  .gift-effect-url-row {
+  .gift-effect-input-row {
     grid-template-columns: 1fr;
-  }
-
-  .gift-effect-address-card {
-    gap: 12px;
-  }
-
-  .gift-effect-url-actions {
-    justify-content: stretch;
-  }
-
-  .gift-effect-url-actions button {
-    flex: 1 1 0;
   }
 }

@@ -14,24 +14,32 @@ const IMAGE_LABELS = {
   'img/overlays/guard-nautical/governor.webp': '航海旗帜 · 总督',
 };
 
-function collectCdnResources(publicDir) {
+function declaredFiles() {
   // Size or presence on disk does not make an asset a shared client dependency.
-  const files = CDN_RESOURCE_PATHS.map(name => {
-    const bytes = fs.readFileSync(path.join(publicDir, name));
-    const sha256 = createHash('sha256').update(bytes).digest('hex');
-    return { path: name, size: bytes.length, sha256,
-      label: IMAGE_LABELS[name] || `字体 · ${path.basename(name)}` };
-  });
-  return files.sort((left, right) => left.path.localeCompare(right.path, 'en'));
+  return [...CDN_RESOURCE_PATHS].sort((left, right) => left.localeCompare(right, 'en')).map(name => ({ path: name }));
+}
+
+function readAndDescribeResource(publicDir, file) {
+  const bytes = fs.readFileSync(path.join(publicDir, file.path));
+  file.size = bytes.length;
+  file.sha256 = createHash('sha256').update(bytes).digest('hex');
+  file.label = IMAGE_LABELS[file.path] || `字体 · ${path.basename(file.path)}`;
+  return bytes;
+}
+
+function collectCdnResources(publicDir) {
+  const files = declaredFiles();
+  for (const file of files) readAndDescribeResource(publicDir, file);
+  return files;
 }
 
 function exportCdnResources({ rootDir = root, outputDir = path.join(rootDir, 'tmp/cdn-resources'), writeCatalog = false } = {}) {
   const publicDir = path.join(rootDir, 'public');
-  const files = collectCdnResources(publicDir);
+  const files = declaredFiles();
   const entries = new Map();
   const packages = [];
   for (const resource of createResourcePackages(files)) {
-    const members = new Map(resource.files.map(file => [file.path, fs.readFileSync(path.join(publicDir, file.path))]));
+    const members = new Map(resource.files.map(file => [file.path, readAndDescribeResource(publicDir, file)]));
     const bytes = resource.archive ? createStoredStyleZip(members) : members.values().next().value;
     const sha256 = createHash('sha256').update(bytes).digest('hex');
     packages.push({ id: resource.id, size: bytes.length, sha256, files: resource.files.map(file => file.path) });

@@ -392,7 +392,7 @@
   padding: 2px 7px;
   border-radius: 999px;
   background: var(--color-primary-light);
-  color: var(--primary-strong);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
   font-size: var(--type-size-micro);
   font-weight: 700;
 }

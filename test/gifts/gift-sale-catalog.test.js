@@ -129,6 +129,25 @@ for (const scenario of [
   });
 }
 
+test('a priced blind-box output cannot admit a cheaper namesake ahead of official variant expansion', () => {
+  const { mergeRoomCatalog } = require('../../src/bilibili/gift/hybrid-catalog');
+  const { giftVariantId } = require('../../src/shared/gift-identity');
+  const config = parseGiftConfig({ data: { list: ['盒', 'B', 'C'].map((name, i) =>
+    ({ id: 100 + i, name, price: 1000, coin_type: 'gold' })) } });
+  const gifts = buildGiftCatalog(new Set(config.keys()), config).map(gift => ({ ...gift, variantId: giftVariantId(gift) }));
+  const official = { schemaVersion: 3, gifts, variantBlindBoxes: [{ variantId: gifts[0].variantId, outputVariantIds: [gifts[2].variantId] }] };
+  const v2Only = [{ giftId: '100', name: '盒', price: 1, outputs: [{ giftId: '101', name: 'B', price: 9 }] }];
+  assert.deepEqual(mergeRoomCatalog({ gifts: [gifts[0]] }, official, v2Only).gifts.map(g => g.name), ['盒', 'C']);
+  const expanded = outputs => {
+    const ids = expandBlindBoxSaleIds(new Set([100]), config, [{ name: '盒', outputs }]);
+    return mergeRoomCatalog({ gifts: buildGiftCatalog(ids, config) }, official).gifts.map(g => g.name);
+  };
+  assert.deepEqual(expanded([]), ['盒', 'C']);
+  assert.deepEqual(expanded([{ name: 'B' }]), ['盒', 'B', 'C']);
+  assert.deepEqual(expanded([{ name: 'B', price: 1 }]), ['盒', 'B', 'C']);
+  assert.deepEqual(expanded([{ name: 'B', price: 9 }]), ['盒', 'C']);
+});
+
 test('gift sale service validates room ID, caches refreshes, persists snapshots, and needs no public assets', async (t) => {
   const fixture = createFixture(t);
   let nowMs = Date.parse('2026-08-16T06:00:00.000Z');
@@ -195,7 +214,7 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
     JSON.parse(fs.readFileSync(path.join(fixture.dataDir, 'overtime-gift-sale.json'), 'utf8')).schemaVersion,
     1,
   );
-  const reloaded = createGiftSaleCatalogService({ dataDir: fixture.dataDir });
+  const reloaded = createGiftSaleCatalogService({ dataDir: fixture.dataDir, getRoomId: () => roomId });
   assert.deepEqual(
     reloaded.getSnapshot().gifts.map((gift) => gift.id),
     ['100', '101'],

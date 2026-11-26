@@ -19,7 +19,6 @@ export function createEventHandlers(deps) {
   const {
     playbackState,
     getPlaybackAudio,
-    homeService,
     searchService,
     savePlaybackState,
     renderPlayback,
@@ -86,6 +85,7 @@ export function createEventHandlers(deps) {
   }
 
   function setupPlaybackControlButtons() {
+    document.getElementById('playerFullscreen')?.addEventListener('playback:fullscreen-open', renderFullscreenPlayer);
     document.getElementById('playbackClearQueue')?.addEventListener('click', async () => {
       const hasContent = playbackState.current || ['normalQueue', 'normalQueueTracks', 'radioQueue', 'pendingRequests', 'history']
         .some((key) => playbackState[key]?.length);
@@ -241,10 +241,8 @@ export function createEventHandlers(deps) {
         appearanceToggle.setAttribute('aria-pressed', String(!music));
         musicToggle.inert = music;
         sourceTabs.inert = !music;
-        musicWorkspace.hidden = !music;
-        musicWorkspace.classList.toggle('active', music);
-        appearance.hidden = music;
-        appearance.classList.toggle('active', !music);
+        musicWorkspace.inert = !music;
+        appearance.inert = music;
         account.hidden = !music;
         if (focusSource) tabs.find((tab) => tab.dataset.source === playbackState.selectedSource)?.focus();
       };
@@ -258,20 +256,23 @@ export function createEventHandlers(deps) {
         console.log('[Playback] Tab clicked:', newSource, 'Current:', playbackState.selectedSource);
         if (!newSource || newSource === playbackState.selectedSource) return;
         const wasWeSing = playbackState.selectedSource === 'wesing';
+        const isWeSing = newSource === 'wesing';
         stateActions.selectSource(newSource);
-        if (wasWeSing || newSource === 'wesing') void setWeSingSelected(newSource === 'wesing');
-        if (newSource === 'wesing') {
+        if (wasWeSing || isWeSing) void setWeSingSelected(isWeSing);
+        searchService.clearResults();
+        if (isWeSing) {
           // The WeSing client is the playback clock while this source is selected.
           suspendPlaybackForExternalSource();
           closeFullscreenPlayer?.();
+          // The provider refresh below renders the local capture state synchronously.
+          savePlaybackState();
+        } else {
+          stateActions.commit();
         }
-        searchService.clearResults();
-        homeService.clearHomeState();
-        stateActions.commit();
+        void refreshSelectedMusicProviderState();
         renderPlaybackSearchResults();
         closePlaybackDrawer();
-        void refreshSelectedMusicProviderState();
-        if (newSource !== 'wesing') void syncPlaybackLyricWindow(true);
+        if (!isWeSing) void syncPlaybackLyricWindow(true);
 
         console.log('[Playback] After click, selectedSource:', playbackState.selectedSource);
       });
@@ -471,10 +472,16 @@ export function createEventHandlers(deps) {
   function setupSeekControl() {
     const audio = getPlaybackAudio();
     document.getElementById('playbackSeek')?.addEventListener('input', (event) => {
-      if (!Number.isFinite(audio.duration)) return;
-      audio.currentTime = Math.max(0, Math.min(audio.duration, Number(event.target.value)));
-      const pct = audio.duration > 0 ? Math.round((audio.currentTime / audio.duration) * 1000) / 10 : 0;
-      event.target.style.setProperty('--seek-pos', pct + '%');
+      const track = playbackState.current;
+      const hasMedia = audio.src && audio.readyState !== 0 && Number.isFinite(audio.duration);
+      const duration = hasMedia ? audio.duration : track?.durationMs / 1000;
+      const value = Number(event.target.value);
+      if (!track || !(duration > 0) || !Number.isFinite(value)) return;
+      const time = Math.max(0, Math.min(duration, value));
+      if (hasMedia) audio.currentTime = time;
+      // A quality preview may have metadata before this track has started.
+      if (!hasMedia || audio.dataset.trackId !== track.id) stateActions.setRestoredTime(time);
+      PlaybackComponents.renderProgress(hasMedia ? audio : null, time, track.durationMs);
       renderFullscreenPlayer();
       syncPlaybackLyricWindow(true);
       savePlaybackState();

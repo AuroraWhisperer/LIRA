@@ -40,7 +40,7 @@
 }
 .games-category-header h3 {
   margin: 0;
-  font-family: Bahnschrift, 'Microsoft YaHei', sans-serif;
+  font-family: var(--client-font-family, Bahnschrift, 'Microsoft YaHei', sans-serif);
   font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-section-title);

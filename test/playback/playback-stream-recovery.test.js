@@ -42,6 +42,107 @@ async function createPlayingApp(resolveStream, stateOverrides = {}, options = {}
   return { app, audio };
 }
 
+for (const ids of [['a'], ['a', 'b']]) {
+  test(`persistent decode errors exhaust a ${ids.length}-song playlist`, async () => {
+    const songs = ids.map(id => track(id, id));
+    const { app, audio } = await createPlayingApp((_count, request) => streamFor(request), {
+      queueType: 'playlist', normalQueueTracks: songs, normalQueue: songs.slice(1), playlistIndex: 0,
+    });
+    audio.error = { code: 3 };
+    for (const id of ids) {
+      assert.equal(audio.dataset.trackId, id);
+      await app.emit('music-player', 'error');
+      await flushAsyncWork();
+      assert.equal(audio.dataset.trackId, id, 'one URL refresh for the current song');
+      await app.emit('music-player', 'error');
+      await flushAsyncWork();
+    }
+    assert.equal(audio.src, '');
+    assert.equal(audio.paused, true);
+    await app.emit('music-player', 'error');
+    assert.equal(app.audioPlayCalls(), 2 * ids.length);
+    await app.emit('playbackPlayPause', 'click');
+    assert.equal(app.audioPlayCalls(), 2 * ids.length + 1, 'an explicit replay starts a fresh attempt');
+  });
+}
+
+test('a normal queue tries the separately queued copy of a song after its current copy fails decoding', async () => {
+  const second = { ...track('a', '歌曲 A'), requestedBy: '乙' };
+  const { app, audio } = await createPlayingApp((_count, request) => streamFor(request), {
+    normalQueue: [second, track('b', '歌曲 B')], normalQueueTracks: [],
+  });
+  audio.error = { code: 3 };
+  for (let i = 0; i < 2; i++) {
+    await app.emit('music-player', 'error');
+    await flushAsyncWork();
+  }
+  assert.equal(audio.dataset.trackId, 'a');
+  assert.equal(app.savedState().current.requestedBy, '乙');
+  assert.deepEqual(app.savedState().normalQueue.map(song => song.id), ['b']);
+});
+
+test('a failed URL lookup gives the next independent normal queue entry its own attempt', async () => {
+  const queued = track('b', '歌曲 B');
+  const requests = [];
+  const { app, audio } = await createPlayingApp((count, request) => {
+    requests.push(request.track.sourceTrackId);
+    return count === 2 ? {} : streamFor(request);
+  }, { normalQueue: [queued, { ...queued, requestedBy: '乙' }], normalQueueTracks: [] });
+  await app.emit('music-player', 'ended');
+  await flushAsyncWork();
+  assert.deepEqual(requests, ['a', 'b', 'b']);
+  assert.equal(audio.dataset.trackId, 'b');
+  assert.equal(app.savedState().current.requestedBy, '乙');
+});
+
+test('a healthy successor plays after a decode failure and natural completion starts a new playlist pass', async () => {
+  const { app, audio } = await createPlayingApp((_count, request) => streamFor(request), {
+    queueType: 'playlist', normalQueue: [track('b', 'B')], normalQueueTracks: [track('a', 'A'), track('b', 'B')],
+    playlistIndex: 0,
+  });
+  for (let i = 0; i < 2; i++) {
+    await app.emit('music-player', 'error');
+    await flushAsyncWork();
+  }
+  assert.equal(audio.dataset.trackId, 'b');
+  assert.equal(audio.paused, false);
+  await app.emit('music-player', 'ended');
+  await flushAsyncWork();
+  assert.equal(audio.dataset.trackId, 'a');
+  assert.equal(app.audioPlayCalls(), 4);
+});
+
+test('a successor that played before failing can wrap to a recovered playlist track', async () => {
+  const songs = ['a', 'b'].map(id => track(id, id));
+  const { app, audio } = await createPlayingApp((_count, request) => streamFor(request), {
+    queueType: 'playlist', normalQueueTracks: songs, normalQueue: songs.slice(1), playlistIndex: 0,
+  });
+  const failAfterRefresh = async () => {
+    await app.emit('music-player', 'error');
+    await flushAsyncWork();
+    await app.emit('music-player', 'error');
+    await flushAsyncWork();
+  };
+  await failAfterRefresh();
+  assert.equal(audio.dataset.trackId, 'b');
+  audio.currentTime = 24;
+  audio.played = { length: 1, start: () => 0, end: () => audio.currentTime };
+  await app.emit('music-player', 'timeupdate');
+  await failAfterRefresh();
+  assert.equal(audio.dataset.trackId, 'a');
+  assert.equal(audio.paused, false);
+});
+
+test('a healthy one-song playlist still repeats after natural completion', async () => {
+  const { app, audio } = await createPlayingApp((_count, request) => streamFor(request), {
+    queueType: 'playlist', normalQueue: [], normalQueueTracks: [track('a', 'A')], playlistIndex: 0,
+  });
+  await app.emit('music-player', 'ended');
+  await flushAsyncWork();
+  assert.equal(audio.dataset.trackId, 'a');
+  assert.equal(app.audioPlayCalls(), 2);
+});
+
 for (const action of ['next', 'clear', 'quality']) {
   for (const result of ['success', 'failure', 'empty']) {
     test(`obsolete stream recovery cannot affect playback after ${action} (${result})`, async () => {
@@ -268,6 +369,27 @@ test('current stream recovery resumes the track and still skips after its retry 
   );
   assert.deepEqual(app.errors(), []);
 });
+
+for (const readyState of [0, 1]) {
+  test(`seeking while a replacement stream resolves preserves the last input (readyState ${readyState})`, async () => {
+    const refresh = Promise.withResolvers();
+    const { app, audio } = await createPlayingApp((_count, request) =>
+      request.forceRefresh ? refresh.promise : streamFor(request));
+    Object.assign(audio, { readyState, currentTime: readyState ? 42 : 0, duration: readyState ? 180 : NaN });
+    const recovery = app.emit('music-player', 'error');
+    await flushAsyncWork();
+    const slider = app.element('playbackSeek');
+    slider.value = '81';
+    await app.emit('playbackSeek', 'input', { target: slider });
+    assert.equal(app.savedState().currentTime, 81);
+    refresh.resolve({ url: 'https://example.test/refreshed.mp3' });
+    await recovery;
+    Object.assign(audio, { readyState: 1, duration: 180 });
+    await app.emit('music-player', 'loadedmetadata');
+    assert.equal(audio.currentTime, 81);
+    assert.equal(app.savedState().currentTime, 81);
+  });
+}
 
 test('NetEase stream recovery preserves the requested quality with one URL refresh', async () => {
   const requests = [];

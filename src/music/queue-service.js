@@ -4,6 +4,7 @@
 
 const { randomUUID } = require('node:crypto');
 const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('../shared/utils');
+const { selectHistoricalCancellation } = require('./queue-history-cancellation');
 const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { songCooldownKey, songCooldownUntil, assertSongAvailable } = require('./song-cooldown');
@@ -18,7 +19,7 @@ function isQueueRequestRejection(error) {
   return REQUEST_REJECTION_CODES.has(error?.code);
 }
 
-function addQueueItem(context, input) {
+function addQueueItem(context, input, resolvedSong) {
   const songName = cleanText(input.songName);
   if (!songName) throw requestRejection('SONG_NAME_REQUIRED', '歌曲名不能为空。');
 
@@ -35,7 +36,7 @@ function addQueueItem(context, input) {
     throw requestRejection('QUEUE_FULL', '点歌队列已达到上限。');
   }
 
-  const matchedSong = context.findSong ? context.findSong(songName, input.artist) : null;
+  const matchedSong = resolvedSong === undefined ? context.findSong?.(songName, input.artist) : resolvedSong;
   if (settings.onlyFromLibrary === 'true' && !matchedSong) {
     throw requestRejection('SONG_NOT_IN_LIBRARY', '歌库里没有这首歌。');
   }
@@ -102,10 +103,12 @@ function cancelQueueItem(context, input) {
   if (!identity) return null;
 
   const songName = toSimplifiedChinese(cleanText(input.songName));
-  const item = context.store.listActive()
-    .filter((row) => row.requester_uid === identity.uid && row.requester_identity_type === identity.type
-      && (!songName || toSimplifiedChinese(row.song_name) === songName))
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id)[0];
+  const matchesTitle = row => !songName || toSimplifiedChinese(row.song_name) === songName;
+  const rows = context.store.listActive()
+    .filter((row) => row.requester_uid === identity.uid && row.requester_identity_type === identity.type)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id);
+  const timing = input.historyCancellation || (input.messageTimestamp != null && { timeline: input.messageTimestamp });
+  const item = timing ? selectHistoricalCancellation(rows, timing, matchesTitle) : rows.find(matchesTitle);
   if (!item) return null;
 
   context.store.setStatus(item.id, 'deleted', now());

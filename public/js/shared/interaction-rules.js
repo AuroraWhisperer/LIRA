@@ -3,12 +3,14 @@ export const POLL_RULE = '观众发送与选项完全一致的弹幕即可投票
 export const RATING_RULE = '仅识别纯数字 1–10（带其他文字或小数不算）；在主播点击结束前，观众可以随时发新分数覆盖旧分数。';
 export const POLL_MIN_OPTIONS = 1;
 export const POLL_MAX_OPTIONS = 6;
+let graphemeSegmenter;
 
 export function inspectInteractionText(value, max = 10) {
   const text = String(value ?? '')
     .trim()
     .normalize('NFC');
-  const segments = [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(text)].map((part) => part.segment);
+  graphemeSegmenter ??= new Intl.Segmenter('zh', { granularity: 'grapheme' });
+  const segments = [...graphemeSegmenter.segment(text)].map((part) => part.segment);
   const invalid = segments.some((part) => {
     if (/[\p{Cc}\p{Zl}\p{Zp}]/u.test(part)) return true;
     // RGI sequences admit ZWJ, selectors and tags only as part of a full emoji.

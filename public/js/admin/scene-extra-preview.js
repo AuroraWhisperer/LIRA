@@ -13,7 +13,7 @@ import { SONG_BOARD_THEME_FIELDS } from '../shared/song-board-theme-fields.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-extra-parameter-layout.js';
-import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
+import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
 import { RANKING_FLAGS, rankingSelection, singleRankingId } from '../shared/live-rankings.js';
 import { mountGiftMotionCanvasSettings } from './gift-motion-canvas-settings.js';
 import { mountAdvancedLyricCanvasSettings } from './advanced-lyric-canvas-settings.js';
@@ -130,7 +130,6 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         const cents = type === 'gift-feed' && (key.startsWith('threshold') || key === 'minGiftAmountCents');
         const scale = field.displayScale || 1;
         if (fontFamily) {
-          populateSystemFontOptions(input, field.maxLength);
           disposeFontPickers.push(registerFontSelect(input, { maxLength: field.maxLength }));
         } else if (field.type === 'select') {
           for (const [value, title] of Object.entries(field.options)) {

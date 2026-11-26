@@ -20,7 +20,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
   let current = null,
     draft = null,
     disposed = false,
-    busy = false;
+    activeOperation = null;
   const unsubscribe = licenseManager.onStateChanged(() => {
     context();
   });
@@ -177,14 +177,29 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
     const captured = context();
     if (!captured) invalid('LICENSE_NOT_AUTHORIZED');
     if (request.action !== 'open' && request.contextId !== captured.id) invalid('DAILY_BOT_ACCOUNT_CHANGED');
-    if (busy) invalid('DAILY_BOT_BUSY');
-    busy = true;
+    if (request.action === 'open') {
+      exact(request.payload || {}, []);
+      if (!captured.opening) {
+        captured.opening = run(request, captured).finally(() => { captured.opening = null; });
+      }
+      return captured.opening;
+    }
+    if (activeOperation) invalid('DAILY_BOT_BUSY');
+    return run(request, captured);
+  }
+  async function run(request, captured) {
+    const previous = activeOperation;
+    const finished = Promise.withResolvers();
+    activeOperation = finished.promise;
     try {
+      if (previous) {
+        await previous;
+        assertCurrentContext(captured);
+      }
       const input = request.payload || {};
       let result;
       switch (request.action) {
         case 'open':
-          exact(input, []);
           result = { data: await read(captured) };
           break;
         case 'summary':
@@ -277,7 +292,8 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
         accountName: String(licenseManager.getCloudSyncIdentity()?.accountName || ''),
       };
     } finally {
-      busy = false;
+      if (activeOperation === finished.promise) activeOperation = null;
+      finished.resolve();
     }
   }
   return {

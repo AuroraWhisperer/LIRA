@@ -34,6 +34,8 @@ An item selector does not narrow the scene capability's authority. Unpublished o
 removed item IDs reject output; ordinary saves reuse the address and rotation
 invalidates it with the scene source.
 
+Copying the combined source uses the published canvas dimensions. Copying an independent item uses its published dimensions. Only a request for a selected shared item reads its component's saved output size.
+
 Output uses saved CSS pixels without fitting to the browser viewport: 800×400
 remains 800×400 at 1080p, 2K and 4K. Larger viewports add transparent space; smaller
 ones clip. Editor fit/zoom remains a viewing aid. Overtime keeps automatic height
@@ -50,7 +52,7 @@ The 2026-10-28 requirement assigns danmaku appearance to an account-scoped local
 - Scene service owns scene draft, publication, capability and bounded display-event buffer. Store owns SQLite transactions in existing songDb, through an appended migration. No new database process or framework.
 - Trusted main provides the current authorized Server origin + streamerId and authorization generation. Browser-supplied owner or roomId never chooses scope. Anonymous standalone runtime cannot manufacture an authorized scene owner.
 - Existing clock/queue/overtime/danmaku services retain business and default-configuration ownership. A scene creates display instances, never duplicate countdown or gift settlement services.
-- The overtime editor operates the real countdown through its attached, scoped desktop preview session. Setting time and starting/pausing use the existing service and update both UIs immediately; replacing remaining time requires confirmation. Sample modes are view-only. Gift-wish previews consume saved wishes, including per-wish text colors and real period filtering, through the desktop's shared feed. Neither operation stores business state in a scene.
+- The overtime editor operates the real countdown through its attached, scoped desktop preview session. Setting time and starting/pausing use the existing service and update both UIs immediately; replacing remaining time requires confirmation. Sample modes are view-only. Gift-wish previews consume saved wishes, including per-wish text colors and real period filtering, through the desktop's shared feed. The canvas subscribes while at least one wish layer is visible and releases its subscription when the last one is hidden or removed. Neither operation stores business state in a scene.
 - Existing page URLs, runtime Host/Origin validation, WS principals, settings keys, login and shutdown order remain compatible.
 
 ## Scene Document
@@ -68,6 +70,8 @@ The persisted appearance target remains either shared default or independent con
 Publication freezes layout, style identity and scene-only configuration. The output includes live shared appearances even when the publication version is unchanged. Saved shared parameters update existing renderer frames without publishing unsaved geometry or replaying events. A failed later layout publication retains the old layout but does not roll back already saved shared parameters. Existing scene JSON is not rewritten in bulk.
 
 The editor requires referenced shared defaults to be loaded and saved before publication. It sends their appearance snapshots for equality checking against the owner's normalized defaults. A concurrent local default change rejects the publication without replacing the previous version; it never silently publishes an older cached appearance.
+
+The editor releases a resource style's pending saves and errors when its last layer is removed. Layers that still share the style keep the same save controller. Queue preview applies the selected native CSS, and shared queue confirmation includes the saved requester and song colors. The song request rules own writes to those two colors.
 
 Selected IDs, viewport zoom, pointer gesture state and history are session data. Real queue entries, countdown authority, gift records, cloud live-session state and LIRA credentials are excluded from scene documents and templates. A user-supplied browser URL is the only scoped exception for third-party URL capabilities: it is available to its authorized editor/output and encrypted at rest, and it never relaxes credential checks for other configuration fields. Templates omit every external browser URL and require explicit rebinding; persistent editor recovery also omits browser URLs. Empty URLs are allowed in editable/recovered drafts, but scene validation, save and publication require a complete URL.
 
@@ -121,12 +125,14 @@ Text media management retains desktop authorization. External canvas access is r
 
 Store scene draft with optimistic revision; stale save/publish returns conflict without overwriting newer data. Publish checks expected draft revision and validates/resolves the complete snapshot, then atomically commits published document + monotonically increasing publication version. A failed validation or commit preserves the previous publication. Saving a draft alone never changes live output.
 
+Library backups count saved layouts and published snapshots separately, up to 1,000 documents per archive. Export checks this bound before streaming the ZIP. Inspection and restoration validate the incoming documents against the current account binding independently of existing layouts. Each restored document becomes an unpublished preset, and repeating a restore reuses its copy. Native gift-frame layers retain their style selection, including legacy empty and `follow` configurations. Playback parameters come from the receiving desktop's gift settings.
+
 The same store transaction commits shared default output sizes with the scene
 publication. A failed size write rolls back both. A read-only component-size route
 returns only width/height (or null) for the authenticated overlay's own scope;
 query parameters cannot select another component or owner.
 
-Output prepares all visible item renderers for a new version offscreen. Only after every instance confirms preparation does it replace the old layer container in one operation. Timeout, invalid config or load failure keeps the old version; disposal cancels callbacks and destroys staged frames. Data updates continue independently of version changes. Repeated same-version responses do not reload instances.
+Output prepares all visible item renderers for a new version offscreen. Imported video can load and acknowledge preparation while paused. After all instances confirm, the parent reveals the new container, releases the previous one and activates playback at the configured volume. Timeout, invalid config or load failure keeps the old version; disposal cancels callbacks and destroys staged frames. Data updates continue independently of version changes. Repeated same-version responses do not reload instances.
 
 If the visible instance identities/types, owned appearance and external browser URLs are unchanged, a publication instead updates geometry, names, layer order and external viewport sizes synchronously in the existing container. Frames are neither moved nor reloaded, preserving their connections and animations; the displayed version and projection receipt advance together. Changing the visible instance set, an owned appearance or a browser URL still uses complete-version preparation and failure retention.
 
@@ -167,6 +173,10 @@ Shared cloud appearance updates may refresh the editor default cache, but cannot
 Component preparation acknowledges completed configuration, CSS and media loading without waiting for animation frames, which a streaming application's hidden browser source may suspend. Failed preparation identifies the unready layers and is retried by subsequent output reads. Initial failure never claims a previous version exists; replacement failure retains the active layout and its live data until a complete replacement is ready.
 
 ## Local Editing Efficiency
+
+When a published internal frame reloads, its new `ready` handshake initializes that frame with the current appearance and latest display state, even at the same publication version. Previously delivered gift events are consumed by the parent and stay consumed. External browser layers compose their viewport scale and display rotation on first publication as well as in the editor.
+
+Selecting an updated package's “添加到画布” card adds its selected style to the canvas draft. Imported gift media uses the same proportional initial fit from the feature library and the canvas picker, subject to the minimum layer size. The media inspector accepts the duration and text-delay ranges defined by the media style contract, including values between preset increments.
 
 Support multiple instances, layer order, visibility, lock, logical geometry, multi-selection, group move, align and snap. A pointer gesture is one undo entry; cancel restores its starting document. Undo/redo tracks document edits only, not business events, saved confirmations or viewport selection.
 

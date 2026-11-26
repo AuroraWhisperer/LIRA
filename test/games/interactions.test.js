@@ -178,6 +178,12 @@ test('rating keeps final valid score, rejects stale timestamps/replays and hides
   f.send('1', '3', { platformTime: 0 });
   assert.equal(f.service.finish(next.session.sessionId).session.average, 8);
   assert.throws(() => f.service.clear(id), { statusCode: 409 });
+  f.service.clear(next.session.sessionId);
+  const untimed = f.service.start({ kind: 'rating' });
+  f.send('1', '9', { platformTime: 2 });
+  f.send('1', '4');
+  f.send('1', '8', { platformTime: 1 });
+  assert.equal(f.service.finish(untimed.session.sessionId).session.average, 8);
 });
 
 test('rating survives a week of reconnects and releases its subscription without background tasks', () => {

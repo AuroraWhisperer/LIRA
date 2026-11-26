@@ -90,7 +90,8 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   }
 
   function renderProgress(state) {
-    renderToast(state, '正在更新礼物图片', formatProgress(state), 'info', 0);
+    const percent = state.total > 0 ? `${Math.round((state.completed / state.total) * 100)}%` : '';
+    renderToast(state, '正在更新礼物图片', formatProgress(state), 'info', 0, percent);
   }
 
   function renderCompletion(state) {
@@ -100,6 +101,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
       state.error || state.failed ? '下次检查时重试' : formatProgress(state),
       state.error ? 'error' : state.failed ? 'warning' : 'success',
       COMPLETION_DURATION_MS,
+      '',
     );
   }
 
@@ -110,7 +112,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
       : `${counts} · 可用 ${state.available}`;
   }
 
-  function renderToast(state, title, message, type, duration) {
+  function renderToast(state, title, message, type, duration, meta = '') {
     const container = documentRef?.getElementById?.('toast');
     if (!container) return;
     const stack = getToastStack({
@@ -124,6 +126,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
       key: 'gift-catalog-update',
       update: true,
       title,
+      meta,
       message,
       type,
       duration,

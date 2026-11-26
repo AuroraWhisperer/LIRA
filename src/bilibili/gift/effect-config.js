@@ -65,7 +65,7 @@ function parseEffectFrame(value, videoWidth, videoHeight) {
 function buildEffectMap(payload) {
   const confList = payload?.data?.full_sc_resource?.conf_list;
   const byGiftId = new Map();
-  if (!Array.isArray(confList)) return byGiftId;
+  if (!Array.isArray(confList)) throw new Error('礼物特效配置缺少有效的 conf_list 列表');
 
   for (const raw of confList) {
     const mp4Url = normalizeEffectUrl(raw?.web_mp4);

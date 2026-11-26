@@ -6,8 +6,8 @@ let initialized = false;
 
 function batteriesWithinBudget(value) {
   const amount = String(value).trim();
-  if (!/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(amount)) return null;
-  const [yuan, fraction = ''] = amount.split('.');
+  if (!/^(?:(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{0,2})?|\.\d{1,2})$/.test(amount)) return null;
+  const [yuan, fraction = ''] = amount.replaceAll(',', '').split('.');
   // 一角恰好是一电池，直接读取角位可以避免浮点误差跨过预算边界。
   const batteries = Number(yuan + (fraction[0] || '0'));
   return Number.isSafeInteger(batteries) ? BigInt(batteries) : null;
@@ -87,7 +87,7 @@ export function initPkScoreCalculator() {
 
     if (!result) {
       primary.style.removeProperty('--pk-score-characters');
-      primary.textContent = batteries.textContent = detail.textContent = '—';
+      primary.textContent = batteries.textContent = detail.textContent = '';
       barConversion.textContent = `1 电池${timeFactor} = ${doublePeriod.checked ? 2 : 1} 分`;
       awardConversion.textContent = `PK 条得分 ${awardFormula}，只计整分`;
       rmbConversion.textContent = byAmount ? '1 元 = 10 电池，只计整电池' : '10 电池 = 1 元';
@@ -110,7 +110,7 @@ export function initPkScoreCalculator() {
       : `${awardText} 分`;
     awardConversion.textContent = `${barText} ${awardFormula} = ${awardResult}`;
     if (byAmount) {
-      const budgetText = moneyFormat.format(amount.value.trim());
+      const budgetText = moneyFormat.format(amount.value.trim().replaceAll(',', ''));
       const unusedFen = budgetText.at(-1);
       rmbConversion.textContent = unusedFen === '0'
         ? `${budgetText} 元 × 10 = ${batteryText} 电池`

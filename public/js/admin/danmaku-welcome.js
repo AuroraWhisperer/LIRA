@@ -66,10 +66,21 @@ export function initDanmakuWelcome({
   const parameterInputs = () => {
     for (const key of Object.keys(PARAMETER_FIELDS)) element(key).value = parameters.values[key] ?? '';
   };
-  function displayNotice(text) {
+  function showOverviewStatus(message, busy) {
+    const overview = element('OverviewStatus');
+    overview.ariaBusy = String(busy);
+    overview.textContent = message;
+    const greeting = element('LiveGreetingCapability');
+    greeting.ariaBusy = String(!settings && busy);
+    greeting.hidden = settings ? supportsLiveGreeting() : !message;
+    greeting.textContent = settings
+      ? greeting.hidden ? '' : '服务器暂不支持此开关，请更新服务器；当前仍按服务器原有规则发送。'
+      : message;
+  }
+  function displayNotice(text, busy = loading || saving) {
     notice = text;
     status.textContent = text;
-    element('OverviewStatus').textContent = text;
+    showOverviewStatus(text, busy);
     element('ServerStatus').hidden = !/未确认|正在/.test(text);
   }
   function showView(next) {
@@ -128,7 +139,6 @@ export function initDanmakuWelcome({
     element('ReturningCapability').hidden = !loaded || supportsReturning();
     element('TimeCapability').hidden = !loaded || supportsTimeWelcome();
     element('OwnMedalCapability').hidden = !loaded || supportsOwnMedal();
-    element('LiveGreetingCapability').hidden = !loaded || supportsLiveGreeting();
     element('TimePeriod').disabled = !supportsTimeWelcome();
     element('Count').textContent = loaded ? `${library.items.length} 条` : '未读取';
     element('LibraryStatus').textContent = library.addition
@@ -165,15 +175,13 @@ export function initDanmakuWelcome({
           : hasAudienceDrafts()
             ? '欢迎名单填写完整后自动保存。'
             : '';
-    element('OverviewStatus').textContent = /未确认|正在/.test(notice)
-      ? notice
-      : parameters.dirty
-        ? '参数等待自动保存'
-        : dirtyNames.length || custom.dirty
-          ? '欢迎词等待自动保存'
-          : hasAudienceDrafts()
-            ? '欢迎名单等待自动保存'
-            : '';
+    let overviewNotice = '';
+    if (!loaded || /未确认|正在/.test(notice)) overviewNotice = notice;
+    else if (parameters.dirty) overviewNotice = '参数等待自动保存';
+    else if (dirtyNames.length || custom.dirty) overviewNotice = '欢迎词等待自动保存';
+    else if (hasAudienceDrafts()) overviewNotice = '欢迎名单等待自动保存';
+    else if (!isV2()) overviewNotice = '服务器暂不支持新增设置';
+    showOverviewStatus(overviewNotice, busy);
     const parsed = parameterValues(parameters.values, settings || {});
     const p = parsed.values;
     element('DependencyHint').textContent = !isV2()
@@ -187,11 +195,11 @@ export function initDanmakuWelcome({
           : settings.attentionEnabled && p.attentionMinHonorLevel < p.welcomeMinHonorLevel
             ? '高荣耀文案仍需满足对应阶段条件。'
             : '';
-    element('Summary').textContent = !loaded
-      ? '尚未确认服务器设置'
-      : isV2()
-        ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `荣耀 ${settings.welcomeMinHonorLevel} 级起` : '不限荣耀等级'}${settings.welcomeOwnMedalOnly ? ' · 仅本房间粉丝牌（白名单除外）' : ''}`
-        : '服务器暂不支持新增设置';
+    const summary = element('Summary');
+    summary.textContent = isV2()
+      ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `荣耀 ${settings.welcomeMinHonorLevel} 级起` : '不限荣耀等级'}${settings.welcomeOwnMedalOnly ? ' · 仅本房间粉丝牌（白名单除外）' : ''}`
+      : '观众进场后发送欢迎词';
+    summary.title = summary.textContent;
     for (const [key, suffix] of [['parameters', 'Parameter'], [editor.current(), ''],
       ['userWelcomeMessages', 'Custom'], ...Object.entries(AUDIENCE_LISTS).map(([key, value]) => [key, value.suffix])]) {
       const button = element(`${suffix}SaveBtn`);
@@ -484,7 +492,7 @@ export function initDanmakuWelcome({
         ? JSON.stringify([snapshot.streamer?.accountName, snapshot.streamer?.songPageUrl])
         : '';
     if (nextOwner === owner) {
-      if (!owner) displayNotice('连接 LIRA 账号后可设置进场欢迎');
+      if (!owner) displayNotice('连接 LIRA 账号后可设置');
       return;
     }
     owner = nextOwner;
@@ -511,7 +519,7 @@ export function initDanmakuWelcome({
     showErrors({});
     editor.setTimeMode(false);
     editor.select('messages');
-    displayNotice('连接 LIRA 账号后可设置进场欢迎');
+    displayNotice('连接 LIRA 账号后可设置');
     controls();
     void reload();
   }
@@ -595,6 +603,6 @@ export function initDanmakuWelcome({
   for (const key of Object.keys(AUDIENCE_LISTS)) audienceEditor.render(key);
   controls();
   showView('parameters');
-  displayNotice(bridge?.getWelcomeSettings ? '正在读取账号信息…' : '请在已连接服务器的桌面客户端中设置');
+  displayNotice(bridge?.getWelcomeSettings ? '正在读取账号信息…' : '请在已连接服务器的桌面客户端中设置', Boolean(bridge?.getWelcomeSettings));
   return { refresh: reload };
 }

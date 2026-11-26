@@ -156,25 +156,43 @@ export function createToastStack({
             options.onClick ? 8000 : ['error', 'warning'].includes(entry.type) ? 6000 : 0,
           );
     entry.remaining = entry.duration;
-    const detailed = Boolean(options.title || options.html);
-    const classes = `toast toast-${entry.type}${detailed ? ' toast-detailed' : ''}${options.className ? ` ${options.className}` : ''}`;
+    const detailed = Boolean(options.html || (options.title && (options.message || options.meta || options.onClick)));
+    const hasAction = typeof options.onClick === 'function';
+    const customClass = String(options.className || '').trim();
+    const autoIcon = detailed && !entry.gift && !/\btoast-with-icon\b/.test(customClass) ? ' toast-with-icon' : '';
+    const classes = `toast toast-${entry.type}${detailed ? ' toast-detailed' : ''}${hasAction ? ' toast-has-action' : ''}${autoIcon}${customClass ? ` ${customClass}` : ''}`;
     entry.node.className = entry.node.classList.contains('show') ? `${classes} show` : classes;
     entry.content.className = `toast-content${detailed ? '' : ' toast-content-compact'}`;
     entry.content.replaceChildren();
     if (options.html) entry.content.innerHTML = options.html;
-    else {
+    else if (detailed) {
       if (options.title) {
         const title = documentRef.createElement('strong');
-        title.textContent = options.title;
+        if (options.meta) {
+          const titleText = documentRef.createElement('span');
+          titleText.className = 'toast-title-text';
+          titleText.textContent = options.title;
+          const meta = documentRef.createElement('span');
+          meta.className = 'toast-meta';
+          meta.textContent = String(options.meta);
+          title.append(titleText, meta);
+        } else {
+          title.textContent = options.title;
+        }
         entry.content.append(title);
       }
       if (options.message || !options.title) {
         const message = documentRef.createElement('span');
         message.className = 'toast-message';
-        const text = String(options.message || '');
-        message.textContent = detailed ? text : text.replace(/^([^。！？!?\r\n]+)。$/u, '$1');
+        message.textContent = String(options.message || '');
         entry.content.append(message);
       }
+    } else {
+      const message = documentRef.createElement('span');
+      message.className = 'toast-message';
+      const text = String(options.message || options.title || '');
+      message.textContent = text.replace(/^([^。！？!?\r\n]+)。$/u, '$1');
+      entry.content.append(message);
     }
     if (!detailed) {
       const symbol = documentRef.createElement('span');
@@ -182,18 +200,16 @@ export function createToastStack({
       symbol.setAttribute('aria-hidden', 'true');
       const paths =
         entry.type === 'warning'
-          ? '<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v4m0 4h.01"/>'
-          : `<circle cx="12" cy="12" r="9"/>${
-              entry.type === 'success'
-                ? '<path d="m8 12 3 3 5-6"/>'
-                : entry.type === 'error'
-                  ? '<path d="M12 7v6m0 4h.01"/>'
-                  : '<path d="M12 11v6m0-10h.01"/>'
-            }`;
-      symbol.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+          ? '<path d="m12 4 8.8 15.5H3.2L12 4Z"/><path d="M12 10.2v3.6"/><circle cx="12" cy="16.7" r="1" fill="currentColor" stroke="none"/>'
+          : entry.type === 'success'
+            ? '<path d="m5.5 12.6 4.2 4.2L18.5 7.8"/>'
+            : entry.type === 'error'
+              ? '<path d="M12 7v6.5"/><circle cx="12" cy="17.2" r="1.2" fill="currentColor" stroke="none"/>'
+              : '<path d="M12 10.5v6"/><circle cx="12" cy="7.2" r="1.15" fill="currentColor" stroke="none"/>';
+      symbol.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
       entry.content.prepend(symbol);
     }
-    entry.action.hidden = typeof options.onClick !== 'function';
+    entry.action.hidden = !hasAction;
     entry.action.textContent = options.actionLabel || '查看';
     entry.node.setAttribute('aria-label', options.title || TYPE_LABELS[entry.type]);
     entry.needsAnnouncement = true;

@@ -42,8 +42,10 @@ export const giftEffects = (() => {
       }
     });
 
+    let lookupRevision = 0;
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
+      const revision = ++lookupRevision;
       const rawGiftId = input.value.trim();
       if (!/^\d{1,12}$/.test(rawGiftId) || Number(rawGiftId) <= 0) {
         setLookupState(stateNode, summaryNode, '输入有误', '请输入 1 至 12 位正整数的礼物 ID。', 'error');
@@ -58,6 +60,7 @@ export const giftEffects = (() => {
           body: JSON.stringify({ giftId: rawGiftId }),
         });
         const payload = await readJsonResponse(response, '礼物特效查询失败');
+        if (revision !== lookupRevision) return;
         if (!response.ok || !payload.ok || !payload.data?.effect) {
           throw new Error(payload.error || '没有找到可播放的全屏特效。');
         }
@@ -72,15 +75,14 @@ export const giftEffects = (() => {
           'success',
         );
       } catch (error) {
+        if (revision !== lookupRevision) return;
         setLookupState(stateNode, summaryNode, '未找到', error.message || '礼物特效查询失败。', 'error');
       }
     });
 
     input.addEventListener('input', () => {
-      const rawGiftId = input.value.trim();
-      if (!rawGiftId) {
-        setLookupState(stateNode, summaryNode, '待播放', '', 'idle');
-      }
+      lookupRevision++;
+      setLookupState(stateNode, summaryNode, '待播放', '', 'idle');
     });
 
     bindCopyUrl(urlNode, {

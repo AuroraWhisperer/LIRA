@@ -47,6 +47,14 @@ export function createGiftMotionPlayer({ root }) {
     for (const [id, drop] of drops) if (!alive.has(id)) { drop.node.remove(); drops.delete(id); }
   }
 
+  function pruneExpiredSwings(now) {
+    for (const [id, swing] of swings) {
+      if (now < swing.expiresAt) continue;
+      swing.node.remove();
+      swings.delete(id);
+    }
+  }
+
   function tick(time) {
     frame = null;
     const now = Date.now(); const elapsed = Math.max(0, Math.min((time - previous) / 1000, 0.05)); previous = time;
@@ -63,8 +71,8 @@ export function createGiftMotionPlayer({ root }) {
       }
       node.style.opacity = Math.min(1, (body.expiresAt + GIFT_DROP_EXIT_MS - now) / GIFT_DROP_EXIT_MS);
     }
-    for (const [id, swing] of swings) {
-      if (now >= swing.expiresAt) { swing.node.remove(); swings.delete(id); continue; }
+    pruneExpiredSwings(now);
+    for (const swing of swings.values()) {
       let angle = 0; let lift = 0;
       if (!reduced.matches) {
         const step = elapsed * swing.motionSpeed * Math.PI * 2;
@@ -101,8 +109,8 @@ export function createGiftMotionPlayer({ root }) {
     return { tilt, low, high: Math.max(low, high) };
   }
 
-  function swingPosition(margin, now) {
-    const active = [...swings.values()].filter(swing => swing.expiresAt > now);
+  function swingPosition(margin) {
+    const active = [...swings.values()];
     let spaces = [[margin, WIDTH - margin]];
     for (const swing of active) {
       const left = swing.x - swing.margin - margin - 24;
@@ -161,13 +169,14 @@ export function createGiftMotionPlayer({ root }) {
         stage.append(node); drops.set(body.id, { node, artwork, shown: false });
       }
     } else {
+      pruneExpiredSwings(now);
       if (swings.size >= 80) return false;
       const size = motion.size;
       const textParts = GIFT_SWING_TEXT_MODES[motion.textMode];
       const rodLength = size / 2 + 60;
       const margin = Math.max(size, textParts.length ? 190 : 0) / 2
         + (size + 60 + (textParts.length ? 65 : 0) + rodLength * 0.8) * Math.sin(motion.angle * Math.PI / 180);
-      const x = swingPosition(margin, now);
+      const x = swingPosition(margin);
       const node = element('div', 'gift-swing-item');
       node.dataset.motionId = payload.eventId; node.dataset.expiresAt = String(expiresAt);
       node.style.width = `${size}px`; node.style.height = `${size + 60}px`;
@@ -203,7 +212,7 @@ export function createGiftMotionPlayer({ root }) {
     cancelAnimationFrame(frame); frame = null;
     for (const { node } of drops.values()) node.remove();
     for (const swing of swings.values()) swing.node.remove();
-    drops.clear(); swings.clear(); dropWorld.clear();
+    drops.clear(); swings.clear(); dropWorld.clear(); seen.clear();
   }
   function visibility() {
     cancelAnimationFrame(frame); frame = null;
@@ -211,7 +220,7 @@ export function createGiftMotionPlayer({ root }) {
   }
   document.addEventListener('visibilitychange', visibility);
   return { enqueue, clear, dispose() {
-    disposed = true; clear(); seen.clear(); resize.disconnect(); stage.remove(); swingStage.remove();
+    disposed = true; clear(); resize.disconnect(); stage.remove(); swingStage.remove();
     document.removeEventListener('visibilitychange', visibility);
   } };
 }

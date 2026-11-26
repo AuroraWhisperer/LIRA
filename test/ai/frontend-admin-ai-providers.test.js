@@ -7,6 +7,240 @@ const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('../helpers/ai-settings-fixture');
+const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
+const { normalizeAiConfig, isAiReady } = require('../../src/ai/config');
+
+test('opening just the AI tab starts account polling and leaving it stops polling', async () => {
+  const f = await createAiSettingsFixture({ aiTabHidden: true,
+    config: { modelProvider: 'openai', modelAuthMode: 'subscription' } });
+  const reads = () => f.calls.filter(call => call.url === '/api/ai/chatgpt/status').length;
+  await f.advance(3000);
+  assert.equal(reads(), 0);
+  await f.setVisibility({ aiTabHidden: false });
+  for (let i = 0; i < 3; i++) await f.advance(3000);
+  assert.equal(reads(), 4);
+  await f.setVisibility({ aiTabHidden: true });
+  await f.advance(3000);
+  assert.equal(reads(), 4);
+});
+
+test('the open subscription model picker survives same-account refresh and closes on account change', async () => {
+  const status = { available: true, ready: true, activeId: 'first' };
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' },
+    request: url => url === '/api/ai/status' ? aiResponse({ chatgpt: { ...status } })
+      : url === '/api/ai/chatgpt/status' ? aiResponse({ ...status }) : undefined });
+  await f.fire('xiaomiAiFetchModelsBtn', 'click');
+  const menu = f.elements.get('xiaomiAiModelMenu');
+  assert.equal(menu.children.length, 2);
+  await f.advance(3000);
+  assert.equal(menu.children.length, 2);
+  assert.equal(menu.popoverOpen, true);
+  status.activeId = 'second';
+  await f.advance(3000);
+  assert.equal(menu.children.length, 0);
+  assert.equal(menu.popoverOpen, false);
+});
+
+for (const source of ['account poll', 'settings refresh', 'settings refresh failure']) {
+  test(`a late ${source} cannot replace a selected subscription account or clear its new model list`, async () => {
+    const first = { available: true, ready: true, activeId: 'first',
+      profiles: ['first', 'second'].map(id => ({ id, label: id, loggedIn: true })) };
+    const second = { ...first, activeId: 'second' };
+    const pending = Promise.withResolvers();
+    const fullRefresh = source !== 'account poll';
+    let hold = false;
+    const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' },
+      request(url) {
+        if (url === '/api/ai/status') return hold && fullRefresh ? pending.promise : aiResponse({ chatgpt: first });
+        if (url === '/api/ai/chatgpt/status') return pending.promise;
+        if (url === '/api/ai/chatgpt/select') return aiResponse(second);
+        if (url === '/api/ai/models') return aiResponse({ models: ['second-model'] });
+      } });
+    hold = true;
+    f.publicConfig.userCooldownSeconds = 13;
+    const read = fullRefresh ? f.api.refresh() : f.advance(3000);
+    const profiles = f.elements.get('xiaomiAiChatGptProfiles');
+    profiles.value = second.activeId;
+    f.fire(profiles.id, 'change', { target: profiles });
+    await flushAiTasks();
+    await f.fire('xiaomiAiFetchModelsBtn', 'click');
+    const saveNotice = f.elements.get('xiaomiAiSaveState').textContent;
+    if (source === 'settings refresh failure') pending.reject(new Error('Previous account read failed'));
+    else pending.resolve(aiResponse(fullRefresh ? { chatgpt: first } : first));
+    await read;
+    await flushAiTasks();
+    assert.equal(profiles.value, second.activeId);
+    const menu = f.elements.get('xiaomiAiModelMenu');
+    assert.equal(menu.popoverOpen, true);
+    assert.deepEqual(menu.children.map(item => item.textContent), ['second-model']);
+    assert.equal(f.elements.get('xiaomiAiSaveState').textContent, saveNotice);
+    if (source === 'settings refresh') assert.equal(f.elements.get('xiaomiAiUserCooldown').value, '13');
+  });
+}
+
+for (const [order, activeId] of [['full first', 'B'], ['poll first', 'B'], ['poll first', 'A']]) {
+  test(`a later account poll wins over a full refresh (${order}, account ${activeId})`, async () => {
+    const initial = { available: true, ready: true, activeId: 'A', pending: false,
+      profiles: ['A', 'B'].map(id => ({ id, label: id, loggedIn: true })) };
+    const fullStatus = Promise.withResolvers();
+    const pollStatus = Promise.withResolvers();
+    let holdFull = false;
+    const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' },
+      request(url) {
+        if (url === '/api/ai/status') return holdFull ? fullStatus.promise : aiResponse({ chatgpt: initial });
+        if (url === '/api/ai/chatgpt/status') return pollStatus.promise;
+      } });
+    await f.fire('xiaomiAiFetchModelsBtn', 'click');
+    holdFull = true;
+    f.publicConfig.userCooldownSeconds = 13;
+    const full = f.api.refresh();
+    await f.advance(3000);
+    assert.equal(f.calls.filter(call => call.url === '/api/ai/chatgpt/status').length, 1);
+    const completePoll = () => pollStatus.resolve(aiResponse({ ...initial, activeId, pending: activeId === 'A' }));
+    if (order === 'poll first') { completePoll(); await flushAiTasks(); }
+    fullStatus.resolve(aiResponse({ chatgpt: initial }));
+    await full;
+    if (order === 'full first') { completePoll(); await flushAiTasks(); }
+    assert.equal(f.elements.get('xiaomiAiChatGptProfiles').value, activeId);
+    assert.equal(f.elements.get('xiaomiAiChatGptCancel').hidden, activeId !== 'A');
+    assert.equal(f.elements.get('xiaomiAiModelMenu').popoverOpen, activeId === 'A');
+    assert.equal(f.elements.get('xiaomiAiUserCooldown').value, '13');
+  });
+}
+
+test('a late account selection acknowledgement cannot undo a later selection', async () => {
+  const first = Promise.withResolvers();
+  const status = activeId => ({ available: true, ready: true, activeId,
+    profiles: ['A', 'B', 'C'].map(id => ({ id, label: id, loggedIn: true })) });
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' },
+    request(url, options) {
+      if (url === '/api/ai/status') return aiResponse({ chatgpt: status('A') });
+      if (url === '/api/ai/chatgpt/select') return JSON.parse(options.body).profileId === 'B' ? first.promise : aiResponse(status('C'));
+    } });
+  const profiles = f.elements.get('xiaomiAiChatGptProfiles');
+  for (const id of ['B', 'C']) {
+    profiles.value = id;
+    f.fire(profiles.id, 'change', { target: profiles });
+    await flushAiTasks();
+  }
+  await f.fire('xiaomiAiFetchModelsBtn', 'click');
+  first.resolve(aiResponse(status('B')));
+  await flushAiTasks();
+  assert.equal(profiles.value, 'C');
+  assert.equal(f.elements.get('xiaomiAiModelMenu').popoverOpen, true);
+});
+
+test('a failed later poll still allows a full refresh to supply the account status', async () => {
+  const full = Promise.withResolvers();
+  const status = { available: true, ready: true, activeId: 'A' };
+  let hold = false;
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' },
+    request(url) {
+      if (url === '/api/ai/status') return hold ? full.promise : aiResponse({ chatgpt: status });
+      if (url === '/api/ai/chatgpt/status') throw new Error('synthetic poll failure');
+    } });
+  hold = true;
+  const read = f.api.refresh();
+  await f.advance(3000);
+  full.resolve(aiResponse({ chatgpt: { ...status, pending: true } }));
+  await read;
+  assert.equal(f.elements.get('xiaomiAiChatGptCancel').hidden, false);
+});
+
+test('saving cooldown with DeepSeek thinking off preserves the saved auto effort', async () => {
+  const f = await createAiSettingsFixture({ config: {
+    modelProvider: 'deepseek', reasoningEnabled: false, reasoningEffort: 'auto',
+    modelEndpoint: { reasoningMode: 'deepseek_effort', reasoningEfforts: ['high', 'max'], defaultReasoningEffort: 'high' },
+  } });
+  assert.equal(f.elements.get('xiaomiAiReasoningEffort').disabled, true);
+  assert.equal(f.elements.get('xiaomiAiReasoningEffort').value, 'high');
+  f.input('xiaomiAiUserCooldown', '13');
+  await f.advance(700);
+  assert.equal(f.saves()[0].userCooldownSeconds, 13);
+  assert.equal(f.saves()[0].reasoningEffort, undefined);
+});
+
+test('a queued effort edit survives turning thinking off before the save starts', async () => {
+  const first = Promise.withResolvers();
+  let writes = 0;
+  const f = await createAiSettingsFixture({ config: {
+    modelProvider: 'deepseek', reasoningEnabled: true, reasoningEffort: 'high',
+    modelEndpoint: { reasoningMode: 'deepseek_effort', reasoningEfforts: ['high', 'max'], defaultReasoningEffort: 'high' },
+  }, request(url, options) {
+    if (url === '/api/ai/config' && options.method === 'PUT') {
+      const apply = () => aiResponse(Object.assign(f.publicConfig, JSON.parse(options.body)));
+      return ++writes === 1 ? first.promise.then(apply) : apply();
+    }
+  } });
+  f.input('xiaomiAiUserCooldown', '13');
+  await f.advance(700);
+  const effort = f.elements.get('xiaomiAiReasoningEffort');
+  effort.value = 'max';
+  f.fire('xiaomiAiForm', 'change', { target: effort });
+  const toggle = f.elements.get('xiaomiAiReasoning');
+  toggle.checked = false;
+  f.fire('xiaomiAiForm', 'change', { target: toggle });
+  assert.equal(writes, 1);
+  first.resolve();
+  await flushAiTasks();
+  assert.equal(writes, 2);
+  await f.api.refresh();
+  assert.equal(toggle.checked, false);
+  assert.equal(effort.disabled, true);
+  assert.equal(effort.value, 'max');
+});
+
+test('saving only cooldown while thinking is on preserves auto and delivers the in-flight reply', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true, encrypt: s => s, decrypt: s => s });
+  store.updateConfig({ enabled: true, trigger: '小米', modelProvider: 'deepseek', model: 'deepseek-flash',
+    deepseekApiKey: 'fixture-key', reasoningEnabled: true, reasoningEffort: 'auto' });
+  const generation = Promise.withResolvers();
+  const sent = [];
+  let signal;
+  const service = createTestService({ store, modelClient: { async createResponse(request) {
+    if (request.purpose === 'generation') { signal = request.signal; await generation.promise; }
+    return { text: request.purpose === 'generation' ? '正常回答' : '{"allowed":true}', functionCalls: [], usage: {} };
+  } }, sendReply: async reply => sent.push(reply.message) });
+  t.after(async () => { generation.resolve(); await service.shutdown(); db.close(); });
+  const f = await createAiSettingsFixture({ config: store.getPublicConfig(), request(url, options) {
+    if (url === '/api/ai/config' && options.method === 'PUT') return aiResponse(service.updateConfig(JSON.parse(options.body)));
+  } });
+  service.handleDanmaku({ uid: 'one', userName: '观众', message: '小米 你好' });
+  await waitUntil(() => signal);
+  assert.equal(f.elements.get('xiaomiAiReasoningEffort').value, 'high');
+  f.input('xiaomiAiUserCooldown', '13');
+  await f.advance(700);
+  assert.equal(store.getConfig().userCooldownSeconds, 13);
+  assert.equal(store.getConfig().reasoningEffort, 'auto');
+  assert.equal(signal.aborted, false);
+  generation.resolve();
+  await waitUntil(() => sent.length === 1);
+});
+
+test('saving an official model alias immediately displays the accepted ID and effort controls', async () => {
+  const config = { modelProvider: 'deepseek', model: 'deepseek-flash', reasoningEnabled: true,
+    modelEndpoint: { reasoningMode: 'deepseek_effort', reasoningEfforts: ['high', 'max'], defaultReasoningEffort: 'high' } };
+  const f = await createAiSettingsFixture({ config, request: (url, options) => {
+    if (url === '/api/ai/config' && options.method === 'PUT') {
+      const model = normalizeAiConfig({ modelProvider: 'deepseek', model: JSON.parse(options.body).model }).model;
+      return aiResponse({ ...f.publicConfig, model });
+    }
+  } });
+  f.input('xiaomiAiModel', 'ds-v4-flash');
+  await f.advance(700);
+  assert.equal(f.elements.get('xiaomiAiModel').value, 'deepseek-flash');
+  assert.equal(f.elements.get('xiaomiAiReasoningEffortControl').hidden, false);
+});
+
+test('an API profile with a saved key needs a model ID to show ready', async () => {
+  for (const model of ['', 'demo']) {
+    const f = await createAiSettingsFixture({ config: { enabled: true, model } });
+    const ready = isAiReady({ ...f.publicConfig, deepseekApiKey: 'test' });
+    assert.equal(f.elements.get('xiaomiAiConfigState').textContent, ready ? '可运行' : '等待配置');
+  }
+});
 
 test('subscription keeps API secrets separate and uses account status, model lookup and login actions', async () => {
   const status = { available: true, pending: false, ready: true, loggedIn: true, activeId: 'account-1', profiles: [{ id: 'account-1', label: '测试账号 · 1', loggedIn: true }] };
@@ -128,7 +362,7 @@ test('official reasoning levels select the official default and save the actual 
   assert.equal(input.value, 'high');
   f.input('xiaomiAiTrigger', '助手');
   await f.advance(700);
-  assert.equal(f.saves().at(-1).reasoningEffort, 'high');
+  assert.equal(f.saves().at(-1).reasoningEffort, undefined, 'displaying the default does not edit the preference');
   input.value = 'low';
   f.fire('xiaomiAiForm', 'change', { target: input });
   await flushAiTasks();
@@ -220,7 +454,7 @@ test('model selection uses its upstream reasoning catalog and unknown models exp
   assert.equal(input.value, 'max');
   f.input('xiaomiAiTrigger', '助手');
   await f.advance(700);
-  assert.equal(f.saves().at(-1).reasoningEffort, 'max');
+  assert.equal(f.saves().at(-1).reasoningEffort, undefined, 'refreshing the catalog does not edit the preference');
   menu.children[2].listeners.click();
   assert.equal(f.elements.get('xiaomiAiReasoningEffortControl').hidden, true);
   assert.equal(input.children.length, 0);

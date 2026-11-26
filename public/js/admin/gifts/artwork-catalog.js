@@ -2,8 +2,10 @@ import { eventBus, Events } from '../../shared/event-bus.js';
 import { GIFT_PLACEHOLDER, resolveGiftImageSource } from '../../shared/gift-image.js';
 import { findBlindBoxTheme } from './blindbox-theme.js';
 import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';
+import { guardGiftLevel } from '../../shared/guard-gift-identity.js';
 
 let giftArtworkById = null;
+const variantByIdentity = new Map();
 // 名称索引随目录快照整体重建：按 (id, 规范化名称) 归并，避免每行查询都扫描整个目录。
 let giftArtworkByName = null;
 
@@ -45,40 +47,10 @@ export function findGiftArtwork(id, name, variantId) {
  * @returns {Object|null} 徽章信息 {name, src}
  */
 export function getGuardBadge(item) {
-  const giftName = String((item && item.gift_name) || '')
-    .trim()
-    .toLowerCase();
-  const giftId = String((item && item.gift_id) || '')
-    .trim()
-    .toLowerCase();
-
-  if (giftName.includes('总督') || giftName.includes('governor') || giftId === 'guard-1') {
-    return {
-      name: '总督',
-      level: 1,
-      src: getGuardIcon(1),
-    };
-  }
-  if (
-    giftName.includes('提督') ||
-    giftName.includes('prefect') ||
-    giftName.includes('admiral') ||
-    giftId === 'guard-2'
-  ) {
-    return {
-      name: '提督',
-      level: 2,
-      src: getGuardIcon(2),
-    };
-  }
-  if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
-    return {
-      name: '舰长',
-      level: 3,
-      src: getGuardIcon(3),
-    };
-  }
-  return null;
+  const name = String(item?.gift_name || '').trim().toLowerCase();
+  const english = ['governor', 'admiral', 'captain'].indexOf(name === 'prefect' ? 'admiral' : name) + 1;
+  const level = guardGiftLevel(String(item?.gift_id || '').toLowerCase(), name) || english;
+  return level ? { name: ['总督', '提督', '舰长'][level - 1], level, src: getGuardIcon(level) } : null;
 }
 
 export function getGiftToastArtwork(item) {
@@ -165,10 +137,17 @@ function mergeGiftArtwork(gifts, { fillMissing = false } = {}) {
     const name = normalizedGiftName(gift?.name);
     if (!id || !name) continue;
     const variantId = gift.variantId || gift.giftIdentity?.variantId;
-    const key = variantId || JSON.stringify([id, name, gift.priceRaw ?? gift.rmb, gift.coinType, gift.bagGift]);
-    const previous = artworkById.get(key)?.imagePath;
-    if (fillMissing && previous) continue;
-    const imagePath = normalizeGiftArtworkPath(gift.imagePath) || previous || '';
+    const { priceRaw, coinType, bagGift } = gift;
+    const identity = JSON.stringify([id, name, priceRaw ?? ['rmb', gift.rmb], coinType, bagGift]);
+    const complete = Number.isSafeInteger(priceRaw) && priceRaw >= 0 && ['gold', 'silver'].includes(coinType) && typeof bagGift === 'boolean';
+    const key = variantId || variantByIdentity.get(identity) || identity;
+    let previous = artworkById.get(key)?.imagePath;
+    if (variantId && complete) {
+      variantByIdentity.set(identity, variantId);
+      previous ||= artworkById.get(identity)?.imagePath;
+      artworkById.delete(identity);
+    }
+    const imagePath = (fillMissing && previous) || normalizeGiftArtworkPath(gift.imagePath) || previous || '';
     artworkById.set(key, { id, name, imagePath });
   }
   giftArtworkById = artworkById;

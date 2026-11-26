@@ -11,6 +11,42 @@ function subscribe(channel, withPayload = true) {
   };
 }
 
+const audioListeners = new Set();
+let audioState;
+function syncAudioState() {
+  ipcRenderer.invoke('audio-assistant:sync').catch(error => console.warn('电音助手状态同步失败：', error.message));
+}
+
+function receiveAudioState(_event, frame) {
+  const next = frame.changes || frame;
+  if (audioState && next.revision <= audioState.revision) return;
+  if (frame.changes && !audioState) return; // Waiting for the first full snapshot.
+  if (frame.changes && frame.baseRevision !== audioState.revision) {
+    audioState = undefined;
+    syncAudioState();
+    return;
+  }
+  audioState = frame.changes ? { ...audioState, ...next } : next;
+  for (const listener of [...audioListeners]) listener(audioState);
+}
+
+function subscribeAudioState(callback) {
+  if (typeof callback !== 'function') return () => {};
+  const listener = state => callback(state);
+  audioListeners.add(listener);
+  if (audioListeners.size === 1) {
+    ipcRenderer.on('audio-assistant:state', receiveAudioState);
+    syncAudioState();
+  } else if (audioState) {
+    listener(audioState);
+  }
+  return () => {
+    if (audioListeners.delete(listener) && !audioListeners.size) {
+      ipcRenderer.removeListener('audio-assistant:state', receiveAudioState);
+      audioState = undefined;
+    }
+  };
+}
 
 contextBridge.exposeInMainWorld('playbackOutput', {
   invoke: (request) => ipcRenderer.invoke('playback-output:invoke', request),
@@ -22,7 +58,7 @@ contextBridge.exposeInMainWorld('audioAssistant', {
   getComponentState: () => ipcRenderer.invoke('audio-component:get-state'),
   retryComponent: () => ipcRenderer.invoke('audio-component:retry'),
   onComponentState: subscribe('audio-component:state'),
-  onState: subscribe('audio-assistant:state'),
+  onState: subscribeAudioState,
 });
 
 contextBridge.exposeInMainWorld('plannerReminders', {
@@ -61,6 +97,7 @@ contextBridge.exposeInMainWorld('songAssistantDesktop', {
   pickScreenColor: () => ipcRenderer.invoke('desktop:pick-screen-color'),
   cancelScreenColor: () => ipcRenderer.invoke('desktop:cancel-screen-color'),
   setClientTheme: (themeId) => ipcRenderer.invoke('desktop:set-client-theme', themeId),
+  setClientFont: fontId => ipcRenderer.invoke('desktop:set-client-font', fontId),
   getInfo: () => ipcRenderer.invoke('desktop:get-info'),
   getResourceIntegrityState: () => ipcRenderer.invoke('desktop:get-resource-integrity-state'),
   checkResourceIntegrity: () => ipcRenderer.invoke('desktop:check-resource-integrity'),

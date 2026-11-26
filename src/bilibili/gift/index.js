@@ -22,6 +22,8 @@ const { normalizeGiftRow } = require('./normalizer');
 function createGiftService({ queryStore, maintenanceStore, projectionStore, statisticsStore, settings, now }, options = {}) {
   let activeGiftSource = null;
   let viewEpoch = randomUUID();
+  let displaySource;
+  let displayEpoch = randomUUID();
   const giftContext = {
     queryStore,
     maintenanceStore,
@@ -48,6 +50,7 @@ function createGiftService({ queryStore, maintenanceStore, projectionStore, stat
     getHistory: (queryOptions) => getGiftHistory(giftContext, queryOptions),
     getSelection: (queryOptions) => getGiftSelection(giftContext, queryOptions),
     getViewRevision: () => getGiftViewRevision(giftContext),
+    getDisplaySourceEpoch: () => displayEpoch,
     getStatistics: (queryOptions) => getGiftStatistics(giftContext, queryOptions),
     getSprintSnapshot: () => getGiftSprintSnapshot(giftContext),
     getBlindBoxChangeToken() {
@@ -60,14 +63,19 @@ function createGiftService({ queryStore, maintenanceStore, projectionStore, stat
     search: (queryOptions) => searchGifts(giftContext, queryOptions || {}),
     clearRecent: () => clearRecentGifts(giftContext),
     setActiveSource(source) {
+      const next = normalizeActiveGiftSource(source);
+      const identity = source?.displaySourceKey ?? next?.sourceId;
+      if (identity !== displaySource) {
+        displaySource = identity;
+        displayEpoch = randomUUID();
+      }
       if (
         source?.sourceId !== activeGiftSource?.sourceId ||
         (source?.syncState === 'SOURCE_SWITCHING' && activeGiftSource?.syncState !== 'SOURCE_SWITCHING')
       ) {
         viewEpoch = randomUUID();
       }
-      activeGiftSource = normalizeActiveGiftSource(source);
-      if (activeGiftSource) activeGiftSource = Object.freeze({ ...activeGiftSource, viewEpoch });
+      activeGiftSource = next && Object.freeze({ ...next, viewEpoch, displayEpoch });
       return activeGiftSource;
     },
     getActiveSource: () => activeGiftSource,

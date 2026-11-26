@@ -4,6 +4,7 @@ import { showFieldError } from '../shared/field-feedback.js';
 import { revealEditorItem } from './danmaku-editor-pagination.js';
 import { createAutosave } from './settings-autosave.js';
 
+const MAX_KEYWORD_RULES = 30;
 const DELETE_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -91,6 +92,10 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
     });
   };
   const add = () => {
+    if (!exact && items.length >= MAX_KEYWORD_RULES) {
+      toast(`关键词回复最多可添加 ${MAX_KEYWORD_RULES} 条，请先删除一条再添加。`);
+      return;
+    }
     const keyword = elements.keywordInput.value.trim();
     const reply = elements.replyInput.value.trim();
     if (!keyword || !reply) {

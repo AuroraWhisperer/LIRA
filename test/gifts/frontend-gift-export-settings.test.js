@@ -9,14 +9,14 @@ const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const fixture = createUiFixture();
 const historyHtml = fs.readFileSync(path.resolve('public/pages/admin/gifts/history.html'), 'utf8');
 
-async function openExport(t) {
+async function openExport(t, count = 2) {
   const page = await fixture(t, 'gift-display');
   await page.setContent(historyHtml);
-  await page.evaluate(async () => {
+  await page.evaluate(async (count) => {
     const drawer = document.getElementById('giftHistoryDrawer');
     drawer.inert = false;
     drawer.setAttribute('aria-hidden', 'false');
-    const items = [1, 2].map((num) => ({
+    const items = Array.from({ length: count }, (_, index) => index + 1).map((num) => ({
       eventId: String(num),
       gift: {
         giftId: 'sample',
@@ -27,18 +27,21 @@ async function openExport(t) {
       },
     }));
     window.exportCalls = [];
-    window.exportDefaults = { mode: 'combined', background: 'transparent', mergeAcrossDates: false, root: 'Pictures/LIRA' };
+    window.exportDefaults = { mode: 'combined', background: 'transparent', sortBy: 'time', rowGap: 16, mergeAcrossDates: false, root: 'Pictures/LIRA' };
     let task;
     let batch = 0;
-    const describe = () => ({
-      ...task,
-      snapshot: { ...task.snapshot, items: task.mergeAcrossDates ? [items[0]] : items, selectedCount: 2 },
-      files: Array.from({ length: task.mode === 'combined' || task.mergeAcrossDates ? 1 : 2 }, (_, index) => ({
-        fileName: '礼物_' + (index + 1) + '.png',
-        start: task.mode === 'combined' ? 0 : index,
-        count: task.mode === 'combined' && !task.mergeAcrossDates ? items.length : 1,
-      })),
-    });
+    const describe = () => {
+      const cards = task.mergeAcrossDates ? items.slice(0, -1) : items;
+      return {
+        ...task,
+        snapshot: { ...task.snapshot, items: task.sortBy === 'amount' ? cards.toReversed() : cards, selectedCount: items.length },
+        files: Array.from({ length: task.mode === 'combined' ? 1 : cards.length }, (_, index) => ({
+          fileName: '礼物_' + (index + 1) + '.png',
+          start: task.mode === 'combined' ? 0 : index,
+          count: task.mode === 'combined' ? cards.length : 1,
+        })),
+      };
+    };
     window.giftExport = {
       async prepare() {
         task = {
@@ -58,6 +61,8 @@ async function openExport(t) {
           });
         if (options.directoryAction === 'choose' && window.cancelPicker) return { ok: true, data: describe() };
         task.mergeAcrossDates = options.mergeAcrossDates ?? task.mergeAcrossDates;
+        task.sortBy = options.sortBy ?? task.sortBy;
+        task.rowGap = options.rowGap ?? task.rowGap;
         task.mode = options.mode;
         task.background = options.background;
         if (options.directoryAction)
@@ -91,8 +96,8 @@ async function openExport(t) {
         });
       },
     });
-    await window.preview.open({ eventIds: ['1', '2'] });
-  });
+    await window.preview.open({ eventIds: items.map(item => item.eventId) });
+  }, count);
   return page;
 }
 
@@ -103,13 +108,16 @@ test('history export settings update the current preview and remember the next e
   );
   assert.deepEqual(await visibleCards(), ['1', '2']);
   assert.equal(await page.locator('#giftExportPreview .gift-banner').first().getAttribute('data-sheen'), 'false');
+  await page.getByRole('radio', { name: '按金额' }).check();
+  await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+  assert.deepEqual(await visibleCards(), ['2', '1']);
   await page.getByRole('radio', { name: '每条一张' }).check();
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
-  assert.deepEqual(await visibleCards(), ['1']);
-  await page.locator('#giftExportNext').click();
   assert.deepEqual(await visibleCards(), ['2']);
-  await page.locator('#giftExportPrev').click();
+  await page.locator('#giftExportNext').click();
   assert.deepEqual(await visibleCards(), ['1']);
+  await page.locator('#giftExportPrev').click();
+  assert.deepEqual(await visibleCards(), ['2']);
   await page.getByRole('switch', { name: '合并同种礼物' }).setChecked(true);
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.equal(await page.locator('#giftExportNext').isDisabled(), true);
@@ -132,10 +140,48 @@ test('history export settings update the current preview and remember the next e
   assert.equal(await page.getByRole('switch', { name: '合并同种礼物' }).isChecked(), true);
   assert.equal(await page.getByRole('radio', { name: '每条一张' }).isChecked(), true);
   assert.equal(await page.getByRole('radio', { name: '白色' }).isChecked(), true);
+  assert.equal(await page.getByRole('radio', { name: '按金额' }).isChecked(), true);
   assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Chosen/Gifts');
   await page.locator('#giftExportDefault').click();
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Pictures/LIRA');
+});
+
+test('two-card spacing previews locally and updates the next export batch on release', async t => {
+  const page = await openExport(t, 3);
+  const slider = page.getByRole('slider', { name: '词条间距' });
+  const merge = page.getByRole('switch', { name: '合并同种礼物' });
+  const ready = () => page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+  const gap = () => page.locator('#giftExportPreview').evaluate(el => el.style.rowGap);
+  assert.equal(await slider.isDisabled(), true);
+  await merge.check();
+  await ready();
+  assert.equal(await slider.isEnabled(), true);
+  await page.locator('#giftExportSave').click();
+  await page.waitForFunction(() => document.getElementById('giftExportStatus').dataset.state === 'success');
+  const calls = await page.evaluate(() => window.exportCalls.length);
+  await slider.evaluate(el => {
+    el.value = 0;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  assert.equal(await gap(), '0px');
+  assert.match(await page.locator('#giftExportFiles').textContent(), /288 px/);
+  assert.equal(await page.evaluate(() => window.exportCalls.length), calls);
+  await slider.dispatchEvent('change');
+  await ready();
+  assert.equal(await page.evaluate(() => window.exportDefaults.rowGap), 0);
+  const directory = page.locator('#giftExportDirectory');
+  assert.equal(await directory.textContent(), '/retry-batch');
+  assert.equal(await directory.getAttribute('title'), 'Pictures/LIRA/retry-batch');
+  await merge.uncheck();
+  await ready();
+  assert.equal(await gap(), '8px');
+  await merge.check();
+  await ready();
+  assert.equal(await gap(), '0px');
+  await page.getByRole('radio', { name: '每条一张' }).check();
+  await ready();
+  assert.equal(await slider.isDisabled(), true);
 });
 
 test('failed settings restore the current format and pending settings cannot export or reopen a closed preview', async (t) => {

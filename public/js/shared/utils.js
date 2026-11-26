@@ -73,9 +73,9 @@ export async function copyText(text) {
   if (!copied) throw new Error('复制失败，请手动复制地址。');
 }
 
-export async function api(url, body, { notifyError = true, signal } = {}) {
+export async function api(url, body, { notifyError = true, signal, keepalive = false, headers: extraHeaders } = {}) {
   try {
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = { ...extraHeaders, 'Content-Type': 'application/json' };
     const token = window.__API_TOKEN__;
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const response = await fetch(url, {
@@ -83,6 +83,7 @@ export async function api(url, body, { notifyError = true, signal } = {}) {
       headers,
       body: JSON.stringify(body || {}),
       signal,
+      keepalive,
     });
     return assertApiResponse(response, await readJsonResponse(response, '请求失败'), '请求失败');
   } catch (error) {

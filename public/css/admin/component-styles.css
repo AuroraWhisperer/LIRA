@@ -63,7 +63,7 @@
 .component-style-advanced .component-style-fields { grid-template-columns: 1fr 1fr; }
 .component-style-dialog .hint { line-height: 1.6; font-size: 12px; }
 .component-style-dialog > button + button { margin-inline-start: 8px; }
-.component-library-manager { width: min(640px, calc(100vw - 48px)); max-height: calc(100vh - 64px); padding: 0; border: 0; border-radius: 12px; box-shadow: var(--shadow-dialog); font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', sans-serif; font-size: 14px; line-height: 20px; }
+.component-library-manager { width: min(640px, calc(100vw - 48px)); max-height: calc(100vh - 64px); padding: 0; border: 0; border-radius: 12px; box-shadow: var(--shadow-dialog); font-family: var(--client-font-family, 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', sans-serif); font-size: 14px; line-height: 20px; }
 .component-library-manager[open] { display: flex; flex-direction: column; }
 .component-library-manager > .component-library-heading { flex: 0 0 auto; align-items: center; justify-content: flex-start; gap: 12px; margin: 0; padding: 20px 24px 8px; }
 .component-library-manager h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 22px; }

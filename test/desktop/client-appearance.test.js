@@ -53,6 +53,30 @@ test('an unreadable record falls back without attempting a repair or exposing it
   assert.deepEqual(f.logs, [['client-appearance', { event: 'READ_FALLBACK' }]]);
 });
 
+test('font and palette writes preserve each other across restart and resetting the interface font', async t => {
+  const f = fixture(t, '{"themeId":"classic"}');
+  assert.equal(f.owner.getFontId(), 'system');
+  await Promise.all([f.owner.setFontId('wenkai'), f.owner.setThemeId('neutral')]);
+  const reopened = createClientAppearance({ dataDir: f.dataDir });
+  assert.equal(reopened.getThemeId(), 'neutral');
+  assert.equal(reopened.getFontId(), 'wenkai');
+  const rejected = await reopened.setFontId('nunito');
+  assert.equal(rejected.error, 'CLIENT_FONT_INVALID');
+  assert.equal(reopened.getFontId(), 'wenkai');
+  await reopened.setFontId('system');
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.file)), { themeId: 'neutral' });
+});
+
+test('old font pairs retain their eligible bilingual family and migrate on the next save', async t => {
+  const record = '{"themeId":"classic","fonts":{"han":"xiaolai","latin":"nunito"}}';
+  const f = fixture(t, record);
+  assert.equal(f.owner.getFontId(), 'xiaolai');
+  assert.equal(fs.readFileSync(f.file, 'utf8'), record);
+  await f.owner.setThemeId('neutral');
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.file)), { themeId: 'neutral', fontId: 'xiaolai' });
+  assert.equal(fixture(t, '{"themeId":"classic","fonts":{"han":"nunito","latin":"cinzel"}}').owner.getFontId(), 'system');
+});
+
 test('failed write or rename keeps committed state and file; later queued writes still succeed', async (t) => {
   for (const failure of ['writeFile', 'rename']) {
     let fail = true;
@@ -141,6 +165,11 @@ test('theme IPC applies shared frame policy and validates arguments before stora
   assert.deepEqual(await invoke(event, 'classic', 'extra'), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });
   assert.deepEqual(await invoke(event, {}), { ok: false, error: 'CLIENT_THEME_INVALID' });
   assert.deepEqual(await invoke(event, 'classic'), { ok: true, themeId: 'classic' });
+  const setFont = handlers.get('desktop:set-client-font');
+  assert.equal((await setFont({ ...event, senderFrame: { url: mainFrame.url } }, 'wenkai')).error, 'IPC_SOURCE_INVALID');
+  assert.equal((await setFont(event, 'wenkai', 'nunito')).error, 'IPC_ARGUMENTS_INVALID');
+  assert.equal((await setFont(event, 'nunito')).error, 'CLIENT_FONT_INVALID');
+  assert.deepEqual(await setFont(event, 'yozai'), { ok: true, fontId: 'yozai' });
   dispose();
   assert.equal(handlers.size, 0);
 });

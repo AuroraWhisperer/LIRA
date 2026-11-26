@@ -118,15 +118,15 @@
   background: var(--color-danger-light);
 }
 
-#importPage .song-data-action-solid.danger {
+#importPage .song-data-action-solid.danger:not(:disabled) {
   border-color: var(--danger);
   background: var(--danger);
   color: var(--color-on-danger);
 }
 
 #importPage .song-data-action-solid.danger:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--danger) 88%, #000);
-  background: color-mix(in srgb, var(--danger) 88%, #000);
+  border-color: color-mix(in srgb, var(--danger) 88%, light-dark(#000000, #ffffff));
+  background: color-mix(in srgb, var(--danger) 88%, light-dark(#000000, #ffffff));
 }
 
 #importPage .song-data-action:focus-visible {
@@ -134,7 +134,7 @@
   outline-offset: 2px;
 }
 
-#importPage .song-data-action.primary {
+#importPage .song-data-action.primary:not(:disabled) {
   border-color: transparent;
   background: var(--color-primary-fill);
   color: var(--color-on-primary);
@@ -180,8 +180,8 @@
 
 #importPage #songImportApplyBtn:disabled {
   border-color: var(--border);
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--color-disabled-bg, var(--surface-2));
+  color: var(--color-disabled-text, var(--muted));
   cursor: not-allowed;
 }
 

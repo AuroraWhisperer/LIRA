@@ -69,7 +69,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         if (JSON.stringify(canvas.getState().draft.document) !== document) throw new Error('场景已变化，请再次保存并应用。');
       }
       const sharedSource = action === 'source' && item?.appearance.mode === 'shared';
-      const result = await connection.execute(action);
+      const result = await connection.execute(action, sharedSource ? { itemId: item.id } : undefined);
       if (disposed) return;
       if (action === 'source') {
         if (item && !result.itemIds?.includes(item.id)) throw new Error('请先保存并应用此组件，再复制单组件地址。');

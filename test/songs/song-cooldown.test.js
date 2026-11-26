@@ -69,6 +69,19 @@ for (const entry of ['manual', 'random']) {
   });
 }
 
+test('manually specifying a disabled artist version never charges its enabled namesake', (t) => {
+  const f = fixture(t, { onlyFromLibrary: 'false' });
+  f.saveSong({ name: '回声', artist: '甲', isEnabled: false });
+  const enabled = f.saveSong({ name: '回声', artist: '乙' });
+  const manual = f.add({ songName: '回声', artist: '甲' });
+  const viewer = f.message('点歌回声');
+  assert.deepEqual([manual.song_id, manual.artist, viewer.accepted, viewer.code],
+    [null, '甲', true, undefined]);
+  assert.equal(viewer.queueItem.song_id, enabled.id);
+  f.settings.onlyFromLibrary = 'true';
+  assert.throws(() => f.add({ songName: '回声', artist: '甲' }), { code: 'SONG_NOT_IN_LIBRARY' });
+});
+
 test('cooldown starts at acceptance, is shared by viewers, and rejects without extending it', (t) => {
   const f = fixture(t);
   f.add({ messageTimestamp: '2020-01-01T00:00:00Z' });

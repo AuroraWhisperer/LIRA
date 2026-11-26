@@ -164,11 +164,14 @@ class NeteaseMusicProvider {
 
   async getPersonalizedPlaylists(options = {}) {
     const limit = clampInteger(options.limit, 1, 30, 9);
+    const page = clampInteger(options.page, 1, 50, 1);
     const data = await this.requestJson('/api/personalized/playlist', {
-      limit: String(limit),
+      limit: '30',
     });
-    const playlists = data && Array.isArray(data.result) ? data.result : [];
-    return playlists.map(mapNeteasePlaylist).filter(Boolean);
+    const playlists = Array.isArray(data?.result) ? data.result.map(mapNeteasePlaylist).filter(Boolean) : [];
+    if (!playlists.length) return [];
+    const start = ((page - 1) % Math.ceil(playlists.length / limit)) * limit;
+    return playlists.slice(start, start + limit);
   }
 
   async getDailyTracks(options = {}) {
@@ -231,19 +234,13 @@ class NeteaseMusicProvider {
   async getCreatedPlaylists(options = {}) {
     const cookie = await this.getLoginCookieHeader('我的歌单需要先登录网易云音乐。');
     const profile = await this.getUserProfile(undefined, cookie);
-    const playlists = await this.getUserPlaylists(profile.userId, {
-      limit: clampInteger(options.limit, 1, 500, 200),
-    }, cookie);
-    return playlists.filter((playlist) => playlist.creatorUserId === profile.userId);
+    return this.getUserPlaylists(profile.userId, { limit: options.limit, owned: true }, { cookie });
   }
 
   async getCollectedPlaylists(options = {}) {
     const cookie = await this.getLoginCookieHeader('收藏歌单需要先登录网易云音乐。');
     const profile = await this.getUserProfile(undefined, cookie);
-    const playlists = await this.getUserPlaylists(profile.userId, {
-      limit: clampInteger(options.limit, 1, 500, 200),
-    }, cookie);
-    return playlists.filter((playlist) => playlist.creatorUserId !== profile.userId);
+    return this.getUserPlaylists(profile.userId, { limit: options.limit, owned: false }, { cookie });
   }
 
   async getRecentTracks(options = {}) {
@@ -361,21 +358,39 @@ class NeteaseMusicProvider {
     const uid = String(userId || '').trim();
     if (!uid) throw createPublicError('缺少网易云用户 ID。', 501);
     const limit = clampInteger(options.limit, 1, 500, 200);
-    const data = await this.requestJson('/api/user/playlist', {
-      uid,
-      limit: String(limit),
-      offset: '0',
-    }, expectedCookie);
-    if (!Array.isArray(data?.playlist)) return [];
-    const rows = data.playlist.slice(0, limit).map(mapNeteasePlaylist);
-    const id = findLikedPlaylistId(rows);
-    const cookie = typeof expectedCookie === 'string' ? expectedCookie : expectedCookie?.cookie;
-    if (cookie && (id || limit >= LIKED_PLAYLIST_WINDOW || rows.length < limit)) {
-      this.#likedPlaylist = {
-        account: createHash('sha256').update(cookie).digest('hex'), id, expires: Date.now() + ACCOUNT_CACHE_TTL_MS,
-      };
+    const playlists = [];
+    const seenPages = new Set();
+    const seenIds = new Set();
+    let offset = 0;
+    while (playlists.length < limit) {
+      const data = await this.requestJson('/api/user/playlist', { uid, limit: String(limit), offset: String(offset) }, expectedCookie);
+      if (!Array.isArray(data?.playlist)) throw createPublicError('网易云音乐未返回歌单目录，请重试。', 501);
+      const rows = data.playlist.slice(0, limit).map(mapNeteasePlaylist);
+      if (!offset) {
+        const id = findLikedPlaylistId(rows);
+        const cookie = typeof expectedCookie === 'string' ? expectedCookie : expectedCookie?.cookie;
+        if (cookie && (id || rows.length >= LIKED_PLAYLIST_WINDOW || data.more !== true && rows.length < limit)) {
+          this.#likedPlaylist = {
+            account: createHash('sha256').update(cookie).digest('hex'), id, expires: Date.now() + ACCOUNT_CACHE_TTL_MS,
+          };
+        }
+      }
+      if (options.owned === undefined) return rows.filter(Boolean);
+      const signature = JSON.stringify(data.playlist.map((row) => row?.id));
+      if (seenPages.has(signature)) throw createPublicError('网易云音乐重复返回同一页歌单，请重试。', 501);
+      seenPages.add(signature);
+      for (const row of rows) {
+        if (row && (row.creatorUserId === uid) === options.owned && !seenIds.has(row.id)) {
+          seenIds.add(row.id);
+          playlists.push(row);
+          if (playlists.length === limit) break;
+        }
+      }
+      if (!rows.length && data.more === true) throw createPublicError('网易云音乐未返回后续歌单，请重试。', 501);
+      if (data.more === false || (data.more !== true && rows.length < limit)) break;
+      offset += rows.length;
     }
-    return rows.filter(Boolean);
+    return playlists;
   }
 
   async addTracksToPlaylist(playlist, tracks) {
@@ -434,7 +449,7 @@ class NeteaseMusicProvider {
     return result;
   }
 
-  async getLyrics(track) {
+  async getLyrics(track, { deferFinalTiming = false } = {}) {
     const sourceTrackId = extractSourceTrackId(track);
     const data = await this.requestJson('/api/song/lyric/v1', {
       id: sourceTrackId,
@@ -456,7 +471,7 @@ class NeteaseMusicProvider {
     return {
       source: this.source,
       sourceTrackId,
-      lines: estimateWordTimings(lines, track.durationMs),
+      lines: estimateWordTimings(lines, track.durationMs, deferFinalTiming),
     };
   }
 

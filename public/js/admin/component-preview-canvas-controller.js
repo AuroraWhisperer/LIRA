@@ -194,14 +194,14 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           notify();
           return { publishedVersion: binding.publishedVersion };
         },
-        async source() {
+        async source(selection) {
           assertCurrent();
           if (!binding.publishedVersion) throw new Error('请先保存并应用场景，再复制直播源地址。');
           const source = await request('source', undefined, binding.outputId);
-          const sharedTypes = new Set(controller.getState().saved.document.items
-            .filter(item => item.appearance.mode === 'shared').map(item => item.type));
-          const componentSizes = Object.fromEntries(await Promise.all([...sharedTypes]
-            .map(async type => [type, await readComponentOutputSize(type)])));
+          const item = selection?.itemId && source.itemIds.includes(selection.itemId)
+            && controller.getState().saved.document.items.find(item => item.id === selection.itemId);
+          const componentSizes = item?.appearance.mode === 'shared'
+            ? { [item.type]: await readComponentOutputSize(item.type) } : {};
           assertCurrent();
           return { id: binding.outputId, token: source.token, itemIds: source.itemIds,
             canvas: source.canvas, itemSizes: source.itemSizes, componentSizes };
@@ -278,9 +278,9 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       },
       getComponentSize: (...args) => active?.getComponentSize(...args),
       favorite(change) { assertCurrent(); return danmakuStyleFavorites.set(change); },
-      source: () => {
+      source: selection => {
         if (!active) throw new Error('请先新建场景并保存应用。');
-        return active.source();
+        return active.source(selection);
       },
       publish: () => exclusive(() => {
         if (!active) throw new Error('请先新建场景。');

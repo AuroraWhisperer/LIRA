@@ -1,7 +1,6 @@
 import { theme } from '../shared/theme.js';
-import { normalizeRangeValue } from '../shared/utils.js';
 import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
-import { initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
+import { bindRangeNumber, formatRangeNumber, initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
 import { componentField, syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { renderComponentSaveStatus, saveComponentWithFeedback } from './component-save-feedback.js';
 import { setOverlayStyle } from './theme-style-view.js';
@@ -9,32 +8,21 @@ import { ensureSavedFontOption, registerFontSelect } from '../shared/font-librar
 import { collectQueueTheme, pickQueueSettings, queueThemeControlValues } from './queue-theme-config.js';
 
 const RANGE_PAIRS = [
-  ['themeOpacity', 'themeOpacityNumber', 0, 1, 0.48, 100],
-  ['queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 28],
-  ['queueTitleFontSize', 'queueTitleFontSizeNumber', 10, 40, 30],
-  ['identityQueueFontSize', 'identityQueueFontSizeNumber', 9, 78, 28],
-  ['overlayRuleFontSize', 'overlayRuleFontSizeNumber', 8, 18, 10],
-  ['backdropBlur', 'backdropBlurNumber', 0, 30, 14],
-  ['glowIntensity', 'glowIntensityNumber', 0, 20, 2],
-  ['queueScrollSpeedRange', 'queueScrollSpeed', 1, 100, 80],
-  ['identityQueueScrollSpeedRange', 'identityQueueScrollSpeed', 1, 100, 80],
+  ['themeOpacity', 'themeOpacityNumber', 100],
+  ['queueSongFontSize', 'queueSongFontSizeNumber'],
+  ['queueTitleFontSize', 'queueTitleFontSizeNumber'],
+  ['identityQueueFontSize', 'identityQueueFontSizeNumber'],
+  ['overlayRuleFontSize', 'overlayRuleFontSizeNumber'],
+  ['backdropBlur', 'backdropBlurNumber'],
+  ['glowIntensity', 'glowIntensityNumber'],
+  ['queueScrollSpeedRange', 'queueScrollSpeed'],
+  ['identityQueueScrollSpeedRange', 'identityQueueScrollSpeed'],
 ];
 
 export function bindQueueTheme(root, controller) {
   const node = (id) => componentField(root, id);
   const unregisterFonts = ['overlayFontFamily', 'illustratedQueueFontFamily'].map(id => registerFontSelect(node(id)));
-  for (const [rangeId, numberId, min, max, fallback, scale = 1] of RANGE_PAIRS) {
-    const range = node(rangeId), number = node(numberId);
-    range.addEventListener('input', () => { number.value = String(Number((Number(range.value) * scale).toFixed(6))); });
-    number.addEventListener('input', () => {
-      if (!number.value || !number.checkValidity()) return;
-      range.value = normalizeRangeValue(Number(number.value) / scale, min, max, fallback);
-    });
-    number.addEventListener('change', () => {
-      range.value = normalizeRangeValue(Number(number.value) / scale, min, max, fallback);
-      syncComponentFieldValue(number, Number(range.value) * scale, true);
-    });
-  }
+  const unbindRanges = RANGE_PAIRS.map(([rangeId, numberId, scale]) => bindRangeNumber(node(rangeId), node(numberId), scale));
   const edit = (event) => {
     if (event.target.type === 'number' && (!event.target.value || !event.target.checkValidity())) return;
     controller.edit(collectQueueTheme(root));
@@ -76,7 +64,9 @@ export function bindQueueTheme(root, controller) {
     }
     node('queueScrollSpeedRange').value = controls.queueScrollSpeed;
     node('identityQueueScrollSpeedRange').value = controls.identityQueueScrollSpeed;
-    for (const [rangeId, numberId, , , , scale = 1] of RANGE_PAIRS) syncComponentFieldValue(node(numberId), Number((Number(node(rangeId).value) * scale).toFixed(6)));
+    for (const [rangeId, numberId, scale] of RANGE_PAIRS) {
+      syncComponentFieldValue(node(numberId), formatRangeNumber(node(rangeId).value, scale));
+    }
     setOverlayStyle(draft.overlayQueueStyle, root, draft.resourceStyle?.preset);
     initParameterRanges(root);
     const save = node('queueThemeSave');
@@ -87,5 +77,10 @@ export function bindQueueTheme(root, controller) {
     renderComponentSaveStatus(status, state);
   }
   const unsubscribe = subscribeComponentFields(root, controller, render);
-  return { dispose() { unsubscribe(); unregisterFonts.forEach(dispose => dispose?.()); disposeParameterRanges(root); } };
+  return { dispose() {
+    unsubscribe();
+    unregisterFonts.forEach(dispose => dispose?.());
+    unbindRanges.forEach(unbind => unbind());
+    disposeParameterRanges(root);
+  } };
 }

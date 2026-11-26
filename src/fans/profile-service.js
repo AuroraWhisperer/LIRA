@@ -6,7 +6,7 @@ const { randomUUID } = require('node:crypto');
 const { text, timestamp, identity, identityKey, profilePatch, recordData, recentNameHistory } = require('./validation');
 const { DAY_MS, dayOf, dayStart, addDays, zodiacFor } = require('./dates');
 const { REMINDER_HISTORY_DAYS } = require('./reminders');
-const { membershipConflicts, cycleForNewRecord } = require('./membership');
+const { membershipConflicts, cycleForNewRecord, intervalCycleOnDate, updatesCurrentCycle } = require('./membership');
 const { createFanProfileProjection } = require('./profile-projection');
 const { createFanBackupService, MAX_BACKUP_BYTES } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
@@ -117,7 +117,11 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const kind = previous?.kind || input.kind;
     if (kind === 'song' && previous) throw createPublicError('点歌已合并为汇总，不再保存或编辑逐次记录。');
     const data = recordData(kind, input.data || {});
-    const occurredAt = timestamp(input.occurredAt || now());
+    if (kind === 'membership') {
+      const excluded = input.data?.excluded ?? previous?.data.excluded;
+      if (excluded !== undefined) data.excluded = excluded === true;
+    }
+    const occurredAt = timestamp(input.occurredAt || (kind === 'membership' && previous?.occurredAt) || now());
     let record = {
       id: previous?.id,
       kind,
@@ -126,7 +130,16 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
       revision: previous?.revision,
       original: previous?.original || { ...data, occurredAt, source: 'manual' },
     };
-    if (kind === 'membership') {
+    if (kind === 'membership' && previous &&
+        Object.keys(data).every(key => key === 'decision' || key === 'reason' || data[key] === previous.data[key])) {
+      record.data = { ...previous.data, reason: data.reason };
+    } else if (kind === 'membership' && (data.excluded || ['superseded', 'rejected'].includes(previous?.data.decision))) {
+      // Keep excluded and historical evidence out of adoption when it is edited.
+      data.decision = previous?.data.decision || data.decision;
+      data.cycleId = previous?.data.cycleId || profile.cycleId;
+      data.conflicts = previous?.data.conflicts || [];
+      if (previous?.data.resolvedAt) data.resolvedAt = previous.data.resolvedAt;
+    } else if (kind === 'membership') {
       if (data.type === 'baseline') {
         const sameDate = records.filter(
           (r) =>
@@ -146,8 +159,9 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           data.totalDays = confirmedTotal ?? null;
           data.continuousDays = confirmedContinuous ?? null;
         }
+        data.cycleId = intervalCycleOnDate(records, data.asOf);
       }
-      data.cycleId = previous?.data.cycleId || cycleForNewRecord(profile, records, data) || randomUUID();
+      data.cycleId ||= previous?.data.cycleId || cycleForNewRecord(profile, records, data) || randomUUID();
       data.conflicts = membershipConflicts(record, records, previous?.id);
       if (data.conflicts.length) {
         data.decision = 'pending';
@@ -178,7 +192,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           store.records.update(scope, profile.id, { ...old, data: { ...old.data, decision: 'superseded' } }, now());
         }
       }
-      if (data.decision === 'adopted' && data.cycleId !== profile.cycleId) {
+      if (data.decision === 'adopted' && data.cycleId !== profile.cycleId && updatesCurrentCycle(data, records)) {
         profile = store.save(scope, { ...profile, cycleId: data.cycleId }, identityKey(profile.identity), now());
       }
     }
@@ -193,10 +207,30 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const records = store.records.list(scope, profile.id);
     const pending = records.find((r) => r.id === input.id && r.kind === 'membership' && r.data.decision === 'pending');
     if (!pending || !['adopt', 'keep'].includes(input.choice)) throw createPublicError('请选择待核实的依据和采用方式。');
+    const data = { ...pending.data };
+    let retained = records;
     if (input.choice === 'adopt') {
-      for (const old of records.filter((r) => pending.data.conflicts.includes(r.id))) {
+      const revises = pending.original.revises;
+      const conflicts = membershipConflicts(pending, records, revises, { independentBaselines: true });
+      if (revises && records.some(r => r.id === revises && ['adopted', 'pending'].includes(r.data.decision))) conflicts.push(revises);
+      if (conflicts.length !== data.conflicts.length || conflicts.some(id => !data.conflicts.includes(id))) {
+        store.records.update(scope, profile.id, { ...pending, data: { ...data, conflicts } }, now());
+        return detail(scope, profile.id);
+      }
+      if (data.type === 'interval' && !revises) data.cycleId = cycleForNewRecord(profile, records, data) || randomUUID();
+      for (const old of records.filter(r => conflicts.includes(r.id))) {
+        if (data.type === 'baseline' && old.data.type === 'baseline' && old.data.asOf === data.asOf && old.id !== revises) {
+          if (data.totalDays == null && old.data.totalDays != null && old.data.totalDays >= data.continuousDays)
+            data.totalDays = old.data.totalDays;
+          if (data.continuousDays == null && old.data.continuousDays != null && old.data.continuousDays <= data.totalDays) {
+            data.continuousDays = old.data.continuousDays;
+            data.cycleId = old.data.cycleId;
+          }
+        }
         store.records.update(scope, profile.id, { ...old, data: { ...old.data, decision: 'superseded' } }, now());
       }
+      retained = records.filter(r => !conflicts.includes(r.id));
+      if (data.type === 'baseline') data.cycleId = intervalCycleOnDate(retained, data.asOf) || data.cycleId;
     }
     store.records.update(
       scope,
@@ -204,15 +238,15 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
       {
         ...pending,
         data: {
-          ...pending.data,
+          ...data,
           decision: input.choice === 'adopt' ? 'adopted' : 'rejected',
           resolvedAt: now(),
         },
       },
       now(),
     );
-    if (input.choice === 'adopt' && pending.data.cycleId) {
-      store.save(scope, { ...profile, cycleId: pending.data.cycleId }, identityKey(profile.identity), now());
+    if (input.choice === 'adopt' && data.cycleId && updatesCurrentCycle(data, retained)) {
+      store.save(scope, { ...profile, cycleId: data.cycleId }, identityKey(profile.identity), now());
     }
     return detail(scope, profile.id);
   }
@@ -254,7 +288,9 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const candidates = profiles
       .filter((p) => (input.archived ? p.archived : !p.archived))
       .filter((profile) => {
-        const searchable = [
+        if (filters.includes('favorite') && !profile.favorite) return false;
+        if (filters.includes('incomplete') && profile.birthday && profile.summary) return false;
+        return !query || [
           profile.alias,
           profile.platformName,
           profile.identity?.value,
@@ -265,12 +301,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           ...(profile.tags || []),
         ]
           .join(' ')
-          .toLocaleLowerCase();
-        return (
-          (!query || searchable.includes(query)) &&
-          (!filters.includes('favorite') || profile.favorite) &&
-          (!filters.includes('incomplete') || !profile.birthday || !profile.summary)
-        );
+          .toLocaleLowerCase().includes(query);
       });
     const { records: recordsByProfile, states: statesByProfile } = readProjectionBatch(scope, candidates, at);
     return candidates

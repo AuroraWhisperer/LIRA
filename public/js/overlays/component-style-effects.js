@@ -151,7 +151,7 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
           if (type === 'danmaku') set(root, 'transform', 'var(--component-transform)');
         }
         else {
-          const original = view.getComputedStyle(root).transform;
+          const original = externalFrame ? root.style.transform : view.getComputedStyle(root).transform;
           set(root, 'transform-origin', 'top left');
           set(root, 'transform', `${original === 'none' ? '' : original + ' '}${transform}`);
         }
@@ -192,7 +192,8 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
     }
     for (const item of items ?? document.querySelectorAll('#danmakuFeed > .draw-danmaku-item')) {
       const surface = ['panel', 'frame'].includes(kind)
-        ? ['neon-glass', 'horizontal-charm', 'charm-thread', 'glowy', 'animated-gradient', 'wireframe', 'window', 'glass', 'glass-bubble'].includes(config.style) ? SURFACES[config.style] : item.classList.contains('is-superchat') ? '.sc-message'
+        ? ['neon-glass', 'horizontal-charm', 'charm-thread', 'glowy', 'animated-gradient', 'wireframe', 'window', 'glass', 'glass-bubble'].includes(config.style) ? SURFACES[config.style]
+          : item.classList.contains('is-superchat') && config.style !== 'notebook' ? '.sc-message'
           : config.style === 'glow' && item.classList.contains('is-gift') ? ':self' : SURFACES[config.style] || ':self' : null;
       applyRoot(item, surface, kind === 'art', kind === 'text');
     }

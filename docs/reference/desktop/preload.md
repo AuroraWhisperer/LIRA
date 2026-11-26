@@ -35,6 +35,7 @@
 | 通道 | 桥方法与输入 | 成功返回 / 公开失败 |
 | --- | --- | --- |
 | `desktop:set-client-theme` | `setClientTheme(themeId)`，恰好一个合法主题 ID 字符串（枚举及默认值定义见 [client-theme.js](../../../src/shared/client-theme.js)） | 成功 `{ok:true,themeId}`；失败 `{ok:false,error}`（`IPC_SOURCE_INVALID` / `IPC_ARGUMENTS_INVALID` / `CLIENT_THEME_INVALID` / `CLIENT_THEME_SAVE_FAILED`），失败不切换已提交状态 |
+| `desktop:set-client-font` | `setClientFont(fontId)`。受信管理主窗口提交一个界面字体 ID，`system` 恢复客户端原有排版 | 成功 `{ok:true,fontId}`。失败 `{ok:false,error}`，错误码为 `IPC_SOURCE_INVALID`、`IPC_ARGUMENTS_INVALID`、`CLIENT_FONT_INVALID` 或 `CLIENT_THEME_SAVE_FAILED`。候选见[字体主题目录](../../../public/js/shared/client-font-theme.js)。 |
 | `desktop:get-info` | `getInfo()` | `{version,isPackaged,platform,dataDir,logFile,terminalLogFile,githubRepoUrl,updateState}` |
 | `desktop:pick-screen-color` | `pickScreenColor()`，无参数（归属模块：[screen-color-picker.js](../../../src/electron/screen-color-picker.js)，调用方：共享 `color-picker.js`） | 选中 `{ok:true,sRGBHex:'#rrggbb'}`；取消 `{ok:true,canceled:true}`；失败 `{ok:false,error}`（`IPC_SOURCE_INVALID` / `IPC_ARGUMENTS_INVALID` / `SCREEN_COLOR_PICK_BUSY` / `SCREEN_COLOR_PICK_FAILED`） |
 | `desktop:cancel-screen-color` | `cancelScreenColor()`，无参数；仅受信主窗口可取消 | `{ok:true}`；来源或参数错误同上；无进行中取色时无副作用 |
@@ -175,9 +176,9 @@
 | `desktop-notifications:get-state` | `desktopNotifications.getState()`，无参数 | `{ok:true,supported:boolean,settings:DesktopNotificationSettings}` | [desktop-notifications-ipc.js](../../../src/electron/ipc/desktop-notifications-ipc.js) / [desktop-notification-settings.js](../../../public/js/admin/desktop-notification-settings.js) |
 | `desktop-notifications:update` | `desktopNotifications.update(patch)`，单参数 | 同上；失败 `{ok:false,error}` | 同上；持久化与通知归属 [desktop-notifications.js](../../../src/electron/desktop-notifications.js) |
 | `fan-profiles:invoke` | `fanProfiles.invoke({action,contextId?,payload?})` | `{ok:true,contextId,data,syncStatus,roomId,accountName}`；失败见 §5 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js) / [fans/index.js](../../../public/js/admin/fans/index.js)、[automatic-update.js](../../../public/js/admin/fans/automatic-update.js) |
-| `gift-export:settings` | `giftExport.settings(options?)` | `{ok:true,data:{mode,background,mergeAcrossDates,directory,custom}}` | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) / [export-preview.js](../../../public/js/admin/gifts/export-preview.js) |
+| `gift-export:settings` | `giftExport.settings(options?)` | `{ok:true,data:{mode,background,sortBy,rowGap,mergeAcrossDates,directory,custom}}` | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) / [export-preview.js](../../../public/js/admin/gifts/export-preview.js) |
 | `gift-export:prepare` | `giftExport.prepare(selection)` | `{ok:true,data:ExportTask}` | 同上 |
-| `gift-export:configure` | `giftExport.configure({id,mode,background,mergeAcrossDates?,directoryAction?,remember?})` | `{ok:true,data:ExportTask}` | 同上 |
+| `gift-export:configure` | `giftExport.configure({id,mode,background,sortBy?,rowGap?,mergeAcrossDates?,directoryAction?,remember?})` | `{ok:true,data:ExportTask}` | 同上 |
 | `gift-export:save` | `giftExport.save(id, roomGuard?)` → `{id,roomGuard?}` | **直接**返回 `{ok:true,saved,directory}` 或 `{ok:false,cancelled,saved,directory,error}`；启动前异常可仅 `{ok:false,error}` | 同上 |
 | `gift-export:cancel` | `giftExport.cancel(id?)`，原始 `id` | `{ok:true,data:undefined}`；不匹配的非空 `id` 不取消当前任务 | 同上 |
 | `gift-export:open-folder` | `giftExport.openFolder(id)` → `{id}` | `{ok:true,data:{ok:true}}`，要求该任务已保存 `≥ 1` 张 | 同上 |
@@ -224,6 +225,8 @@
 | `mixer` | 无参数；仅打开固定的 Windows 音量混合器设置 URI |
 
 快照包含 `ready`、`running`、`starting`、`source`、`sourceProcessId`、`internalSource`、`settings`、`original`、`status`、`song`、`sourceDevice`、`fileName`、`apps`、`outputs`、`outputChoices`、`inputs`、`inputDevice`、`inputError`、`inputLevel`、`level`、`position`、`duration`、`pendingRecovery`、`recoveryDeferred`、`revision`（渲染进程按 `revision` 接收更新）。`internalSource` 由主进程依据本实例 PID 与 `app.getAppMetrics()` 判定；`pendingRecovery` 表示仍有恢复工作，`recoveryDeferred=true` 表示剩余记录由存活守护负责、通道静音已归还且无错误，界面不显示恢复警告（主进程生命周期见 [main.md](main.md#电音助手生命周期)）。
+
+主进程启动原生组件时用 `LIRA_AUDIO_METER_FRAMES=1` 协商周期电平帧。支持此约定的组件在名单稳定时发送 `levels`，首次状态和名单变更仍发送完整 `state`。桌面桥以当前子进程的完整帧为起点合并电平，也能直接消费旧组件连续发来的完整帧。主进程在 `audio-assistant:state` 上推送完整快照或带 `baseRevision` 的变更。每个页面首次订阅（包括重载后）或检测到版本断档时，preload 通过沿用主窗口来源校验的无参数 `audio-assistant:sync` 请求缓存，主进程在同一状态通道上发回完整快照，无需启动组件。页面内的迟订阅者直接收到已有快照。每次 `onState` 回调及 `invoke` 返回的 `state` 均为完整状态。
 
 ### 大航海到期同步桥
 
@@ -301,7 +304,7 @@
 | `former-name-targets` | `{}` | `{ids:string[]}`（未归档、未屏蔽且有 UID 的档案 ID，供串行批量补充） |
 | `settings` | `{}` | 当前作用域设置 |
 | `configure` | `{autoCreate,autoUpdate,autoSyncGuardRoster?,accompanyMilestones?,showAccompanyInCalendar?}` | 更新后的作用域设置（陪伴节点规则见粉丝档案规格） |
-| `guard-expiry` | 同 `list` 筛选条件，须带 `contextId` | `{state,observedAt,badges:[{profileId,level,days}]}`（`state` 为 `ready`/`loginRequired`/`ownerMismatch`/`roomNotConfigured`/`sourceChanged`/`unavailable`/`unsupported`）；只读投影，不写本地档案 |
+| `guard-expiry` | 同 `list` 筛选条件，须带 `contextId` | 只读投影 `{state,observedAt,badges:[{profileId,level,days}]}`（`state` 为 `ready`/`loginRequired`/`ownerMismatch`/`roomNotConfigured`/`sourceChanged`/`unavailable`/`unsupported`）。传 `archived:true` 时仍读取页头所需的云端状态，返回 `badges:[]`，跳过用于匹配徽标的本机档案列表查询 |
 | `detail` | `{id}`（非空所属档案 ID，`≤ 100` 字符） | `ProfileDetail` |
 | `find` | `{identity}` | `ProfileDetail` 或 `null` |
 | `create` | `ProfilePatch`（`alias` 必填） | `ProfileDetail` |
@@ -342,11 +345,11 @@
 
 礼物导出与粉丝档案仅透传拥有者显式标记的 `publicMessage`，明确的业务校验错误由 [public-error.js](../../../src/shared/public-error.js) 创建；内部文件系统、SQLite 和网络异常即使含中文也不按原文返回。礼物保存路径错误仍按既有文件系统错误码映射为可公开提示，其他未知错误使用通用失败文案。
 
-- `settings` 无参数时读取默认值；写入仅接受可选 `mode`（`combined`/`separate`）、`background`（`transparent`/`white`）、布尔值 `mergeAcrossDates` 与 `directoryAction`（`choose`/`default`），拒绝未知字段与非法值。渲染进程不能传保存路径，目录由原生对话框或系统图片目录生成；取消选择不写入，导航/代次变化/销毁后忽略迟到结果。
-- `prepare` 的 `selection` 须携带当前 `viewRevision`，可传 `eventIds`（1–10000 个非空字符串，各 `≤ 64`）或历史筛选/排序条件（见 [礼物 HTTP 契约](../backend/api.md)），查回条数须与去重 ID 数一致且不能为空（上限 10000 条）。冻结当前来源、流水、展示设置、目录与卡片；后续默认设置只影响新任务。
-- `ExportTask` 为 `{id,snapshot,root,directory,mode,background,mergeAcrossDates,files:[{start,count,fileName}],custom}`。`snapshot` 含 `viewRevision` / `asOf` / `items`、同步元数据、`selectedCount` / `cardsPartial` 与 `config` / `catalog`。预览按 `files` 切分当前页，保存时复用同一布局计算窗口尺寸、逐张输出与进度总数。
+- `settings` 无参数时读取默认值。写入接受可选 `mode`（`combined`/`separate`）、`background`（`transparent`/`white`）、`sortBy`（`time`/`amount`）、`rowGap`（整数 `0–32`，单位为输出 PNG 像素）、布尔值 `mergeAcrossDates` 与 `directoryAction`（`choose`/`default`），拒绝未知字段与非法值。渲染进程不能传保存路径，目录由原生对话框或系统图片目录生成；取消选择不写入，导航/代次变化/销毁后忽略迟到结果。
+- `prepare` 的 `selection` 须携带当前 `viewRevision`，可传 `eventIds`（1–10000 个非空字符串，各 `≤ 64`）或历史筛选条件。导出按时间从新到旧取回所选记录，查回条数须与去重 ID 数一致且不能为空（上限 10000 条）。冻结当前来源、流水、展示设置、目录与卡片，后续默认设置只影响新任务。见[礼物 HTTP 契约](../backend/api.md)。
+- `ExportTask` 为 `{id,snapshot,root,directory,mode,background,sortBy,rowGap,mergeAcrossDates,files:[{start,count,fileName}],custom}`。`snapshot` 含 `viewRevision` / `asOf` / `items`、同步元数据、`selectedCount` / `cardsPartial` 与 `config` / `catalog`。`sortBy` 默认 `time`。`amount` 在合并后、分页前按每张卡片的结算总金额降序排列，同额保留时间顺序。预览和 PNG 共用同一顺序与布局。`rowGap` 默认 16，单张图恰好有两张卡片时使用记忆值，其他图使用原有布局。
 - `mergeAcrossDates` 默认关闭，预览按所选结算记录逐笔出卡，保留原数量。开启后按已确认的同人同礼物合并当天及历史记录；用今日资料合并的卡片以首条 `sourceEventId` 参与后续分组查询。每个任务复用一次合并结果，再次关闭即可恢复全部所选记录。
-- `configure` 要求当前 `id` 与合法 `mode` / `background`（`directoryAction` 可省略，`remember === true` 仅记忆目录）；`combined` 每图最多 39 行，`separate` 每图 1 行。运行中不可修改配置或再次 `prepare`，已完成任务不可重复 `save`。取消选目录时沿用当前根目录，保留已记忆的目录设置。若同次调用的输出方式、背景和合并选项均与当前任务一致，保留任务子目录、保存计数和完成状态。若这些选项有实际更改，更改仍生效。已尝试保存的任务在更改配置或显式重试时分配新子目录，保存计数从零开始，已写入的图片留在原处。
+- `configure` 要求当前 `id` 与合法 `mode` / `background`（`directoryAction` 可省略，`remember === true` 仅记忆目录）；`combined` 每图最多 39 行，`separate` 每图 1 行。运行中不可修改配置或再次 `prepare`，已完成任务不可重复 `save`。取消选目录时沿用当前根目录，保留已记忆的目录设置。若同次调用的输出方式、背景、排序、间距和合并选项均与当前任务一致，保留任务子目录、保存计数和完成状态。若这些选项有实际更改，更改仍生效。已尝试保存的任务在更改配置或显式重试时分配新子目录，保存计数从零开始，已写入的图片留在原处。
 - 保存 PNG 时，主进程将此次预览的舰队人数 `{roomId,count}` 传给隐藏渲染窗口。人数超过 1000 时使用千舰款，人数未知时使用普通款。整批图片使用同一个人数快照。
 - `save` 使用独占任务目录与防覆盖文件逐张渲染、截图并落盘（单步渲染超时 20 秒），`viewRevision` 变化立即使任务失效。进度 `{id,saved,total}` 表示已完成文件数；取消或部分失败保留已写文件并返回 `saved` / `directory`。
 - 主窗口非原地导航或销毁时调用 `cancel`，`dispose` 取消任务并销毁隐藏渲染窗口；`preparationGeneration` 防止过期 `prepare` 覆盖新任务。宿主监听的绑定、去重与解绑和周表导出共用 [navigation-cancellation.js](../../../src/electron/ipc/navigation-cancellation.js)，各导出控制器仍拥有任务取消与清理。渲染进程按 `id` 过滤迟到进度并在关闭预览时取消订阅；`openFolder` 仅允许已保存至少一张的任务。

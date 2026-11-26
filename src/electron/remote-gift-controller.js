@@ -86,6 +86,10 @@ function createRemoteGiftController(options = {}) {
     return Number.isSafeInteger(value) && value >= 0 ? value : 0;
   }
 
+  function authorizedSourceKey() {
+    return createRemoteGiftSourceKey(licenseManager.getRemoteBaseUrl?.(), licenseManager.getCloudSyncIdentity?.());
+  }
+
   function enqueue(task) {
     const next = operation.then(task, task);
     operation = next.catch(() => {});
@@ -129,10 +133,7 @@ function createRemoteGiftController(options = {}) {
     initializing = true;
     try {
       if (!isGenerationActive(generation) || !isAuthorized()) return false;
-      const sourceKey = createRemoteGiftSourceKey(
-        licenseManager.getRemoteBaseUrl?.(),
-        licenseManager.getCloudSyncIdentity?.(),
-      );
+      const sourceKey = authorizedSourceKey();
       const sourceFence = captureFence();
       const source = await runtime.resolveGiftSource(sourceKey);
       if (!ensureFenceCurrent(sourceFence)) return false;
@@ -685,9 +686,18 @@ function createRemoteGiftController(options = {}) {
     publishContext();
   }
 
+  function getDisplaySourceKey() {
+    if (currentSource) return currentSource.sourceKey;
+    if (syncState !== GiftSyncState.SOURCE_SWITCHING || !isAuthorized()) return null;
+    // A local clear also reopens the ledger. Only a known, authorized owner can keep its display.
+    try { return authorizedSourceKey(); } catch { return null; }
+  }
+
   function publishContext() {
+    const displaySourceKey = getDisplaySourceKey();
     runtime.setActiveGiftSource?.({
       sourceId: currentSource?.id ?? null,
+      ...(displaySourceKey && { displaySourceKey }),
       syncState,
       partial: syncState !== GiftSyncState.LIVE || dirty || !epochValidated,
       syncedThroughCursor: currentState?.finalCursor ?? null,

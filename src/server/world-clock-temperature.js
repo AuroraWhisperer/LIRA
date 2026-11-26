@@ -84,7 +84,8 @@ function createWorldClockTemperature(options = {}) {
       }
       const text = await readResponseText(response, 512 * 1024, unavailable);
       entry.data = parseWeather(text, latitude, longitude, now());
-      entry.expiresAt = startedAt + HOUR_MS - startedAt % HOUR_MS;
+      const localMinute = new Date(startedAt).getMinutes();
+      entry.expiresAt = startedAt + (60 - localMinute) * 60000 - startedAt % 60000;
       entry.retryAt = 0;
     } catch {
       entry.retryAt = Math.max(entry.retryAt, now() + 60000);

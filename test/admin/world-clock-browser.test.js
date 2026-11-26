@@ -15,6 +15,7 @@ test.before(async () => {
     <link rel="stylesheet" href="/css/styles-base.css"><link rel="stylesheet" href="/css/admin/toolbox/world-clock.css">
     <style>#otherWorldClockFeature { display: flex; flex-direction: column; height: 650px; width: 1100px; }</style>
     </head><body><main id="otherAssistantPage" class="active">${fragment}</main>
+    <button role="tab" id="otherWorldClockFeatureTab" aria-controls="otherWorldClockFeature">世界地图</button>
     <script type="module">import { initWorldClock } from '/js/admin/world-clock/index.js';
     document.getElementById('otherWorldClockFeature').hidden = location.search === '?background'; initWorldClock();</script></body></html>` });
   browser = await chromium.launch({ headless: true });
@@ -106,13 +107,14 @@ test('a failed city directory preserves saved cities, base weather and pagehide 
   assert.deepEqual(errors, []);
 });
 
-async function openClock(t, saved) {
+async function openClock(t, saved, setupPage) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
   page.setDefaultTimeout(5000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   t.after(async () => { await context.close(); assert.deepEqual(errors, []); });
+  if (setupPage) await setupPage(page);
   await page.route('**/js/admin/world-clock/globe.js', route => route.fulfill({ contentType: 'text/javascript',
     body: 'export async function createGlobe() { return { setCities() {}, setActive() {}, setSun() {}, focus() {}, destroy() {} }; }' }));
   await page.route('**/js/admin/world-clock/temperature.js', route => route.fulfill({ contentType: 'text/javascript',
@@ -136,6 +138,48 @@ async function openClock(t, saved) {
 const order = page => page.locator('[data-world-clock="list"] [data-world-clock-city]').evaluateAll(cards => cards.map(card => card.dataset.worldClockCity));
 const savedOrder = page => page.evaluate(() => JSON.parse(localStorage.getItem('admin.worldClock')));
 const card = (page, id) => page.locator(`[data-world-clock-city="${id}"]`);
+
+test('the focused Beijing button exposes its ticking local time, date and weather', async t => {
+  const page = await openClock(t, { ids: ['beijing'] });
+  const button = card(page, 'beijing').getByRole('button');
+  await button.focus();
+  await page.clock.pauseAt(new Date('2026-10-23T12:05:00Z'));
+  await page.clock.runFor(1000);
+  const snapshot = await button.ariaSnapshot();
+  assert.match(snapshot, /button ".*北京.*20:05:01.*10月23日.*星期五.*暂无天气/);
+});
+
+test('an unavailable 8K map loads the bundled day and night maps and enables globe controls', async t => {
+  const page = await browser.newPage();
+  t.after(() => page.close());
+  const maps = [];
+  let bundledDayAvailable = true;
+  await page.route('**/img/admin/world-clock/earth-*', route => {
+    const file = new URL(route.request().url()).pathname.split('/').at(-1);
+    maps.push(file);
+    const missing = file === 'earth-day-8k.png' || (file === 'earth-day.jpg' && !bundledDayAvailable);
+    return missing ? route.fulfill({ status: 404, body: '' }) : route.continue();
+  });
+  await page.route('**/api/world-clock/temperature?**', route => route.fulfill({ json: { ok: true, data: { temperature: 14 } } }));
+  await page.addInitScript(() => {
+    const getParameter = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function (key) {
+      return key === this.MAX_TEXTURE_SIZE ? 8192 : getParameter.call(this, key);
+    };
+  });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.locator('[data-world-clock="zoom-in"]:enabled').click({ timeout: 10000 });
+  assert.deepEqual(maps.sort(), ['earth-day-8k.png', 'earth-day.jpg', 'earth-night.jpg']);
+  bundledDayAvailable = false;
+  maps.length = 0;
+  await page.reload();
+  await page.locator('[data-world-clock="message"]').filter({ hasText: '加载失败' }).waitFor();
+  assert.ok(await page.locator('[data-world-clock="zoom-in"]').isDisabled());
+  assert.deepEqual(maps.sort(), ['earth-day-8k.png', 'earth-day.jpg', 'earth-night.jpg']);
+});
+
 async function drag(page, from, to, release = true) {
   const source = await card(page, from).boundingBox();
   const target = await card(page, to).boundingBox();
@@ -144,6 +188,95 @@ async function drag(page, from, to, release = true) {
   await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 12 });
   if (release) await page.mouse.up();
 }
+
+function trackFormattedZones(page) {
+  return page.route('**/world-clock/time.js', route => route.fulfill({
+    contentType: 'text/javascript',
+    body: `export * from './time.js?original';
+      import { clockAt as original } from './time.js?original';
+      export function clockAt(...args) { (window.formattedZones ||= []).push(args[0]); return original(...args); }`,
+  }));
+}
+
+async function openClockWithPendingDirectory(t, saved) {
+  const page = await browser.newPage();
+  t.after(() => page.close());
+  await trackFormattedZones(page);
+  await page.addInitScript(value => localStorage.setItem('admin.worldClock', JSON.stringify(value)), saved);
+  const directory = Promise.withResolvers();
+  await page.route('**/world-clock/cities.js', route => directory.resolve(route));
+  await page.route('**/world-clock/globe.js', route => route.fulfill({ contentType: 'text/javascript',
+    body: 'export async function createGlobe() { return { setCities(cities) { window.markers = cities.map(c => c.id); }, setSun() {}, setActive() {}, focus() {}, destroy() {} }; }' }));
+  await page.route('**/api/world-clock/temperature?**', route => route.fulfill({ json: { ok: true, data: { temperature: 14 } } }));
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  async function finishDirectory() {
+    const held = await directory.promise;
+    await Promise.all([page.waitForResponse(r => r.url().includes('latitude=33.749')), held.continue()]);
+  }
+  return { page, finishDirectory };
+}
+
+test('a hidden directory completion restores mixed saved cities on return and leaves focus on navigation', async t => {
+  const ids = ['beijing', 'ne-1159151489'];
+  const { page, finishDirectory } = await openClockWithPendingDirectory(t, { ids, customOrder: true });
+  assert.deepEqual(await order(page), ['beijing']);
+  const panel = page.locator('#otherWorldClockFeature');
+  const tab = page.getByRole('tab', { name: '世界地图' });
+  await card(page, 'beijing').getByRole('button').focus();
+  await tab.focus();
+  await panel.evaluate(node => { node.hidden = true; });
+  await finishDirectory();
+  const formatted = await panel.evaluate(async node => {
+    window.formattedZones = [];
+    node.hidden = false;
+    await Promise.resolve();
+    return window.formattedZones;
+  });
+  assert.deepEqual(await order(page), ids);
+  assert.deepEqual(await page.evaluate(() => window.markers), ids);
+  assert.equal(formatted.filter(zone => zone === 'America/New_York').length, 1);
+  assert.ok(await tab.evaluate(node => node === document.activeElement));
+});
+
+test('a hidden directory completion restores keyboard focus to the original unselected city', async t => {
+  const saved = { ids: ['beijing', 'london', 'ne-1159151489'], selectedId: 'beijing', customOrder: true };
+  const { page, finishDirectory } = await openClockWithPendingDirectory(t, saved);
+  const london = card(page, 'london').getByRole('button');
+  const setDocumentHidden = hidden => page.evaluate(value => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+  await london.focus();
+  await setDocumentHidden(true);
+  await finishDirectory();
+  assert.deepEqual(await order(page), ['beijing', 'london']);
+  assert.ok(await london.evaluate(node => node === document.activeElement));
+
+  await setDocumentHidden(false);
+  assert.deepEqual(await order(page), saved.ids);
+  assert.ok(await london.evaluate(node => node === document.activeElement));
+  assert.equal(await london.getAttribute('aria-pressed'), 'false');
+  assert.equal(await card(page, 'beijing').getByRole('button').getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(await savedOrder(page), saved);
+  await page.keyboard.press('Shift+F10');
+  assert.ok(await page.getByRole('menuitem', { name: '从列表移除伦敦' }).isVisible());
+});
+
+test('clock ticks format only displayed rows or an open detail', async t => {
+  const page = await openClock(t, null, trackFormattedZones);
+  await page.clock.pauseAt(new Date('2026-10-23T12:05:00Z'));
+  await card(page, 'tokyo').getByRole('button').click();
+  await page.locator('[data-world-clock="filter"]').fill('no-such-city');
+  assert.deepEqual(await order(page), []);
+  await page.evaluate(() => { window.formattedZones = []; });
+  await page.clock.runFor(1000);
+  assert.deepEqual(await page.evaluate(() => window.formattedZones), []);
+  await page.locator('[data-world-clock="details"]').evaluate(node => { node.hidden = false; });
+  await page.clock.runFor(1000);
+  assert.deepEqual(await page.evaluate(() => window.formattedZones), ['Asia/Tokyo']);
+});
 
 test('drag order survives ticking and reload; new cities append and can also move', async t => {
   const page = await openClock(t, { ids: ['tokyo', 'beijing', 'new-york', 'london'], selectedId: 'beijing', format: '12' });

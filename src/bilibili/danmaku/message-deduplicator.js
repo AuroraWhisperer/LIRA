@@ -47,6 +47,7 @@ class MessageDeduplicator {
       userName: cleanText(getDisplayNameHint(options.userName)).toLowerCase(),
       message: cleanText(message),
       timestampMs: normalizeTimestampMs(timestampMs) || receivedAt,
+      platformTimestamp: options.platformTimestamp,
       source,
       matchedSources: new Set(),
       receivedAt,
@@ -113,6 +114,18 @@ class MessageDeduplicator {
   has(uid, message, timestampMs, options = {}) {
     const key = buildCommandKey(uid, message, timestampMs, options.userName);
     return key && this.seenCommandKeys.has(key);
+  }
+
+  commandTimelines(uid, second) {
+    const entries = [];
+    const requester = normalizeUid(uid);
+    for (const command of this.recentCommands) {
+      if (command.uid === requester && command.platformTimestamp != null &&
+          Math.floor(command.timestampMs / 1000) === second) {
+        entries.push({ message: command.message, timeline: command.platformTimestamp, source: command.source });
+      }
+    }
+    return entries;
   }
 }
 

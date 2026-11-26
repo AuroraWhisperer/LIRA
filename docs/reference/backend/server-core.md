@@ -57,9 +57,9 @@ Windows 兼容旧版本的进程归属校验由 [local-process-owner.js](../../.
 
 ### 客户端外观 HTML 快照
 
-`createServerRuntime({ getClientTheme })` 将主进程提供的只读主题回调传入 [runtime-transport.js](../../../src/server/runtime-transport.js) 与 [page-assets.js](../../../src/server/page-assets.js)。每次生成管理页（`/`、`/admin`、`/settings`、`/songs`）、组件预览（含静态 HTML 别名）或已授权 `/pages/gift-audit.html` 响应时，仅将白名单主题 ID 写入 `<html data-client-theme="…">`，确保在 CSS 加载前生效。缺少桌面主题回调或值非法时回退为 `terracotta`（暖陶）。模板与管理页片段缓存保持无请求状态，响应维持 `Cache-Control: no-store`，不缓存已绑定旧主题的完整页面。
+`createServerRuntime({ getClientTheme, getClientFont })` 将主进程提供的只读外观回调传入 [runtime-transport.js](../../../src/server/runtime-transport.js) 与 [page-assets.js](../../../src/server/page-assets.js)。每次生成管理页（`/`、`/admin`、`/settings`、`/songs`）、组件预览（含静态 HTML 别名）或已授权 `/pages/gift-audit.html` 响应时，在 `<html>` 写入经过白名单校验的 `data-client-theme` 和 `data-client-font`。配色随首帧生效，客户端字体在所选字族的本机资源就绪后应用。缺少回调或值非法时，配色使用 `terracotta`（暖陶），字体使用 `system`。模板与管理页片段缓存保持无请求状态，响应维持 `Cache-Control: no-store`。
 
-该属性仅用于外观呈现，不授予权限；原有 `gift-audit` 授权检查保持不变，不注入管理员令牌。不向 `license`、`scene` 或任何叠加层注入主题，也不新增写 API、通知或轮询。已打开的外部工具保持原外观，后续新请求读取当前已提交值，不强制刷新编辑器。主进程存储与生命周期见 [desktop/main.md](../desktop/main.md)。
+该属性仅用于外观呈现，不授予权限；原有 `gift-audit` 授权检查保持不变，不注入管理员令牌。不向 `license`、`scene` 或任何叠加层注入主题，也不新增写 API、服务端通知或轮询。同一浏览器会话内已打开的工具通过 `BroadcastChannel` 接收新的字体选择，其他会话在下次请求页面时读取已保存的外观。主进程存储与生命周期见 [desktop/main.md](../desktop/main.md)。
 
 ## 3. 环境变量
 
@@ -215,8 +215,8 @@ AI 配置写入经 `ai-runtime.js` 的 `updateConfig()` 进入服务，提交成
 
 ## 8. 系统指标
 
-[src/server/system-metrics.js](../../../src/server/system-metrics.js) 的 `getSystemMetrics(rawWindowMs = 5000)` 采集默认 5 秒窗口内的 CPU、内存与 GPU（Windows 下通过 PowerShell 采样 GPU 引擎）指标，经 `/api/system/metrics` 暴露（见 [api.md](api.md)）。GPU 命令因需启动与枚举计数器，统一由子进程超时限制为“采样时长 + 10 秒”；CPU/内存取样完成后等待 GPU 返回，不提前丢弃有效结果。`windowMs` 与 `sampledAt` 仅记录 CPU/内存采样窗口与结束时间，不计入等待 GPU 的额外耗时。GPU 命令超时、计数器不可用或解析失败时返回不可用状态和 `null`，不伪装为零负载。
+[src/server/system-metrics.js](../../../src/server/system-metrics.js) 的 `getSystemMetrics(rawWindowMs = 5000)` 采集默认 5 秒窗口内的 CPU、内存与 GPU（Windows 下通过 PowerShell 采样 GPU 引擎）指标，经 `/api/system/metrics` 暴露（见 [api.md](api.md)）。GPU 命令因需启动与枚举计数器，统一由子进程超时限制为“采样时长 + 10 秒”；CPU/内存取样完成后等待 GPU 返回，不提前丢弃有效结果。`windowMs` 用单调时钟记录 CPU/内存的实际采样毫秒数，`sampledAt` 记录该窗口结束时的系统时间，两者均在等待 GPU 结果前取得。GPU 命令超时、计数器不可用或解析失败时返回不可用状态和 `null`，不伪装为零负载。
 
-[hardware-summary.js](../../../src/server/hardware-summary.js) 的 `createHardwareSummaryService()` 负责硬件信息探测与缓存，由 `runtime-api-context` 在运行期装配时创建一次，所有请求复用其 `getHardwareSummary(includeTemperatures)`。它读取操作系统版本、CPU/物理 GPU/内存型号与容量并排除虚拟显示适配器；静态结果按服务实例缓存，显示器列表每次刷新。Windows 系统名称与主 build 来自 `Win32_OperatingSystem.Caption/BuildNumber`，功能版本与补丁修订号来自 `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion` 的 `DisplayVersion`（缺失时取 `ReleaseId`）和 `UBR`；查询失败时保留 Node `os.version()` 的名称与 Windows `os.release()` 的主 build，不根据 `10.0` 内核版本推断为 Windows 10，也不为缺失的修订号伪造 `.0`，且系统资料查询失败不影响同次硬件读取。返回字段见 [系统域 API](api.md#1-系统域system)。仅在 `/api/system/hardware?includeTemperatures=true` 显式请求时为 NVIDIA GPU 短暂调用 `nvidia-smi`；不支持的传感器返回不可用状态，不启动常驻监控进程，也不返回序列号。
+[hardware-summary.js](../../../src/server/hardware-summary.js) 的 `createHardwareSummaryService()` 负责硬件信息探测与缓存，由 `runtime-api-context` 在运行期装配时创建一次，所有请求复用其 `getHardwareSummary(includeTemperatures)`。它读取操作系统版本、CPU/物理 GPU/内存型号与容量并排除虚拟显示适配器。并发请求共用一次静态查询，成功结果按服务实例缓存。Windows 设备查询失败时，本次返回 Node `os` 基础信息，下次请求重试。显示器列表按需读取，5 秒内复用。Windows 系统名称与主 build 来自 `Win32_OperatingSystem.Caption/BuildNumber`，功能版本与补丁修订号来自 `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion` 的 `DisplayVersion`（缺失时取 `ReleaseId`）和 `UBR`；查询失败时保留 Node `os.version()` 的名称与 Windows `os.release()` 的主 build，不根据 `10.0` 内核版本推断为 Windows 10，也不为缺失的修订号伪造 `.0`，且系统资料查询失败不影响同次硬件读取。返回字段见 [系统域 API](api.md#1-系统域system)。仅在 `/api/system/hardware?includeTemperatures=true` 显式请求时为 NVIDIA GPU 短暂调用 `nvidia-smi`。按型号匹配温度，忽略大小写。只有设备清单与温度输出两边都唯一匹配且读数有效时才返回摄氏度，其余返回 `temperatureCelsius: null`。不启动常驻监控进程，也不返回序列号。
 
 GPU 的 `videoMemoryBytes` 为驱动报告的专用或预留显存，不含核显动态共享的系统内存。Windows 静态查询按显卡对应的驱动注册表项读取 64 位 `HardwareInformation.qwMemorySize`；缺失时仅采信低于 4095 MiB 的 `Win32_VideoController.AdapterRAM`（旧字段为 32 位，4095 MiB 及以上可能已饱和），无可靠容量时返回 `null`，避免将 8 GB 等显卡误报为 4 GB。

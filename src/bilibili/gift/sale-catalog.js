@@ -21,19 +21,14 @@ const {
 const DEFAULT_MIN_REFRESH_MS = 10_000;
 const SNAPSHOT_SCHEMA_VERSION = 1;
 
+function emptySnapshot() {
+  return { roomId: '', refreshedAt: '', count: 0, panelCount: 0, gifts: [], cached: true };
+}
+
 function createUnavailableGiftSaleCatalogService() {
   return {
     getRevision: () => 0,
-    getSnapshot() {
-      return {
-        roomId: '',
-        refreshedAt: '',
-        count: 0,
-        panelCount: 0,
-        gifts: [],
-        cached: true,
-      };
-    },
+    getSnapshot: emptySnapshot,
     async refresh() {
       throw new Error('礼物目录刷新服务未配置。');
     },
@@ -46,7 +41,7 @@ function createUnavailableGiftSaleCatalogService() {
 function createGiftSaleCatalogService(options = {}) {
   const dataDir = path.resolve(String(options.dataDir || ''));
   if (!options.dataDir) throw new Error('dataDir is required.');
-  const getRoomId = options.getRoomId || (() => '');
+  const getRoomId = () => String(options.getRoomId?.() ?? '').trim();
   const getBlindBoxConfig = options.getBlindBoxConfig || (() => '');
   const fetchJson = options.fetchJson || defaultFetchJson;
   const now = options.now || Date.now;
@@ -59,6 +54,7 @@ function createGiftSaleCatalogService(options = {}) {
   let revision = 0;
 
   function getSnapshot() {
+    if (snapshot.roomId !== getRoomId()) return emptySnapshot();
     return {
       ...snapshot,
       gifts: snapshot.gifts.map((gift) => ({ ...gift })),
@@ -112,7 +108,7 @@ function createGiftSaleCatalogService(options = {}) {
   }
 
   return {
-    getRoomId: () => validateRoomId(getRoomId()),
+    getRoomId,
     getRevision: () => revision,
     getSnapshot,
     refresh,
@@ -183,14 +179,7 @@ function readSnapshot(filePath) {
       cached: true,
     };
   } catch (_) {
-    return {
-      roomId: '',
-      refreshedAt: '',
-      count: 0,
-      panelCount: 0,
-      gifts: [],
-      cached: true,
-    };
+    return emptySnapshot();
   }
 }
 

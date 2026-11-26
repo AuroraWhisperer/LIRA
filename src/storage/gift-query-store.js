@@ -99,7 +99,7 @@ function createGiftQueryStore(giftDb) {
         `
         SELECT g.* FROM gift_events g
         WHERE ${filter.sql}
-        ORDER BY datetime(g.created_at) DESC, g.id DESC
+        ORDER BY datetime(g.created_at, 'subsec') DESC, g.id DESC
         LIMIT ?
       `,
       )

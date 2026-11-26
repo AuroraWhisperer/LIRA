@@ -154,7 +154,7 @@ export function createRankingsView(host, { scrollable = false, statusExternallyR
       card.countdown.classList.toggle('is-ending', board.endsAt > time && board.endsAt - time <= 60000);
       const age = board.updatedAt ? Math.max(0, time - board.updatedAt) : Infinity;
       const delayed = board.status === 'stale' || age > 2000 && board.status === 'ready';
-      write(card.status, card.rows.size && delayed ? `更新延迟${Number.isFinite(age) ? ` · ${Math.floor(age / 1000)} 秒前的数据` : ' · 正在重试'}`
+      write(card.status, (card.rows.size || !card.mineList.hidden) && delayed ? `更新延迟${Number.isFinite(age) ? ` · ${Math.floor(age / 1000)} 秒前的数据` : ' · 正在重试'}`
           : '');
       setHidden(card.status, !card.status.textContent);
       card.status.classList.toggle('is-delayed', delayed);

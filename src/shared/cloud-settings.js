@@ -24,8 +24,18 @@ const CLOUD_SYNC_KEYS = Object.freeze([
   'giftBlindBoxCustomConfigV2',
 ]);
 
-function hasCloudSettingChanges(keys) {
-  return keys.some((key) => CLOUD_SYNC_KEYS.includes(key) || ['enableCustomReplyBot', 'customReplyRules'].includes(key));
+function isKeywordMenuSetting(key) {
+  return key === 'enableCustomReplyBot' || key === 'customReplyRules';
 }
 
-module.exports = { CLOUD_SETTING_KEYS, CLOUD_SYNC_KEYS, hasCloudSettingChanges };
+function hasKeywordMenuCommand(settings, parseCustomReplyRules) {
+  return (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true'
+    && settings.enableCustomReplyBot === 'true'
+    && parseCustomReplyRules(settings.customReplyRules).some(rule => rule.enabled);
+}
+
+function hasCloudSettingChanges(keys) {
+  return keys.some(key => CLOUD_SYNC_KEYS.includes(key));
+}
+
+module.exports = { CLOUD_SETTING_KEYS, CLOUD_SYNC_KEYS, isKeywordMenuSetting, hasKeywordMenuCommand, hasCloudSettingChanges };

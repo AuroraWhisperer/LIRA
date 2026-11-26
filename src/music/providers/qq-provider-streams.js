@@ -158,7 +158,9 @@ class QQMusicStreamProvider extends QQMusicClient {
       if (error.code === 'LYRIC_EXPANSION_LIMIT') throw error;
       if (richLyricError?.code === 'LYRIC_EXPANSION_LIMIT') throw richLyricError;
       if (!richLyricError) throw error;
-      throw Object.assign(new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`), {
+      throw Object.assign(new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`, {
+        cause: new AggregateError([richLyricError, error]),
+      }), {
         statusCode: richLyricError.statusCode, publicMessage: richLyricError.publicMessage,
       });
     }

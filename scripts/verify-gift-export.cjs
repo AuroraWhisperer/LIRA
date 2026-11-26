@@ -192,6 +192,24 @@ const server = http.createServer((req, res) => {
       'second row must be captured',
     );
     console.log(JSON.stringify({ ok: true, width, height: 304, dpi: process.env.GIFT_TEST_DPI || '1', preview: file }));
+    const tierPixel = (bitmap, stride, y) => bitmap.subarray((y * stride + 200) * 4, (y * stride + 200) * 4 + 4);
+    const isWarmTier = (pixel) => pixel[2] > pixel[0]; // Electron bitmap is BGRA.
+    assert.equal(isWarmTier(tierPixel(pixels, width, 128)), false);
+    assert.equal(isWarmTier(tierPixel(pixels, width, 288)), true);
+    for (const rowGap of [0, 32]) {
+      const next = await controller.configure({ id: task.id, mode: 'combined', background: 'transparent', sortBy: 'amount', rowGap });
+      const saved = await controller.save({ id: task.id });
+      assert.equal(saved.ok, true, saved.error);
+      const bytes = fs.readFileSync(path.join(saved.directory, next.files[0].fileName));
+      assert.equal(bytes.readUInt32BE(20), 288 + rowGap);
+      const stride = bytes.readUInt32BE(16);
+      const bitmap = nativeImage.createFromBuffer(bytes).toBitmap();
+      assert.equal(isWarmTier(tierPixel(bitmap, stride, 128)), true);
+      assert.equal(tierPixel(bitmap, stride, 144 + rowGap + 7)[3], 0);
+      assert.ok(tierPixel(bitmap, stride, 144 + rowGap + 8)[3] > 0);
+      assert.equal(isWarmTier(tierPixel(bitmap, stride, 144 + rowGap + 128)), false);
+    }
+    console.log('PASS: amount order and both spacing endpoints match the captured PNG pixels');
     const single = await controller.prepare({ merge: true });
     await controller.configure({ id: single.id, mode: 'separate', background: 'white' });
     const separate = await controller.save({ id: single.id });

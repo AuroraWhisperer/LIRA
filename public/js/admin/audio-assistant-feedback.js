@@ -117,7 +117,7 @@ export function createAudioFeedback(notify = toast) {
 
   function show(notice) {
     handle = notify(notice.message, { key: 'audio-assistant-feedback', title: '电音助手',
-      type: notice.type, update: true, duration: 10000, urgent: notice.type === 'error', topLayer: true });
+      type: notice.type, className: 'toast-icon-top', update: true, duration: 10000, urgent: notice.type === 'error', topLayer: true });
   }
 
   function reportState() {

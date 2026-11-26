@@ -1,11 +1,10 @@
-import { createWeeklyScheduleTemplate, cloneWeeklyScheduleTemplate, clearWeeklyScheduleWeek, normalizeWeeklyScheduleTemplate, getWeekDates, WEEKLY_PALETTES, WEEKLY_FONTS, ASSET_KEYS, MAX_TEMPLATE_ASSET_BYTES, getWeeklyScheduleAssetBytes, getWeeklyImagePath } from './model.js';
+import { createWeeklyScheduleTemplate, cloneWeeklyScheduleTemplate, clearWeeklyScheduleWeek, normalizeWeeklyScheduleTemplate, getWeekDates, WEEKLY_PALETTES, ASSET_KEYS, MAX_TEMPLATE_ASSET_BYTES, getWeeklyScheduleAssetBytes, getWeeklyImagePath } from './model.js';
 import { createWeeklyScheduleStorage } from './storage.js';
 import { readWeeklyScheduleAsset } from './assets.js';
 import { renderWeeklySchedule, fitWeeklyScheduleText, waitForWeeklyScheduleImages, applyWeeklyImageSettings } from './renderer.js';
 import { createWeeklyImageInteraction } from './image-interaction.js';
 import { renderWeeklyScheduleFields, refreshWeeklyScheduleAsset } from './editor-fields.js';
 import { registerFontSelect, ensureSavedFontOption } from '../../shared/font-library.js';
-import { findSharedFont } from '../../shared/font-catalog.js';
 import { initParameterRanges, disposeParameterRanges, refreshParameterRange } from '../../shared/parameter-range.js';
 import { enhanceSelects } from '../../shared/select-menu.js';
 import { enhanceColorControls } from '../../shared/color-control.js';
@@ -157,14 +156,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       if (expanded.has(node.dataset.weeklyGroup)) node.open = expanded.get(node.dataset.weeklyGroup);
     });
     selectCategory(activeCategory);
-    unregisterFont = registerFontSelect(fontSelect) || (() => {});
-    for (const font of WEEKLY_FONTS) {
-      if (findSharedFont(font.value) || Array.from(fontSelect.options).some(option => option.value === font.value)) continue;
-      const option = root.ownerDocument.createElement('option');
-      option.value = font.value;
-      option.textContent = font.label;
-      fontSelect.append(option);
-    }
+    unregisterFont = registerFontSelect(fontSelect, { keepProvidedFonts: true });
     ensureSavedFontOption(fontSelect, template.fontId);
     fontSelect.value = template.fontId;
     initParameterRanges(fields);

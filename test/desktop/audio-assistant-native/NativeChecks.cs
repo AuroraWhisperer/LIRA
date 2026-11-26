@@ -6,8 +6,22 @@ internal static class NativeChecks
 {
   static async Task Main(string[] args)
   {
+    if (args is ["--state-frames"] or ["--state-frames", _])
+    {
+      await StateFrameChecks.Run(args.ElementAtOrDefault(1));
+      return;
+    }
+    if (args is ["--synthetic-streams"])
+    {
+      await SyntheticStreamChecks.Run("tmp");
+      CheckOutputVolume();
+      Console.WriteLine(JsonSerializer.Serialize(CheckBypassAndPitch()));
+      return;
+    }
     PlaybackPcmChecks.Run();
     if (args is ["--playback-pcm"]) return;
+    await StateFrameChecks.Run();
+    await SyntheticStreamChecks.Run(args[1]);
     CheckWindowsCompatibility();
     await InstallationExitChecks.Run(args[0], args[1]);
     await CheckIdleSession(args[1]);

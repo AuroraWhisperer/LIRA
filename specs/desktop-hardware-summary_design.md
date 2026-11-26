@@ -24,18 +24,20 @@ shown as `未知`, and the memory card shall not show a temperature row.
 - Frontend: `metrics.js` requests static hardware details once at initialization
   and refreshes temperatures only alongside the existing explicit sample. The
   renderer writes all returned values through `textContent`.
-- Backend: `system-metrics.js` owns operating-system reads. It uses Node `os`
+- Backend: `hardware-summary.js` owns the hardware inventory. It uses Node `os`
   data for CPU and total memory, starts one hidden PowerShell CIM query for
   static Windows device details and the corresponding driver's 64-bit memory
-  capacity, and conditionally invokes `nvidia-smi` for an NVIDIA GPU temperature
-  only during a refresh. Memory-source and fallback rules belong to the
+  capacity, and invokes `nvidia-smi` for NVIDIA GPU temperatures during an
+  explicit refresh. `system-metrics.js` measures the CPU sampling window with a
+  monotonic clock and records its end as wall time before waiting for GPU counters.
+  Memory-source and fallback rules belong to the
   [system-metrics reference](../docs/reference/backend/server-core.md#8-系统指标).
 - API: `GET /api/system/hardware` returns a narrow, read-only summary. The
   optional `includeTemperatures=true` flag is interpreted server-side; no value
   is inserted into a shell command.
 - Security: the endpoint follows the existing local system-metrics route. It
   exposes no serial numbers, process data, credentials, or arbitrary command
-  execution; static results are cached in memory for the server lifetime.
+  execution. Successful static queries are cached in memory for the server lifetime.
 
 ## Non-goals
 
@@ -48,10 +50,12 @@ shown as `未知`, and the memory card shall not show a temperature row.
 
 1. The performance panel displays CPU model and core/thread counts, installed
    memory capacity and module information, and each detected GPU name and VRAM.
-2. Initial hardware loading starts no repeating timer; repeated page visits use
-   the in-process static-summary cache.
+2. Initial hardware loading starts no repeating timer. Concurrent requests share
+   the static query. If it fails, the caller receives basic OS data and the next
+   request retries. Display queries reuse their result for five seconds.
 3. A five-second sample refreshes temperature values with a short-lived command
-   only when an NVIDIA adapter is detected; unsupported values have clear UI
-   text.
+   only when an NVIDIA adapter is detected. A reading must match a unique model
+   in both the inventory and the temperature output. Missing or ambiguous
+   readings return `null` and appear as unavailable.
 4. Existing `/api/system/metrics` response and performance cards keep their
    current behavior.

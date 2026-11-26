@@ -549,7 +549,17 @@ test('realtime readiness requires accepted authentication and resolved room owne
   client.wsConnection.ws = { readyState: 1, close() {} };
   client.wsConnection.connectionTrace = { authStatus: 'pending' };
   assert.equal(client.getRealtimeState().ready, false);
+  const connectionKey = client.getRealtimeState().connectionKey;
+  client.authenticatedIdentity = Object.freeze({ accountUid: '456', connectionKey });
   client.wsConnection.connectionTrace.authStatus = 'accepted';
+  assert.equal(client.getRealtimeState().ready, true);
+  client.apiClient.uid = 457;
+  assert.equal(client.getRealtimeState().ready, false, 'new local identity awaits its own confirmed connection');
+  client.connectionAttempt++;
+  assert.equal(client.getRealtimeState().ready, false);
+  client.authenticatedIdentity = Object.freeze({ accountUid: '457', connectionKey });
+  assert.equal(client.getRealtimeState().ready, false, 'a previous attempt cannot certify the current attempt');
+  client.authenticatedIdentity = Object.freeze({ accountUid: '457', connectionKey: client.getRealtimeState().connectionKey });
   assert.equal(client.getRealtimeState().ready, true);
   client.ownerUid = '';
   assert.equal(client.getRealtimeState().ready, false);

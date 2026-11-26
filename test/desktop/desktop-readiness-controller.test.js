@@ -18,6 +18,7 @@ function createHarness({ ready = true, authorized = true, initializeFontLibrary,
   let lastCatalogListener;
   const controller = createDesktopReadinessController({
     audioComponent: initializeAudioComponent ? { initialize: initializeAudioComponent } : undefined,
+    audioAssistant: { async invoke(op) { calls.push(['audio', op]); return { ok: true }; } },
     baseUrl: 'http://127.0.0.1:3000',
     writeLog: (...args) => calls.push(['log', ...args]),
     getMainWindow: () => ({
@@ -162,6 +163,7 @@ test('catalog readiness gates navigation and stale load rejection cannot reset t
     h.navigations.map((navigation) => navigation.url),
     ['http://127.0.0.1:3000/license', 'http://127.0.0.1:3000/admin?desktop=1', 'http://127.0.0.1:3000/license'],
   );
+  assert.deepEqual(h.calls.filter(([call]) => call === 'audio'), [['audio', 'stop']]);
   h.ready();
   assert.equal(h.navigations.length, 3);
   h.controller.dispose();

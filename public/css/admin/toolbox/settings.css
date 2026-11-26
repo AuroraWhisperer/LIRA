@@ -83,8 +83,8 @@
   background: var(--client-main-nav-active-bg, var(--surface));
   box-shadow: var(
     --client-main-nav-active-shadow,
-    0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent)
+    0 1px 2px light-dark(color-mix(in srgb, var(--text) 10%, transparent), rgba(0, 0, 0, 0.35)),
+    0 0 0 1px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(255, 255, 255, 0.08))
   );
   color: var(--text);
 }

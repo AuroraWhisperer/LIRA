@@ -15,6 +15,7 @@ function element(tagName = 'div') {
   return {
     tagName,
     children: [],
+    get lastElementChild() { return this.children.at(-1) || null; },
     attributes: {},
     disabled: false,
     hidden: false,
@@ -35,6 +36,12 @@ function element(tagName = 'div') {
     replaceChildren(...children) {
       text = '';
       this.children = children;
+    },
+    replaceChild(next, previous) {
+      this.children.splice(this.children.indexOf(previous), 1, next);
+    },
+    removeChild(child) {
+      this.children.splice(this.children.indexOf(child), 1);
     },
     setAttribute(name, value) {
       this.attributes[name] = value;
@@ -194,8 +201,9 @@ test('lottery announces running task outcomes once but does not announce histori
   assert.equal(f.notices.at(-1).type, 'success');
   await f.click('state-refresh');
   assert.equal(f.notices.length, 1);
-  f.setState(state(task('drawing'), { ...result(0), status: 'drawing' }, { kind: 'draw', taskId: 'task-1' }));
+  f.setState(state(task('ready'), null, { kind: 'draw', taskId: 'task-1' }));
   await f.click('draw');
+  assert.equal(f.notices.length, 1);
   f.setState(state(task('exhausted'), result(7)));
   [...f.timers.values()].at(-1)();
   await settle();
@@ -210,6 +218,93 @@ test('copying winners includes all result pages and their Bilibili identities', 
   assert.equal(f.copied.length, 1);
   assert.equal(f.copied[0].split('\n').length, 7);
   assert.match(f.copied[0], /7\. 昵称7 · UID 107 · https:\/\/space.bilibili.com\/107/);
+});
+
+function historyStates() {
+  const records = ['A', 'B', 'C'].map((id, index) => {
+    const activity = task(index === 0 ? 'exhausted' : 'paused');
+    activity.id = id;
+    activity.target.description = `场次 ${id}`;
+    const draw = result(index === 0 ? 7 : 6);
+    draw.roundId = `round-${id}`;
+    draw.status = activity.status;
+    for (const winner of draw.winners) winner.uid = String((index + 1) * 100 + winner.position);
+    return state(activity, draw);
+  });
+  const tasks = records.flatMap(record => record.tasks);
+  return records.map(record => ({ ...record, tasks }));
+}
+
+function selectPendingHistory(f, id) {
+  const pending = Promise.withResolvers();
+  f.setPending(pending.promise);
+  const history = f.get('history');
+  assert.equal(history.disabled, false);
+  history.value = id;
+  history.dispatch('change');
+  assert.equal(f.calls.at(-1).url, `/api/bilibili/dynamic-lottery/state?taskId=${id}`);
+  return pending;
+}
+
+test('newer history selections own the displayed, paged and copied winners even after a late response', async t => {
+  const [a, b, c] = historyStates();
+  const f = await fixture(a);
+  t.after(() => f.controller.dispose());
+  const older = selectPendingHistory(f, 'B');
+  const oldRequest = f.calls.at(-1);
+  assert.equal(f.get('activity').hidden, true);
+  assert.equal(f.get('result-panel').hidden, true);
+  await f.click('copy-winners');
+  await f.click('next');
+  assert.deepEqual(f.copied, []);
+
+  const latest = selectPendingHistory(f, 'C');
+  assert.equal(oldRequest.signal.aborted, true);
+  latest.resolve({ ok: true, data: c });
+  await settle();
+  assert.equal(f.get('activity').hidden, false);
+  assert.equal(f.get('result-panel').hidden, false);
+  assert.equal(f.get('task-info').textContent, '场次 C');
+  assert.equal(winnerLink(f.get('winners').children[0]).href, 'https://space.bilibili.com/301');
+  await f.click('next');
+  older.resolve({ ok: true, data: b });
+  await settle();
+  assert.equal(f.get('history').children.find(option => option.selected).value, 'C');
+  assert.equal(f.get('page-info').textContent, '2 / 2 页 · 共 6 人');
+  assert.equal(winnerLink(f.get('winners').children[0]).href, 'https://space.bilibili.com/306');
+  await f.click('copy-winners');
+  assert.deepEqual(f.copied[0].match(/UID \d+/g), c.result.winners.map(winner => `UID ${winner.uid}`));
+});
+
+test('failed history selections restore the confirmed record, original page, copy and refresh target', async t => {
+  const [a] = historyStates();
+  const f = await fixture(a);
+  t.after(() => f.controller.dispose());
+  await f.click('next');
+  for (const fail of [
+    pending => pending.resolve({ ok: false, error: 'LOTTERY_TASK_NOT_FOUND' }),
+    pending => pending.reject(new Error('connection lost')),
+  ]) {
+    const pending = selectPendingHistory(f, 'B');
+    await f.click('previous');
+    const copies = f.copied.length;
+    await f.click('copy-winners');
+    assert.equal(f.copied.length, copies);
+    fail(pending);
+    await settle();
+    assert.ok(f.get('message').textContent);
+    assert.equal(f.get('history').children.find(option => option.selected).value, 'A');
+    assert.equal(f.get('activity').hidden, false);
+    assert.equal(f.get('task-info').textContent, '场次 A');
+    assert.equal(f.get('result-panel').hidden, false);
+    assert.equal(f.get('page-info').textContent, '2 / 2 页 · 共 7 人');
+    assert.equal(winnerLink(f.get('winners').children[0]).href, 'https://space.bilibili.com/106');
+    await f.click('copy-winners');
+    assert.deepEqual(f.copied.at(-1).match(/UID \d+/g), a.result.winners.map(winner => `UID ${winner.uid}`));
+    f.setPending(null);
+    await f.click('state-refresh');
+    assert.equal(f.calls.at(-1).url, '/api/bilibili/dynamic-lottery/state?taskId=A');
+  }
 });
 
 test('lottery polling errors notify once and disposed requests cannot announce outcomes', async (t) => {
@@ -237,7 +332,9 @@ test('setup submits the original rule fields once with authorization', async (t)
   f.setState(state(null, null, { kind: 'create', taskId: null }));
   f.get('form').dispatch('submit');
   await settle();
-  assert.deepEqual(JSON.parse(f.calls.at(-1).body), {
+  const { submittedAtMs, ...fields } = JSON.parse(f.calls.at(-1).body);
+  assert.ok(Number.isSafeInteger(submittedAtMs) && submittedAtMs > 0);
+  assert.deepEqual(fields, {
     url: 'https://t.bilibili.com/888',
     winnerCount: 10,
     requireLike: false,
@@ -294,7 +391,9 @@ test('logged-out users can prepare settings and new drafts but cannot fetch part
   assert.equal(f.get('create').disabled, false);
   f.get('form').dispatch('submit');
   await settle();
-  assert.deepEqual(JSON.parse(f.calls.at(-1).body), {
+  const { submittedAtMs, ...fields } = JSON.parse(f.calls.at(-1).body);
+  assert.ok(Number.isSafeInteger(submittedAtMs));
+  assert.deepEqual(fields, {
     url: 'https://t.bilibili.com/123',
     winnerCount: 5,
     requireLike: true,
@@ -326,17 +425,66 @@ test('collection pause, resume and draw send the current revision and gate drawi
 test('verification can pause and resume while confirmed winners remain visible', async (t) => {
   const current = task('drawing');
   const partial = { ...result(1), status: 'drawing', shortage: 0 };
-  const f = await fixture(state(current, partial, { kind: 'draw', taskId: current.id }));
+  const job = { kind: 'draw', taskId: current.id };
+  const f = await fixture(state(current, partial, job));
   t.after(() => f.controller.dispose());
   assert.equal(f.get('winners').children.length, 1);
-  f.setState(
-    state({ ...current, status: 'paused' }, { ...partial, status: 'paused', reason: 'LOTTERY_RELATION_UNKNOWN' }),
-  );
+  const paused = state({ ...current, status: 'paused' }, { ...partial, status: 'paused' });
+  f.setState({ ...paused, job });
   await f.click('pause');
+  assert.deepEqual(f.notices.map(notice => notice.type), ['warning']);
+  f.setState({ ...paused, error: 'LOTTERY_OPERATION_PAUSED' });
+  await f.click('state-refresh');
+  assert.equal(f.notices.length, 1);
   assert.equal(f.get('resume').disabled, false);
   assert.equal(f.get('winners').children.length, 1);
+  f.setState({ ...paused, job, error: 'LOTTERY_OPERATION_PAUSED' });
   await f.click('resume');
   assert.equal(JSON.parse(f.calls.at(-1).body).action, 'resume');
+  assert.equal(f.notices.length, 1);
+  f.setState(state(task('completed'), { ...partial, status: 'completed' }));
+  await f.click('state-refresh');
+  assert.deepEqual(f.notices.map(notice => notice.type), ['warning', 'success']);
+});
+
+test('polling keeps existing winner links while waiting, confirming and appending results', async t => {
+  const job = { kind: 'draw', taskId: 'task-1' };
+  const current = state(task('drawing'), result(2), job);
+  const f = await fixture(current);
+  t.after(() => f.controller.dispose());
+  const list = f.get('winners');
+  const original = list.children.map(winnerLink);
+  const progress = f.get('progress').children[0];
+  const pending = Promise.withResolvers();
+  f.setPending(pending.promise);
+  const calls = f.calls.length;
+  [...f.timers.values()].at(-1)();
+  assert.equal(f.get('pause').disabled, true);
+  assert.equal(f.calls.length, calls + 1);
+  assert.equal(winnerLink(list.children[0]), original[0]);
+  assert.equal(f.get('progress').children[0], progress);
+  pending.resolve({ ok: true, data: current });
+  await settle();
+  assert.equal(f.get('pause').disabled, false);
+  assert.equal(winnerLink(list.children[0]), original[0]);
+  f.setPending(null);
+  f.setState(state(task('drawing'), result(3), job));
+  [...f.timers.values()].at(-1)();
+  await settle();
+  assert.equal(list.children.length, 3);
+  assert.equal(winnerLink(list.children[1]), original[1]);
+  const changed = result(2);
+  changed.winners[1].commentText = '更正后的评论';
+  f.setState(state(task('drawing'), changed, job));
+  await f.click('state-refresh');
+  assert.equal(list.children.length, 2);
+  assert.match(list.children[1].textContent, /更正后的评论/);
+  assert.equal(winnerLink(list.children[0]), original[0]);
+  f.setState(state(task('drawing'), { ...changed, roundId: 'round-2' }, job));
+  await f.click('state-refresh');
+  assert.notEqual(winnerLink(list.children[0]), original[0]);
+  f.controller.reset();
+  assert.equal(list.children.length, 0);
 });
 
 test('results render full untrusted text, legacy fallback, all pages and shortage without losing proof', async (t) => {

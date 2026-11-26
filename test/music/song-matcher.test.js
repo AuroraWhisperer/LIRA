@@ -103,6 +103,47 @@ test('version keywords do not penalize ordinary words containing the same letter
   }
 });
 
+test('a duet request requires every named singer, independent of billing order', () => {
+  const { results } = matchMusicTrackCandidates({ songName: 'Duet', artist: 'Anna / Bill', candidates: [
+    { id: 'solo', title: 'Duet', artists: ['Anna'] },
+    { id: 'duet', title: 'Duet', artists: ['Bill', 'Anna'] },
+  ] });
+  assert.deepEqual(results.map(({ track, autoAccept }) => [track.id, autoAccept]), [['duet', true], ['solo', false]]);
+});
+
+test('artist punctuation survives ranking and automatic queue import', async () => {
+  const { MatchService } = await loadModuleExports(path.resolve(__dirname, '../../public/js/playback/services/match-service.js'));
+  const { ImportService } = await loadModuleExports(path.resolve(__dirname, '../../public/js/playback/services/import-service.js'));
+  const matchService = new MatchService();
+  matchService.searchAndRank = async (item) => matchMusicTrackCandidates({ ...item, candidates: [
+    { id: 'plain', title: 'Echoes', artists: ['Echo'] },
+    { id: 'wanted', title: 'Echoes', artists: ['&Echo'] },
+  ] });
+  const item = { id: 1, songName: 'Echoes', artist: '&Echo' };
+  const { results } = await matchService.searchAndRank(item);
+  assert.deepEqual(results.map(row => [row.track.id, row.autoAccept]), [['wanted', true], ['plain', false]]);
+  const importer = new ImportService({ matchService });
+  importer.fetchSongQueue = async () => ({ items: [item] });
+  const result = await importer.importFromSongQueue({ platforms: ['qq'] });
+  assert.deepEqual(Array.from(result.tracks, t => t.id), ['wanted']);
+});
+
+test('matching selects a playable auto-accepted version before a higher-scoring confirmation', async () => {
+  const { MatchService } = await loadModuleExports(path.resolve(__dirname, '../../public/js/playback/services/match-service.js'));
+  const service = new MatchService({ state: { selectedSource: 'netease' } });
+  const platforms = [];
+  service.searchAndRank = async (request, platform) => {
+    platforms.push(platform);
+    return matchMusicTrackCandidates({ ...request, candidates: [
+      { id: 'blocked', title: 'Duet', artists: ['Anna'], source: platform, album: 'Record', playable: false },
+      { id: 'available', title: 'Duet', artists: ['Anna'], source: platform },
+    ] });
+  };
+  const diagnosis = await service.testMatch('Duet', 'Anna');
+  assert.deepEqual(Array.from(diagnosis.results, row => [row.track.id, row.score]), [['available', 85], ['blocked', 90]]);
+  assert.deepEqual(platforms, ['netease']);
+});
+
 test('meaningful parenthetical title words are retained when matching songs', () => {
   const { results } = matchMusicTrackCandidates({
     songName: 'Run (To You)',

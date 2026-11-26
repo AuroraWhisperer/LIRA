@@ -258,6 +258,126 @@ test('adding a blind box preserves a malformed advanced draft until it is correc
   assert.deepEqual(writes, [[original, { giftId: null, name: 'B', price: 3, outputs: [{ giftId: '2', name: '奖品', price: 1 }] }]]);
 });
 
+async function blindboxEditor(saveSettings) {
+  const document = require('../helpers/parameter-dom').createParameterDocument();
+  const field = id => document.getElementById(id);
+  const { createBlindboxSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-blindbox.js'), { document }, {
+    moduleFixtures: new Map([[path.join(ROOT_DIR, 'public/js/shared/confirmation-dialog.js'), {
+      showConfirmationDialog: async () => true, dangerConfirm() {}, logoutConfirm() {},
+    }]]),
+  });
+  createBlindboxSettings({
+    documentRef: document, value: id => field(id).value, toast() {}, getGifts: () => null, getState: () => null,
+    localOverlayOrigin: () => 'http://127.0.0.1', saveSettings,
+  }).init();
+  const fields = ['blindBoxGiftId', 'blindBoxName', 'blindBoxPrice', 'blindBoxOutputs'].map(field);
+  const fill = values => fields.forEach((node, i) => { node.value = values[i]; });
+  const add = () => field('blindBoxAddBtn').listeners.click();
+  return { document, field, fields, fill, add };
+}
+
+test('a blind-box save only clears the four submitted inputs while the draft is unchanged', async () => {
+  const writes = [];
+  const gate = Promise.withResolvers();
+  const { fields, fill, add } = await blindboxEditor(({ giftBlindBoxCustomConfigV2 }) => {
+    writes.push(JSON.parse(giftBlindBoxCustomConfigV2));
+    return gate.promise;
+  });
+  fill(['101', 'A', '3', '2:花:1']);
+  const saving = add();
+  const next = ['102', 'B', '8', '3:月:2'];
+  fill(next);
+  gate.resolve();
+  await saving;
+  assert.deepEqual(writes[0].map(box => box.name), ['A']);
+  assert.deepEqual(fields.map(node => node.value), next);
+  await add();
+  assert.deepEqual(writes[1].map(box => box.name), ['A', 'B']);
+  assert.deepEqual(fields.map(node => node.value), ['', '', '', '']);
+});
+
+test('retrying a failed blind-box addition saves one copy of the corrected box', async () => {
+  const { normalizeGiftBlindBoxCustomConfigV2 } = require('../../src/bilibili/gift/blind-box-config');
+  let offline = true;
+  let saved;
+  const { fill, add, field } = await blindboxEditor(async ({ giftBlindBoxCustomConfigV2 }) => {
+    if (offline) throw new Error('offline');
+    saved = normalizeGiftBlindBoxCustomConfigV2(JSON.parse(giftBlindBoxCustomConfigV2));
+  });
+  fill(['101', 'A', '3', '2:花:1']);
+  await assert.rejects(add(), /offline/);
+  offline = false;
+  field('blindBoxPrice').value = '4';
+  await add();
+  assert.deepEqual(saved.map(box => [box.giftId, box.price]), [['101', 4]]);
+});
+
+test('consecutive additions persist in submission order even when the first write is delayed', async () => {
+  const first = Promise.withResolvers();
+  let stored;
+  const { fill, add } = await blindboxEditor(async ({ giftBlindBoxCustomConfigV2 }) => {
+    const config = JSON.parse(giftBlindBoxCustomConfigV2);
+    if (config.length === 1) await first.promise;
+    stored = config;
+  });
+  fill(['101', 'A', '3', '2:花:1']);
+  const a = add();
+  fill(['102', 'B', '8', '3:月:2']);
+  const b = add();
+  first.resolve();
+  await Promise.all([a, b]);
+  assert.deepEqual(stored.map(box => box.giftId), ['101', '102']);
+});
+
+test('same-name additions with different explicit IDs reach validation while the first save is pending', async () => {
+  const { normalizeGiftBlindBoxCustomConfigV2 } = require('../../src/bilibili/gift/blind-box-config');
+  const first = Promise.withResolvers();
+  const submissions = [];
+  let stored;
+  const { fill, add, field } = await blindboxEditor(async ({ giftBlindBoxCustomConfigV2 }) => {
+    const rows = JSON.parse(giftBlindBoxCustomConfigV2);
+    submissions.push(rows.map(box => box.giftId));
+    const validated = normalizeGiftBlindBoxCustomConfigV2(rows);
+    if (submissions.length === 1) await first.promise;
+    stored = validated;
+  });
+  fill(['101', 'A', '3', '2:花:1']);
+  const saving = add();
+  fill(['102', 'A', '8', '3:月:2']);
+  const duplicate = assert.rejects(add(), /INVALID_GIFT_BLIND_BOX_CONFIG/);
+  first.resolve();
+  await Promise.all([saving, duplicate]);
+  assert.deepEqual(submissions, [['101'], ['101', '102']]);
+  assert.deepEqual(stored.map(box => box.giftId), ['101']);
+
+  field('blindBoxName').value = 'B';
+  await add();
+  assert.deepEqual(stored.map(box => [box.giftId, box.name]), [['101', 'A'], ['102', 'B']]);
+});
+
+test('a confirmed deletion cannot release a newer blind-box JSON draft to state refresh', async () => {
+  const started = Promise.withResolvers();
+  const saved = Promise.withResolvers();
+  const { document, field } = await blindboxEditor(({ giftBlindBoxCustomConfigV2 }) => {
+    started.resolve(giftBlindBoxCustomConfigV2);
+    return saved.promise;
+  });
+  const draft = field('giftBlindBoxCustomConfigV2');
+  draft.value = '[{"name":"A","price":3,"outputs":[{"giftId":"2","name":"花"}]}]';
+  const removing = field('blindBoxList').listeners.click({ target: { closest: () => ({ dataset: { blindIndex: '0' } }) } });
+  const submitted = await started.promise;
+  const newer = '[{"name":"B","price":8,"outputs":[{"giftId":"3","name":"月"}]}]';
+  draft.value = newer;
+  draft.listeners.input();
+  saved.resolve();
+  await removing;
+  const { fillSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/state-renderer.js'), {
+    document: { ...document, getElementById: id => id === draft.id ? draft : null },
+  });
+  fillSettings({ giftBlindBoxCustomConfigV2: submitted });
+  assert.equal(draft.value, newer);
+});
+
 test('blind-box JSON draft survives state refresh and a failed save', async () => {
   const draft = '[{"name":"未保存草稿"}]';
   const textarea = {

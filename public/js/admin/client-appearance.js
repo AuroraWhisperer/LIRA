@@ -1,16 +1,20 @@
 'use strict';
 
+import { initClientFontSettings } from './client-font-settings.js';
+
 const initializedPanels = new WeakSet();
 
 export function initClientAppearance({ documentRef = document, desktopBridge = window.songAssistantDesktop } = {}) {
   const panel = documentRef.getElementById('clientAppearance');
   if (!panel || initializedPanels.has(panel)) return;
   initializedPanels.add(panel);
+  initClientFontSettings(documentRef, desktopBridge);
 
   const choices = [...panel.querySelectorAll('input[name="clientTheme"]')];
   const themeIds = new Set(choices.map((choice) => choice.value));
   const feedback = panel.querySelector('[data-client-theme-feedback]');
   const currentNameEl = documentRef.getElementById('clientThemeCurrentName');
+  const currentModeEl = documentRef.getElementById('clientThemeCurrentMode');
   const filterBar = documentRef.getElementById('clientThemeFilters');
   const canApply = typeof desktopBridge?.setClientTheme === 'function';
   const initialTheme = documentRef.documentElement.dataset.clientTheme;
@@ -29,10 +33,14 @@ export function initClientAppearance({ documentRef = document, desktopBridge = w
       choice.checked = choice.value === activeTheme;
       choice.disabled = !canApply || (Boolean(pendingTheme) && !choice.checked);
     }
+    const selectedChoice = choices.find((choice) => choice.value === activeTheme);
     if (currentNameEl) {
-      const selectedChoice = choices.find((choice) => choice.value === activeTheme);
       const label = selectedChoice?.dataset?.clientThemeName;
       if (label) currentNameEl.textContent = label;
+    }
+    if (currentModeEl) {
+      const mode = selectedChoice?.dataset?.clientThemeMode;
+      if (mode) currentModeEl.textContent = mode === 'dark' ? '深色' : '浅色';
     }
     panel.setAttribute('aria-busy', String(Boolean(pendingTheme)));
   }

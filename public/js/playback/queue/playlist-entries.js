@@ -28,6 +28,20 @@ export function samePlaylistEntry(left, right) {
     left.playlistOccurrence === right.playlistOccurrence;
 }
 
+export function isSourcePlaylistEntry(track) {
+  return track.playlistOccurrence === undefined
+    ? !track.songRequestKey && !track.requestedBy : track.playlistOccurrence >= 0;
+}
+
+// A shuffled legacy snapshot retains the source songs and their multiplicities, but not the drawer order.
+export function matchesLegacyDailyTracks(playlist, visible) {
+  const source = playlist.filter(isSourcePlaylistEntry);
+  if (source.length !== visible.length) return false;
+  const savedIds = source.map(track => track.id).sort();
+  const visibleIds = visible.map(track => track.id).sort();
+  return savedIds.every((id, index) => id === visibleIds[index]);
+}
+
 export function findSourcePlaylistIndex(playlist, selected, recentTrack) {
   // Recent plays can name an inserted copy that was never a row in the original source.
   if (recentTrack && (recentTrack.playlistOccurrence !== undefined || recentTrack.songRequestKey || recentTrack.requestedBy)) {
@@ -41,7 +55,8 @@ export function findSourcePlaylistIndex(playlist, selected, recentTrack) {
     if (item.id !== selected.id) continue;
     if (item.playlistOccurrence === selected.playlistOccurrence) return index;
     // Old snapshots identified explicit "play next" additions by requester only.
-    if (item.playlistOccurrence === undefined && (item.requestedBy || '') === (selected.requestedBy || '') &&
+    if (item.playlistOccurrence === undefined && (item.songRequestKey || '') === (selected.songRequestKey || '') &&
+        (item.requestedBy || '') === (selected.requestedBy || '') &&
         legacyOccurrence++ === selected.playlistOccurrence) legacyIndex = index;
   }
   return legacyIndex;

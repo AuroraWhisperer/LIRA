@@ -9,7 +9,7 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 const city = id => ({ id, lat: Number(id), lon: 100 });
 const data = (temperature, condition) => ({ temperature, condition, updatedAt: '2026-10-21T12:00:00Z', validAt: '2026-10-21T13:30:00Z' });
 const HOUR_MS = 60 * 60 * 1000;
-const START = Date.parse('2026-10-21T13:37:45Z');
+const START = new Date(2026, 9, 21, 13, 37, 45).getTime();
 
 async function fixture(t, initialIds = ['1', '2', '3'], time = START) {
   let cities = initialIds.map(city);
@@ -38,13 +38,56 @@ async function fixture(t, initialIds = ['1', '2', '3'], time = START) {
   return { controller, requests, timers, completions, advance: ms => { time += ms; },
     setCities: ids => { cities = ids.map(city); }, async automaticRefresh(lateBy = 0) {
     const [id, timer] = [...timers][0];
-    assert.equal(timer.at % HOUR_MS, 0, 'refresh is scheduled at the next whole hour');
+    assert.equal(new Date(timer.at).getMinutes(), 0, 'refresh is scheduled at the next local whole hour');
     time = timer.at + lateBy;
     timers.delete(id);
     timer.callback();
     await flush();
   } };
 }
+
+test('08:50 in Kolkata refreshes again at local 09:00', async t => {
+  const previousZone = process.env.TZ;
+  const originalZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  process.env.TZ = 'Asia/Kolkata';
+  t.after(() => {
+    process.env.TZ = previousZone ?? originalZone;
+    if (previousZone === undefined) delete process.env.TZ;
+  });
+  const f = await fixture(t, ['1'], Date.parse('2026-10-21T08:50:00+05:30'));
+  const initial = f.controller.start();
+  f.requests[0].succeed(14);
+  await initial;
+  assert.equal([...f.timers.values()][0].ms, 10 * 60000);
+  await f.automaticRefresh();
+  f.requests[1].succeed(22);
+  await flush();
+  assert.equal(f.controller.get('1').data.temperature, 22);
+});
+
+test('Lord Howe refreshes at the first real local whole hour across both half-hour clock changes', async t => {
+  const previousZone = process.env.TZ;
+  const originalZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  process.env.TZ = 'Australia/Lord_Howe';
+  t.after(() => {
+    process.env.TZ = previousZone ?? originalZone;
+    if (previousZone === undefined) delete process.env.TZ;
+  });
+  for (const [start, next] of [
+    ['2026-10-04T01:50:00+10:30', '2026-10-04T03:00:00+11:00'],
+    ['2026-04-05T01:50:00+11:00', '2026-04-05T02:00:00+10:30'],
+  ]) {
+    const f = await fixture(t, ['1'], Date.parse(start));
+    const initial = f.controller.start();
+    f.requests[0].succeed(14);
+    await initial;
+    assert.equal([...f.timers.values()][0].at, Date.parse(next), start);
+    await f.automaticRefresh();
+    assert.equal(f.requests.length, 2);
+    f.requests[1].succeed(15);
+    await flush();
+  }
+});
 
 test('startup refresh runs once and repeats silently at whole hours without completion-time drift', async t => {
   const f = await fixture(t);
@@ -155,7 +198,7 @@ test('a delayed timer refreshes once and realigns to the next whole hour', async
 });
 
 test('starting exactly on the hour refreshes only once before the next hour', async t => {
-  const f = await fixture(t, ['1'], START - START % HOUR_MS);
+  const f = await fixture(t, ['1'], new Date(START).setMinutes(0, 0, 0));
   f.controller.start();
   assert.equal(f.requests.length, 1);
   assert.equal([...f.timers.values()][0].ms, HOUR_MS);

@@ -249,6 +249,17 @@ ManifestDPIAware true
   CreateDirectory "$R0"
   ClearErrors
   StrCmp "$EXEPATH" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}" liraInstallerCached
+  ${IfNot} ${isUpdated}
+  ${AndIf} ${FileExists} "$R0\current.blockmap"
+    ${StdUtils.HashFile} $R1 "SHA2-256" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
+    StrLen $R2 $R1
+    ${If} $R2 == 64
+      ${StdUtils.HashFile} $R2 "SHA2-256" "$EXEPATH"
+      StrCmp $R1 $R2 liraInstallerCached
+    ${EndIf}
+    Delete "$R0\current.blockmap"
+    IfFileExists "$R0\current.blockmap" liraInstallerCached
+  ${EndIf}
   CopyFiles /SILENT "$EXEPATH" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
   liraInstallerCached:
     SetShellVarContext current

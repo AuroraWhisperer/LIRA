@@ -60,11 +60,12 @@ function createAiApiQuotaStore(usageStore, options = {}) {
     };
   }
 
-  function getExcludedToolNames() {
+  function getExcludedToolNames(offeredNames) {
     const excluded = [];
-    for (const category of Object.keys(API_QUOTAS)) {
+    for (const [category, names] of Object.entries(CATEGORY_TOOL_NAMES)) {
+      if (offeredNames && !names.some(name => offeredNames.includes(name))) continue;
       const usage = getUsage(category);
-      if (usage.requestCount >= usage.limit) excluded.push(...CATEGORY_TOOL_NAMES[category]);
+      if (usage.requestCount >= usage.limit) excluded.push(...names);
     }
     return excluded;
   }

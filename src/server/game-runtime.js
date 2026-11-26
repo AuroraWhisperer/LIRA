@@ -28,7 +28,7 @@ function createGameAudience({
   getWinnerProfile = async () => ({ avatarUrl: '', name: '' }),
 }) {
   return {
-    listViewers: () => mergeViewerCandidates(listOnlineViewers(), service?.listViewers() || []),
+    listViewers: () => mergeViewerCandidates(listOnlineViewers(), service?.listViewers({ sorted: false }) || []),
     refreshViewers: () => refreshViewers(),
     getWinnerProfile: () => getWinnerProfile(service?.getSession()?.winner),
   };

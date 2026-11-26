@@ -5,6 +5,7 @@
 import { escapeHtml, hexToRgba } from './overlay-utils.js';
 import { applyOverlayTheme } from './overlay-theme.js';
 import { createOverlaySocket, snapshotReasons } from './socket-client.js';
+import { createGiftSourceTracker } from './gift-source.js';
 import { startOverlayPages } from './auto-pages.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
@@ -19,6 +20,7 @@ let statsDisposed = false;
 let lastStats = null;
 let lastContentKey = null;
 let socketController = null;
+const giftSourceChanged = createGiftSourceTracker();
 let refreshTimer = null;
 let stopPages = null;
 let initialBlindboxViewportWidth = 0;
@@ -114,7 +116,11 @@ async function loadStateThenStats() {
   try {
     const response = await fetch('/api/state');
     const payload = await response.json();
-    if (payload.ok && revision === stateRevision) { state = payload.data; filtersChanged = receiveAppearance(); }
+    if (payload.ok && revision === stateRevision) {
+      state = payload.data;
+      giftSourceChanged(state, []);
+      filtersChanged = receiveAppearance();
+    }
   } catch (error) {
     console.warn('[overlay-blindbox] loadState failed:', error.message || error);
   }
@@ -149,16 +155,20 @@ function connectSocket() {
   socketController = createOverlaySocket({
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
+      const reasons = snapshotReasons(payload);
+      const reset = giftSourceChanged(payload.state, reasons) ||
+        reasons.some(reason => reason === 'database:clear-gifts' || reason === 'database:clear-all');
+      if (reset) lastStats = { perUser: [] };
       let filtersChanged = false;
       if (payload.state) {
         stateRevision += 1;
         state = payload.state;
         filtersChanged = receiveAppearance();
-        render(lastStats);
       }
+      if (payload.state || reset) render(lastStats);
       // 礼物相关更新时刷新统计数据
-      if (filtersChanged || snapshotReasons(payload).some(reason =>
-        reason?.startsWith('bilibili:gift') || ['gift:sprint:reset', 'connect', 'settings'].includes(reason))) {
+      if (reset || filtersChanged || reasons.some(reason =>
+        reason?.startsWith('bilibili:gift') || ['gift:source', 'gift:sprint:reset', 'connect', 'settings'].includes(reason))) {
         loadStats();
       }
     },

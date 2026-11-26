@@ -174,10 +174,9 @@ export function initInteractions() {
   get('interactionClear').addEventListener('click', async () => {
     if (!session || busy) return;
     const sessionId = session.sessionId;
-    const participants = host?.session?.sessionId === sessionId ? host.participants : session.participants || 0;
-    if (session.phase !== 'finished' && participants > 0) {
+    if (session.phase !== 'finished') {
       const confirmed = await showConfirmationDialog({
-        title: '取消本场互动？', description: `已收到 ${participants} 人参与，取消后本场${session.kind === 'poll' ? '票数' : '评分'}将被清除。`,
+        title: '取消本场互动？', description: `取消后，本场收到的${session.kind === 'poll' ? '票数' : '评分'}将被清除。`,
         confirmLabel: '取消本场', cancelLabel: '继续互动', variant: 'destructive',
       });
       if (!confirmed || session?.sessionId !== sessionId) return;
@@ -196,7 +195,7 @@ export function initInteractions() {
     get('interactionHostStatus').textContent = session && !ownSession
       ? `请先到「${session.kind === 'poll' ? '弹幕投票' : '观众评分'}」${session.phase === 'finished' ? '关闭结果' : '结束或取消本场'}，再开始${selectedKind === 'poll' ? '投票' : '评分'}。`
       : session
-      ? `${interactionStatus(session, countdown.remainingMs())} · 已收到 ${host?.session?.sessionId === session.sessionId ? host.participants : session.participants || 0} 人${session.receptionInterrupted ? ' · 接收曾中断，可能漏收' : ''}`
+      ? `${interactionStatus(session, countdown.remainingMs())} · 已收到 ${Math.max(session.participants || 0, host?.session?.sessionId === session.sessionId ? host.participants || 0 : 0)} 人${session.receptionInterrupted ? ' · 接收曾中断，可能漏收' : ''}`
       : host ? host.blockedReason || '准备开始' : '正在读取实时连接状态…';
     get('interactionResults').hidden = !ownSession;
     get('interactionSessionTitle').textContent = session?.title || '';

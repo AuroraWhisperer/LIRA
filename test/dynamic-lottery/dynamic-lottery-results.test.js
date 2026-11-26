@@ -183,10 +183,61 @@ test('frozen order snapshots remain detached and reflect rollback and other data
     assert.throws(() => drawStore.recordCheck({ task, roundId: round.id, index: 0, uid: '101',
       verification: { state: 'eligible', reason: 'FOLLOWING' }, nowMs: 3001 }), { code: 'LOTTERY_DRAW_CONFLICT' });
     assert.equal(drawStore.getRound(task.id).nextIndex, 0);
+    other.prepare('UPDATE lottery_orders SET order_json = ? WHERE id = ?').run('["101","102"]', round.orderId);
+    const check = uid => drawStore.recordCheck({ task, roundId: round.id, index: 0, uid, includeOrder: false,
+      verification: { state: 'eligible', reason: 'FOLLOWING' }, nowMs: 3002 });
+    assert.throws(() => check('102'), { code: 'LOTTERY_DRAW_CONFLICT' });
+    assert.equal(check('101').nextIndex, 1);
   } finally {
     other?.close();
     db.close();
   }
+});
+
+test('candidate progress reads never transfer the full frozen order to JavaScript', (t) => {
+  const db = openLotteryDatabase();
+  t.after(() => db.close());
+  const store = createDynamicLotteryStore(db);
+  const order = ['100', '200', '300', '400'];
+  const records = order.map((uid, index) => commentRecord(String(index + 1), uid));
+  const task = readyTask(store, 'compact-progress', 'streamer-1', records);
+  const reads = [];
+  const draw = createLotteryDrawStore({
+    exec: sql => db.exec(sql),
+    prepare(sql) {
+      const statement = db.prepare(sql);
+      if (!sql.includes('FROM lottery_rounds r JOIN lottery_orders')) return statement;
+      return {
+        get(...args) {
+          const row = statement.get(...args);
+          if (typeof row?.order_json === 'string') reads.push(Buffer.byteLength(row.order_json));
+          return row;
+        },
+      };
+    },
+  });
+  draw.freeze({ task, members: records, order, digest: 'fixture', nowMs: 2500 });
+  const round = draw.setStatus(task, 'drawing', '', 3000);
+  assert.deepEqual(round.order, order);
+  assert.ok(reads.includes(25));
+  reads.length = 0;
+  const check = (index, uid) => draw.recordCheck({ task, roundId: round.id, index, uid, nowMs: 3100 + index,
+    verification: { state: 'ineligible', reason: 'NOT_FOLLOWING' }, includeOrder: false });
+  assert.throws(() => check(0, order[1]), { code: 'LOTTERY_DRAW_CONFLICT' });
+  assert.throws(() => check(1, order[1]), { code: 'LOTTERY_DRAW_CONFLICT' });
+  for (const [index, uid] of order.entries()) {
+    const progress = check(index, uid);
+    const receipt = draw.getRound(task.id, { includeOrder: false });
+    assert.deepEqual(progress, receipt);
+    assert.equal(progress.nextIndex, index + 1);
+    assert.equal(progress.revision, round.revision + index + 1);
+    assert.equal(progress.status, index === 3 ? 'exhausted' : 'drawing');
+    assert.equal(Object.hasOwn(progress, 'order'), false);
+    assert.equal(draw.getResult(task.id).candidateCount, 4);
+  }
+  assert.deepEqual(reads, []);
+  assert.deepEqual(draw.getRound(task.id).order, order);
+  assert.deepEqual(reads, [25]);
 });
 
 test('missing or invalid optional nickname does not remove an otherwise valid comment', () => {

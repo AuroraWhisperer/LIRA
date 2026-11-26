@@ -47,8 +47,10 @@ export function initGiftInteractionControls({
           ? '已同步到服务器'
           : ERRORS[state.error] || '状态未确认，请刷新核对。';
     status.hidden = state.status === 'confirmed' && !saving;
+    status.ariaBusy = String(state.status === 'pending' || saving);
     thanksStatus.textContent = status.textContent;
     thanksStatus.hidden = status.hidden;
+    thanksStatus.ariaBusy = status.ariaBusy;
   }
 
   async function refresh() {

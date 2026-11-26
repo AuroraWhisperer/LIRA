@@ -9,11 +9,13 @@
  */
 export function createMatchHandler(deps) {
   const { matchService, showError, value, renderPlaybackMatchResults } = deps;
+  let generation = 0;
 
   /**
    * 执行匹配测试
    */
   async function runPlaybackMatchTest() {
+    const request = ++generation;
     const resultNode = document.getElementById('playbackMatchResults');
     const songName = value('playbackMatchSong');
 
@@ -22,9 +24,10 @@ export function createMatchHandler(deps) {
     try {
       const artist = value('playbackMatchArtist');
       const durationMs = Number(value('playbackMatchDuration') || 0);
-      const data = await matchService.testMatch(songName, artist, durationMs);
-      renderPlaybackMatchResults(data);
+      const data = await matchService.testMatch(songName, artist, durationMs, { isCurrent: () => request === generation });
+      if (request === generation) renderPlaybackMatchResults(data);
     } catch (error) {
+      if (request !== generation) return;
       if (resultNode) resultNode.textContent = error.message || String(error);
       showError(error);
     }

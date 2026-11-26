@@ -256,8 +256,8 @@
 }
 
 .blind-analysis-date-footer button:disabled {
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--color-disabled-bg, var(--surface-2));
+  color: var(--color-disabled-text, var(--muted));
   cursor: default;
 }
 

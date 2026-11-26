@@ -41,6 +41,7 @@ const routes = {
         requireRepost: body.requireRepost,
         requireFollow: body.requireFollow,
         requestId: body.requestId,
+        submittedAtMs: body.submittedAtMs,
       });
     });
   },

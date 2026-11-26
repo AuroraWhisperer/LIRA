@@ -15,12 +15,13 @@ function createDanmakuFeedBuffer(options = {}) {
   let activeRoomId = '';
   let nextId = 1;
   let items = [];
+  const recentSuperChatIds = new Set();
 
   function setRoom(roomId) {
     const normalized = String(roomId || '').trim();
     if (normalized === activeRoomId) return false;
     activeRoomId = normalized;
-    items = [];
+    clear();
     return true;
   }
 
@@ -30,6 +31,11 @@ function createDanmakuFeedBuffer(options = {}) {
     const isSuperChat = danmaku.source === 'superchat';
     if (!message || isSuperChat && (!Number.isFinite(price) || price <= 0)) return null;
     const messageId = String(danmaku.id || '').trim();
+    if (isSuperChat && messageId) {
+      if (recentSuperChatIds.has(messageId)) return null;
+      recentSuperChatIds.add(messageId);
+      if (recentSuperChatIds.size > MAX_LIMIT) recentSuperChatIds.delete(recentSuperChatIds.values().next().value);
+    }
     const item = {
       id: nextId,
       uid: String(danmaku.uid || '').trim(),
@@ -44,6 +50,14 @@ function createDanmakuFeedBuffer(options = {}) {
       ...(danmaku.isStreamer === true ? { isStreamer: true } : {}),
       ...(isSuperChat ? { kind: 'superchat', price, ...(messageId ? { messageId } : {}) } : {}),
     };
+    if (danmaku.requesterGuardVerified === true) {
+      item.roomGuardLevel = normalizeGuardLevel(danmaku.requesterGuardLevel);
+    }
+    if (danmaku.requesterMedalVerified === true) {
+      const name = String(danmaku.requesterMedalName || '').trim();
+      const level = normalizeNonNegativeInteger(danmaku.requesterMedalLevel);
+      if (name && level > 0) item.roomMedal = { name, level };
+    }
     return appendItem(item);
   }
 
@@ -114,6 +128,7 @@ function createDanmakuFeedBuffer(options = {}) {
 
   function clear() {
     items = [];
+    recentSuperChatIds.clear();
   }
 
   return { setRoom, push, pushGift, removeSuperChats, getSnapshot, clear };
@@ -157,6 +172,7 @@ function normalizeTimestamp(value) {
 function cloneItem(item) {
   return {
     ...item,
+    ...(item.roomMedal ? { roomMedal: { ...item.roomMedal } } : {}),
     emotes: item.emotes.map((emote) => ({ ...emote })),
   };
 }

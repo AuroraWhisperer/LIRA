@@ -11,10 +11,12 @@ function createDesktopReadinessController({
   baseUrl,
   writeLog,
   audioComponent,
+  audioAssistant,
 }) {
   let active = false;
   let disposed = false;
   let windowReady = false;
+  let audioMayBeActive = false;
   let recoveryGeneration = 0;
   const initialRoute =
     licenseManager.getState() === LicenseState.AUTHORIZED && runtime.isGiftCatalogInitialized() ? 'admin' : 'license';
@@ -28,6 +30,7 @@ function createDesktopReadinessController({
   let unsubscribeLicense = null;
 
   function resumeAuthorizedWork(startup) {
+    audioMayBeActive = true;
     if (windowReady) prepareAudio();
     runtime.initializeFontLibrary?.()?.catch?.(error => writeLog('font-library', error));
     const generation = recoveryGeneration;
@@ -92,6 +95,12 @@ function createDesktopReadinessController({
       snapshot.state !== LicenseState.CHECKING &&
       snapshot.state !== LicenseState.AUTHORIZING
     ) {
+      if (audioMayBeActive) {
+        audioMayBeActive = false;
+        audioAssistant?.invoke('stop').then(({ ok, error }) => {
+          if (!ok) writeLog('audio-assistant-stop', error);
+        });
+      }
       runtime.pauseAuthorizedWork?.();
       navigateMain('license');
     }

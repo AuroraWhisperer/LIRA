@@ -91,6 +91,35 @@ test('games viewer refresh failure preserves known candidates but does not hide 
   });
 });
 
+test('audience sorts the merged viewers once and keeps tied speakers in their original order', async t => {
+  const times = [12, 10, 15, 10];
+  const service = createGameSessionService({ wallNow: () => times.shift(), monotonicNow: () => 0 });
+  t.after(() => service.dispose());
+  for (const uid of ['1', '2', '3', '4']) service.handleDanmaku({ uid, userName: `访客${uid}` });
+  assert.deepEqual(service.listViewers().map(viewer => viewer.uid), ['3', '1', '2', '4']);
+  const games = createGameAudience({
+    service, listOnlineViewers: () => [{ uid: '1', name: '榜单名', lastSeenAt: 20 }, { uid: '5', lastSeenAt: 10 }],
+  });
+  const sorts = [];
+  const sort = Array.prototype.sort;
+  let candidates;
+  try {
+    Array.prototype.sort = function (...args) {
+      if (this.length && this.every(entry => Number.isFinite(entry?.lastSeenAt))) sorts.push(this.length);
+      return sort.apply(this, args);
+    };
+    await routes['GET /api/games/viewers']({ games }, {}, {
+      writeHead(status) { assert.equal(status, 200); },
+      end(body) { candidates = JSON.parse(body).data; },
+    });
+  } finally {
+    Array.prototype.sort = sort;
+  }
+  assert.deepEqual(candidates.map(viewer => viewer.uid), ['1', '3', '5', '2', '4']);
+  assert.deepEqual(candidates[0], { uid: '1', name: '访客1', lastSeenAt: 20 });
+  assert.deepEqual(sorts, [5]);
+});
+
 test('game runtime discards viewer candidates from a previous room or connection', (t) => {
   const source = { roomId: '100', accountUid: '200', connectionKey: '1' };
   const { games, interactions } = createGameRuntime({

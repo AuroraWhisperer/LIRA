@@ -198,7 +198,7 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>
 - 解密(`decodeQQPlayableLyric`,[qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js)):
   - `data.crypt !== 1` → 直接 Base64 解码
   - `crypt === 1` → 校验 hex 串:长度 `≤ 2*1024*1024`、`% 16 === 0`、仅 `[0-9a-f]`,任一不满足抛"无效的加密歌词";通过则 `decryptQrc(hex)` → `extractQrcLyricContent`(取 `<Lyric_1 LyricContent="..."/>` 属性,无 XML 包裹用原文)→ [qrc-xml-entities.js](../../../../src/music/qrc-xml-entities.js) 的 `decodeXmlEntities`(&#x/&#/&quot;/&apos;/&lt;/&gt;/&amp;)，与全民 K 歌复用同一实体解码顺序。
-- **注意**:翻译与罗马音同样按上述规则解密;`parseLyricResult(lyric, translation, lyric, roma)` 的**逐字歌词参数传入的是主歌词本身**([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
+- 翻译、罗马音和独立的 `qrc` 正文按上述规则解码。`parseLyricResult(lyric, translation, wordLyric, roma)` 优先用独立 QRC 配词，`qrc` 为空或标志 `0`、`1` 时用主歌词。LRC 与 QRC 优先匹配精确起点，同一起点的声部按正文区分。起点有偏差时，须在 100 ms 以内、正文相同，且两行互为唯一最近邻。任一方向有两个不同起点等距，或同刻声部仍有歧义时，该行的 `words` 留空。[提供方](../../../../src/music/providers/qq-provider-streams.js) · [歌词解析](../../../../src/music/lyric-parser.js)
 - 解析出的行数 > 0 即返回;否则抛"歌词无法解析"落入回退
 
 **路径 B(回退):旧版 Legacy 接口**([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)):
@@ -231,6 +231,8 @@ POST https://u.y.qq.com/cgi-bin/musicu.fcg   (requestMusicuPost)
 
 去重:`seen` Set 同时记 id 与 mid;已见 id 在翻页后也加入,避免下一页重复。`limit` clamp 1-100 默认 30;`page` clamp 1-50。**Feed 无单曲卡片时回退 `getRadioTracks`**(代码注释:已从 HAR 抓包确认客户端真实流程)。
 
+QQ 每日推荐的 `page` 是本批起始 Feed 页。`POST /api/music/home` 随 `tracks` 返回 `nextPage`，指向第一个尚未读完的页码。正常空卡片页算作已读，本批在此结束。详情成功返回时，即使只有部分卡片有歌曲或歌曲列表为空，也算读完该页。Feed 或详情请求失败时，本批立即结束，保留先前页已取得的歌曲，「换一批」从失败页重试。整批尚无歌曲时仍用电台兜底，`firstplay` 取决于本批起始页。第 50 页读完后 `nextPage` 为 `null`，重新打开每日推荐从第 1 页开始。不同 Feed 页仍可能包含相同歌曲。
+
 ### 7.6 电台([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 ```
@@ -249,11 +251,12 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 分页加载可使用[音乐服务的加载会话](services.md#62-首页内容getmusichomecontentmusic-catalog-servicejs)：同次加载仅定位一次喜欢歌单，客户端接口的完整返回在该会话内切片；公开接口仍按上游实际分页。
 
 1. `getLoginCookieHeader` 校验登录，取得本次请求的 Cookie。
-2. 使用该 Cookie 调用 `getCreatedPlaylists({ limit: 50, includeLiked: true })` 定位喜欢歌单。
-3. 在结果中找 `playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title)` — **dirId 恰为 `"201"` 是服务端约定的"我喜欢"歌单标识**
-4. 定位成功后，读取详情或发出写入请求前重新核对当前 UIN。定位不到喜欢歌单时提示重新登录。
+2. 使用该 Cookie 调用 `getCreatedPlaylists({ limit: 500, includeLiked: true })`，只选系统目录 `dirId === '201'`。即使自建歌单也叫「我喜欢」，读写别名 `liked` 都只指向系统目录。
+3. 定位成功后，读取详情或发出写入请求前重新核对当前 UIN。找不到系统目录则报错，请求在读取曲目或修改歌单前结束。
 
-`limit` clamp 1-5000 默认 200;`offset` clamp 0-200000。
+每批 `limit` 为 1–5000（默认 200），`offset` 为 0–200000。首页服务使用 `getLikedTrackPage` 返回 `{tracks, nextOffset}`。翻页偏移按原始行数推进，缺标题或 mid 的行也占一个位置。抽屉从头分页读取公开接口时，按数值歌曲 ID 去重，缺 ID 时使用 mid。可识别但无法展示的曲目计入覆盖数。直接调用 `getLikedTracks` 仍取得曲目数组。
+
+详情给出总数时，已覆盖该数就结束，即使末页恰好满页。详情省略总数时，满页继续翻。遇到非空短页且已读曲目少于系统目录计数时，再查下一页，其余短页和明确返回的空数组表示读完。若响应缺少曲目列表、仍需翻页却出现重复页或用尽偏移，或读到空页仍未覆盖详情给出的总数，整次读取报错，保留抽屉上次完整缓存。
 
 ### 7.8 我的歌单([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
@@ -273,7 +276,7 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 **路径 B(回退):旧版 Web API** — `GET c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss`,`hostuin=<QQ号>`、`sin=0`、`size=Math.max(limit, 50)`、`g_tk`、`loginUin` 等,响应 `data.data.disslist[]`。
 
-结果 `mapQQPlaylist`(见 §8.2);`includeLiked === false` 时过滤 `dirId !== '201'`。`limit` clamp 1-500 默认 200。
+结果经 `mapQQPlaylist` 映射（见 §8.2）。`includeLiked === false` 时排除系统目录 201，再取前 `limit` 项。`limit` 为 1–500，默认 200。
 
 ### 7.9 收藏歌单([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
@@ -284,7 +287,7 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 ### 7.10 歌单详情([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
-**路径 A（客户端 API）**　Cookie 提供 uin 与 `qm_keyst` 或 `qqmusic_key` 时调用 `DissInfoForPc.uniform_get_Dissinfo`。参数为 `{ disstid: Number(id), host_uin: Number(uin), login_uin: Number(uin) }`，从 `data[callKey].data.songlist[]` 取得指定范围。失败时使用路径 B，下个歌单仍可尝试客户端接口。缺少必需凭据时直接使用路径 B。
+**路径 A（客户端 API）**　Cookie 提供 uin 与 `qm_keyst` 或 `qqmusic_key` 时调用 `DissInfoForPc.uniform_get_Dissinfo`。参数为 `{ disstid: Number(id), host_uin: Number(uin), login_uin: Number(uin) }`。上游返回完整的 `data[callKey].data.songlist[]`，Provider 按原始 `offset/limit` 切片。失败时使用路径 B，下个歌单仍可尝试客户端接口。缺少必需凭据时直接使用路径 B。
 
 **路径 B(公开)**:`GET c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg`,参数 `type=1`、`json=1`、`utf8=1`、`onlysong=0`、`disstid=<id>`、`g_tk`、`loginUin`、`hostUin=0`、`platform=yqq`。
 
@@ -363,8 +366,11 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 | `album`          | `album.title`/`album.name`/`albumname`/`albumdesc`/`AlbumName`/`AlbumTitle`                        |
 | `durationMs`     | `max(0, Number(interval \|\| SongPlayTime) * 1000)` — 秒转毫秒                                     |
 | `coverUrl`       | 见 §8.4                                                                                            |
+| `playable`       | `true`，实际播放地址由 §7.2 解析                                                                   |
 | `vip`            | `pay.pay_play > 0 \|\| Vip > 0`                                                                    |
 | `id`             | `qq:<sourceTrackId>`                                                                               |
+
+点歌匹配使用 `artists` 中的全部署名。请求写作 `Anna / Bill` 时，两位歌手分别列在候选中也能获得歌手加分，顺序不限。见[歌曲匹配规则](services.md#9-歌曲匹配song-matcherjs)。
 
 ### 8.2 mapQQPlaylist([qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js))
 

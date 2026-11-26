@@ -148,12 +148,20 @@
   .danmaku-feature-section {
     padding: 14px;
   }
-  .danmaku-status-grid {
-    grid-template-columns: 1fr;
+  .danmaku-connection-section {
+    padding: 12px 14px 14px;
   }
-  .danmaku-status-grid > div + div {
-    border-top: 1px solid var(--border);
-    border-left: 0;
+  .danmaku-connection-bridge {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 10px;
+  }
+  .danmaku-bridge-node {
+    max-width: none;
+  }
+  .danmaku-bridge-link {
+    grid-column: 1 / -1;
+    order: 3;
+    padding-inline: 0;
   }
   .danmaku-blessings-section > summary {
     padding: 13px 14px;
@@ -187,8 +195,14 @@
 @media (prefers-reduced-motion: reduce) {
   .danmaku-details-chevron,
   .danmaku-reply-target,
+  .danmaku-bridge-avatar-img,
+  .danmaku-connection-refresh,
   #danmakuMessage {
     transition: none;
+  }
+  #danmakuToolStatus.connection-good::before,
+  .danmaku-connection-refresh:disabled svg {
+    animation: none;
   }
 }
 
@@ -287,14 +301,26 @@
 
 @media (prefers-reduced-motion: reduce) {
   .other-feature-button,
+  .other-page:not(.live-components-page) .other-feature-button,
   .other-feature-button::before,
   .other-feature-icon,
+  .other-page:not(.live-components-page) .other-feature-icon,
+  .other-feature-icon svg,
+  .other-feature-indicator,
+  .other-feature-indicator::before,
+  .other-feature-indicator::after,
   .other-feature-arrow,
   .other-page.sidebar-collapsed .other-feature-arrow,
   .other-sidebar-toggle,
   .other-sidebar-toggle svg,
   .other-workspace {
     transition: none;
+  }
+  .other-page:not(.live-components-page)
+    .other-feature-button:is(:hover, :active):not(.active)
+    .other-feature-icon
+    > svg:first-child {
+    transform: none;
   }
   .other-feature-label,
   .other-page.sidebar-collapsed .other-feature-label {

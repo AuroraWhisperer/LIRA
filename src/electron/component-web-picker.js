@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { WEB_MIME, webFilePath } = require('../server/component-web-files');
-const { webFileReferences, localWebReference, webDocumentBase } = require('../server/component-web-references');
+const { webFileReferences, localWebReference } = require('../server/component-web-references');
 const { MAX_MEDIA_BYTES, componentFileSizeError } = require('../server/component-media-files');
 const { MAX_PACKAGE_BYTES } = require('../server/component-style-library');
 
@@ -17,20 +17,20 @@ function isPersonalRoot(directory) {
 async function packageRoot(selected, root = path.dirname(selected)) {
   const pending = [{ current: selected, documentEntry: selected }]; const visited = new Set();
   while (pending.length) {
-    let { current, documentEntry } = pending.shift();
-    if (visited.has(current) || !/\.(?:html?|css|m?js)$/i.test(current)) continue;
-    visited.add(current);
+    const { current, documentEntry } = pending.shift();
+    const key = /\.(?:js|mjs)$/i.test(current) ? `${current}:${documentEntry}` : current;
+    if (visited.has(key) || !/\.(?:html?|css|m?js)$/i.test(current)) continue;
+    visited.add(key);
     if (visited.size > 1024) throw Object.assign(new Error('素材引用的文件过多。'), { statusCode: 400 });
     const stat = await fs.promises.lstat(current).catch(() => null);
     if (!stat?.isFile() || stat.size > 4 * 1024 * 1024) continue;
     const source = await fs.promises.readFile(current, 'utf8');
-    if (/\.html?$/i.test(current)) documentEntry = webDocumentBase(source, current);
-    for (const reference of webFileReferences(source, current, documentEntry)) {
+    for (const { reference, documentEntry: base } of webFileReferences(source, current, documentEntry)) {
       const value = localWebReference(reference);
       if (!value || value.startsWith('/')) continue;
       const target = path.resolve(path.dirname(current), decodeURIComponent(value));
       if (path.relative(root, target).split(path.sep)[0] === '..') return null;
-      pending.push({ current: target, documentEntry });
+      pending.push({ current: target, documentEntry: base });
     }
   }
   return root;

@@ -62,6 +62,22 @@ async function saveEdits(page, selector) {
   else await page.clock.runFor(600);
 }
 
+test('deleting the last daily reply shows the validation message and preserves the confirmed library', async (t) => {
+  const page = await libraryFixture(t);
+  await page.evaluate(() => { window.remoteLibraries.checkin = ['old reply']; });
+  await page.getByRole('button', { name: '编辑签到词库', exact: true }).click();
+  await page.getByRole('button', { name: '删除第 1 条', exact: true }).click();
+  await page.clock.runFor(650);
+  const status = page.locator('#dailyLibraryStatus');
+  assert.match(await status.textContent(), /至少保留一条/);
+  assert.equal(await status.isVisible(), true);
+  await page.locator('#dailyLibraryRefresh').click();
+  assert.match(await status.textContent(), /至少保留一条/);
+  assert.equal(await status.isVisible(), true);
+  assert.deepEqual(await page.evaluate(() => window.remoteLibraries.checkin), ['old reply']);
+  assert.equal(await page.evaluate(() => window.libraryRequests.filter(r => r.action === 'library-save').length), 0);
+});
+
 test('daily libraries show all entries and keep edits and search local', async (t) => {
   const page = await libraryFixture(t);
   assert.deepEqual(await page.evaluate(() => window.libraryRequests.map(x => x.action)), ['open']);
@@ -327,7 +343,7 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
   assert.equal(await page.locator('#danmakuCheckinToggle').isChecked(), false);
   await page.locator('#dailyBotRefresh').click();
   await page.evaluate(() => window.dailyRequests[4].resolve({ ok: false, error: 'DAILY_BOT_UNSUPPORTED' }));
-  await page.waitForFunction(() => document.getElementById('dailyBotStatus').textContent.includes('暂不支持云端签到和抽签'));
+  await page.locator('#dailyBotcheckinStatus').filter({ hasText: '暂不支持云端签到和抽签' }).waitFor({ state: 'attached' });
   assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
 });
 

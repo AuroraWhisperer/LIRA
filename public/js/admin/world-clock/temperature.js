@@ -2,8 +2,6 @@
 
 import { readApiResponse } from '../../shared/json-response.js';
 
-const REFRESH_MS = 60 * 60 * 1000;
-
 export function createTemperatureController({ getCities, onChange }) {
   const states = new Map();
   const controller = new AbortController();
@@ -65,10 +63,14 @@ export function createTemperatureController({ getCities, onChange }) {
   }
 
   function schedule() {
+    const now = Date.now();
+    let next = now - now % 60000 + 60000;
+    // A clock change can skip an hour or repeat only part of it. Check real instants in order.
+    while (new Date(next).getMinutes() !== 0) next += 60000;
     timer = setTimeout(() => {
       schedule();
       void refresh();
-    }, REFRESH_MS - Date.now() % REFRESH_MS);
+    }, next - now);
   }
 
   return {

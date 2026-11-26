@@ -207,9 +207,16 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 - Cloud settings submit only tenant-private `giftBlindBoxCustomConfigV2`; official
   relations remain read-only. A missing v2 field preserves the saved private
   value, explicit `[]` clears only that layer, and the client displays the
-  server-confirmed `blindBoxMapping` mode/catalog/settings state. Dirty editor
+  server-confirmed `blindBoxMapping` mode/catalog/settings state. On authorization
+  recovery, a confirmed snapshot at the current settings revision restores the
+  mapping summary. The client publishes a changed summary to the open page. Dirty editor
   text survives cloud refresh and failed saves until a confirmed response is
   applied.
+  Saving a custom box clears its four entry fields only if they still contain
+  the submitted draft. Edits made while the save is pending stay available for
+  the next submission. Two additions with different explicit box IDs are
+  submitted as separate entries. If their names match, validation rejects the
+  second save. Correcting the second entry's name retries it in place.
 
 ## Security and privacy
 

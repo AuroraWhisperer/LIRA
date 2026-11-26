@@ -35,16 +35,25 @@ export function createPlaybackQueueCoordinator({
     return queueManager.rebuildShuffleOrder();
   }
 
-  async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '', radioOffset) {
+  async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '', radioOffset,
+    { waitForStream = false } = {}) {
     if (!Array.isArray(tracks) || !tracks.some(Boolean)) return;
-    invalidateImports?.();
+    const origin = queueType === 'radio' ? 'radio' : 'normal';
+    function commitCollection() {
+      invalidateImports?.();
+      stateActions.clearCurrent();
+      stateActions.clearPending();
+      const track = queueManager.startCollection(tracks, selectedIndex, queueType, queueTitle, queueSourceKey, radioOffset);
+      rebuildPlaybackShuffleOrder();
+      return track;
+    }
+    if (waitForStream) {
+      return playPlaybackTrack(tracks[selectedIndex], { origin, commitCollection });
+    }
     resetAudio();
-    stateActions.clearCurrent();
-    stateActions.clearPending();
-    const track = queueManager.startCollection(tracks, selectedIndex, queueType, queueTitle, queueSourceKey, radioOffset);
-    rebuildPlaybackShuffleOrder();
+    const track = commitCollection();
     savePlaybackState();
-    await playPlaybackTrack(track, { origin: queueType === 'radio' ? 'radio' : 'normal' });
+    await playPlaybackTrack(track, { origin });
     if (queueType === 'radio') ensurePlaybackRadioQueueFilled();
   }
 
@@ -88,10 +97,10 @@ export function createPlaybackQueueCoordinator({
     return result;
   }
 
-  function jumpToPlaylistTrack(index) {
+  function jumpToPlaylistTrack(index, dailySourceKey) {
     const track = playbackState.normalQueueTracks?.[index];
     if (!track) return;
-    playPlaybackTrack(track, { origin: 'normal', playlistIndex: index });
+    playPlaybackTrack(track, { origin: 'normal', playlistIndex: index, dailySourceKey });
   }
 
   function queuePlaybackTrack(track, action, options = {}) {

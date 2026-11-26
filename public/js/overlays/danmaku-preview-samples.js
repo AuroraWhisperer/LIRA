@@ -111,7 +111,7 @@ export function createDanmakuPreviewItems(style = 'signal') {
     const viewer = item.uid ? item : viewers[Math.floor(Math.random() * viewers.length)];
     return { ...viewer, ...item, medalName: '粉丝团灯牌', roomGuardLevel: viewer.guardLevel };
   });
-  if (style === 'stargazer') return samples.map((item) => ({
+  if (style === 'ranked' || style === 'stargazer') return samples.map((item) => ({
     ...item, roomGuardLevel: item.guardLevel || 0,
     ...(item.medalLevel ? { roomMedal: { name: item.medalName, level: item.medalLevel } } : {}),
   }));

@@ -30,6 +30,15 @@ function createOrderedAsyncCoordinator(options = {}) {
     return true;
   }
 
+  // Delivery holds the viewer's key. Its retry needs a generation slot, not another FIFO position.
+  function regenerate(item, options) {
+    if (stopped) return Promise.reject(new Error('Coordinator stopped'));
+    const retry = Promise.withResolvers();
+    waiting.unshift({ item, options, retry });
+    pumpGeneration();
+    return retry.promise;
+  }
+
   function pumpGeneration() {
     const concurrency = Math.max(1, Number(getConcurrency()) || 1);
     while (!stopped && active < concurrency && waiting.length) {
@@ -39,12 +48,14 @@ function createOrderedAsyncCoordinator(options = {}) {
       if (job.key !== undefined) busyKeys.add(job.key);
       active += 1;
       Promise.resolve()
-        .then(() => generate(job.item))
+        .then(() => generate(job.item, job.options))
         .then((result) => {
-          if (!stopped) completed.set(job.sequence, { ...job, result });
+          if (job.retry) job.retry.resolve(result);
+          else if (!stopped) completed.set(job.sequence, { ...job, result });
         })
         .catch((error) => {
-          if (!stopped) completed.set(job.sequence, { ...job, error });
+          if (job.retry) job.retry.reject(error);
+          else if (!stopped) completed.set(job.sequence, { ...job, error });
         })
         .finally(() => {
           active -= 1;
@@ -66,7 +77,7 @@ function createOrderedAsyncCoordinator(options = {}) {
         nextDelivery += 1;
         try {
           if (job.error) throw job.error;
-          await deliver(job.item, job.result);
+          await deliver(job.item, job.result, (options) => regenerate(job.item, options));
         } catch (error) {
           try {
             await onError(error, job.item);
@@ -98,6 +109,7 @@ function createOrderedAsyncCoordinator(options = {}) {
   function stop() {
     if (drainPromise) return drainPromise;
     stopped = true;
+    for (const job of waiting) job.retry?.reject(new Error('Coordinator stopped'));
     waiting.length = 0;
     completed.clear();
     busyKeys.clear();

@@ -14,7 +14,7 @@ const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 const { SCENE_TYPES } = require('../../public/js/shared/scene-components.js');
 const { detectComponentCssEngine } = require('../../public/js/shared/component-css-style.js');
-const { webFileReferences, localWebReference, webDocumentBase, stripWebComments } = require('./component-web-references');
+const { webFileReferences, localWebReference, stripWebComments } = require('./component-web-references');
 
 const fail = message => { throw Object.assign(new Error(message), { statusCode: 400 }); };
 
@@ -32,10 +32,8 @@ function checkReferences(directory, entry, visited = new Set(), documentEntry = 
   visited.add(`${entry}:${documentEntry}`);
   const source = fs.readFileSync(path.join(directory, entry), 'utf8');
   if (source.includes('\u0000')) fail('网页或 CSS 文件包含无效的文本内容。');
-  if (/\.html?$/i.test(entry)) documentEntry = webDocumentBase(source, entry);
   if (/\.css$/i.test(entry)) css.push(stripWebComments(source, '/*', '*/'));
-  const references = webFileReferences(source, entry, documentEntry);
-  for (const reference of references) {
+  for (const { reference, documentEntry: base } of webFileReferences(source, entry, documentEntry)) {
     if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(reference)) {
       if (/^file:/i.test(reference)) fail('素材引用了电脑绝对路径，请将资源改为素材文件夹内的相对路径。');
       continue;
@@ -47,7 +45,7 @@ function checkReferences(directory, entry, visited = new Set(), documentEntry = 
     try { target = webFilePath(path.posix.join(path.posix.dirname(entry), decodeURIComponent(value))); }
     catch { fail(`素材引用了文件夹之外的资源：${value.slice(0, 90)}`); }
     if (!fs.existsSync(path.join(directory, target))) fail(`缺少配套资源：${target.slice(0, 100)}。请选整套素材文件夹，保留原目录结构。`);
-    checkReferences(directory, target, visited, documentEntry, css);
+    checkReferences(directory, target, visited, base, css);
   }
   return css;
 }

@@ -5,9 +5,102 @@ const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { GIFT_DROP_EXIT_MS, GIFT_DROP_SPAWN_DELAY_MS } = require('../../public/js/shared/gift-drop-physics.js');
 
 const openBrowserSession = useSharedBrowser();
+
+async function openStandaloneSwing(t, getState = () => ({ settings: {} })) {
+  const fixture = await startComponentPreviewServer({ getState });
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  const url = `${fixture.origin}/gift-effects?giftStyle=gift-swing`;
+  assert.equal((await fetch(url)).status, 200);
+  const connected = page.waitForEvent('websocket').then(socket =>
+    socket.waitForEvent('framereceived', { predicate: frame => JSON.parse(frame.payload).reason === 'connect' }));
+  await page.goto(url);
+  await connected;
+  const start = Date.now();
+  await page.clock.setFixedTime(start);
+  function send(eventId, startedAt = start, userName = '观众') {
+    fixture.broadcast({ type: 'gift:frame', themeId: 'gift-swing', eventId, startedAt,
+      giftName: '星', userName, num: 1, totalPriceCents: 100, motion: { durationSeconds: 10 } });
+  }
+  return { page, start, send, broadcast: fixture.broadcast };
+}
+
+test('standalone swings discard the previous gift source and accept a reused event ID in the new one', async t => {
+  const { page, send, broadcast } = await openStandaloneSwing(t);
+  send('old');
+  send('shared-id');
+  await page.locator('[data-motion-id="shared-id"]').waitFor();
+  broadcast({ type: 'snapshot', reason: 'gift:source', state: { settings: {} } });
+  send('shared-id');
+  send('new');
+  await page.locator('[data-motion-id="new"]').waitFor();
+  assert.deepEqual(await page.locator('.gift-swing-item').evaluateAll(nodes => nodes.map(n => n.dataset.motionId)),
+    ['shared-id', 'new']);
+});
+
+test('same-source ledger updates preserve live stands and deduplication through a clear and rebuild', async t => {
+  const { createGiftService } = require('../../src/bilibili/gift');
+  const { createGiftExportRuntime } = require('../../src/server/gift-export-runtime');
+  const { createRemoteGiftController } = require('../../src/electron/remote-gift-controller');
+  const { createFixture } = require('../helpers/remote-gift-controller-fixture');
+  const remote = createFixture();
+  const ledger = require('../helpers/gift-query-fixture').createFixture();
+  const gifts = createGiftService(ledger.context);
+  let broadcast = () => {};
+  const getState = () => ({ settings: {}, giftSourceEpoch: gifts.getDisplaySourceEpoch() });
+  const notify = reason => broadcast({ type: 'snapshot', reason, state: getState() });
+  const runtime = createGiftExportRuntime({ getServices: () => ({ gifts }), broadcastSnapshot: notify });
+  const controller = createRemoteGiftController({ ...remote.options, runtime: {
+    ...remote.options.runtime, setActiveGiftSource: runtime.setActiveGiftSource,
+  } });
+  t.after(() => { controller.dispose(); gifts.dispose(); ledger.close(); });
+  await controller.start();
+  const swing = await openStandaloneSwing(t, getState);
+  broadcast = swing.broadcast;
+  const names = () => swing.page.locator('.gift-swing-name').allTextContents();
+  swing.send('shared', swing.start, 'Original A');
+  await swing.page.locator('[data-motion-id="shared"]').waitFor();
+  const active = gifts.getActiveSource();
+  const selected = { sourceId: active.sourceId, displaySourceKey: remote.source.sourceKey };
+  runtime.setActiveGiftSource({ ...selected, syncState: 'BOOTSTRAPPING' });
+  runtime.setActiveGiftSource({ ...selected, syncState: 'CATCHING_UP' });
+  notify('database:clear-gifts');
+  await controller.start();
+  swing.send('shared', swing.start, 'Duplicate A');
+  swing.send('next', swing.start, 'Second A');
+  await swing.page.locator('[data-motion-id="next"]').waitFor();
+  assert.deepEqual(await names(), ['Original A', 'Second A']);
+
+  remote.options.licenseManager.getCloudSyncIdentity = () => ({ accountName: 'bob', streamerId: 20 });
+  await controller.start();
+  swing.send('shared', swing.start, 'Owner B');
+  await swing.page.getByText('Owner B', { exact: true }).waitFor();
+  assert.deepEqual(await names(), ['Owner B']);
+});
+
+test('a hidden standalone swing source reclaims expired stands before admitting a new gift', async t => {
+  const { page, start, send } = await openStandaloneSwing(t);
+  for (let i = 0; i < 80; i++) send(`old-${i}`);
+  await page.locator('[data-motion-id="old-79"]').waitFor();
+  assert.equal(await page.locator('.gift-swing-item').count(), 80);
+  const setHidden = hidden => page.evaluate(value => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+  await setHidden(true);
+  await page.clock.setFixedTime(start + 11000);
+  send('fresh', start + 11000);
+  await page.locator('[data-motion-id="fresh"]').waitFor({ state: 'attached', timeout: 3000 });
+  await setHidden(false);
+  await page.clock.setFixedTime(start + 11400);
+  await page.waitForFunction(() => Number(document.querySelector('[data-motion-id="fresh"]')?.style.opacity) > 0.9);
+  assert.equal(await page.locator('.gift-swing-item').count(), 1);
+});
 
 test('published motion layers isolate styles, retain settlement expiry through delayed images and never replay history', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture({ notifications: true });

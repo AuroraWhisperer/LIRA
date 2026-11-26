@@ -128,3 +128,35 @@ test('a rejected sync allows the unchanged snapshot to be saved again', async ()
   assert.equal(calls, 2);
   assert.equal(reminders.getStatus(), 'ready');
 });
+
+test('unchanged reminders follow a zone change, the body expiry minute and a clock rollback', async t => {
+  const previousZone = process.env.TZ;
+  t.after(() => {
+    if (previousZone === undefined) delete process.env.TZ;
+    else process.env.TZ = previousZone;
+  });
+  process.env.TZ = 'UTC';
+  const cutoff = Date.parse(`${event.date}T${event.reminderTime}Z`) + 86400000;
+  let now = cutoff - 1;
+  const { createPlannerReminderSync } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/streamer-planner-reminders.js'),
+    { Date: class extends Date { static now() { return now; } } },
+  );
+  const calls = [];
+  const sync = createPlannerReminderSync({
+    getBridge: () => ({ async sync({ agenda }) { calls.push(JSON.parse(agenda)); return { ok: true, supported: true }; } }),
+    onStatusChange() {},
+  });
+  const events = [event];
+  const save = () => sync.sync(events, undefined, 1);
+  await save();
+  process.env.TZ = 'Asia/Shanghai';
+  await save();
+  assert.equal(calls[0].remindAt - calls[1].remindAt, 8 * 3600000);
+  now = cutoff;
+  await save();
+  assert.equal(Object.hasOwn(calls[2], 'title'), false);
+  now = cutoff - 1;
+  await save();
+  assert.equal(calls[3].title, event.title);
+});

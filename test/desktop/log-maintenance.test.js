@@ -27,6 +27,21 @@ test('the first desktop append reuses successful retention work on the active lo
   assert.equal(fs.existsSync(file + '.2'), false);
 });
 
+test('expiring ordinary desktop entries does not require a third full read', t => {
+  const directory = createScratchDirectory('ordinary-retention-', t);
+  const normal = path.join(directory, 'desktop.log');
+  const today = '[2026-11-25T00:00:00Z] [desktop:info] today\n';
+  fs.writeFileSync(normal, '[2026-11-21T00:00:00Z] [desktop:info] expired\n' + today);
+  const read = t.mock.method(fs, 'readFileSync');
+  const write = t.mock.method(fs, 'writeFileSync');
+  maintainDesktopLogs(directory, Date.parse('2026-11-25T00:00:00Z'));
+  const reads = read.mock.calls.filter(call => call.arguments[0] === normal).length;
+  const writes = write.mock.calls.filter(call => call.arguments[0] === normal).length;
+  assert.equal(fs.readFileSync(normal, 'utf8'), today);
+  assert.equal(writes, 1);
+  assert.ok(reads <= 2, `full reads: ${reads}`);
+});
+
 test('old mixed logs keep recent failures separately while ordinary records expire after three days', (t) => {
   const directory = createScratchDirectory('log-retention-', t);
   const normal = path.join(directory, 'terminal.log');

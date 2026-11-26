@@ -3,6 +3,7 @@
 const { createPublicError } = require('../shared/public-error');
 
 const { profilePatch, identityKey, recentNameHistory } = require('./validation');
+const { membershipConflicts } = require('./membership');
 
 function mergeBirthday(preferred, other) {
   if (!preferred || !other) return preferred || other;
@@ -39,6 +40,7 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
     if (!['source', 'target'].includes(input.prefer) || input.targetRevision !== plan.target.revision)
       throw createPublicError('请确认合并时采用哪份资料。');
     const at = now();
+    const before = store.exportScope(scope);
     const snapshotId = store.snapshot(
       scope,
       {
@@ -47,7 +49,7 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
         scope,
         exportedAt: at,
         reason: '合并未绑定草稿之前',
-        ...store.exportScope(scope),
+        ...before,
       },
       at,
     );
@@ -68,6 +70,18 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
     mergedProfile.merges = [...(mergedProfile.merges || []), { sourceId: plan.source.id, mergedAt: at, snapshotId }];
     store.save(scope, mergedProfile, identityKey(mergedProfile.identity), at);
     store.moveRecords(scope, plan.source.id, plan.target.id, at);
+    const adopted = record => record.kind === 'membership' && record.data.decision === 'adopted' && !record.data.excluded;
+    const confirmed = before.profiles.find(p => p.id === plan.target.id).records.filter(adopted);
+    if (confirmed.length) {
+      for (const record of before.profiles.find(p => p.id === plan.source.id).records.filter(adopted)) {
+        const conflicts = membershipConflicts(record, confirmed, undefined, { independentBaselines: true });
+        if (conflicts.length) {
+          store.records.update(scope, plan.target.id, {
+            ...record, data: { ...record.data, decision: 'pending', conflicts },
+          }, at);
+        } else confirmed.push(record);
+      }
+    }
     const targetStates = new Map(store.states(scope, plan.target.id).map((item) => [item.key, item]));
     for (const state of store.states(scope, plan.source.id)) {
       const prior = targetStates.get(state.key);

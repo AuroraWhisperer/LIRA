@@ -22,14 +22,14 @@ function fixture(t) {
       defaults: DEFAULT_SETTINGS,
       get: store.getSettings,
       set: store.setSetting,
-      setMany: (values) => store.setSettings(values),
+      setMany: store.setSettings,
     },
     bilibili: { configure() {} },
     broadcastSnapshot() {},
     cloudSync: { request: (scope) => dirtyScopes.push(scope) },
     system: { getState: () => ({ settings: store.getSettings() }) },
   };
-  async function post(body) {
+  async function post(body, query, headers) {
     const response = {
       writeHead(status) {
         this.status = status;
@@ -38,11 +38,37 @@ function fixture(t) {
         this.payload = JSON.parse(text);
       },
     };
-    await routes['POST /api/settings'](context, { body: async () => body }, response);
+    await routes['POST /api/settings'](context, { body: async () => body, query, req: { headers } }, response);
     return response;
   }
   return { db, store, context, dirtyScopes, post };
 }
+
+test('saving the desktop update toggle can acknowledge the write without reading other state', async t => {
+  const { post, store, context } = fixture(t);
+  const state = t.mock.method(context.system, 'getState');
+  const broadcast = t.mock.method(context, 'broadcastSnapshot');
+  const compact = new URLSearchParams({ return: 'minimal' });
+  assert.deepEqual((await post({ enableAutoUpdate: 'true' }, compact)).payload, { ok: true });
+  assert.equal(store.getSettings().enableAutoUpdate, 'true');
+  assert.equal(state.mock.callCount(), 0);
+  assert.equal(broadcast.mock.callCount(), 1);
+  assert.equal((await post({ enableAutoUpdate: 'false' })).payload.data.settings.enableAutoUpdate, 'false');
+  assert.equal(state.mock.callCount(), 1);
+});
+
+test('an older update toggle reaching the store last cannot undo the newer durable choice', async t => {
+  const { post, store, context } = fixture(t);
+  const writer = 'f7512638-b321-4f80-8dea-99e362ace18e';
+  const write = (n, enabled) => post({ enableAutoUpdate: enabled }, new URLSearchParams('return=minimal'), {
+    'x-lira-update-edit': `${writer}/${n}`,
+  });
+  const broadcast = t.mock.method(context, 'broadcastSnapshot');
+  await write(2, 'false');
+  await write(1, 'true');
+  assert.equal(store.getSettings().enableAutoUpdate, 'false');
+  assert.equal(broadcast.mock.callCount(), 1);
+});
 
 test('queue notice colors persist locally and invalid colors reject the whole update', async t => {
   const f = fixture(t);

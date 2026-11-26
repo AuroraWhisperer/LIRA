@@ -44,7 +44,13 @@ export function initGuardExpirySettings({ documentRef, windowRef }) {
     avatar.alt = avatarSource ? `${name.textContent}的头像` : '';
     if (avatarSource) avatar.src = avatarSource;
     else avatar.removeAttribute('src');
-    status.textContent = !account ? '状态未知' : account.loggedIn ? (separate ? '主播账号已登录' : '已复用上方账号') : '未登录';
+    if (!account) {
+      status.textContent = busy ? '正在读取…' : '状态未知';
+    } else if (account.loggedIn) {
+      status.textContent = separate ? '主播账号已登录' : '已复用上方账号';
+    } else {
+      status.textContent = '未登录';
+    }
     status.className = account?.loggedIn ? 'pill good' : 'pill warn';
   }
 
@@ -52,12 +58,15 @@ export function initGuardExpirySettings({ documentRef, windowRef }) {
     if (busy || !bridge) return;
     busy = true;
     render();
-    message.textContent = pendingMessage;
-    retry.hidden = true;
+    if (pendingMessage) {
+      message.textContent = pendingMessage;
+      retry.hidden = true;
+    }
     try {
       const result = await operation();
       if (!result?.ok) throw Object.assign(new Error(), { code: result?.error });
       if (result.account) account = result.account;
+      retry.hidden = true;
       message.textContent = result.cancelled ? '已取消登录。' : '';
     } catch (error) {
       message.textContent = ERROR_MESSAGES[error.code] || '无法完成操作，请检查连接后重试。';
@@ -68,7 +77,7 @@ export function initGuardExpirySettings({ documentRef, windowRef }) {
     }
   }
 
-  const refresh = () => run(() => bridge.getState(), '正在读取同步账号…');
+  const refresh = () => run(() => bridge.getState());
   avatar.addEventListener('error', () => {
     avatar.hidden = true;
     avatar.alt = '';

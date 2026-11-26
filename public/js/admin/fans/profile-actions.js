@@ -3,6 +3,8 @@ import { html } from './view.js';
 import { toast } from '../../shared/utils.js';
 
 export function createFanProfileActions({ request, openForm, onProfile, onDeleted, onChanged, onArchived, onSuppressed, reload, apiToken = '' }) {
+  const resolvingRecords = new Set();
+
   function editProfile(profile = {}) {
     openForm(profileForm(profile, {
       previewIdentity: (uid) => request('preview-identity', { uid }),
@@ -69,12 +71,16 @@ export function createFanProfileActions({ request, openForm, onProfile, onDelete
       const record = profile.records.find((item) => item.id === recordId);
       if (record) editRecord(profile.id, record.kind, record);
     } else if (name.startsWith('resolve-')) {
-      const saved = await request('resolve-membership', {
-        profileId: profile.id,
-        id: recordId,
-        choice: name.slice(8),
-      });
-      await onChanged(saved, profile.id, selection);
+      if (resolvingRecords.has(recordId)) return true;
+      resolvingRecords.add(recordId);
+      try {
+        const saved = await request('resolve-membership', {
+          profileId: profile.id, id: recordId, choice: name.slice(8),
+        });
+        await onChanged(saved, profile.id, selection);
+      } finally {
+        resolvingRecords.delete(recordId);
+      }
     } else if (name === 'archive') {
       const saved = await request('save', {
         id: profile.id,

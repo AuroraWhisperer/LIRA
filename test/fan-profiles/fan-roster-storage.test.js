@@ -177,15 +177,20 @@ test('manual correction expands one record and retains original evidence, refere
   const result = f.record(p.id, 'membership', { ...old.data, level: 2, reason: '人工核对原始等级' }, { id: old.id, revision: old.revision });
   assert.deepEqual(result.original, old.original);
   assert.deepEqual(result.revisions[0].before, { data: old.data, occurredAt: old.occurredAt });
+  assert.equal(result.occurredAt, old.occurredAt);
   assert.equal(result.sourceKey, old.sourceKey);
   assert.equal(result.revision, 2);
   assert.equal(f.db.songDb.prepare('SELECT roster_template_id FROM fan_records WHERE id = ?').get(old.id).roster_template_id, null);
   assert.deepEqual(f.store.records.bySource(SCOPE, before[1].sourceKey), before[1]);
   assert.equal(templateCount(f.db.songDb), 1);
-  f.record(p.id, 'membership', { ...before[1].data, excluded: true }, { id: before[1].id, revision: before[1].revision });
+  const excluded = f.record(p.id, 'membership', { ...before[1].data, excluded: true }, { id: before[1].id, revision: before[1].revision });
+  assert.equal(excluded.data.excluded, true);
   assert.equal(templateCount(f.db.songDb), 0);
   f.restart();
   assert.deepEqual(f.store.records.bySource(SCOPE, old.sourceKey), result);
+  f.setNow('2026-09-20T04:00:00.000Z');
+  assert.equal(f.store.records.bySource(SCOPE, excluded.sourceKey).data.excluded, true);
+  assert.equal(f.detail(p.id).membership.observedLevel, 2);
 });
 
 test('saving an identical record keeps its revision and compact storage while stale revisions still fail', (t) => {

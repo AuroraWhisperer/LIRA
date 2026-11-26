@@ -65,6 +65,29 @@ test('danmaku feed buffer projects public fields and keeps a bounded defensive s
   assert.equal(feed.getSnapshot()[0].emotes[0].text, '[妙]');
 });
 
+test('danmaku feed projects guard and medal evidence independently and protects room medal snapshots', () => {
+  const feed = createDanmakuFeedBuffer();
+  const viewer = { message: '弹幕', requesterGuardLevel: 3, requesterMedalName: '本房牌', requesterMedalLevel: 17 };
+  const guard = feed.push({ ...viewer, requesterGuardVerified: true });
+  assert.equal(guard.roomGuardLevel, 3);
+  assert.equal(guard.roomMedal, undefined);
+
+  const fan = feed.push({ ...viewer, requesterMedalVerified: true });
+  assert.equal(fan.roomGuardLevel, undefined);
+  assert.deepEqual(fan.roomMedal, { name: '本房牌', level: 17 });
+  fan.roomMedal.name = '改写增量';
+  const snapshot = feed.getSnapshot()[1];
+  assert.equal(snapshot.roomMedal.name, '本房牌');
+  snapshot.roomMedal.level = 99;
+  assert.equal(feed.getSnapshot()[1].roomMedal.level, 17);
+
+  const ordinary = feed.push({ message: '普通观众', requesterGuardVerified: true, requesterGuardLevel: 0,
+    requesterMedalVerified: true, requesterMedalName: '', requesterMedalLevel: 0,
+    guardLevel: 1, medalName: '外房牌', medalLevel: 12 });
+  assert.equal(ordinary.roomGuardLevel, 0);
+  assert.equal(ordinary.roomMedal, undefined);
+});
+
 test('danmaku feed buffer clears only when the active room changes', () => {
   const feed = createDanmakuFeedBuffer({ limit: 4 });
   feed.setRoom('100');

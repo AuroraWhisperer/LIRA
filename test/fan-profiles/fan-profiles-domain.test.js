@@ -280,6 +280,124 @@ test('a later zero baseline preserves past membership only while the positive ba
   assert.equal(past().length, 0);
 });
 
+test('editing the reason for a superseded total cannot put the fan back in the past-members list', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const baseline = { type: 'baseline', asOf: '2026-09-18' };
+  const positive = f.record(p.id, 'membership', { ...baseline, totalDays: 12 });
+  f.record(p.id, 'membership', { ...baseline, totalDays: 0 });
+  const old = f.detail(p.id).records.find(record => record.id === positive.id);
+  const revision = f.record(p.id, 'membership', { ...old.data, reason: '只改说明' }, { id: old.id, revision: old.revision });
+  assert.equal(revision.data.reason, '只改说明');
+  assert.equal(revision.data.decision, 'superseded');
+  assert.equal(f.detail(p.id).membership.totalDays, 0);
+  assert.equal(f.run('list', { filters: ['past'] }).profiles.length, 0);
+});
+
+test('a cumulative baseline must cover the union of elapsed Shanghai days, in either entry order', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const add = (id, data) => f.record(id, 'membership', data);
+  const first = interval('2026-08-01', '2026-08-10');
+  const second = interval('2026-09-01', '2026-09-10');
+  const baseline = { type: 'baseline', asOf: '2026-09-18', totalDays: 12 };
+  const ids = [add(p.id, first).id, add(p.id, second).id];
+  const future = add(p.id, interval('2026-10-01', '2026-10-10'));
+  const pending = add(p.id, baseline);
+  assert.equal(pending.data.decision, 'pending');
+  assert.deepEqual(new Set(pending.data.conflicts), new Set(ids));
+  assert.equal(f.detail(p.id).membership.totalDays, 20);
+  f.run('resolve-membership', { profileId: p.id, id: pending.id, choice: 'keep' });
+  add(p.id, interval('2026-09-05', '2026-09-09'));
+  assert.equal(add(p.id, { ...baseline, totalDays: 20 }).data.decision, 'adopted');
+  assert.equal(f.detail(p.id).records.find(record => record.id === future.id).data.decision, 'adopted');
+  const draft = f.create({ identity: null });
+  const base = add(draft.id, baseline);
+  add(draft.id, first);
+  assert.deepEqual(add(draft.id, second).data.conflicts, [base.id]);
+});
+
+test('adopting a day-count correction preserves compatible evidence for level and expiry', t => {
+  const f = fanFixture(t);
+  for (const spans of [
+    [interval('2026-09-01', '2026-09-10')],
+    [interval('2026-09-01', '2026-09-05'), interval('2026-09-06', '2026-09-10')],
+    [interval('2026-09-01', '2026-09-22'), interval('2026-09-03', '2026-09-25')],
+  ]) {
+    for (const metric of ['totalDays', 'continuousDays']) {
+      const p = f.create({ identity: null });
+      const record = data => f.record(p.id, 'membership', data);
+      const conflictingIds = spans.map(span => record(span).id);
+      const ongoing = record(interval('2026-09-10', '2026-09-30', { level: 2 }));
+      const correction = record({ type: 'baseline', asOf: '2026-09-10', [metric]: 5 });
+      assert.deepEqual(new Set(correction.data.conflicts), new Set(conflictingIds), metric);
+      const { membership } = f.run('resolve-membership', { profileId: p.id, id: correction.id, choice: 'adopt' });
+      assert.equal(membership.level, 2);
+      assert.equal(membership.expiry?.date, '2026-09-30');
+      assert.equal(membership.expiry?.recordId, ongoing.id);
+      assert.equal(membership[metric], 13);
+    }
+  }
+});
+
+test('a total correction keeps ongoing intervals that fit together and their compatible history', t => {
+  const f = fanFixture(t);
+  f.setNow('2026-11-12T04:00:00Z');
+  const p = f.create();
+  const add = data => f.record(p.id, 'membership', data);
+  const long = add(interval('2026-10-01', '2026-10-06'));
+  const history = add(interval('2026-11-01', '2026-11-04'));
+  const extraDay = add(interval('2026-11-05', '2026-11-05'));
+  const ongoing = interval('2026-11-07', '2026-11-20');
+  add(ongoing);
+  const renewal = add(interval('2026-11-10', '2026-11-30', { level: 2 }));
+  const count = { type: 'baseline', asOf: '2026-11-10', totalDays: 5 };
+  const correction = add(count);
+  assert.deepEqual(new Set(correction.data.conflicts), new Set([long.id, history.id]));
+  const { membership, records } = f.run('resolve-membership', { profileId: p.id, id: correction.id, choice: 'adopt' });
+  assert.equal(records.find(r => r.id === extraDay.id).data.decision, 'adopted');
+  assert.equal(membership.level, 2);
+  assert.equal(membership.expiry?.recordId, renewal.id);
+  assert.equal(membership.totalDays, 7);
+
+  const other = f.create({ identity: null });
+  const baseline = f.record(other.id, 'membership', count);
+  f.record(other.id, 'membership', interval('2026-11-01', '2026-11-04'));
+  assert.deepEqual(f.record(other.id, 'membership', ongoing).data.conflicts, [baseline.id]);
+});
+
+test('adopting a total that conflicts with two finished periods preserves a compatible recorded day', t => {
+  const f = fanFixture(t);
+  f.setNow('2026-11-12T04:00:00Z');
+  const p = f.create();
+  const add = (start, end) => f.record(p.id, 'membership', interval(start, end));
+  const first = add('2026-11-01', '2026-11-04');
+  const second = add('2026-11-06', '2026-11-09');
+  const last = add('2026-11-10', '2026-11-10');
+  const correction = f.record(p.id, 'membership', { type: 'baseline', asOf: '2026-11-10', totalDays: 5 });
+  assert.deepEqual(new Set(correction.data.conflicts), new Set([first.id, second.id]));
+  const { membership } = f.run('resolve-membership', { profileId: p.id, id: correction.id, choice: 'adopt' });
+  assert.equal(membership.expiry?.recordId, last.id);
+  assert.equal(membership.recordedDays, 1);
+});
+
+test('a continuous baseline conflicts with intervals that only exceed it together, in either entry order', t => {
+  const f = fanFixture(t);
+  f.setNow('2026-11-25T04:00:00Z');
+  const history = interval('2026-11-01', '2026-11-05');
+  const ongoing = interval('2026-11-06', '2026-11-30', { level: 2 });
+  const count = { type: 'baseline', asOf: '2026-11-10', continuousDays: 5 };
+  const add = (id, data) => f.record(id, 'membership', data);
+  const p = f.create();
+  const ids = [add(p.id, history).id, add(p.id, ongoing).id];
+  assert.deepEqual(new Set(add(p.id, count).data.conflicts), new Set(ids));
+
+  const other = f.create({ identity: null });
+  const base = add(other.id, count);
+  add(other.id, history);
+  assert.deepEqual(add(other.id, ongoing).data.conflicts, [base.id]);
+});
+
 test('A21: confirmed future validity counts only elapsed Shanghai days and predicts future milestones', (t) => {
   const f = fanFixture(t);
   const p = f.create();
@@ -293,6 +411,120 @@ test('A21: confirmed future validity counts only elapsed Shanghai days and predi
   assert.equal(hundred.date, '2026-12-09');
   assert.equal(hundred.predicted, true);
   assert.equal(hundred.actionable, false);
+});
+
+test('inactive observations inside a validity interval require review in either entry order', (t) => {
+  const f = fanFixture(t);
+  const span = interval('2026-11-01', '2026-11-30');
+  const observation = { type: 'observation', observedAt: '2026-11-09T04:00:00Z', level: 3, status: 'inactive' };
+  for (const [first, second] of [[span, observation], [observation, span]]) {
+    const p = f.create({ identity: null });
+    const existing = f.record(p.id, 'membership', first);
+    const incoming = f.record(p.id, 'membership', second);
+    assert.deepEqual([existing.data.decision, incoming.data.decision, incoming.data.conflicts],
+      ['adopted', 'pending', [existing.id]]);
+    f.run('resolve-membership', { profileId: p.id, id: incoming.id, choice: 'keep' });
+    assert.equal(f.detail(p.id).records.find(r => r.id === existing.id).data.decision, 'adopted');
+  }
+  for (const extra of [{ observedAt: '2026-12-01T00:00:00+08:00' }, { status: 'observed' }]) {
+    const p = f.create({ identity: null });
+    f.record(p.id, 'membership', { ...observation, ...extra });
+    assert.equal(f.record(p.id, 'membership', span).data.decision, 'adopted');
+  }
+  const p = f.create();
+  const nov = f.record(p.id, 'membership', span);
+  const inactive = f.record(p.id, 'membership', { ...observation, observedAt: '2026-09-01T00:00:00+08:00' });
+  f.consume([{ kind: 'membership', membership: { ...interval('2026-09-01', '2026-09-30'), evidenceVerified: true } }]);
+  const pending = f.detail(p.id).records.find(r => r.data.decision === 'pending');
+  assert.deepEqual(pending.data.conflicts, [inactive.id]);
+  const resolved = f.run('resolve-membership', { profileId: p.id, id: pending.id, choice: 'adopt' });
+  assert.equal(resolved.cycleId, nov.data.cycleId);
+});
+
+test('adopting a pending interval shows changed observations before superseding their evidence', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const observe = at => f.record(p.id, 'membership', { type: 'observation', level: 3, status: 'inactive', observedAt: at });
+  const first = observe('2026-09-10T04:00:00Z');
+  const pending = f.record(p.id, 'membership', interval('2026-09-01', '2026-09-30'));
+  const second = observe('2026-09-20T04:00:00Z');
+  f.record(p.id, 'membership', { ...first.data, observedAt: '2026-10-01T04:00:00Z' }, { id: first.id, revision: first.revision });
+  const adopt = () => f.run('resolve-membership', { profileId: p.id, id: pending.id, choice: 'adopt' }).records;
+  const reviewed = adopt().find(record => record.id === pending.id);
+  assert.deepEqual([reviewed.data.decision, reviewed.data.conflicts], ['pending', [second.id]]);
+  const decisions = new Map(adopt().map(record => [record.id, record.data.decision]));
+  assert.deepEqual([decisions.get(first.id), decisions.get(second.id), decisions.get(pending.id)], ['adopted', 'superseded', 'adopted']);
+});
+
+test('a backfilled interval awaiting adoption cannot claim a later disjoint cycle', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.record(p.id, 'membership', { type: 'observation', level: 3, status: 'inactive', observedAt: '2026-09-10T04:00:00Z' });
+  const sep = f.record(p.id, 'membership', interval('2026-09-01', '2026-09-30'));
+  const nov = f.record(p.id, 'membership', interval('2026-11-01', '2026-11-30'));
+  f.run('resolve-membership', { profileId: p.id, id: sep.id, choice: 'adopt' });
+  const milestone = date => {
+    f.setNow(`${date}T04:00:00Z`);
+    return f.detail(p.id).reminders.find(r => r.date === date && r.metric === 'continuous' && r.threshold === 30);
+  };
+  f.run('reminder-state', { profileId: p.id, key: milestone('2026-09-30').key, status: 'handled' });
+  assert.equal(milestone('2026-11-30').actionable, true);
+  assert.equal(f.detail(p.id).cycleId, nov.data.cycleId);
+});
+
+test('backfilled disjoint intervals keep separate continuous reminder states and the latest cycle', (t) => {
+  const f = fanFixture(t);
+  f.setNow('2026-09-30T04:00:00Z');
+  const p = f.create();
+  const record = (start, end) => f.record(p.id, 'membership', interval(start, end));
+  const nov = record('2026-11-01', '2026-11-30');
+  const sep = record('2026-09-01', '2026-09-30');
+  const milestone = () => f.detail(p.id).reminders.find(r => r.metric === 'continuous' && r.threshold === 30 && r.group !== 'history');
+  const first = milestone();
+  f.run('reminder-state', { profileId: p.id, key: first.key, status: 'handled' });
+  f.setNow('2026-11-30T04:00:00Z');
+  const second = f.detail(p.id).reminders.find(r => r.date === '2026-11-30' && r.metric === 'continuous' && r.threshold === 30);
+  assert.deepEqual([nov.data.cycleId === sep.data.cycleId, second?.status, second?.actionable], [false, 'pending', true]);
+  assert.equal(record('2026-08-31', '2026-08-31').data.cycleId, sep.data.cycleId);
+  assert.equal(f.detail(p.id).cycleId, nov.data.cycleId);
+  assert.equal(record('2026-12-01', '2026-12-02').data.cycleId, nov.data.cycleId);
+});
+
+test('a same-day baseline keeps a handled backfilled milestone in its own cycle', t => {
+  const f = fanFixture(t);
+  f.setNow('2026-10-03T04:00:00Z');
+  const p = f.create();
+  const oct = f.record(p.id, 'membership', interval('2026-10-02', '2026-10-31'));
+  const sep = f.record(p.id, 'membership', interval('2026-09-01', '2026-09-30'));
+  const handledKey = `continuous:${sep.data.cycleId}:30`;
+  f.run('reminder-state', { profileId: p.id, key: handledKey, status: 'handled' });
+
+  const baseline = f.record(p.id, 'membership', { type: 'baseline', asOf: '2026-09-30', continuousDays: 30 });
+  const detail = f.detail(p.id);
+  const september = detail.reminders.filter(r => r.date === '2026-09-30' && r.metric === 'continuous');
+  assert.deepEqual(september.map(r => [r.key, r.status, r.actionable]), [[handledKey, 'handled', false]]);
+  assert.equal(baseline.data.cycleId, sep.data.cycleId);
+  assert.equal(detail.cycleId, oct.data.cycleId);
+
+  f.setNow('2026-10-31T04:00:00Z');
+  const next = f.detail(p.id).reminders.find(r => r.key === `continuous:${oct.data.cycleId}:30`);
+  assert.deepEqual([next.date, next.status, next.actionable], ['2026-10-31', 'pending', true]);
+});
+
+test('adopting a pending baseline uses the interval covering its cutoff at confirmation', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const record = data => f.record(p.id, 'membership', data);
+  const oct = record(interval('2026-10-02', '2026-10-31'));
+  const aug = record(interval('2026-08-01', '2026-08-31'));
+  const pending = record({ type: 'baseline', asOf: '2026-09-30', totalDays: 30, continuousDays: 30 });
+  assert.deepEqual(pending.data.conflicts, [aug.id]);
+
+  const sep = record(interval('2026-09-02', '2026-09-30'));
+  const detail = f.run('resolve-membership', { profileId: p.id, id: pending.id, choice: 'adopt' });
+  const adopted = detail.records.find(r => r.id === pending.id);
+  assert.deepEqual([adopted.data.decision, adopted.data.cycleId], ['adopted', sep.data.cycleId]);
+  assert.equal(detail.cycleId, oct.data.cycleId);
 });
 
 test('A10: interval union deduplicates overlap, retains lower ranks, and resets after confirmed gap', (t) => {

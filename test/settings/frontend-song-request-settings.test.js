@@ -46,6 +46,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
   const renderedBlacklists = [];
   const renderedUserBlacklists = [];
   let reloads = 0;
+  let blacklistSaveActive = false;
   let saveOutcome;
   let valid = true;
   const { createSettingsForm } = await loadModuleExports(path.resolve('public/js/admin/settings-form.js'), {
@@ -90,6 +91,10 @@ test('song request edits autosave independently, serialize newer drafts and reta
     },
     userBlacklistEditor: {
       init() {},
+      beginSave() {
+        blacklistSaveActive = true;
+        return () => { blacklistSaveActive = false; };
+      },
       render(savedValue) {
         renderedUserBlacklists.push({ savedValue, dirty: elements.get('songRequestUserBlacklist').dataset.dirty });
       },
@@ -142,8 +147,10 @@ test('song request edits autosave independently, serialize newer drafts and reta
   listeners.get('songRequestSettingsForm:input')({ target: userBlacklist });
   t.mock.timers.tick(500);
   assert.equal(requests.length, 3, 'an in-flight write must not overlap a newer write');
+  assert.equal(blacklistSaveActive, true);
   saveOutcome.resolve();
   await settle();
+  assert.equal(blacklistSaveActive, false);
   assert.equal(blacklist.dataset.dirty, 'true');
   assert.equal(requests[2].payload.songRequestBlacklist, '78\n不要唱');
   assert.equal(renderedBlacklists.length, 1, 'a late save does not redraw over a newer blacklist draft');
@@ -162,6 +169,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
   t.mock.timers.tick(500);
   saveOutcome.reject(new Error('save failed'));
   await settle();
+  assert.equal(blacklistSaveActive, false);
   assert.notEqual(elements.get('songRequestSettingsSaveState').textContent, savedState);
   assert.equal(elements.get('songRequestSettingsSave').hidden, false);
   assert.equal(blacklist.dataset.dirty, 'true');

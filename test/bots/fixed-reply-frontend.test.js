@@ -131,6 +131,38 @@ async function keywordEditor(t) {
   return { page, list, keyword: list.getByRole('textbox').first(), retry: page.locator('#danmakuCustomReplySaveBtn') };
 }
 
+test('keyword reply limit preserves the new input and only saves after a slot is free', async (t) => {
+  const { page, list } = await keywordEditor(t);
+  const { MAX_CUSTOM_REPLY_RULES: limit } = require('../../src/bilibili/custom-reply-service');
+  const rules = Array.from({ length: limit }, (_, i) => ({ keyword: `key-${i}`, reply: `reply-${i}` }));
+  await page.evaluate(rules => window.keywordEditor.load(JSON.stringify(rules)), rules);
+  const keyword = page.locator('#danmakuCustomKeywordInput');
+  const reply = page.locator('#danmakuCustomReplyInput');
+  await keyword.fill('next');
+  await reply.fill('new reply');
+  await page.locator('#danmakuCustomReplyAddBtn').click();
+  await reply.press('Enter');
+  await page.clock.runFor(650);
+  assert.equal(await list.getByRole('button').count(), limit);
+  assert.equal(await keyword.inputValue(), 'next');
+  assert.equal(await reply.inputValue(), 'new reply');
+  assert.equal(await page.evaluate(() => window.pendingSaves.length), 0);
+  assert.match(await page.evaluate(() => window.messages.at(-1)), /30 条/);
+
+  await list.getByRole('button').last().click();
+  await reply.press('Enter');
+  await page.clock.runFor(650);
+  const saved = await page.evaluate(() => {
+    const [write] = window.pendingSaves;
+    write.resolve();
+    return JSON.parse(write.value);
+  });
+  assert.equal(saved.length, limit);
+  assert.deepEqual(saved.at(-1), { keyword: 'next', reply: 'new reply', enabled: true });
+  await page.evaluate(saved => { window.keywordEditor.reset(); window.keywordEditor.load(JSON.stringify(saved)); }, saved);
+  assert.equal(await list.getByRole('textbox').nth((limit - 1) * 2).inputValue(), 'next');
+});
+
 test('keyword replies keep focus on unchanged refresh and reload clean data after save or reset', async (t) => {
   const { page, list, keyword, retry } = await keywordEditor(t);
   await keyword.focus();

@@ -130,7 +130,8 @@ function parseRange(rangeHeader, fileSize) {
     end = endText ? Number(endText) : fileSize - 1;
   }
   if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-  if (start < 0 || start > end) return null;
+  // Only an explicit end can be inverted. An open range starting at EOF is unsatisfiable.
+  if (start < 0 || (endText && start > end)) return null;
   if (start >= fileSize) return { unsatisfiable: true };
   end = Math.min(end, fileSize - 1);
   return { start, end };

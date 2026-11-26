@@ -16,6 +16,23 @@
   overflow: auto;
 }
 
+.playback-workspaces {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.playback-workspaces > * {
+  grid-area: 1 / 1;
+}
+
+/* Keep the preview at its final width so its first resize happens before switching workspaces. */
+.playback-workspaces > [inert] {
+  block-size: 0;
+  padding-block: 0;
+  overflow: clip;
+}
+
 .playback-music-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

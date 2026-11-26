@@ -7,6 +7,7 @@ import { getHomeActionTitle } from '../utils.js';
 
 /** 可缓存的 action 列表 */
 export const CACHEABLE_ACTIONS = new Set(['liked', 'created-playlists', 'collected-playlists', 'playlist-tracks']);
+export const PERSONALIZED_PAGE_SIZE = 12;
 
 /**
  * 内容加载器
@@ -178,7 +179,7 @@ export class ContentLoader {
 
   /**
    * 分页循环加载"我喜欢"的全部歌曲（API 请求）
-   * 每次请求 100 首，直到 API 返回不足 100 首为止
+   * 每次读 100 个位置。支持游标的平台按原始页推进。
    * @param {Object} request - 当前分页任务的平台、标题和缓存键
    * @returns {Promise<Object>} 加载结果
    */
@@ -210,18 +211,19 @@ export class ContentLoader {
 
       const tracks = Array.isArray(payload.data && payload.data.tracks) ? payload.data.tracks : [];
 
-      const pageSignature = JSON.stringify(
-        tracks.map((track) => [track?.source ?? '', track?.id ?? track?.sourceTrackId ?? '', track?.title ?? '']),
-      );
-      if (tracks.length > 0 && seenPages.has(pageSignature)) break;
-      if (tracks.length > 0) seenPages.add(pageSignature);
+      let nextOffset = payload.data?.nextOffset;
+      if (nextOffset === undefined) {
+        const pageSignature = JSON.stringify(
+          tracks.map((track) => [track?.source ?? '', track?.id ?? track?.sourceTrackId ?? '', track?.title ?? '']),
+        );
+        if (seenPages.has(pageSignature)) break;
+        seenPages.add(pageSignature);
+        nextOffset = tracks.length < BATCH_SIZE ? null : offset + tracks.length;
+      }
 
       for (const track of tracks) allTracks.push(track);
-      const nextOffset = offset + tracks.length;
-      if (nextOffset === offset) break;
+      if (!Number.isSafeInteger(nextOffset) || nextOffset <= offset) break;
       offset = nextOffset;
-
-      if (tracks.length < BATCH_SIZE) break;
     }
 
     return {
@@ -278,7 +280,7 @@ export class ContentLoader {
       body: JSON.stringify({
         platform,
         action: action,
-        limit: 5000,
+        limit: action === 'personalized' && platform === 'netease' ? PERSONALIZED_PAGE_SIZE : 5000,
       }),
     });
 
@@ -306,6 +308,7 @@ export class ContentLoader {
       itemType,
       action,
       title: title,
+      ...(data.nextPage !== undefined && { nextPage: data.nextPage }),
     };
   }
 

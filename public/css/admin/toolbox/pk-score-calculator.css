@@ -7,6 +7,7 @@
 .other-feature-panel-body.pk-score-panel {
   display: flex;
   flex-direction: column;
+  justify-content: safe center;
   gap: var(--spacing-xl);
   padding: var(--spacing-xl);
 }
@@ -14,7 +15,7 @@
 .pk-score-calculator,
 .pk-score-rules {
   flex: 0 0 auto;
-  width: 100%;
+  width: min(100%, 900px);
   margin-inline: auto;
 }
 
@@ -25,8 +26,8 @@
   border-radius: calc(var(--radius-xl) + 4px);
   background: var(--surface);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent),
-    0 10px 30px color-mix(in srgb, var(--text) 6%, transparent);
+    0 0 0 1px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(255, 255, 255, 0.06)),
+    0 10px 30px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(0, 0, 0, 0.4));
 }
 
 .pk-score-main {
@@ -71,7 +72,7 @@
 
 .pk-score-mode label:has(input:checked) {
   background: var(--surface);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 16%, transparent);
+  box-shadow: 0 1px 3px light-dark(color-mix(in srgb, var(--text) 16%, transparent), rgba(0, 0, 0, 0.4));
   color: var(--color-selection-text);
 }
 
@@ -183,6 +184,24 @@
   font-variant-numeric: tabular-nums;
   /* Totals scale with this column so amounts stay on one line down to the minimum window. */
   container-type: inline-size;
+}
+
+.pk-score-placeholder {
+  width: clamp(24px, 1em, 44px);
+  height: auto;
+  vertical-align: -0.1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.7;
+}
+
+.pk-score-results dd > span:not(:empty) ~ .pk-score-placeholder,
+.pk-score-calculator:has(#pkScoreByAmount:checked) .pk-score-target-glyph,
+.pk-score-calculator:has(#pkScoreByAmount:not(:checked)) .pk-score-budget-glyph {
+  display: none;
 }
 
 .pk-score-primary,

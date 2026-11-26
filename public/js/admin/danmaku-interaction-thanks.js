@@ -48,9 +48,10 @@ export function initDanmakuInteractionThanks({ documentRef, windowRef, saveSetti
       get('Fields').disabled = !ready;
       get('Save').disabled = !ready || state.pending || !group.dirty;
       documentRef.querySelector(`[data-fixed-open="${kind}Thanks"]`).disabled = !ready;
+      get('State').ariaBusy = String(Boolean(owner && state.available && state.pending && !state.saved));
       get('State').textContent = !state.available ? '请升级桌面客户端后设置' : !owner ? '连接 LIRA 账号后可设置' :
         !state.saved ? state.message || '正在读取云端设置…' : !supported ? '当前服务器暂不支持互动感谢，请升级服务器。' :
-          group.stateNotice || (!group.saved?.length ? '添加词库后才会发送' : '');
+          group.stateNotice || (toggle.checked && !group.saved?.length ? '添加词库后才会发送' : '');
       get('SaveState').textContent = group.notice;
       get('SaveState').parentElement.hidden = !group.notice.includes('失败');
       get('Save').textContent = '重试保存';

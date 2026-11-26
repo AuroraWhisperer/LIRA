@@ -13,9 +13,9 @@
 | 运行时 | `electron-updater` 6.x 的 `autoUpdater`；延迟加载（`getAutoUpdater` 首次调用才 `require`，避免 `ready` 前初始化） | [update-manager.js](../../../src/electron/update-manager.js) |
 | 版本来源 | CDN `https://assets.lirahub.cn/downloads/latest.yml` | [../engineering/build.md](../engineering/build.md) |
 | 开关 | 设置 `enableAutoUpdate === 'true'`（设置存储见 [../backend/storage.md](../backend/storage.md) §7） | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `readAutoUpdateSetting` |
-| 触发 | 主窗口 `ready-to-show` 后，仅**打包版且开关开启**时延迟 **1s** 首查 | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `scheduleStartupCheck`，由主进程注入窗口 `onReady` |
+| 触发 | 主窗口 `ready-to-show` 后，仅**打包版且开关开启**时安排 **1s** 定时器，到时更新状态仍为 `idle` 才发起首查 | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `scheduleStartupCheck`，由主进程注入窗口 `onReady` |
 
-控制器通过主进程注入的 `getAutoUpdateSetting` 读取开关；若已有待执行的启动检查定时器，则不重复调度；调用 `dispose()` 会取消定时器并禁止再次安排。更新状态由 `update-manager` 唯一持有，控制器通过 `getUpdateState()` 读取并推送快照，外部错误通过 `reportUpdateError()` 进入同一状态更新路径。控制器仅持有启动检查定时器与安装前排空钩子，渲染进程只接收快照。
+控制器通过主进程注入的 `getAutoUpdateSetting` 读取开关；若已有待执行的启动检查定时器，则不重复调度；调用 `dispose()` 会取消定时器并禁止再次安排。如果用户在定时器触发前已手动完成下载，更新器保留 `downloaded` 状态和安装入口。更新状态由 `update-manager` 唯一持有，控制器通过 `getUpdateState()` 读取并推送快照，外部错误通过 `reportUpdateError()` 进入同一状态更新路径。控制器仅持有启动检查定时器与安装前排空钩子，渲染进程只接收快照。
 
 ## 2. 状态机
 
@@ -60,7 +60,7 @@ Windows 端复用 `electron-updater.autoUpdater` 及 Electron HTTP 下载器，�
 | `allowPrerelease` | `false` | 只接受正式版 |
 | `disableDifferentialDownload` | `false` | 优先增量下载，失败自动回退整包 |
 
-generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的数据，不要求 CDN 支持 multipart ranges。增量下载使用本地 `updates/lira-updater/installer.exe`、已缓存或远端旧块映射，以及新版 `.exe.blockmap`；缺少旧包、块映射不可用或分段请求失败时，由 `electron-updater` 自动回退整包并继续校验 SHA-512。有效的待安装包可直接复用，校验失败则不能进入可安装状态。增量下载仅减少网络传输，程序替换仍由原 NSIS 安装器完成（数据原地保留条件见 [构建参考](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)）；CDN 上传与旧块映射保留规则见 [分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。
+generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的数据，不要求 CDN 支持 multipart ranges。增量下载使用本地 `updates/lira-updater/installer.exe`、已缓存或远端旧块映射，以及新版 `.exe.blockmap`；缺少旧包、块映射不可用或分段请求失败时，由 `electron-updater` 自动回退整包并继续校验 SHA-512。有效的待安装包可直接复用，校验失败则不能进入可安装状态。增量下载仅减少网络传输，程序替换仍由原 NSIS 安装器完成（数据原地保留条件见 [构建参考](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)）；普通嵌入式安装仅将安装包复制到安装盘的缓存。手动重装时，若缓存中已有 `current.blockmap`，安装器用 SHA-256 比较新旧安装包。摘要相同则保留原包和块映射，摘要不同或无法核实时先删除旧块映射，再替换缓存的安装包。若旧块映射无法删除（例如文件被占用），安装器保留缓存中的旧安装包和块映射，继续安装。应用内更新保留对应映射。CDN 上传与旧块映射保留规则见 [分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。
 
 订阅的 `electron-updater` 事件对应状态流转：`checking-for-update` / `update-available` / `update-not-available` / `download-progress` / `update-downloaded` / `error`（错误映射见 §5）。`download-progress` 中计算下载速度 `speed = bytesDiff / timeDiff`（首帧为 0），`percent` 钳制在 `0–100`（[update-manager.js](../../../src/electron/update-manager.js)）。
 
@@ -90,7 +90,9 @@ generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的
 
 数据结构出处：[update-manager.js](../../../src/electron/update-manager.js)；前端渲染由 [desktop.js](../../../public/js/desktop.js) 的更新状态订阅负责。
 
-更新状态只通过 `desktop:update-state` 推送，不再要求用户切换页面；发现新版本与下载完成仍显示可点击前往更新页的通知。界面「启动时自动检查更新」对应设置 `enableAutoUpdate`，只控制启动检查；手动「检查并下载更新」同样沿用自动下载。`available` 阶段直接显示准备下载，避免让用户误以为需要手动点击才开始下载；下载完成后提示退出安装，应用内使用指南提供 `https://lirahub.cn/download/client` 官方下载入口（由服务器按同一清单跳转），资源检查保留官方项目页面入口。
+更新状态只通过 `desktop:update-state` 推送，不再要求用户切换页面；发现新版本与下载完成仍显示可点击前往更新页的通知。界面「启动时自动检查更新」对应设置 `enableAutoUpdate`，只控制启动检查；手动「检查并下载更新」同样沿用自动下载。`available` 阶段直接显示准备下载，避免让用户误以为需要手动点击才开始下载；下载完成后提示退出安装，授权页遇到 `BUILD_NOT_ALLOWED` 时显示固定的官网安装包链接，由系统浏览器打开。应用内使用指南也提供 `https://lirahub.cn/download/client` 官方下载入口（由服务器按同一清单跳转），资源检查保留官方项目页面入口。
+
+每次切换「启动时自动检查更新」都会立即发出带 `keepalive` 的本机保存请求，离开或关闭页面后仍可完成。同页连续切换时，全部请求结束后，勾选状态和文字采用成功写入中编辑序号最大的值。若本轮保存全部失败，则恢复到本轮首次点击前的值。写序头 `X-Lira-Update-Edit` 的格式见[设置域](../backend/api.md#2-设置域settings)。
 
 Windows 上，`installUpdate()` 使用 `electron-updater` 下载并校验通过的待安装文件。显式安装前先排空正在运行的资源检查，再确认安装包仍是普通文件；文件消失时保留单实例锁并显示「重新下载」。安装器启动失败时可重试安装，资源检查也可再次发起。
 
@@ -112,7 +114,7 @@ Windows 上，`installUpdate()` 使用 `electron-updater` 下载并校验通过�
 
 调用点：[update-manager.js](../../../src/electron/update-manager.js) 的 `handleUpdateError` 统一处理 `autoUpdater` 的 `error` 事件与 `checkForUpdates` / `downloadUpdate` 的 `catch`；[桌面控制器](../../../src/electron/desktop-update-controller.js)的 `setUpdateError` 同样调用该映射并推送状态。
 
-更新器的 `error` 事件与操作 Promise 拒绝统一记录错误并推送状态；同一次操作中同一错误对象只记录一次，重新检查或下载时重新计数。`checkForUpdates()` 在检查完更新清单后立即返回，不会阻塞等待下载完成；后台自动下载的 `downloadPromise` 会立刻绑定同一套错误处理逻辑，防止出现未捕获的 Promise 异常。即使仅 Promise 失败而未触发 `error` 事件，同样会记录错误日志。错误详情经桌面日志模块写入 `logs/errors/desktop.log`，保留原始错误与堆栈；页面提示该相对位置，「日志目录」按钮打开 `logs/`。失败和安装状态会清空旧下载进度。定向测试见 [update-manager.test.js](../../../test/desktop/update-manager.test.js) 与 [desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)。
+更新器的 `error` 事件与操作 Promise 拒绝统一记录错误并推送状态；同一次操作中同一错误对象只记录一次、推送一次错误状态，重新检查或下载时重新计数。`checkForUpdates()` 在检查完更新清单后立即返回，不会阻塞等待下载完成；后台自动下载的 `downloadPromise` 会立刻绑定同一套错误处理逻辑，防止出现未捕获的 Promise 异常。即使仅 Promise 失败而未触发 `error` 事件，同样会记录错误日志。错误详情经桌面日志模块写入 `logs/errors/desktop.log`，保留原始错误与堆栈；页面提示该相对位置，「日志目录」按钮打开 `logs/`。失败和安装状态会清空旧下载进度。定向测试见 [update-manager.test.js](../../../test/desktop/update-manager.test.js) 与 [desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)。
 
 ## 6. 完整性验证与代码签名
 

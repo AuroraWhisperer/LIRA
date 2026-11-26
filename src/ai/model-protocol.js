@@ -33,9 +33,11 @@ function buildChatBody(request, config, endpoint, previousMessages) {
   const history = previousMessages && endpoint.officialDeepSeek && (!config.reasoningEnabled || !tools.length)
     ? previousMessages.map(({ reasoning_content, ...message }) => message)
     : previousMessages;
-  const messages = history
-    ? [...history, ...toChatInputMessages(request.input)]
-    : buildInitialChatMessages(instructions, request.input);
+  const messages = [...(history || []), ...toChatInputMessages(request.input)];
+  if (typeof request.instructions === 'string') {
+    if (messages[0]?.role === 'system') messages.shift();
+    if (instructions) messages.unshift({ role: 'system', content: instructions });
+  }
   const body = {
     model: config.model,
     messages,
@@ -123,16 +125,6 @@ function normalizeChatResponse(payload) {
     },
     rawMessage: message,
   };
-}
-
-function buildInitialChatMessages(instructions, input) {
-  const messages = [];
-  if (String(instructions || '').trim()) {
-    messages.push({ role: 'system', content: String(instructions).trim() });
-  }
-  if (typeof input === 'string') messages.push({ role: 'user', content: input });
-  else messages.push(...toChatInputMessages(input));
-  return messages;
 }
 
 function toChatInputMessages(input) {

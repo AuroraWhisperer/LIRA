@@ -26,11 +26,13 @@ class BilibiliDanmakuClient {
     this.stopped = true;
     this.connectionGeneration = 0;
     this.connectionAttempt = 0;
+    this.authenticatedIdentity = null;
     this.reconnectTimer = null;
     this.reconnectFailureCount = 0;
     this.reconnecting = false;
     this.startedAtMs = Date.now();
     this.ownerName = '';
+    this.ownerAvatarUrl = '';
     this.ownerUid = '';
     this.roomRunContext = null;
 
@@ -252,6 +254,7 @@ class BilibiliDanmakuClient {
     const isLive = Number(roomInfo.liveStatus) === 1;
     this.handlers.onLiveStatus?.(isLive);
     this.ownerName = roomInfo.ownerName || '';
+    this.ownerAvatarUrl = roomInfo.ownerAvatarUrl || '';
     this.ownerUid = String(roomInfo.uid || '');
     const roomScope = this.userInfoService.setRoom({
       roomId: roomInfo.roomId,
@@ -298,7 +301,7 @@ class BilibiliDanmakuClient {
 
     // 存储解析后的房间号供后续使用
     this.resolvedRoomId = roomInfo.roomId;
-    const accountUid = String(this.apiClient.uid || '');
+    const accountUid = String(authPayload.uid || '');
     const connectionKey = `${this.options.clientGeneration || 0}:${generation}:${connectionAttempt}`;
     const trace = {
       clientGeneration: Number(this.options.clientGeneration) || 0,
@@ -347,6 +350,7 @@ class BilibiliDanmakuClient {
 
     this.wsConnection.on('authenticated', () => {
       if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
+      this.authenticatedIdentity = Object.freeze({ accountUid, connectionKey });
       this.reconnecting = false;
       const liveNow = this.liveStatusMonitor.isLive;
       if (liveNow && !this.alwaysHistory) {
@@ -358,6 +362,7 @@ class BilibiliDanmakuClient {
         roomId: this.roomId,
         mode: 'bilibili',
         ownerName: this.ownerName,
+        ownerAvatarUrl: this.ownerAvatarUrl,
         message: liveNow ? '已开播' : '未开播，历史消息监听中',
       });
       if (!liveNow) {
@@ -416,6 +421,7 @@ class BilibiliDanmakuClient {
           roomId: this.roomId,
           mode: 'bilibili',
           ownerName: this.ownerName,
+          ownerAvatarUrl: this.ownerAvatarUrl,
           message: this.historyPoller.timer ? '弹幕长连已断开，历史消息监听中' : '弹幕连接已断开，等待重连',
         });
         this.scheduleReconnect(generation);
@@ -468,6 +474,7 @@ class BilibiliDanmakuClient {
       requesterMedalVerified: requester.medalVerified,
       source: messageData.source,
       messageTimestamp: messageData.messageTimestamp,
+      historyCancellation: messageData.historyCancellation,
       connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
       cmd: 'HISTORY',
@@ -486,12 +493,16 @@ class BilibiliDanmakuClient {
     if (status.ownerName) {
       this.ownerName = status.ownerName;
     }
+    if (status.ownerAvatarUrl) {
+      this.ownerAvatarUrl = status.ownerAvatarUrl;
+    }
     this.report({
       connected: Boolean(this.wsConnection.ws) || Boolean(this.historyPoller.timer),
       enabled: true,
       roomId: this.roomId,
       mode: 'bilibili',
       ownerName: this.ownerName,
+      ownerAvatarUrl: this.ownerAvatarUrl,
       message: status.message,
     });
   }
@@ -510,6 +521,7 @@ class BilibiliDanmakuClient {
       roomId: this.roomId,
       mode: 'bilibili',
       ownerName: this.ownerName,
+      ownerAvatarUrl: this.ownerAvatarUrl,
       message: `已开播，正在重连礼物监听`,
     });
 
@@ -530,6 +542,7 @@ class BilibiliDanmakuClient {
         roomId: this.roomId,
         mode: 'bilibili',
         ownerName: this.ownerName,
+        ownerAvatarUrl: this.ownerAvatarUrl,
         message: this.historyPoller.timer
           ? '已开播，但弹幕长连重连失败，历史消息监听中'
           : publicBilibiliErrorMessage(error, true),
@@ -552,6 +565,7 @@ class BilibiliDanmakuClient {
           if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
           console.warn(`[Bilibili] reconnect failed: ${error.message}`);
           this.reconnecting = true;
+          if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
           const historyFallbackActive = Boolean(this.historyPoller.timer);
           this.report({
             connected: historyFallbackActive,
@@ -559,6 +573,7 @@ class BilibiliDanmakuClient {
             roomId: this.roomId,
             mode: 'bilibili',
             ownerName: this.ownerName,
+            ownerAvatarUrl: this.ownerAvatarUrl,
             message: historyFallbackActive
               ? '直播弹幕长连重连失败，历史消息监听中'
               : publicBilibiliErrorMessage(error, true),
@@ -571,19 +586,24 @@ class BilibiliDanmakuClient {
 
   getRealtimeState() {
     // A socket open or history-poller status is not authentication evidence.
+    const connectionKey = `${this.options.clientGeneration || 0}:${this.connectionGeneration}:${this.connectionAttempt}`;
+    const identity = this.authenticatedIdentity;
+    const accountUid = String(this.apiClient.uid || '');
     const ready =
       !this.stopped &&
       this.wsConnection.ws?.readyState === 1 &&
       this.wsConnection.connectionTrace?.authStatus === 'accepted' &&
       /^[1-9]\d*$/.test(String(this.resolvedRoomId || '')) &&
       /^[1-9]\d*$/.test(this.ownerUid) &&
-      Boolean(this.apiClient.uid);
+      Boolean(accountUid) &&
+      identity?.connectionKey === connectionKey &&
+      identity.accountUid === accountUid;
     return {
       ready,
       roomId: String(this.resolvedRoomId || ''),
       ownerUid: this.ownerUid,
-      accountUid: String(this.apiClient.uid || ''),
-      connectionKey: `${this.options.clientGeneration || 0}:${this.connectionGeneration}:${this.connectionAttempt}`,
+      accountUid,
+      connectionKey,
       reason: ready ? '' : '请登录账号并等待实时弹幕鉴权成功',
     };
   }

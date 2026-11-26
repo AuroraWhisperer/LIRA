@@ -151,10 +151,9 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
 }
 
 function handleUpdateError(error) {
-  if (error !== lastUpdateError) {
-    _writeLog('update-error', error);
-    lastUpdateError = error;
-  }
+  if (error === lastUpdateError && updateState.status === 'error') return;
+  _writeLog('update-error', error);
+  lastUpdateError = error;
   setUpdateState({
     ...friendlyUpdateError(error),
     canDownload: false,

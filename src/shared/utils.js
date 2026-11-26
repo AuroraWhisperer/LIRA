@@ -77,6 +77,14 @@ function timestampToIso(value) {
   return timestamp ? new Date(timestamp).toISOString() : '';
 }
 
+// Epoch milliseconds and .000 both identify a millisecond. Whole epoch seconds
+// and a clock without fractional digits identify the entire second.
+function timestampPrecisionMs(value) {
+  if (Number(value) > 1000000000000) return 1;
+  const fraction = String(value).match(/\.(\d+)/)?.[1] || '';
+  return 10 ** Math.max(0, 3 - fraction.length);
+}
+
 function formatLogTimestamp(value) {
   const timestamp = normalizeTimestampMs(value);
   return timestamp ? new Date(timestamp).toISOString() : '';
@@ -164,6 +172,7 @@ module.exports = {
   normalizeSignedMoney,
   clampPercent,
   normalizeTimestampMs,
+  timestampPrecisionMs,
   timestampToIso,
   formatLogTimestamp,
   now,

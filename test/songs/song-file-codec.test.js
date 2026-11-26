@@ -83,6 +83,37 @@ test('a full set of column labels without a recognized song-name heading cannot 
   }
 });
 
+test('text and XLSX import songs by their named columns in reordered or sparse sheets', () => {
+  const songs = [{ name: '海风', artist: '小林', is_enabled: true }];
+  const options = { preserveMissing: true };
+  for (const [headers, values, expected] of [
+    ['歌手,歌名,曲风,歌曲标签,可点,语言,点歌价格,歌切,,备注', '小林,海风,,,是,,,,,', ['海风', '小林', true, '']],
+    [',,,,备注,,,,,歌名', ',,,,歌名,,,,,晚航', ['晚航', '', true, '歌名']],
+    ['歌名,,,,是否可点,,,,,排练组', '纸鸢,,,,否,,,,,周六', ['纸鸢', '', false, '']],
+    ['外部编号,唱片编号,曲名,分组,推荐位,年份,版权方,片号,柜号,归档号', 'E-1,LP-1,晚航,甲,否,2026,乙,1,2,3', ['晚航', '', true, '']],
+    ['歌名,唱片编号,,,,,,,,归档号', '晚航,LP-1,,,,,,,,22', ['晚航', '', true, '']],
+    [',唱片编号,,,,,,,,歌名', ',LP-1,,,,,,,,晚航', ['晚航', '', true, '']],
+  ]) {
+    const files = readZipFiles(buildSongsWorkbook(songs));
+    const sheet = 'xl/worksheets/sheet1.xml';
+    files.set(sheet, files.get(sheet).replace(/<row r="([12])">.*?<\/row>/gs, (_row, r) => {
+      const cells = (r === '1' ? headers : values).split(',').map((value, i) => value &&
+        `<c r="${String.fromCharCode(65 + i)}${r}" t="inlineStr"><is><t>${value}</t></is></c>`);
+      return `<row r="${r}">${cells.join('')}</row>`;
+    }));
+    const text = `${headers}\n${values}`;
+    for (const rows of [
+      parser.parseTable(text, options),
+      parser.parseTable(text.replaceAll(',', '\t'), { ...options, delimiter: '\t' }),
+      parseSongsFromXlsx(createZip([...files]), options),
+    ]) {
+      assert.equal(rows.length, 1);
+      const { name, artist, isEnabled, note } = normalizeImportedSongRow(rows[0]);
+      assert.deepEqual([name, artist, isEnabled, note], expected);
+    }
+  }
+});
+
 test('song service persists workbook metadata columns and preserves them on edit', () => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);

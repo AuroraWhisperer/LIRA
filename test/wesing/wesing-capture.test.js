@@ -124,6 +124,19 @@ test('WeSing does not choose between same-title cached renditions without a song
   assert.equal(await loadWeSingLyrics({ cachePath: fixture.cachePath, title: '测试歌曲', logEntry: null }), null);
 });
 
+test('a titleless WeSing QRC belongs to its logged song only', async (t) => {
+  const { root, cachePath, mid } = createFixture();
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const content = '[ar:测试歌手]\n[0,1800]旧词(0,1800)';
+  fs.writeFileSync(path.join(cachePath, 'WeSingDL', 'Res', mid, `${mid}.qrc`), Buffer.from(encryptQrc(qrcXml(content)), 'hex'));
+  const local = await loadWeSingLyrics({ cachePath, title: '测试歌曲' });
+  assert.equal(local.lines[0].text, '旧词');
+  const fallback = { source: 'qq', lines: [{ startMs: 0, text: '新词' }] };
+  const { result } = await resolveWeSingLyrics({ cachePath, cacheReady: true, title: '新曲', durationMs: 6000,
+    async resolveFallbackLyrics({ title }) { assert.equal(title, '新曲'); return fallback; } });
+  assert.equal(result, fallback);
+});
+
 test('WeSing cache configuration rejects a missing directory without creating it', async (t) => {
   const root = createScratchDirectory('wesing-missing-cache-');
   const cachePath = path.join(root, 'Tencent', 'WeSing', 'WeSingCache');

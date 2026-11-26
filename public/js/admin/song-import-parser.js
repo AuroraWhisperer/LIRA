@@ -1,34 +1,18 @@
 'use strict';
 
-const aliases = {
-  name: ['歌曲名字', '歌曲名称', '歌名', '曲名', 'name', 'songName'],
-  artist: ['歌手', 'artist', 'singer'],
-  categoryName: ['曲风', 'category', 'categoryName'],
-  tags: ['歌曲标签', '歌曲标签（如：怀旧、抒情、治愈）', '标签', 'tags', 'tag'],
-  isEnabled: ['是否可点', '可点', '是否启用', '启用', 'isEnabled', 'enabled'],
-  language: ['语言', '语种', 'language'],
-  sourcePlatform: ['核对平台', '来源平台', '平台', '来源', 'sourcePlatform', 'source'],
-  note: ['核对备注', '备注', '说明', 'note'],
-  requestPrice: ['点歌价格', '点歌价', '点歌门槛', '点歌要求', '点歌条件', '点歌说明', 'requestPrice', 'request_price'],
-  songClip: ['歌切', '歌切链接', '歌曲切片', '切片链接', 'songClip', 'song_clip'],
-};
+import { repeatedPriceIndexes } from '../shared/song-import-price-columns.js';
+import { SONG_IMPORT_ALIASES as aliases, hasSongImportHeader } from '../shared/song-import-headers.js';
 
-export function parseTable(text, { preserveMissing = false } = {}) {
+export function parseTable(text, { preserveMissing = false, delimiter } = {}) {
   const withoutBom = text.replace(/^﻿/, '');
   const clean = preserveMissing ? withoutBom : withoutBom.trim();
-  const delimiter = detectDelimiter(clean);
-  const rows = parseDelimited(clean, delimiter);
+  const rows = parseDelimited(clean, delimiter ?? detectDelimiter(clean));
   if (rows.length === 0) return [];
 
   const header = rows[0].map((cell) => cell.trim());
-  const labels = new Set(Object.values(aliases).flat());
-  const isLabel = (cell) => labels.has(cell);
-  // A ten-column data row can contain labels such as 可点. Keep a full row of
-  // column labels with a missing song-name heading invalid, even on legacy imports.
-  const hasHeader = findHeader(header, aliases.name) !== -1 || (header.length === 10
-    ? Array.from(header.slice(1)).every(isLabel)
-    : header.some(isLabel));
+  const hasHeader = hasSongImportHeader(header, rows);
   const bodyRows = hasHeader ? rows.slice(1) : rows;
+  const repeatedPrices = hasHeader ? repeatedPriceIndexes(header) : [];
 
   const indexes = {
     name: hasHeader ? findHeader(header, aliases.name) : 0,
@@ -62,7 +46,9 @@ export function parseTable(text, { preserveMissing = false } = {}) {
       if (!hasHeader && row.length !== columns.length) {
         throw new Error('无表头更新需要完整十列，请使用带表头的模板。');
       }
-      return Object.fromEntries(columns.map((column, index) => [column, readCell(row, index)]));
+      const fields = Object.fromEntries(columns.map((column, index) => [column, readCell(row, index)]));
+      if (repeatedPrices.length) fields.requestPriceColumns = repeatedPrices.map((index) => readCell(row, index));
+      return fields;
     });
   }
 
@@ -88,6 +74,7 @@ export function parseTable(text, { preserveMissing = false } = {}) {
         ...priceFields,
         requestPrice:
           priceFields.requestPrice || Object.values(priceFields).find(Boolean) || readCell(row, indexes.requestPrice),
+        ...(repeatedPrices.length && { requestPriceColumns: repeatedPrices.map((index) => readCell(row, index)) }),
         songClip: readCell(row, indexes.songClip),
       };
     })
@@ -104,7 +91,7 @@ function detectDelimiter(text) {
       else inQuote = !inQuote;
     } else if (!inQuote && char === '\t') {
       return '\t';
-    } else if (!inQuote && char === '\n' && hasContent) {
+    } else if (!inQuote && (char === '\n' || char === '\r') && hasContent) {
       break;
     }
     if (/\S/.test(char)) hasContent = true;
@@ -138,12 +125,13 @@ export function parseDelimited(text, delimiter) {
     } else if (char === delimiter) {
       row.push(cell.trim());
       cell = '';
-    } else if (char === '\n') {
+    } else if (char === '\n' || char === '\r') {
       row.push(cell.trim());
       rows.push(row);
       row = [];
       cell = '';
-    } else if (char !== '\r') {
+      if (char === '\r' && next === '\n') i += 1;
+    } else {
       cell += char;
     }
   }

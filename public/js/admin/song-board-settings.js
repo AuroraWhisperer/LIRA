@@ -1,5 +1,5 @@
-import { normalizeRangeValue, toast } from '../shared/utils.js';
-import { initParameterRanges } from '../shared/parameter-range.js';
+import { toast } from '../shared/utils.js';
+import { bindRangeNumber, formatRangeNumber, initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
 import { theme } from '../shared/theme.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { renderPresetCards } from './theme-preset-cards.js';
@@ -15,13 +15,13 @@ const THEME_DEFAULTS = {
 const DEFAULTS = { scrollSeconds: '20', songBoardSyncTheme: 'true', songBoardSortMode: 'initial',
   songBoardFontSize: '28', ...THEME_DEFAULTS };
 const RANGE_PAIRS = [
-  ['scrollSecondsRange', 'scrollSeconds', 1, 100, 20],
-  ['songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 28],
-  ['songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 0, 1, 0.35, 100],
-  ['songBoardBackdropBlur', 'songBoardBackdropBlurNumber', 0, 30, 0],
-  ['songBoardGlowIntensity', 'songBoardGlowIntensityNumber', 0, 20, 0],
-  ['songBoardSongFontSize', 'songBoardSongFontSizeNumber', 10, 100, 16],
-  ['songBoardTitleFontSize', 'songBoardTitleFontSizeNumber', 10, 100, 15],
+  ['scrollSecondsRange', 'scrollSeconds'],
+  ['songBoardFontSize', 'songBoardFontSizeNumber'],
+  ['songBoardThemeOpacity', 'songBoardThemeOpacityNumber', 100],
+  ['songBoardBackdropBlur', 'songBoardBackdropBlurNumber'],
+  ['songBoardGlowIntensity', 'songBoardGlowIntensityNumber'],
+  ['songBoardSongFontSize', 'songBoardSongFontSizeNumber'],
+  ['songBoardTitleFontSize', 'songBoardTitleFontSizeNumber'],
 ];
 
 export function songBoardConfigFromSettings(settings) {
@@ -67,18 +67,7 @@ export function bindSongBoardSettings(form, controller) {
     clearTimeout(timer);
     timer = setTimeout(() => { void save(); }, 180);
   };
-  for (const [rangeId, numberId, min, max, fallback, displayScale = 1] of RANGE_PAIRS) {
-    const range = node(rangeId), number = node(numberId);
-    range.addEventListener('input', () => { number.value = String(Math.round(Number(range.value) * displayScale)); });
-    number.addEventListener('input', () => {
-      if (!number.value || !number.checkValidity()) return;
-      range.value = normalizeRangeValue(Number(number.value) / displayScale, min, max, fallback);
-    });
-    number.addEventListener('change', () => {
-      range.value = normalizeRangeValue(number.value === '' ? '' : Number(number.value) / displayScale, min, max, fallback);
-      syncComponentFieldValue(number, Math.round(Number(range.value) * displayScale), true);
-    });
-  }
+  const unbindRanges = RANGE_PAIRS.map(([rangeId, numberId, scale]) => bindRangeNumber(node(rangeId), node(numberId), scale));
   form.addEventListener('input', edit);
   form.addEventListener('change', edit);
   form.addEventListener('submit', async (event) => {
@@ -116,10 +105,11 @@ export function bindSongBoardSettings(form, controller) {
     color.disabled = !draft.songBoardSongColor;
     syncComponentFieldValue(node('songBoardSongColorMode'), draft.songBoardSongColor ? 'custom' : 'inherit', force);
     syncComponentFieldValue(color, draft.songBoardSongColor || draft.songBoardThemeText, force);
-    for (const [rangeId, numberId, , , , displayScale = 1] of RANGE_PAIRS) {
+    for (const [rangeId, numberId, scale] of RANGE_PAIRS) {
       const saved = draft[rangeId] ?? draft[numberId];
-      syncComponentFieldValue(node(rangeId), saved, force);
-      syncComponentFieldValue(node(numberId), Math.round(Number(saved) * displayScale), force);
+      const range = node(rangeId);
+      syncComponentFieldValue(range, saved, force);
+      syncComponentFieldValue(node(numberId), formatRangeNumber(range.value, scale), force);
     }
     initParameterRanges(form);
   }
@@ -128,6 +118,8 @@ export function bindSongBoardSettings(form, controller) {
     clearTimeout(timer);
     unsubscribe();
     unregisterFont?.();
+    unbindRanges.forEach(unbind => unbind());
+    disposeParameterRanges(form);
     form.removeEventListener('input', edit);
     form.removeEventListener('change', edit);
   } };

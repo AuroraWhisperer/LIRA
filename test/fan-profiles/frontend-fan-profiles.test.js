@@ -393,11 +393,15 @@ test('search and filters refresh only the list while polling and explicit refres
   await ui.click({ fanAction: 'clear-filter' });
   assert.equal(ui.listCalls().length, 3);
   assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 0);
+  const expiryReads = () => ui.calls.filter(call => call.action === 'guard-expiry');
+  assert.equal(expiryReads().length, 0);
   ui.poll();
   await ui.flush();
   assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 1);
   await ui.click({ fanAction: 'refresh' });
   assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 2);
+  assert.equal(expiryReads().length, 2);
+  assert.ok(expiryReads().every(call => !call.payload?.query));
   const loading = deferred();
   ui.handlers.set('open', async input => { await loading.promise; return ui.respond(input); });
   ui.poll();
@@ -599,9 +603,15 @@ test('expiry loads after local profiles, clears renewed warnings, and ignores la
   const response = { ok: true, contextId: ui.contextId, roomId: '42', data: {
     state: 'ready', observedAt: new Date().toISOString(), badges: [{ profileId: ui.a.id, level: 3, days: 0 }],
   } };
+  const expiryReads = () => ui.calls.filter(call => call.action === 'guard-expiry').length;
+  const before = expiryReads();
+  await ui.search('没有匹配');
   pending.resolve(response);
   await ui.flush();
+  assert.doesNotMatch(ui.people(), /fan-expiry-badge/);
+  await ui.search('当前观众A');
   assert.match(ui.people(), /fan-expiry-badge/);
+  assert.equal(expiryReads(), before);
   ui.handlers.delete('guard-expiry');
   await ui.click({ fanAction: 'refresh' });
   assert.doesNotMatch(ui.people(), /fan-expiry-badge/);
@@ -614,6 +624,60 @@ test('expiry loads after local profiles, clears renewed warnings, and ignores la
   old.resolve(response);
   await ui.flush();
   assert.doesNotMatch(ui.people(), /fan-expiry-badge/);
+});
+
+test('search refreshes expiry for a changed room and retries a failed read while sharing a pending recovery', async t => {
+  const ui = await archiveUi(t);
+  ui.f.record(ui.a.id, 'membership', interval('2026-09-01', '2026-09-30'));
+  let roomId = '42';
+  const expiryRooms = [];
+  const recovery = deferred();
+  ui.handlers.set('list', input => ({ ...ui.respond(input), roomId }));
+  ui.handlers.set('reminders', input => ({ ...ui.respond(input), roomId }));
+  ui.handlers.set('guard-expiry', async input => {
+    expiryRooms.push(roomId);
+    if (expiryRooms.length === 2) throw new Error('offline');
+    const reply = { ...ui.respond(input), roomId };
+    reply.data.badges = [{ profileId: ui.a.id, level: 3, days: roomId === '42' ? 3 : 1 }];
+    if (expiryRooms.length === 3) await recovery.promise;
+    return reply;
+  });
+  await ui.click({ fanAction: 'refresh' });
+  assert.match(ui.people(), /剩3天/);
+  const releasePoll = holdReply(ui, 'open');
+  ui.poll();
+  await ui.flush();
+  const releaseOldRoom = holdReply(ui, 'list');
+  await ui.search('当前');
+  roomId = '99';
+  ui.handlers.set('list', input => ({ ...ui.respond(input), roomId }));
+  await ui.search('A');
+  assert.deepEqual(expiryRooms, ['42', '99']);
+  assert.doesNotMatch(ui.people(), /剩3天/);
+  await ui.click({ fanFilter: 'active' });
+  await ui.click({ fanAction: 'clear-filter' });
+  assert.deepEqual(expiryRooms, ['42', '99', '99']);
+  recovery.resolve();
+  await ui.flush();
+  assert.match(ui.people(), /剩1天/);
+  releaseOldRoom();
+  releasePoll();
+  await ui.flush();
+  await ui.search('A');
+  assert.equal(expiryRooms.length, 3);
+  assert.match(ui.people(), /剩1天/);
+});
+
+test('archive polling keeps the archive search scope and checks expiry status for that scope', async t => {
+  const ui = await archiveUi(t);
+  await ui.click({ fanAction: 'archived' });
+  await ui.search('B');
+  ui.calls.length = 0;
+  await ui.poll();
+  await ui.flush();
+  assert.deepEqual(ui.listCalls().map(call => call.payload), [{ archived: true, query: 'B', filters: [] }]);
+  assert.deepEqual(ui.calls.filter(call => call.action === 'guard-expiry').map(call => call.payload?.archived), [true]);
+  assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 1);
 });
 
 test('switching scope clears pending search and filters once while same-scope navigation preserves them', async (t) => {
@@ -859,12 +923,16 @@ for (const navigation of ['back-list', 'archived']) {
     const record = ui.f.detail(ui.a.id).records.find(item => item.data.decision === 'pending');
     await ui.click({ fanId: ui.a.id });
     const gate = deferred();
+    let submissions = 0;
     ui.handlers.set('resolve-membership', async (input) => {
+      submissions++;
       const result = ui.respond(input);
       await gate.promise;
       return result;
     });
     await ui.click({ fanAction: 'resolve-adopt', recordId: record.id });
+    await ui.click({ fanAction: 'resolve-adopt', recordId: record.id });
+    assert.equal(submissions, 1);
     await ui.click({ fanAction: navigation });
     const detail = ui.detail();
     gate.resolve();

@@ -113,7 +113,7 @@ test('functional page guide links open the guide and reveal folded destinations'
   page.on('pageerror', error => errors.push(error.message));
   const url = `${fixture.origin}/preview-test-host`;
   assert.equal((await fetch(url)).status, 200);
-  await page.goto(url);
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
   await page.waitForFunction(() => window.guideReady);
   const landings = [];
   async function checkLanding(hash) {

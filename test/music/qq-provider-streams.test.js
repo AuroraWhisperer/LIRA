@@ -106,7 +106,7 @@ test('QQ provider requests, decrypts, and aligns translated and romanized lyrics
           data: {
             crypt: 1,
             lyric: encryptedQrc(qrcXml('[00:01.00]甲乙\n[00:04.00]丙')),
-            qrc: encryptedQrc(qrcXml('[1000,1900]甲(1000,900)乙(1900,1000)\n[4000,1000]丙(4000,1000)')),
+            qrc: encryptedQrc(qrcXml('[1004,1900]甲(1004,900)乙(1904,1000)\n[4004,1000]丙(4004,1000)')),
             trans: encryptedQrc('[00:01.05]翻译一\n[00:04.04]翻译二'),
             roma: encryptedQrc(qrcXml('[1001,1900]jia (1001,900)yi(1901,1000)\n[4001,1000]bing(4001,1000)')),
           },
@@ -143,6 +143,7 @@ test('QQ provider requests, decrypts, and aligns translated and romanized lyrics
       ['甲', '乙'],
     );
     assert.equal(result.lines[1].translation, '翻译二');
+    assert.equal(result.lines[1].words[0].startMs, 4004);
     assert.equal(result.lines[1].roma, 'bing');
   } finally {
     global.fetch = originalFetch;

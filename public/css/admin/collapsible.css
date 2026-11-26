@@ -108,18 +108,18 @@
 }
 
 .queue-list::-webkit-scrollbar-track {
-  background: rgba(24, 24, 22, 0.03);
+  background: transparent;
   border-radius: 3px;
 }
 
 .queue-list::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb, rgba(24, 24, 22, 0.25));
+  background: var(--scrollbar-thumb, light-dark(rgba(24, 24, 22, 0.25), rgba(255, 255, 255, 0.22)));
   border-radius: 3px;
   transition: background 200ms ease;
 }
 
 .queue-list::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, rgba(24, 24, 22, 0.4));
+  background: var(--scrollbar-thumb-hover, light-dark(rgba(24, 24, 22, 0.4), rgba(255, 255, 255, 0.36)));
 }
 
 .queue-row {

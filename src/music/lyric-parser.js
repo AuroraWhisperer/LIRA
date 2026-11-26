@@ -55,19 +55,13 @@ function mapKanaToLines(lines, kanaReadings) {
 function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
   const wordLines = parseWordLyric(rawWordLyric);
   const lrcLines = parseLrc(rawLyric);
-  const lines =
-    lrcLines.length > 0
-      ? lrcLines
-      : wordLines.map((line) => ({
-          startMs: line.startMs,
-          endMs: line.endMs,
-          text: line.text,
-        }));
+  const lines = lrcLines.length ? lrcLines : wordLines;
   const translations = parseTimedText(rawTranslation);
-  const resolveTranslation = createTimedTextResolver(translations);
-  const wordLineByStart = new Map(wordLines.map((line) => [line.startMs, line]));
+  const resolveTranslation = createTimedLineResolver(translations);
+  const resolveWordLine = wordLines.length && lrcLines.length ? createWordLineResolver(wordLines) : null;
+  const resolveBaseLine = resolveWordLine ? createWordLineResolver(lrcLines) : null;
   const romaLines = parseTimedText(rawRoma);
-  const resolveRoma = createTimedTextResolver(romaLines);
+  const resolveRoma = createTimedLineResolver(romaLines);
 
   // 提取 QQ 音乐 [kana:...] 标签中的假名注音
   const kanaReadings = extractKanaReadings(rawLyric);
@@ -78,20 +72,25 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
 
   let textLength = 0;
   return lines.map((line, index) => {
-    const romaFromApi = resolveRoma(line.startMs);
+    const romaFromApi = resolveRoma(line.startMs)?.text;
     const kanaFromTag = kanaByLineStart ? kanaByLineStart.get(line.startMs) || '' : '';
-    const wordLine = wordLineByStart.get(line.startMs);
+    let words = line.words || [];
+    if (resolveWordLine) {
+      const candidate = resolveWordLine(line);
+      if (candidate && (candidate.startMs === line.startMs || candidate.text === line.text) &&
+          resolveBaseLine(candidate) === line) words = candidate.words;
+    }
     const roma = romaFromApi || kanaFromTag;
-    const translation = resolveTranslation(line.startMs);
+    const translation = resolveTranslation(line.startMs)?.text || '';
     textLength += line.text.length + translation.length + roma.length +
-      (wordLine?.words.reduce((sum, word) => sum + word.text.length, 0) || 0);
+      words.reduce((sum, word) => sum + word.text.length, 0);
     assertLyricBudget(index + 1, textLength);
     return {
       ...line,
       endMs: line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
       translation,
       roma,
-      words: wordLine ? wordLine.words : [],
+      words,
     };
   });
 }
@@ -101,18 +100,34 @@ function parseTimedText(rawText) {
   return lrcLines.length > 0 ? lrcLines : parseWordLyric(rawText);
 }
 
+// Duet parts can start at the same millisecond. Time alone cannot identify the part.
+function createWordLineResolver(lines) {
+  const nearest = createTimedLineResolver(lines, { rejectTies: true });
+  const simultaneous = new Map();
+  for (const [time, rows] of Map.groupBy(lines, line => line.startMs)) {
+    if (rows.length < 2) continue;
+    const parts = new Map();
+    for (const row of rows) parts.set(row.text, parts.has(row.text) ? null : row);
+    simultaneous.set(time, parts);
+  }
+  return (line) => {
+    const candidate = nearest(line.startMs);
+    const parts = simultaneous.get(candidate?.startMs);
+    return parts ? parts.get(line.text) : candidate;
+  };
+}
+
 /**
- * Resolve alternate lyric text whose timestamp differs slightly from the original.
- * QQ Music commonly offsets translated and romanized lines by a few milliseconds.
+ * Resolve a timed lyric row. QQ may use different precision for LRC, QRC and alternates.
  */
-function createTimedTextResolver(lines, toleranceMs = 100) {
+function createTimedLineResolver(lines, { toleranceMs = 100, rejectTies = false } = {}) {
   const sorted = Array.isArray(lines)
     ? lines.filter((line) => Number.isFinite(line.startMs)).sort((a, b) => a.startMs - b.startMs)
     : [];
-  const exact = new Map(sorted.map((line) => [line.startMs, line.text]));
+  const exact = new Map(sorted.map((line) => [line.startMs, line]));
 
   return (startMs) => {
-    if (exact.has(startMs)) return exact.get(startMs) || '';
+    if (exact.has(startMs)) return exact.get(startMs);
 
     let low = 0;
     let high = sorted.length - 1;
@@ -122,9 +137,12 @@ function createTimedTextResolver(lines, toleranceMs = 100) {
       else high = mid - 1;
     }
 
-    const candidates = [sorted[low], sorted[low - 1]].filter(Boolean);
-    const nearest = candidates.sort((a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs))[0];
-    return nearest && Math.abs(nearest.startMs - startMs) <= toleranceMs ? nearest.text || '' : '';
+    const next = sorted[low];
+    const previous = sorted[low - 1];
+    const ahead = next ? next.startMs - startMs : Infinity;
+    const behind = previous ? startMs - previous.startMs : Infinity;
+    if (Math.min(ahead, behind) > toleranceMs || (rejectTies && ahead === behind)) return undefined;
+    return ahead <= behind ? next : previous;
   };
 }
 
@@ -171,8 +189,7 @@ function parseWordLyric(rawText) {
   const text = String(rawText || '');
   const linePattern = /\[(\d+),(\d+)\]([\s\S]*)/;
   const prefixWordPattern = /\((\d+),(\d+),\d*\)/g;
-  // Scan markers and delimiters once; a missing timestamp must not rescan the text tail.
-  const suffixWordPattern = /\((\d+),(\d+)\)|[()]/g;
+  const suffixWordPattern = /\((\d+),(\d+)\)/g;
 
   for (const row of text.split(/\r?\n/)) {
     const lineMatch = row.match(linePattern);
@@ -204,7 +221,6 @@ function parseWordLyric(rawText) {
       while ((match = suffixWordPattern.exec(body)) !== null) {
         const textValue = body.slice(textStart, match.index);
         textStart = suffixWordPattern.lastIndex;
-        if (match[1] === undefined) continue;
         if (!textValue.trim()) continue;
         textLength += textValue.length;
         assertLyricBudget(result.length + 1, textLength);
@@ -257,10 +273,12 @@ function findCurrentLyricLine(lines, currentMs) {
 
 // LRC has only line anchors. Keep supplied word timing, otherwise distribute the
 // line interval across characters / Latin words so both highlight modes can run.
-function estimateWordTimings(lines, durationMs = 0) {
+function estimateWordTimings(lines, durationMs = 0, deferFinalTiming = false) {
   const segmenter = new Intl.Segmenter('und', { granularity: 'grapheme' });
   return lines.map((line, index) => {
     if (line.words?.length) return line;
+    // A shared cache can fill this one unbounded LRC row once playback supplies its duration.
+    if (deferFinalTiming && index === lines.length - 1 && line.endMs == null) return line;
     const tokens = [];
     let prefix = '';
     let latin = false;

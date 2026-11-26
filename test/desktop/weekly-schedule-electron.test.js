@@ -402,6 +402,7 @@ test('export captures the clicked template while an unfinished save allows furth
     const root = previous.cloneNode(true);
     previous.replaceWith(root);
     const template = createWeeklyScheduleTemplate({ id: 'snapshot-check' });
+    template.fontId = '"M+ 1p"';
     const state = { version: 1, activeId: template.id, templates: [template] };
     window.weeklySnapshotEditor = await createWeeklyScheduleEditor(root, {
       storage: { load: async () => state, save: () => new Promise(resolve => { window.releaseWeeklySave = resolve; }), close() {} },
@@ -415,6 +416,7 @@ test('export captures the clicked template while an unfinished save allows furth
   await page.evaluate(() => window.releaseWeeklySave());
   await page.waitForFunction(() => Boolean(window.weeklyExportSnapshot));
   assert.equal(await page.evaluate(() => window.weeklyExportSnapshot.title), '点击时的标题');
+  assert.equal(await page.evaluate(() => window.weeklyExportSnapshot.fontId), '"M+ 1p"');
   assert.equal(await page.locator('[data-weekly-field="title"]').inputValue(), '下一张图片的标题');
   await page.evaluate(() => { window.weeklySnapshotEditor.dispose(); window.releaseWeeklySave(); });
 });

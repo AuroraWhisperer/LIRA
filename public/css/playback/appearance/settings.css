@@ -1,9 +1,9 @@
 /* Appearance editor controls and preview framing. */
-.playback-page.active:has(> .player-appearance:not([hidden])) {
+.playback-page.active:has(.player-appearance:not([inert])) {
   scrollbar-width: none;
 }
 
-.playback-page.active:has(> .player-appearance:not([hidden]))::-webkit-scrollbar {
+.playback-page.active:has(.player-appearance:not([inert]))::-webkit-scrollbar {
   display: none;
 }
 

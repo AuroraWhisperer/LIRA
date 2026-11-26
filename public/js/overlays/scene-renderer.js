@@ -69,11 +69,11 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     }
     version.root.remove();
   }
-  function data(version, values) {
-    if (!version) return;
+  function data(entries, values) {
+    if (!entries) return;
     const hasRoomGuard = Object.hasOwn(values, 'roomGuard');
     const roomGuardKey = hasRoomGuard ? JSON.stringify(values.roomGuard ?? null) : '';
-    for (const entry of version.entries) {
+    for (const entry of entries) {
       if (entry.ready && hasRoomGuard && entry.roomGuardKey !== roomGuardKey) {
         send(entry, 'room-guard', { roomGuard: values.roomGuard });
         entry.roomGuardKey = roomGuardKey;
@@ -110,7 +110,8 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     if (active?.entries.includes(entry)) {
       entry.configTimer = setTimeout(() => configurationFailed(entry, '加载超时。'), timeoutMs);
     }
-    send(entry, type, { config, editable: false, configuration: entry.configuration });
+    send(entry, type, { config, editable: false, configuration: entry.configuration,
+      deferPlayback: !!staging?.entries.includes(entry) });
   }
   function configurationFailed(entry, message) {
     clearTimeout(entry.configTimer);
@@ -124,11 +125,12 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
     const next = staging;
     staging = null;
     clearTimeout(next.timer);
-    data(next, { ...latestData, ...(pendingDanmaku ? { danmaku: pendingDanmaku } : {}), ...giftDisplay.takePending() });
-    pendingDanmaku = null;
     next.root.classList.remove('is-staging');
     release(active);
     active = next;
+    for (const entry of active.entries) send(entry, 'activate');
+    data(next.entries, { ...latestData, ...(pendingDanmaku ? { danmaku: pendingDanmaku } : {}), ...giftDisplay.takePending() });
+    pendingDanmaku = null;
     onStatus('', active.version);
   }
   function fail(message, entry) {
@@ -147,11 +149,14 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       .find((candidate) => candidate.frame.contentWindow === event.source);
     if (!entry || entry.external) return;
     if (event.data?.type === 'component-preview:ready') {
+      const owner = staging?.entries.includes(entry) ? staging : active;
       entry.roomGuardKey = undefined;
-      if (!staging?.entries.includes(entry)) return;
       entry.ready = true;
-      const override = staging.version === appearanceVersion ? latestAppearances[entry.item.id] : undefined;
+      entry.prepared = false;
+      entry.configAttempts = 0;
+      const override = owner.version === appearanceVersion ? latestAppearances[entry.item.id] : entry.appearance?.override;
       configure(entry, resolveAppearance(entry, override), 'init');
+      if (owner === active) data([entry], latestData);
     } else if (!entry.pendingKey || event.data?.configuration !== entry.configuration) {
       return;
     } else if (event.data?.type === 'component-preview:prepared' && entry.ready) {
@@ -227,7 +232,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       if (rankingsBeforeDisconnect && !Object.hasOwn(values, 'live-rankings')) values['live-rankings'] = rankingsBeforeDisconnect;
       rankingsBeforeDisconnect = undefined;
       const cloud = values.danmaku;
-      data(active, values);
+      data(active?.entries, values);
       if (cloud && !active?.entries.some((entry) => entry.item.type === 'danmaku')) {
         const previous = pendingDanmaku;
         const reset = cloud.reset || !previous || cloud.epoch !== previous.epoch
@@ -257,7 +262,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
         resets.danmaku = { ...latestData.danmaku, status: 'offline', reset: false, events: [] };
       }
       latestData = { ...latestData, ...resets };
-      data(active, resets);
+      data(active?.entries, resets);
     },
     revoke() {
       giftDisplay.clear();

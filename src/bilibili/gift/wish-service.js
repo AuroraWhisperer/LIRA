@@ -31,7 +31,7 @@ const TEXT_IMAGE_POSITIONS = new Set(['none', 'before', 'after', 'inline']);
 const TEXT_IMAGE_FORMATS = new Set(['animated', 'static']);
 
 function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.now, readRoom }) {
-  const sessions = createGiftWishSession({ store, now, readRoom });
+  const sessions = createGiftWishSession({ store, getRoomId, now, readRoom });
   const invalid = (message) => queryError('INVALID_GIFT_WISH', message);
 
   function scope(viewRevision) {
@@ -59,7 +59,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
     let rows = includeSession === false ? store.list(source.sourceId) : null;
     let session = null;
     if (!rows || rows.some(wish => wish.period === 'session')) {
-      session = await sessions.get(source.sourceId, String(getRoomId() || ''));
+      session = await sessions.get(source.sourceId);
       scope(revision);
       // Wishes may have been edited while the room request was pending.
       rows = store.list(source.sourceId);

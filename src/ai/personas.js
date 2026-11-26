@@ -117,6 +117,13 @@ function resolvePersona(config) {
   return { ...persona, prompt: persona.prompt.replaceAll('{{name}}', () => String(config.trigger || '').trim()) };
 }
 
+function getPersonaScope(roomId, config, persona) {
+  const scope = [roomId, persona.id, persona.prompt];
+  // A rendered name token already distinguishes identities in existing conversations.
+  if (!selectedPersona(config).prompt.includes('{{name}}')) scope.push(config.trigger);
+  return JSON.stringify(scope);
+}
+
 function exportPersona(config) {
   const { id, name, description, prompt } = selectedPersona(config);
   return { format: PERSONA_FORMAT, version: 1, id, name, description, prompt };
@@ -130,5 +137,6 @@ module.exports = {
   normalizeBuiltinPersonaOverrides,
   listPersonas,
   resolvePersona,
+  getPersonaScope,
   exportPersona,
 };

@@ -26,15 +26,29 @@ export function createAudioComponentProgress({ window: windowRef = globalThis.wi
     if (!container) return;
     const titles = { downloading: '正在准备音频组件', installing: '正在安装音频组件',
       error: '音频组件暂未就绪', ready: '音频组件已就绪' };
-    handle = getToastStack({ container, document: documentRef, window: windowRef }).show({
-      key: 'audio-component', update: true, title: titles[state.status],
+    const totalBytes = Number(state.totalBytes) || 0;
+    const downloadedBytes = Number(state.downloadedBytes) || 0;
+    const percent = state.status === 'downloading' && totalBytes > 0
+      ? `${Math.min(100, Math.floor((downloadedBytes / totalBytes) * 100))}%` : '';
+    const stack = getToastStack({ container, document: documentRef, window: windowRef });
+    handle = stack.show({
+      key: 'audio-component', update: true, title: titles[state.status], meta: percent,
       message: state.status === 'error' ? state.error : state.status === 'ready' ? '现在可以使用电音助手和原生声卡输出。'
         : state.status === 'installing' ? '下载完成，正在校验并安装。'
-        : `${formatBytes(state.downloadedBytes || 0)} / ${formatBytes(state.totalBytes || 0)}，完成后可直接使用。`,
+        : `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}，完成后可直接使用。`,
       type: state.status === 'error' ? 'warning' : state.status === 'ready' ? 'success' : 'info',
+      className: 'audio-component-toast',
       duration: state.status === 'ready' ? 5000 : 0,
       ...(state.status === 'error' ? { actionLabel: '重试', onClick: () => bridge.retryComponent() } : {}),
     });
+    if (state.status === 'downloading' && totalBytes > 0) {
+      const progress = documentRef.createElement('progress');
+      progress.max = totalBytes;
+      progress.value = Math.min(downloadedBytes, totalBytes);
+      progress.setAttribute('aria-label', '音频组件下载进度');
+      handle.node.children[0].append(progress);
+      stack.refresh();
+    }
   }
 
   async function init() {

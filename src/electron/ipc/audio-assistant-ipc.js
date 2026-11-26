@@ -3,6 +3,14 @@
 const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
 
 const RANGES = { strength: [-100, 100], semitones: [-12, 12], speedPercent: [50, 200], volume: [0, 200] };
+const STATE_CHANNEL = 'audio-assistant:state';
+
+function createAudioStateSender(getMainWindow) {
+  return (_state, frame) => {
+    const window = getMainWindow();
+    if (window && !window.isDestroyed()) window.webContents.send(STATE_CHANNEL, frame);
+  };
+}
 
 function validConfiguration(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -21,6 +29,10 @@ function validConfiguration(value) {
 function registerAudioAssistantIpc({ ipcMain, assistant, component, getMainWindow, getDesktopBaseUrl, isPathAllowedForLocalMedia, shell }) {
   const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
   const channel = 'audio-assistant:invoke';
+  // Seed on the same ordered event channel as changes. Reading the cache must not launch the worker.
+  register('audio-assistant:sync', event => {
+    event.senderFrame.send(STATE_CHANNEL, assistant.getState());
+  }, { argumentCount: 0 });
   register(channel, async (_event, ...args) => {
     if (args.length !== 1 || !args[0] || typeof args[0] !== 'object' || Array.isArray(args[0]))
       return { ok: false, error: 'IPC_ARGUMENTS_INVALID' };
@@ -51,8 +63,9 @@ function registerAudioAssistantIpc({ ipcMain, assistant, component, getMainWindo
   }
   return () => {
     ipcMain.removeHandler(channel);
+    ipcMain.removeHandler('audio-assistant:sync');
     if (component) { ipcMain.removeHandler('audio-component:get-state'); ipcMain.removeHandler('audio-component:retry'); }
   };
 }
 
-module.exports = { registerAudioAssistantIpc, validConfiguration };
+module.exports = { createAudioStateSender, registerAudioAssistantIpc, validConfiguration };

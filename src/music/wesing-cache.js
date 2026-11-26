@@ -306,13 +306,13 @@ async function loadWeSingLyrics(options = {}, readQrc = (filePath) => tryReadQrc
     return direct ? toLyricResult(direct, logEntry.mid, title) : null;
   }
 
-  const candidates = await listRecentQrcFiles(resDir, Number(options.maxFallbackFiles) || MAX_FALLBACK_FILES);
   const wantedTitle = normalizeTitle(title);
+  if (!wantedTitle) return null;
+  const candidates = await listRecentQrcFiles(resDir, Number(options.maxFallbackFiles) || MAX_FALLBACK_FILES);
   let matchingResult = null;
   for (const candidate of candidates) {
     const parsed = await readQrc(candidate.filePath, wantedTitle);
-    if (!parsed) continue;
-    if (wantedTitle && normalizeTitle(parsed.title || title) !== wantedTitle) continue;
+    if (!parsed || normalizeTitle(parsed.title) !== wantedTitle) continue;
     if (matchingResult) return null;
     matchingResult = { parsed, songMid: candidate.songMid };
   }

@@ -1,5 +1,10 @@
 export const MIN_SCENE_ITEM_VISIBLE = 24;
 
+export function fitSceneMediaSize(canvas, width, height) {
+  const scale = Math.min(1, canvas.width / width, canvas.height / height);
+  return [Math.max(32, Math.round(width * scale)), Math.max(32, Math.round(height * scale))];
+}
+
 export function getSceneItemPositionBounds(item, canvas) {
   return {
     minX: MIN_SCENE_ITEM_VISIBLE - item.width,

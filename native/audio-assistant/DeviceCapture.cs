@@ -31,7 +31,7 @@ internal sealed class DeviceCapture : IDisposable
   {
     capture = source;
     buffer = new BufferedWaveProvider(capture.WaveFormat) {
-      BufferDuration = TimeSpan.FromMilliseconds(500), ReadFully = true, DiscardOnBufferOverflow = false,
+      BufferLength = capture.WaveFormat.ConvertLatencyToByteSize(500), ReadFully = true, DiscardOnBufferOverflow = true,
     };
     Input = ConvertInput(buffer.ToSampleProvider(), channels);
     capture.DataAvailable += OnData;

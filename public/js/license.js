@@ -15,6 +15,7 @@
   const loginModeButton = document.getElementById('licenseLoginMode');
   const registerModeButton = document.getElementById('licenseRegisterMode');
   const retryButton = document.getElementById('licenseRetryBtn');
+  const updateLink = document.getElementById('licenseUpdateLink');
   const maximizeButton = document.getElementById('licenseMaximizeBtn');
   const status = document.getElementById('licenseStatus');
   const initializationHeading = document.getElementById('giftCatalogInitializationHeading');
@@ -153,6 +154,7 @@
 
   function render(snapshot = {}, operation = '') {
     const state = String(snapshot.state || 'needs_activation');
+    updateLink.hidden = snapshot.error !== 'BUILD_NOT_ALLOWED';
     licenseState = state;
     if (state === 'authorizing' || state === 'authorized') showSavedAuthorizationNotice = false;
     if (state !== 'authorized') returnedToLogin = false;

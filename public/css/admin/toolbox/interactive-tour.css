@@ -14,6 +14,9 @@
 html.lira-tour-active .main-page-tab,
 html.lira-tour-active .other-workspace,
 html.lira-tour-active .other-feature-button,
+html.lira-tour-active .other-feature-icon,
+html.lira-tour-active .other-feature-icon svg,
+html.lira-tour-active .other-feature-indicator,
 html.lira-tour-active .other-feature-panel {
   transition: none !important;
 }
@@ -410,8 +413,8 @@ html.lira-tour-active .other-feature-panel {
 }
 
 .lira-tour-exit-leave:hover {
-  border-color: color-mix(in srgb, var(--color-danger) 82%, #000);
-  background: color-mix(in srgb, var(--color-danger) 82%, #000);
+  border-color: color-mix(in srgb, var(--color-danger) 82%, light-dark(#000000, #ffffff));
+  background: color-mix(in srgb, var(--color-danger) 82%, light-dark(#000000, #ffffff));
 }
 
 .lira-tour-exit-actions button:focus-visible {

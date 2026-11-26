@@ -12,6 +12,7 @@ async function fixture(api) {
   function element() {
     const listeners = new Map();
     return {
+      children: [],
       textContent: '',
       disabled: false,
       hidden: true,

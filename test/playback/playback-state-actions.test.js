@@ -24,6 +24,49 @@ test('resuming current audio reports playback failures and ignores interrupted p
   assert.deepEqual(errors, [failure]);
 });
 
+test('a transient lyric failure finishes publication and the same track can retry, including a successful empty result', async () => {
+  const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));
+  const requests = [], publications = [];
+  const { LyricService } = await loadModuleExports(entry('services/lyric-service.js'), {
+    fetch: async (url, options) => {
+      const body = JSON.parse(options.body);
+      if (url === '/api/music/lyrics') {
+        requests.push(body.track.id);
+        if (requests.length === 1) throw new Error('synthetic transient failure');
+        const lines = body.track.id === 'verse' ? [{ startMs: 0, text: 'Recovered' }] : [];
+        return Response.json({ ok: true, data: { lines } });
+      }
+      publications.push([url, body.status]);
+      return Response.json({ ok: true, data: body });
+    },
+  });
+  const service = new LyricService();
+  const state = { selectedSource: 'qq', current: { id: 'verse', source: 'qq' } };
+  let published;
+  const controls = createPlaybackControls({
+    playbackState: state, lyricService: service,
+    syncPlaybackLyricWindow() { published = service.syncWindow(state.current, null, true); },
+  });
+  const load = async () => { await controls.loadPlaybackLyrics(state.current); await published; };
+  await service.syncWindow(state.current, null, true);
+  await load();
+  await load();
+  await load();
+  assert.deepEqual(requests, ['verse', 'verse']);
+  assert.equal(state.current.lyrics.lines[0].text, 'Recovered');
+  for (const path of ['/api/playback/lyric-timeline', '/api/playback/lyric-state']) {
+    const statuses = publications.filter(([url]) => url === path).map(([, status]) => status);
+    assert.deepEqual(statuses.slice(0, 3), ['loading', 'empty', 'ready']);
+  }
+  state.current = { id: 'instrumental', source: 'qq' };
+  await load();
+  await load();
+  state.current = { id: 'file', source: 'local' };
+  await load();
+  assert.deepEqual(requests, ['verse', 'verse', 'instrumental']);
+  assert.equal(publications.at(-1)[1], 'empty');
+});
+
 test('lyric results retain their request generation when playback returns to the same song', async () => {
   const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));
   const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));

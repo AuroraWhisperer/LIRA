@@ -101,6 +101,36 @@ function createRoomRefreshFixture(t) {
   return { dataDir, local, hybrid, requests, imageGates, refresh, setRoom(value) { roomId = value; } };
 }
 
+test('the room catalog fallback cannot return another room after a failed refresh', async (t) => {
+  const dataDir = createScratchDirectory('gift-sale-fallback-');
+  t.after(() => removeScratchDirectory(dataDir));
+  let roomId = '111';
+  let offline = false;
+  const gift = { id: '101', name: 'A房礼物', priceRaw: 1000, coinType: 'gold', bagGift: false, giftCategory: 'directGift' };
+  const variantId = require('../../src/shared/gift-identity').giftVariantId(gift);
+  const official = { schemaVersion: 3, gifts: [{ ...gift, variantId }] };
+  const local = createGiftSaleCatalogService({ dataDir, getRoomId: () => roomId,
+    async fetchJson(endpoint) {
+      if (offline) throw new Error('offline');
+      return endpoint === 'gift_data' ? { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: 101 }] } } }
+        : { code: 0, data: { list: [{ id: 101, name: gift.name, price: 1000, coin_type: 'gold' }] } };
+    },
+  });
+  const hybrid = createHybridGiftSaleCatalogService({ local,
+    remoteCatalog: { getRevision: () => 1, getSnapshot: () => official, refresh: async () => official },
+  });
+  await hybrid.refresh();
+  assert.deepEqual(hybrid.getSnapshot().gifts.map(g => [g.id, g.variantId]), [['101', variantId]]);
+  offline = true;
+  await assert.rejects(hybrid.refresh({ force: true }), /offline/);
+  assert.equal(hybrid.getSnapshot().count, 1);
+  roomId = '222';
+  await assert.rejects(hybrid.refresh(), /offline/);
+  assert.deepEqual([local, hybrid].map(service => service.getSnapshot().gifts.map(g => g.id)), [[], []]);
+  roomId = '111';
+  assert.equal(hybrid.getSnapshot().gifts[0].id, '101');
+});
+
 test('hybrid memoization invalidates for local, remote, custom and image changes and protects returned snapshots', () => {
   let localRevision = 0;
   let remoteRevision = 0;

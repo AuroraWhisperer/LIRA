@@ -1,6 +1,7 @@
 'use strict';
 import { toast as defaultToast } from '../shared/utils.js';
 import { readApiResponse } from '../shared/json-response.js';
+import { bilibiliAvatarSource } from '../shared/bilibili-avatar.js';
 
 import { createCustomReplyEditor } from './danmaku-libraries.js';
 import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
@@ -72,6 +73,8 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   });
   initDanmakuTabs();
   initFixedReplyEditor();
+  bindBridgeAvatar(elements.accountAvatar, elements.accountFallback);
+  bindBridgeAvatar(elements.roomAvatar, elements.roomFallback);
   initialized = true;
 
   const updateCounter = () => {
@@ -113,6 +116,8 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
       if (revision !== stateRevision) return;
       elements.accountState.textContent = '状态未知';
       elements.roomState.textContent = '状态未知';
+      updateBridgeAvatar(elements.accountAvatar, elements.accountFallback, '', { empty: true });
+      updateBridgeAvatar(elements.roomAvatar, elements.roomFallback, '', { empty: true });
       elements.status.textContent = error.message || '无法获取发送状态';
       elements.status.className = 'warn';
       elements.sendButton.disabled = true;
@@ -246,7 +251,11 @@ function getElements() {
     customReplyToggle: document.getElementById('danmakuCustomReplyToggle'),
     status: document.getElementById('danmakuToolStatus'),
     accountState: document.getElementById('danmakuAccountState'),
+    accountAvatar: document.getElementById('danmakuAccountAvatar'),
+    accountFallback: document.getElementById('danmakuAccountFallback'),
     roomState: document.getElementById('danmakuRoomState'),
+    roomAvatar: document.getElementById('danmakuRoomAvatar'),
+    roomFallback: document.getElementById('danmakuRoomFallback'),
     refreshButton: document.getElementById('danmakuRefreshBtn'),
     previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
     styleChip: document.getElementById('danmakuStyleChip'),
@@ -258,25 +267,73 @@ function getElements() {
 }
 
 function renderState(elements, state, editors) {
-  elements.accountState.textContent = state.loggedIn ? state.accountName || `UID ${state.accountUid || '-'}` : '未登录';
-  elements.accountState.title = state.loggedIn && state.accountUid ? `UID ${state.accountUid}` : '';
-  elements.roomState.textContent = state.roomId ? state.roomName || `房间 ${state.roomId}` : '未设置';
-  elements.roomState.title = state.roomId ? `房间 ${state.roomId}` : '';
+  const accountLabel = state.loggedIn ? state.accountName || `UID ${state.accountUid || '-'}` : '未登录';
+  const roomLabel = state.roomId ? state.roomName || `房间 ${state.roomId}` : '未设置';
+  elements.accountState.textContent = accountLabel;
+  elements.accountState.title = state.loggedIn && state.accountUid ? `${accountLabel} · UID ${state.accountUid}` : accountLabel;
+  elements.roomState.textContent = roomLabel;
+  elements.roomState.title = state.roomId ? `${roomLabel} · 房间 ${state.roomId}` : roomLabel;
+  updateBridgeAvatar(elements.accountAvatar, elements.accountFallback, state.accountAvatarUrl, { empty: !state.loggedIn });
+  updateBridgeAvatar(elements.roomAvatar, elements.roomFallback, state.roomAvatarUrl, { empty: !state.roomId });
   elements.replyToggle.checked = state.autoReplyEnabled === true;
   elements.customReplyToggle.checked = state.customReplyBotEnabled === true;
   editors.customReplyEditor.load(state.customReplyRules);
   const degraded = state.connected && isLiveStatusDegraded({ message: state.liveMessage });
   elements.status.textContent = state.canSend
     ? degraded
-      ? '可发送，弹幕可能延迟'
+      ? '可发送 · 弹幕可能延迟'
       : state.connected
-        ? '可发送，监听已连接'
-        : '可发送，监听未连接'
+        ? '可发送 · 监听已连接'
+        : '可发送 · 监听未连接'
     : state.unavailableReason;
   elements.status.className = state.canSend && !degraded
     ? (state.connected ? 'connection-good' : 'connection-bad') : 'warn';
   elements.sendButton.disabled = !state.canSend;
   elements.autoButton.disabled = !autoBotRunning && !state.canSend;
+}
+
+function bindBridgeAvatar(imgEl, fallbackEl) {
+  const reset = () => {
+    imgEl.hidden = true;
+    imgEl.removeAttribute('src');
+    delete imgEl.dataset.loaded;
+    fallbackEl.toggleAttribute('hidden', false);
+  };
+  imgEl.addEventListener('load', () => {
+    if (!imgEl.getAttribute('src')) return;
+    imgEl.dataset.loaded = 'true';
+    fallbackEl.toggleAttribute('hidden', true);
+  });
+  imgEl.addEventListener('error', reset);
+}
+
+function updateBridgeAvatar(imgEl, fallbackEl, avatarUrl, { empty = false } = {}) {
+  const frameEl = imgEl.parentElement;
+  if (frameEl) frameEl.dataset.empty = empty ? 'true' : 'false';
+  const avatarSource = empty ? '' : bilibiliAvatarSource(avatarUrl, window.__API_TOKEN__);
+  if (!avatarSource) {
+    imgEl.hidden = true;
+    imgEl.removeAttribute('src');
+    delete imgEl.dataset.loaded;
+    fallbackEl.toggleAttribute('hidden', false);
+    return;
+  }
+  if (imgEl.getAttribute('src') === avatarSource) {
+    if (imgEl.complete && imgEl.naturalWidth > 0) {
+      imgEl.hidden = false;
+      imgEl.dataset.loaded = 'true';
+      fallbackEl.toggleAttribute('hidden', true);
+    }
+    return;
+  }
+  imgEl.hidden = false;
+  imgEl.dataset.loaded = 'false';
+  fallbackEl.toggleAttribute('hidden', false);
+  imgEl.src = avatarSource;
+  if (imgEl.complete && imgEl.naturalWidth > 0) {
+    imgEl.dataset.loaded = 'true';
+    fallbackEl.toggleAttribute('hidden', true);
+  }
 }
 
 function bindSettingToggle(element, options) {

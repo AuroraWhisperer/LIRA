@@ -7,6 +7,11 @@ import { samePlaylistEntry } from '../queue/playlist-entries.js';
 // One owner for current track, history, preferences and pending requests.
 // QueueManager owns queue transitions. Readers keep the same state identity.
 export function createPlaybackStateActions(state, { save = () => {}, render = () => {} } = {}) {
+  function playableTracks() {
+    return [state.current, ...state.requestedQueue, ...state.normalQueue, ...state.normalQueueTracks,
+      ...state.radioQueue, ...state.history, ...state.displayHistory];
+  }
+
   return {
     restore(snapshot) {
       Object.assign(state, snapshot);
@@ -65,8 +70,8 @@ export function createPlaybackStateActions(state, { save = () => {}, render = ()
       state.current = track;
       state.currentOrigin = options.origin || state.currentOrigin || 'normal';
     },
-    finishTrackStart() {
-      state.restoredTime = 0;
+    setRestoredTime(time) {
+      state.restoredTime = time;
     },
     clearCurrent() {
       state.current = null;
@@ -79,19 +84,16 @@ export function createPlaybackStateActions(state, { save = () => {}, render = ()
       return true;
     },
     forgetProviderStreams(source) {
-      [
-        state.current,
-        ...state.requestedQueue,
-        ...state.normalQueue,
-        ...state.normalQueueTracks,
-        ...state.radioQueue,
-        ...state.history,
-        ...state.displayHistory,
-      ].forEach((track) => {
+      playableTracks().forEach((track) => {
         if (track?.source !== source) return;
         delete track.playUrl;
         delete track.playUrlExpireAt;
       });
+    },
+    forgetLocalFileUrl(url) {
+      for (const track of playableTracks()) {
+        if (track?.source === 'local' && track.objectUrl === url) track.objectUrl = '';
+      }
     },
     commit() {
       save();

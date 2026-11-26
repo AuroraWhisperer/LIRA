@@ -150,8 +150,9 @@ test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
 });
 
 test('effect helpers tolerate missing entries and reject untrusted URLs', () => {
-  assert.equal(buildEffectMap(null).size, 0);
-  assert.equal(buildEffectMap({ data: {} }).size, 0);
+  assert.throws(() => buildEffectMap(null), /conf_list/);
+  assert.throws(() => buildEffectMap({ data: {} }), /conf_list/);
+  assert.equal(buildEffectMap({ data: { full_sc_resource: { conf_list: [] } } }).size, 0);
   assert.equal(isTrustedEffectUrl('https://i0.hdslb.com/bfs/live/a.mp4'), true);
   assert.equal(isTrustedEffectUrl('http://i0.hdslb.com/bfs/live/a.mp4'), false);
   assert.equal(isTrustedEffectUrl('https://hdslb.com.example.com/a.mp4'), false);
@@ -233,6 +234,28 @@ test('resolver fetches lazily, dedupes concurrent calls and refreshes after ttl'
   await resolver.getEffectMap();
   assert.equal(calls, 2);
   assert.equal(resolver.resolve(31645).effectId, 586);
+});
+
+test('a missing effect list uses failure backoff while an explicit empty list replaces the catalog', async () => {
+  let now = 1000;
+  const lists = [[confEntry(584, [31645])], undefined, []];
+  let calls = 0;
+  const resolver = createGiftEffectResolver({
+    now: () => now,
+    fetchJson: async () => ({ payload: { code: 0, data: { full_sc_resource: { conf_list: lists[calls++] } } } }),
+  });
+  await resolver.getEffectMap();
+  now += 12 * 60 * 60 * 1000;
+  const afterMissing = (await resolver.getEffectMap()).get(31645)?.effectId;
+  now += 59999;
+  await resolver.getEffectMap();
+  assert.equal(calls, 2);
+  now += 1;
+  const afterEmpty = (await resolver.getEffectMap()).size;
+  assert.deepEqual([afterMissing, calls, afterEmpty], [584, 3, 0]);
+  now += 60000;
+  await resolver.getEffectMap();
+  assert.equal(calls, 3);
 });
 
 test('resolver keeps stale cache when refresh fails', async () => {

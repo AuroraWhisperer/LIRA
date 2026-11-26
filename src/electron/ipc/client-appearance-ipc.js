@@ -15,7 +15,12 @@ function registerClientAppearanceIpc({ ipcMain, appearance, getMainWindow, getDe
     }
     return result;
   });
-  return () => ipcMain.removeHandler(channel);
+  const fontChannel = 'desktop:set-client-font';
+  register(fontChannel, (_event, fontId) => appearance.setFontId(fontId), { argumentCount: 1 });
+  return () => {
+    ipcMain.removeHandler(channel);
+    ipcMain.removeHandler(fontChannel);
+  };
 }
 
 module.exports = { registerClientAppearanceIpc };

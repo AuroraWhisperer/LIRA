@@ -18,14 +18,39 @@
 
     <div class="client-settings-content">
       <section id="settingsAppearancePanel" class="client-settings-panel client-settings-panel--gallery" role="tabpanel" aria-labelledby="settingsAppearanceTab">
-        <section id="clientAppearance" aria-label="客户端配色">
-          <div class="client-appearance-toolbar">
-            <div class="client-appearance-active">
-              <span class="client-appearance-swatches" aria-hidden="true"><i></i><i></i><i></i></span>
-              <strong id="clientThemeCurrentName" class="client-appearance-current-name">暖陶</strong>
-              <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
-              <span class="client-appearance-scope">· 仅影响客户端界面</span>
+        <section id="clientAppearance" aria-labelledby="clientAppearanceTitle">
+          <div class="client-settings-card client-appearance-console">
+            <div class="client-appearance-console-theme">
+              <div class="client-appearance-active">
+                <span class="client-appearance-swatches" aria-hidden="true"><i></i><i></i><i></i></span>
+                <div class="client-appearance-active-copy">
+                  <strong id="clientThemeCurrentName" class="client-appearance-current-name">暖陶</strong>
+                  <span id="clientThemeCurrentMode" class="client-appearance-current-mode">浅色</span>
+                  <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
+                </div>
+              </div>
+              <span class="client-appearance-palette-chips" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             </div>
+
+            <span class="client-appearance-console-divider" aria-hidden="true"></span>
+
+            <div class="client-font-settings">
+              <div class="client-font-preview" aria-label="界面字体示例">
+                <span class="client-font-sample">直播间 · Live 09:30</span>
+                <span id="clientFontFeedback" class="client-font-feedback" role="status" aria-live="polite"></span>
+                <span class="client-font-sample-meta" aria-hidden="true">Aa 123</span>
+              </div>
+              <div class="client-font-select-box">
+                <label class="sr-only" for="clientFont">界面字体</label>
+                <select id="clientFont" aria-describedby="clientFontFeedback">
+                  <option value="system">原界面字体</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="client-appearance-toolbar">
+            <h3 id="clientAppearanceTitle" class="client-appearance-section-title">主题色板</h3>
             <div id="clientThemeFilters" class="client-appearance-filters" role="group" aria-label="明暗筛选">
               <button type="button" data-client-theme-filter="all" aria-pressed="true">全部 <span>{{client-theme-count-all}}</span></button>
               <button type="button" data-client-theme-filter="light" aria-pressed="false">浅色 <span>{{client-theme-count-light}}</span></button>
@@ -35,11 +60,11 @@
 
           <div class="client-appearance-groups">
             <div class="client-appearance-group" data-client-theme-group="light">
-              <span class="client-settings-section-label">浅色</span>
-              <fieldset class="client-appearance-choices" aria-label="浅色配色">
+              <span class="client-appearance-group-label">日间浅色</span>
+              <fieldset class="client-appearance-choices" aria-label="日间浅色">
                 <template data-client-theme-option="light">
                   <label class="client-appearance-choice">
-                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" {{client-theme-checked}} />
+                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" data-client-theme-mode="{{client-theme-mode}}" {{client-theme-checked}} />
                     <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
                       <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
                       <span class="client-appearance-preview-layout">
@@ -64,11 +89,11 @@
             </div>
 
             <div class="client-appearance-group" data-client-theme-group="dark">
-              <span class="client-settings-section-label">深色</span>
-              <fieldset class="client-appearance-choices" aria-label="深色配色">
+              <span class="client-appearance-group-label">夜间深色</span>
+              <fieldset class="client-appearance-choices" aria-label="夜间深色">
                 <template data-client-theme-option="dark">
                   <label class="client-appearance-choice">
-                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" {{client-theme-checked}} />
+                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" data-client-theme-mode="{{client-theme-mode}}" {{client-theme-checked}} />
                     <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
                       <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
                       <span class="client-appearance-preview-layout">

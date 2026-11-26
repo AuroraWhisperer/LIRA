@@ -38,7 +38,7 @@ function getLatestGuardRosterObservation(profile, records) {
 }
 
 function createGuardRosterImporter({ store, create, observedProfile, saveObservation }) {
-  return function importGuardRoster(scope, snapshot, automaticDate, refresh) {
+  return function importGuardRoster(scope, snapshot, automaticDate, refresh, configuredRoomId = snapshot?.roomId) {
     if (
       !snapshot ||
       !/^[1-9]\d{0,19}$/.test(snapshot.roomId) ||
@@ -202,6 +202,7 @@ function createGuardRosterImporter({ store, create, observedProfile, saveObserva
           lastGuardRosterAutoUpdate: {
             date: automaticDate,
             roomId: snapshot.roomId,
+            ...(configuredRoomId !== snapshot.roomId ? { configuredRoomId } : {}),
           },
         });
       }

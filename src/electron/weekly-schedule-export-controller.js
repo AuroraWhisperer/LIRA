@@ -213,11 +213,18 @@ function createWeeklyScheduleExportController({ app, BrowserWindow, dialog, nati
     try {
       const { template, serialized } = prepareWeeklyScheduleExport(input, nativeImage);
       const directory = path.join(path.dirname(app.getPath('exe')), '周表');
-      await fileSystem.mkdir(directory, { recursive: true });
+      const fileName = fileNameFor(template);
+      let defaultPath;
+      try {
+        await fileSystem.mkdir(directory, { recursive: true });
+        defaultPath = path.join(directory, fileName);
+      } catch {
+        defaultPath = fileName;
+      }
       assertCurrent(current);
       const result = await dialog.showSaveDialog(getMainWindow(), {
         title: '导出直播周表',
-        defaultPath: path.join(directory, fileNameFor(template)),
+        defaultPath,
         filters: [{ name: 'PNG 图片', extensions: ['png'] }],
         properties: ['createDirectory', 'showOverwriteConfirmation'],
       });

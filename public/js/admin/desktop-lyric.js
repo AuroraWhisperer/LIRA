@@ -9,7 +9,8 @@ import * as sharedUtils from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { desktopLyricPreview } from './desktop-lyric-preview.js';
-import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
+import { ensureSavedFontOption } from '../shared/font-library.js';
+import { populateDesktopLyricFonts } from '../lyrics/desktop-lyric-fonts.js';
 import { createLyricSourceControls } from './lyric-source-controls.js';
 import { syncDesktopLyricKaraokeColorControls } from './desktop-lyric-controls.js';
 import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js';
@@ -112,11 +113,7 @@ export function createDesktopLyric({
       syncParameterLayout();
     }
     lyricSourceControls.init();
-    populateSystemFontOptions(document.getElementById('desktopLyricFontFamily'));
-    registerFontSelect(document.getElementById('desktopLyricFontFamily'));
-    const fontSelect = document.getElementById('desktopLyricFontFamily');
-    ensureSavedFontOption(fontSelect, DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily);
-    fontSelect.value = DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily;
+    const releaseFonts = populateDesktopLyricFonts(document.getElementById('desktopLyricFontFamily'));
     preview.init(form, { readSettings: collectDesktopLyric,
       onPositionChange: (position, commit) => {
         positioning = !commit;
@@ -238,6 +235,7 @@ export function createDesktopLyric({
       stopController();
       controller.reset();
       window.removeEventListener('app:settings-state', receiveSettings);
+      releaseFonts?.();
       advancedEditor?.dispose();
     }, { once: true });
   }

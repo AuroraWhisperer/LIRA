@@ -2,8 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 async function fixture({ reloadError, request } = {}) {
   const elements = new Map();
@@ -48,29 +47,11 @@ async function fixture({ reloadError, request } = {}) {
   }
   const calls = [];
   let reloadCount = 0;
-  const context = vm.createContext({ document: {}, console });
-  const module = new vm.SourceTextModule(
-    fs.readFileSync(require.resolve('../../public/js/admin/song-import-update.js'), 'utf8'),
-    { context },
+  const { initSongImportUpdate } = await loadModuleExports(
+    require.resolve('../../public/js/admin/song-import-update.js'), { document: {} },
+    { moduleFixtures: new Map([[require.resolve('../../public/js/shared/utils.js'), { api() {} }]]) },
   );
-  await module.link((specifier) =>
-    specifier === './song-import-parser.js'
-      ? new vm.SourceTextModule(
-          fs.readFileSync(require.resolve('../../public/js/admin/song-import-parser.js'), 'utf8'),
-          {
-            context,
-          },
-        )
-      : new vm.SyntheticModule(
-          ['api'],
-          function () {
-            this.setExport('api', () => {});
-          },
-          { context },
-        ),
-  );
-  await module.evaluate();
-  module.namespace.initSongImportUpdate({
+  initSongImportUpdate({
     documentRef: { getElementById: element, createElement: node },
     imports: {
       readTextFile: async (file) => file.text,
@@ -156,6 +137,46 @@ test('Excel input uses the same replacement preview contract', async () => {
   assert.equal(ui.calls[0].payload.base64, 'fixture');
   ui.calls[0].resolve({ data: previewData() });
   await pending;
+});
+
+test('single-column TSV preview and confirmation keep a comma in the song name', async (t) => {
+  const request = t.mock.fn(async () => ({ data: previewData() }));
+  const ui = await fixture({ request });
+  const file = ui.element('importFile');
+  file.files = [{ name: '歌库.TSV', text: '歌名\nHello, Goodbye' }];
+  file.events.change();
+  await ui.element('songImportPreviewBtn').events.click();
+  await ui.element('songImportApplyBtn').events.click();
+  const payloads = request.mock.calls.map(({ arguments: [, payload] }) => payload);
+  assert.deepEqual(payloads.map((payload) => payload.rows[0]['歌名']), ['Hello, Goodbye', 'Hello, Goodbye']);
+});
+
+test('TSV replacement keeps both song IDs across CR record endings and quoted titles', async (t) => {
+  const { DatabaseSync } = require('node:sqlite');
+  const { SONG_SCHEMA } = require('../../src/storage/schema');
+  const { createSongStore } = require('../../src/storage/song-store');
+  const { saveSong } = require('../../src/music/song-service');
+  const { previewSongImport, applySongImport } = require('../../src/music/song-import-update');
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const store = createSongStore(db);
+  const expected = ['First, Song', 'Hello, "Goodbye"'].map(name => saveSong(store, { name, requestPrice: '原价' }).id);
+  const calls = [];
+  const ui = await fixture({ request: async (url, payload) => {
+    calls.push(url);
+    const data = url.endsWith('preview') ? previewSongImport(store, payload) : applySongImport(store, payload);
+    return { data };
+  } });
+  const file = ui.element('importFile');
+  file.files = [{ name: '歌单.TSV', text: '歌名\r\nFirst, Song\r"Hello, ""Goodbye"""' }];
+  file.events.change();
+  await ui.element('songImportPreviewBtn').events.click();
+  await ui.element('songImportApplyBtn').events.click();
+  assert.deepEqual(calls, ['/api/songs/import-preview', '/api/songs/import-apply']);
+  assert.deepEqual(store.listRows().map(song => [song.id, song.name, song.request_price]), [
+    [expected[0], 'First, Song', ''], [expected[1], 'Hello, "Goodbye"', ''],
+  ]);
 });
 
 test('replacement preview paginates every row without inserting untrusted HTML', async () => {

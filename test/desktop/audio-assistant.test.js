@@ -65,6 +65,34 @@ test('audio helper exit rejects outstanding work and permits a clean later launc
   await assistant.dispose();
 });
 
+test('a start waiting for its worker cannot cross license loss and reauthorization', async t => {
+  let authorized = true;
+  const prepared = Promise.withResolvers();
+  const child = worker();
+  const commands = [];
+  child.stdin.on('data', bytes => {
+    const { id, op } = JSON.parse(bytes);
+    commands.push(op);
+    child.stdout.write(JSON.stringify({ id, ok: true }) + '\n');
+  });
+  const assistant = createAudioAssistant({ dataDir: 'isolated', exists: () => true,
+    getExecutable: () => prepared.promise, canStart: () => authorized,
+    spawnProcess: () => { queueMicrotask(() => child.stdout.write('{"type":"state","state":{"ready":true}}\n')); return child; },
+  });
+  t.after(() => assistant.dispose());
+  const start = assistant.invoke('start');
+  authorized = false;
+  await assistant.invoke('stop');
+  const whileRevoked = assistant.invoke('start');
+  authorized = true;
+  prepared.resolve('worker.exe');
+  assert.equal((await start).ok, false);
+  assert.equal((await whileRevoked).ok, false);
+  assert.deepEqual(commands, []);
+  assert.equal((await assistant.invoke('start')).ok, true);
+  assert.deepEqual(commands, ['start']);
+});
+
 for (const action of ['resume', 'stop', 'unresponsive']) {
   test(`a paused player's pending audio start handles ${action} after its command timeout`, async t => {
     t.mock.timers.enable({ apis: ['setTimeout'] });

@@ -12,7 +12,7 @@
 .weekly-editor-fields { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--surface); }
 .weekly-editor-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 6px; position: sticky; top: 0; z-index: 5; background: var(--surface); border-bottom: 1px solid var(--border); border-radius: var(--radius-control) var(--radius-control) 0 0; }
 .weekly-editor-tabs button { padding: 8px 4px; min-width: 0; border-color: transparent; background: transparent; box-shadow: none; }
-.weekly-editor-tabs [aria-selected='true'] { color: var(--accent); background: var(--surface-2); border-color: var(--border); font-weight: var(--type-weight-bold); }
+.weekly-editor-tabs [aria-selected='true'] { color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong))); background: var(--surface-2); border-color: var(--border); font-weight: var(--type-weight-bold); }
 .weekly-editor-tabs button:hover { background: var(--surface-2); }
 .weekly-category[hidden] { display: none; }
 .weekly-editor-group + .weekly-editor-group { border-top: 1px solid var(--border); }

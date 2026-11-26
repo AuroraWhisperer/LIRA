@@ -37,7 +37,7 @@
   background: var(--color-control-surface, var(--surface));
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-medium);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 5%, transparent);
+  box-shadow: 0 1px 2px light-dark(color-mix(in srgb, var(--text) 5%, transparent), rgba(0, 0, 0, 0.28));
 }
 
 #giftExportBack svg {
@@ -144,7 +144,7 @@
     var(--export-checker-a) 0
   );
   background-size: 16px 16px;
-  box-shadow: inset 0 1px 4px color-mix(in srgb, var(--text) 6%, transparent);
+  box-shadow: inset 0 1px 4px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(0, 0, 0, 0.34));
 }
 
 #giftExportPreview {
@@ -152,7 +152,7 @@
 }
 
 #giftExportPreview[data-background='white'] {
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--text) 12%, transparent);
+  box-shadow: 0 2px 12px light-dark(color-mix(in srgb, var(--text) 12%, transparent), rgba(0, 0, 0, 0.45));
 }
 
 .gift-export-preview-footer {
@@ -174,7 +174,7 @@
   border-radius: 8px;
   background: var(--color-control-surface, var(--surface));
   border: 1px solid var(--border);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 5%, transparent);
+  box-shadow: 0 1px 2px light-dark(color-mix(in srgb, var(--text) 5%, transparent), rgba(0, 0, 0, 0.28));
   overflow: hidden;
 }
 
@@ -341,7 +341,7 @@
   background: var(--color-control-surface, var(--surface));
   border: 1px solid var(--color-border-light, var(--border));
   border-radius: var(--radius-lg);
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 4%, transparent);
+  box-shadow: 0 1px 3px light-dark(color-mix(in srgb, var(--text) 4%, transparent), rgba(0, 0, 0, 0.28));
   overflow: hidden;
 }
 
@@ -350,7 +350,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 15px;
+  padding: 7px 15px;
 }
 
 .gift-export-setting-row + .gift-export-setting-row,
@@ -379,7 +379,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 204px;
   max-width: 100%;
-  padding: 3px;
+  padding: 2px;
   border-radius: 8px;
   background: var(--surface-2);
   flex-shrink: 0;
@@ -402,7 +402,7 @@
 
 .gift-export-segment-face {
   width: 100%;
-  height: 29px;
+  height: 26px;
   padding: 0 8px;
   border-radius: 6px;
   display: inline-flex;
@@ -435,7 +435,7 @@
   color: var(--color-primary-text, var(--primary));
   font-weight: var(--type-weight-semibold);
   box-shadow:
-    0 1px 3px color-mix(in srgb, var(--text) 14%, transparent),
+    0 1px 3px light-dark(color-mix(in srgb, var(--text) 14%, transparent), rgba(0, 0, 0, 0.42)),
     0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent);
 }
 
@@ -474,13 +474,37 @@
   background: #ffffff;
 }
 
+.gift-export-spacing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5ch;
+  align-items: center;
+  gap: 8px;
+  width: 204px;
+  max-width: 100%;
+}
+
+.gift-export-spacing input.parameter-range {
+  min-height: 0;
+  height: 30px;
+}
+
+#giftExportRowGapValue {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.gift-export-setting-row:has(#giftExportRowGap:disabled) :is(label, output) {
+  color: var(--color-disabled-text, var(--muted));
+}
+
 .gift-export-card .gift-export-merge {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 13px 15px;
+  padding: 8px 15px;
 }
 
 .gift-export-merge-text {
@@ -521,7 +545,8 @@
 #giftExportPanel #giftExportDefault:disabled {
   border: 0;
   background: transparent;
-  color: var(--color-disabled-text, var(--color-text-muted));
+  color: var(--color-disabled-text, var(--muted));
+  opacity: 0.6;
 }
 
 .gift-export-path-root {

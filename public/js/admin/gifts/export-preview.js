@@ -1,12 +1,12 @@
 import {
   BANNER_WIDTH,
-  BANNER_HEIGHT,
-  BANNER_GAP,
   createGiftBanner,
   createGiftArtworkResolver,
   readyGiftImages,
 } from '../../shared/gift-banner.js';
+import { EXPORT_SCALE, giftExportRowLayout } from '../../shared/gift-banner-layout.js';
 import { getRoomGuardState } from '../../shared/bilibili-room-guard.js';
+import { refreshParameterRange } from '../../shared/parameter-range.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -137,6 +137,12 @@ export function createGiftExportPreview({ showPane }) {
       });
   }
 
+  function renderBatchDirectory() {
+    const dirNode = get('giftExportDirectory');
+    dirNode.textContent = formatSubdirectory(task.root, task.directory);
+    dirNode.title = task.directory;
+  }
+
   async function render() {
     if (!task) return;
     if (artworkCatalog !== task.snapshot.catalog) {
@@ -148,9 +154,7 @@ export function createGiftExportPreview({ showPane }) {
     const file = files[page];
     const items = task.snapshot.items.slice(file.start, file.start + file.count);
     renderSummary(task.snapshot.selectedCount ?? task.snapshot.items.length, task.snapshot.items.length, files.length);
-    const dirNode = get('giftExportDirectory');
-    dirNode.textContent = formatSubdirectory(task.root, task.directory);
-    dirNode.title = task.directory;
+    renderBatchDirectory();
     get('giftExportPage').textContent = `${page + 1} / ${files.length}`;
     get('giftExportPrev').disabled = page === 0;
     get('giftExportNext').disabled = page === files.length - 1;
@@ -164,9 +168,7 @@ export function createGiftExportPreview({ showPane }) {
     preview.replaceChildren(
       ...items.map((item) => createGiftBanner(item, { ...task.snapshot.config, sheen: false }, artwork)),
     );
-    const width = Math.max(BANNER_WIDTH * 2, Math.ceil(preview.getBoundingClientRect().width * 2));
-    const height = (items.length * BANNER_HEIGHT + (items.length - 1) * BANNER_GAP) * 2;
-    renderFileMeta(file.fileName, width, height, task.mode === 'combined' && files.length > 1);
+    renderSpacing(task.rowGap);
     updateSaveLabel();
     await readyGiftImages(preview);
   }
@@ -174,7 +176,25 @@ export function createGiftExportPreview({ showPane }) {
   function reflectSettings() {
     setRadioValue('giftExportMode', task.mode);
     setRadioValue('giftExportBackground', task.background);
+    setRadioValue('giftExportSort', task.sortBy);
     get('giftExportMergeAcrossDates').checked = task.mergeAcrossDates === true;
+  }
+
+  function renderSpacing(rowGap) {
+    const file = task.files[page];
+    const { adjustable, gap, height } = giftExportRowLayout(file.count, rowGap);
+    const slider = get('giftExportRowGap');
+    slider.disabled = !adjustable;
+    if (slider.valueAsNumber !== gap) {
+      slider.value = gap;
+      refreshParameterRange(slider);
+    }
+    slider.setAttribute('aria-valuetext', `${gap} 像素`);
+    get('giftExportRowGapValue').value = `${gap} px`;
+    const preview = get('giftExportPreview');
+    preview.style.rowGap = `${gap / EXPORT_SCALE}px`;
+    const width = Math.max(BANNER_WIDTH * EXPORT_SCALE, Math.ceil(preview.getBoundingClientRect().width * EXPORT_SCALE));
+    renderFileMeta(file.fileName, width, height, task.mode === 'combined' && task.files.length > 1);
   }
 
   function previewStatus(readyText = '') {
@@ -234,17 +254,24 @@ export function createGiftExportPreview({ showPane }) {
       task = next;
       attempted = false;
       retry = false;
-      page = 0;
       get('giftExportOpenFolder').hidden = true;
-      await render();
+      if (options.rowGap !== undefined) {
+        renderBatchDirectory();
+        renderSpacing(next.rowGap);
+      } else {
+        page = 0;
+        await render();
+      }
       if (request !== sequence) return;
       unwrap(await window.giftExport.settings({
-        mode: next.mode, background: next.background, mergeAcrossDates: next.mergeAcrossDates,
+        mode: next.mode, background: next.background, sortBy: next.sortBy, rowGap: next.rowGap,
+        mergeAcrossDates: next.mergeAcrossDates,
       }));
       if (request === sequence) previewStatus();
     } catch (error) {
       if (request === sequence) {
         reflectSettings();
+        if (options.rowGap !== undefined) renderSpacing(task.rowGap);
         status(error.message, 'error');
       }
     } finally {
@@ -261,6 +288,11 @@ export function createGiftExportPreview({ showPane }) {
   get('giftExportBackground')?.addEventListener('change', (event) => {
     if (event.target.matches('input[type="radio"]')) configure({ background: event.target.value });
   });
+  get('giftExportSort')?.addEventListener('change', (event) => {
+    if (event.target.matches('input[type="radio"]')) configure({ sortBy: event.target.value });
+  });
+  get('giftExportRowGap')?.addEventListener('input', (event) => renderSpacing(event.target.valueAsNumber));
+  get('giftExportRowGap')?.addEventListener('change', (event) => configure({ rowGap: event.target.valueAsNumber }));
   get('giftExportMergeAcrossDates')?.addEventListener('change', (event) => configure({ mergeAcrossDates: event.target.checked }));
   get('giftExportChoose')?.addEventListener('click', () => configure({ directoryAction: 'choose' }));
   get('giftExportDefault')?.addEventListener('click', () => configure({ directoryAction: 'default' }));

@@ -49,12 +49,16 @@ export async function readApi(url, options = {}) {
   return payload.data || {};
 }
 
-export function collectConfig() {
+export function collectConfig(editedFieldIds) {
   const config = {};
+  const effortEdited = editedFieldIds.has('xiaomiAiReasoningEffort');
+  const reasoningEdited = effortEdited || editedFieldIds.has('xiaomiAiReasoning');
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element) continue;
-    if (key === 'reasoningEffort' && (document.getElementById('xiaomiAiReasoningEffortControl')?.hidden || !element.value)) continue;
+    if ((key === 'reasoningEnabled' || key === 'reasoningEffort') && !reasoningEdited) continue;
+    if (key === 'reasoningEffort' && (document.getElementById('xiaomiAiReasoningEffortControl')?.hidden
+      || !element.value || (element.disabled && !effortEdited))) continue;
     if (key === 'systemPrompt' && document.getElementById('xiaomiAiPersona')?.value !== 'custom') continue;
     if (element.disabled && ['deepseekResponsesUrl', 'deepseekApiKey', 'model', 'modelApiProtocol', 'qweatherApiHost', 'qweatherApiKey', 'amapApiHost', 'amapApiKey'].includes(key)) continue;
     if (kind === 'checked') {
@@ -106,7 +110,7 @@ export function renderConfigSummary(config, savedConfig = {}) {
     if (kind === 'secret') renderSecretHint(id, config[savedFlag], config[`${key}Preview`], Object.hasOwn(savedConfig, key));
   }
   document.getElementById('xiaomiAiConfigState').textContent =
-    config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger ? '可运行' : '等待配置';
+    config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger && config.model ? '可运行' : '等待配置';
   document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
   renderProviderSelection(config);
   renderModelSelection();
@@ -342,7 +346,6 @@ export function renderStatus(status) {
   document.getElementById('xiaomiAiQueueState').textContent = String(status.queued || 0);
   if (status.lastError) document.getElementById('xiaomiAiSaveState').textContent = `最近错误：${status.lastError}`;
   if (status.doubao) renderDoubaoStatus(status.doubao);
-  if (status.chatgpt) renderSubscriptionStatus(status.chatgpt);
 }
 
 export function renderDoubaoStatus(status) {

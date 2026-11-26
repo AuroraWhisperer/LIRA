@@ -99,7 +99,7 @@ test('quit drains a scene waiting for scheduled renewal and reaches the actual p
     subscribeDemand(listener) { listener(true); return () => {}; },
     fetchImpl: () => assert.fail('a cancelled scene must not open its event stream'),
   });
-  const h = createShutdownHarness({ sceneController: scene, realPlaybackFlush: true });
+  const h = createShutdownHarness({ sceneController: scene, realPlaybackFlush: true, renderedPath: '/admin?desktop=1' });
   await h.start();
   assert.ok(sceneSignal);
   assert.equal(settingsCalls, 0, 'scene settings are still waiting for authorization');
@@ -126,7 +126,7 @@ test('quit drains a scene waiting for scheduled renewal and reaches the actual p
 
 for (const entry of ['ipc', 'native']) {
   test(`${entry} window close keeps the renderer alive until its actual playback flush is acknowledged`, async (t) => {
-    const h = createShutdownHarness({ realPlaybackFlush: true });
+    const h = createShutdownHarness({ realPlaybackFlush: true, renderedPath: '/admin?desktop=1' });
     t.after(acknowledgePlaybackFlush);
     await h.start();
     const window = h.window;
@@ -152,7 +152,7 @@ for (const entry of ['ipc', 'native']) {
 }
 
 test('repeated native close retains the existing shutdown deadline when the renderer never acknowledges', async (t) => {
-  const h = createShutdownHarness({ realPlaybackFlush: true });
+  const h = createShutdownHarness({ realPlaybackFlush: true, renderedPath: '/admin?desktop=1' });
   t.after(acknowledgePlaybackFlush);
   await h.start();
   const window = h.window;
@@ -173,9 +173,41 @@ test('repeated native close retains the existing shutdown deadline when the rend
   assert.equal(h.count('app:exit'), 1);
 });
 
-test('an interrupted installation cannot start an empty backend', async () => {
+test('closing the rendered license page skips the player handshake', async () => {
+  const h = createShutdownHarness({ realPlaybackFlush: true });
+  await h.start();
+  h.window.close();
+  h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
+  await h.shutdownPromise;
+  assert.equal(h.logs.find(log => log.scope === 'playback-flush').value.status, 'skipped');
+  assert.equal(h.count('ipc:app:prepare-shutdown'), 0);
+  assert.equal(h.count('app:exit'), 1);
+});
+
+test('each loaded document receives the current maximize state of its existing window', async () => {
+  const h = createShutdownHarness();
+  await h.start();
+  const win = h.window;
+  const received = [];
+  win.webContents.send = (channel, value) => { if (channel === 'desktop:window-maximized') received.push(value); };
+  let maximized = true;
+  win.isMaximized = () => maximized;
+  win.emit('maximize');
+  received.length = 0;
+  win.webContents.emit('did-finish-load');
+  maximized = false;
+  win.emit('unmaximize');
+  win.webContents.emit('did-finish-load');
+  assert.deepEqual(received, [true, false, false]);
+  h.quit();
+  h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
+  await h.shutdownPromise;
+  assert.equal(win.webContents.listenerCount('did-finish-load'), 0);
+});
+
+for (const existingData of [false, true]) test(`interrupted install with existing data ${existingData} gives the applicable recovery action`, async () => {
   const recoveryDataDir = 'D:\\Apps\\LIRA.lira-data-backup';
-  const h = createShutdownHarness({ recoveryDataDir });
+  const h = createShutdownHarness({ recoveryDataDir, existingData });
   await h.start({ expectStartupError: true });
   assert.equal(h.count('runtime:start'), 0);
   assert.equal(h.count('app:path:userData'), 0);
@@ -183,6 +215,12 @@ test('an interrupted installation cannot start an empty backend', async () => {
   assert.equal(h.count('app:exit'), 1);
   assert.equal(h.startupErrors.length, 1);
   assert.ok(h.startupErrors[0].includes(recoveryDataDir));
+  if (existingData) {
+    assert.match(h.startupErrors[0], /请保留.*联系/);
+    assert.doesNotMatch(h.startupErrors[0], /请重新运行安装包/);
+  } else {
+    assert.match(h.startupErrors[0], /重新运行安装包/);
+  }
 });
 
 function assertFinalized(harness, restart) {

@@ -28,6 +28,42 @@ function sortedExport(f, scope = SCOPE) {
   return result;
 }
 
+test('merging contradictory same-day baselines retains both facts for review and suspends the milestone', t => {
+  const f = fanFixture(t);
+  const { source, target } = pair(f);
+  const baseline = { type: 'baseline', asOf: '2026-09-18' };
+  const total = f.record(target.id, 'membership', { ...baseline, totalDays: 12 });
+  assert.throws(() => f.record(target.id, 'membership', { ...baseline, continuousDays: 30 }), /累计天数不能少于连续天数/);
+  const continuous = f.record(source.id, 'membership', { ...baseline, continuousDays: 30 });
+  f.run('merge', mergeInput(f.detail(source.id), f.detail(target.id)));
+  f.restart();
+  const detail = f.detail(target.id);
+  assert.deepEqual(detail.membership.pending, [continuous.id]);
+  const retained = detail.records.find(record => record.id === continuous.id);
+  assert.deepEqual(retained.original, continuous.original);
+  assert.deepEqual(retained.data.conflicts, [total.id]);
+  assert.deepEqual([detail.membership.totalDays, detail.membership.continuousDays], [12, null]);
+  assert.ok(!f.run('reminders').some(item => item.metric === 'continuous' && item.threshold === 30 && item.actionable));
+  const confirmed = f.run('resolve-membership', { profileId: target.id, id: continuous.id, choice: 'adopt' });
+  assert.deepEqual([confirmed.membership.totalDays, confirmed.membership.continuousDays], [null, 30]);
+});
+
+test('adopting a merged total keeps the confirmed same-day continuous count and its cycle', t => {
+  const f = fanFixture(t);
+  const { source, target } = pair(f);
+  const baseline = { type: 'baseline', asOf: '2026-09-18' };
+  const existing = f.record(target.id, 'membership', { ...baseline, totalDays: 12, continuousDays: 5 });
+  const incoming = f.record(source.id, 'membership', { ...baseline, totalDays: 30 });
+  const { profile } = f.run('merge', mergeInput(f.detail(source.id), f.detail(target.id)));
+  assert.deepEqual(profile.membership.pending, [incoming.id]);
+  f.run('resolve-membership', { profileId: target.id, id: incoming.id, choice: 'adopt' });
+  f.restart();
+  const { membership, records } = f.detail(target.id);
+  assert.deepEqual([membership.totalDays, membership.continuousDays], [30, 5]);
+  assert.equal(membership.cycleId, existing.data.cycleId);
+  assert.equal(records.find(r => r.id === incoming.id).original.continuousDays, null);
+});
+
 test('draft former names follow the merge preference and omit the current platform name', (t) => {
   const f = fanFixture(t);
   const { source, target } = pair(f, { formerNames: ['草稿旧名'] }, { formerNames: ['目标旧名'] });

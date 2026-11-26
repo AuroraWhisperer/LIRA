@@ -183,6 +183,11 @@ test('local media protocol enforces authorization and serves byte ranges', async
   assert.equal(partial.headers.get('content-range'), 'bytes 1-3/6');
   assert.equal(Buffer.from(await partial.arrayBuffer()).toString('utf8'), 'bcd');
 
+  const atEof = await handler({ url: allowedUrl, headers: new Headers({ range: 'bytes=6-' }) });
+  assert.equal(atEof.status, 416);
+  assert.equal(atEof.headers.get('content-range'), 'bytes */6');
+  assert.equal((await atEof.arrayBuffer()).byteLength, 0);
+
   const inverted = await handler({
     url: allowedUrl,
     headers: new Headers({ range: 'bytes=4-2', origin: 'http://127.0.0.1:3000.evil.example' }),

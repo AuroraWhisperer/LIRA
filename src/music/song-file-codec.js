@@ -10,6 +10,8 @@ const {
   parseWorksheetXml,
 } = require('../shared/xlsx-codec');
 const { SONG_EXPORT_HEADERS, SONG_TEMPLATE_HEADERS, SONG_IMPORT_ALIASES, firstValue } = require('./song-import-schema');
+const { repeatedPriceIndexes } = require('../../public/js/shared/song-import-price-columns.js');
+const { hasSongImportHeader } = require('../../public/js/shared/song-import-headers.js');
 
 function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   if (!buffer.length) throw new Error('Excel 文件为空。');
@@ -18,14 +20,9 @@ function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   const table = parseWorksheetXml(files.worksheet, sharedStrings);
   if (table.length === 0) return [];
   const header = table[0].map((cell) => cleanText(cell));
-  const labels = new Set(Object.values(SONG_IMPORT_ALIASES).flat());
-  const isLabel = (cell) => labels.has(cell);
-  // A ten-column data row can contain labels such as 可点. Keep a full row of
-  // column labels with a missing song-name heading invalid, even on legacy imports.
-  const hasHeader = header.some((cell) => SONG_IMPORT_ALIASES.name.includes(cell)) || (header.length === SONG_EXPORT_HEADERS.length
-    ? Array.from(header.slice(1)).every(isLabel)
-    : header.some(isLabel));
+  const hasHeader = hasSongImportHeader(header, table);
   const bodyRows = hasHeader ? table.slice(1) : table;
+  const repeatedPrices = hasHeader ? repeatedPriceIndexes(header) : [];
   return bodyRows
     .map((row) => {
       if (preserveMissing && !hasHeader && row.length !== SONG_EXPORT_HEADERS.length) {
@@ -34,6 +31,7 @@ function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
       const output = {};
       const sourceHeader = hasHeader ? header : SONG_EXPORT_HEADERS;
       for (let i = 0; i < sourceHeader.length; i += 1) output[sourceHeader[i]] = row[i] || '';
+      if (repeatedPrices.length) output.requestPriceColumns = repeatedPrices.map((index) => row[index] || '');
       return output;
     })
     .filter((row) => preserveMissing || cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)));

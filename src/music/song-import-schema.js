@@ -1,6 +1,8 @@
 'use strict';
 
 const { cleanText, cleanTextPreserveLines } = require('../shared/utils');
+const { SONG_PRICE_HEADERS } = require('../../public/js/shared/song-import-price-columns.js');
+const { SONG_IMPORT_ALIASES } = require('../../public/js/shared/song-import-headers.js');
 
 const SONG_EXPORT_HEADERS = [
   '歌曲名字',
@@ -19,23 +21,15 @@ const SONG_TEMPLATE_HEADERS = SONG_EXPORT_HEADERS.map((header) =>
   header === '歌曲标签' ? '歌曲标签（如：怀旧、抒情、治愈）' : header,
 );
 
-const SONG_IMPORT_ALIASES = {
-  name: ['name', 'songName', '歌曲名字', '歌曲名称', '歌名', '曲名'],
-  artist: ['artist', 'singer', '歌手'],
-  categoryName: ['categoryName', 'category', '曲风'],
-  note: ['note', '核对备注', '备注', '说明'],
-  tags: ['tags', 'tag', '歌曲标签', '标签', SONG_TEMPLATE_HEADERS[3]],
-  isEnabled: ['isEnabled', 'enabled', '是否可点', '可点', '是否启用', '启用'],
-  language: ['language', '语言', '语种'],
-  sourcePlatform: ['sourcePlatform', 'source', '核对平台', '来源平台', '平台', '来源'],
-  requestPrice: ['requestPrice', 'request_price', '点歌价格', '点歌价', '点歌门槛', '点歌要求', '点歌条件', '点歌说明'],
-  songClip: ['songClip', 'song_clip', '歌切', '歌切链接', '歌曲切片', '切片链接'],
-};
-
 function normalizeImportedSongRow(row) {
-  const prices = new Set(
-    SONG_IMPORT_ALIASES.requestPrice.map((key) => cleanTextPreserveLines(String(row[key] ?? ''))).filter(Boolean),
-  );
+  const priceCells = SONG_PRICE_HEADERS.map((key) => row[key]);
+  if (Array.isArray(row.requestPriceColumns)) {
+    for (const value of row.requestPriceColumns) {
+      if (typeof value !== 'string') throw new Error('点歌价格列必须是文本');
+      priceCells.push(value);
+    }
+  }
+  const prices = new Set(priceCells.map((value) => cleanTextPreserveLines(String(value ?? ''))).filter(Boolean));
   if (prices.size > 1) throw new Error('点歌价格别名冲突：请保留一个价格文本');
   return {
     name: cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)),

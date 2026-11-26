@@ -4,20 +4,39 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createInterface } = require('node:readline');
+const { isDeepStrictEqual } = require('node:util');
 
-function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {}, getProcessIds = () => [], getPlaybackProcessId = () => null }) {
+const emptyInventory = () => ({ apps: [], outputs: [], outputChoices: [], inputs: [] });
+
+function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {},
+  getProcessIds = () => [], getPlaybackProcessId = () => null, canStart = () => true }) {
   let child = null;
   let launching = null;
   let closing = null;
   let closed = false;
   let sequence = 0;
-  let state = { ready: false, running: false, starting: false, status: '电音助手尚未启动。' };
+  let stopRevision = 0;
+  let state = { ready: false, running: false, starting: false, status: '电音助手尚未启动。', revision: 0, ...emptyInventory() };
   const requests = new Map();
 
-  function publish(next) {
-    const internalSource = next.ready === true && Number.isInteger(next.sourceProcessId) && getProcessIds().includes(next.sourceProcessId);
-    state = { ...next, internalSource, revision: (state.revision || 0) + 1 };
-    onState(state);
+  function publish(update, { levels = false, reset = false } = {}) {
+    const previous = state;
+    state = levels ? { ...previous, ...update } : { ...emptyInventory(), ...update };
+    if (!levels) state.outputChoices = update.outputChoices ?? state.outputs;
+    state.internalSource = state.ready === true && Number.isInteger(state.sourceProcessId) && getProcessIds().includes(state.sourceProcessId);
+    state.revision = (previous.revision || 0) + 1;
+    if (reset || (!levels && Object.keys(previous).some(key => !Object.hasOwn(state, key)))) {
+      onState(state, state);
+      return;
+    }
+    // Published workers also send complete states on every tick. Reuse equal inventory
+    // arrays and forward only changes, including explicit empty lists and nulls.
+    const changes = {};
+    for (const key of Object.keys(state)) {
+      if (isDeepStrictEqual(previous[key], state[key])) state[key] = previous[key];
+      else changes[key] = state[key];
+    }
+    onState(state, { baseRevision: previous.revision, changes });
   }
 
   function launch() {
@@ -42,18 +61,21 @@ function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess
     }, 15000);
     const processHandle = spawnProcess(executable, ['--bridge'], {
       windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, LIRA_AUDIO_DATA_DIR: path.join(dataDir, 'audio-assistant') },
+      env: { ...process.env, LIRA_AUDIO_DATA_DIR: path.join(dataDir, 'audio-assistant'), LIRA_AUDIO_METER_FRAMES: '1' },
     });
     child = processHandle;
     const lines = createInterface({ input: processHandle.stdout });
     let errorText = '';
     processHandle.stderr.on('data', (chunk) => { errorText = (errorText + chunk.toString()).slice(-4096); });
     lines.on('line', (line) => {
+      if (child !== processHandle) return;
       let message;
       try { message = JSON.parse(line); } catch { return; }
       if (message.type === 'state') {
-        publish(message.state);
+        publish(message.state, { reset: !settled });
         if (!settled) { settled = true; clearTimeout(timer); resolve(); }
+      } else if (message.type === 'levels' && settled) {
+        publish(message.state, { levels: true });
       }
       const pending = requests.get(message.id);
       if (pending) {
@@ -72,7 +94,8 @@ function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess
       if (!settled) reject(new Error(message));
       for (const pending of requests.values()) { clearTimeout(pending.timer); pending.reject(new Error(message)); }
       requests.clear();
-      publish({ ...state, ready: false, running: false, starting: false, status: message });
+      publish({ ...state, ...emptyInventory(), ready: false, running: false, starting: false,
+        sourceProcessId: null, inputLevel: 0, level: 0, status: message }, { reset: true });
     }
     processHandle.once('error', ended);
     processHandle.once('exit', () => ended());
@@ -81,9 +104,15 @@ function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess
   }
 
   async function invoke(op, value) {
-    if (op === 'stop' && !child) return { ok: true, state };
+    if (op === 'stop') {
+      stopRevision++;
+      if (!child) return { ok: true, state };
+    }
     try {
+      const beforeLaunch = stopRevision;
+      if (op === 'start' && !canStart()) throw new Error('请先完成 LIRA 账号授权。');
       await launch();
+      if (op === 'start' && (beforeLaunch !== stopRevision || !canStart())) throw new Error('音频启动请求已取消。');
       const id = ++sequence;
       const { promise, resolve, reject } = Promise.withResolvers();
       const worker = child;

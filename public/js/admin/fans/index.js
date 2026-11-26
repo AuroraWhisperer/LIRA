@@ -50,6 +50,7 @@ function createFanUi() {
   const profilesVisible = () => isVisible() && state.page === 'profiles';
   let searchTimer;
   let pollTimer;
+  let expiryRead;
   let listRevision = 0;
   let reminderRevision = 0;
   let requestedReminderRevision = -1;
@@ -112,7 +113,7 @@ function createFanUi() {
     },
   });
 
-  async function request(action, payload = {}, sequence) {
+  async function request(action, payload = {}, sequence, rowRevision) {
     if (!window.fanProfiles) throw new Error('请在 LIRA 桌面客户端中使用粉丝档案。');
     const contextId = state.contextId;
     const result = await window.fanProfiles.invoke({
@@ -121,6 +122,8 @@ function createFanUi() {
       contextId,
     });
     if (sequence !== undefined && sequence !== state.sequence) return;
+    if (rowRevision !== undefined && rowRevision !== listRevision &&
+        (action === 'list' || result.contextId === state.contextId)) return;
     if (!result.ok) {
       const error = new Error(result.error || '档案操作失败，未保存的输入仍保留。');
       error.existingId = result.existingId;
@@ -141,7 +144,10 @@ function createFanUi() {
       get('fanRosterResult').textContent = '';
       updateMarkup(detailNode, '<p class="fan-empty lira-content-state">登录状态已变化，请重新选择档案。</p>');
     }
-    if (state.contextId !== result.contextId || state.roomId !== (result.roomId || '')) state.expiry = { badges: [] };
+    if (state.contextId !== result.contextId || state.roomId !== (result.roomId || '')) {
+      expiryRead = null;
+      state.expiry = { badges: [] };
+    }
     state.contextId = result.contextId;
     state.roomId = result.roomId || '';
     state.syncStatus = result.syncStatus;
@@ -178,17 +184,22 @@ function createFanUi() {
     else syncNode.removeAttribute('title');
   }
 
-  async function refreshExpiry(sequence, payload) {
+  async function refreshExpiry(sequence, { retry = false } = {}) {
+    if (expiryRead?.sequence === sequence && (expiryRead.pending || !retry)) return;
+    const read = { sequence, pending: true };
+    expiryRead = read;
     const contextId = state.contextId;
     const roomId = state.roomId;
     let expiry;
     try {
-      const result = await window.fanProfiles.invoke({ action: 'guard-expiry', contextId, payload });
+      const result = await window.fanProfiles.invoke({ action: 'guard-expiry', contextId, payload: { archived: state.archived } });
       if (!result.ok || result.contextId !== contextId || result.roomId !== roomId) throw new Error();
       expiry = result.data;
     } catch {
       expiry = { state: 'unavailable', badges: [] };
     }
+    if (expiryRead !== read) return;
+    read.pending = false;
     if (!isVisible() || sequence !== state.sequence || contextId !== state.contextId || roomId !== state.roomId) return;
     state.expiry = expiry;
     renderSyncState();
@@ -281,13 +292,29 @@ function createFanUi() {
     return { query: get('fanSearch').value, filters: state.filters, archived: state.archived };
   }
 
+  function expiryIsStale() {
+    const observed = Date.parse(state.expiry.observedAt);
+    const beijingDay = (time) => Math.floor((time + 8 * 3600000) / 86400000);
+    const now = Date.now();
+    return !Number.isFinite(observed) || now < observed || now - observed >= 300000 || beijingDay(now) !== beijingDay(observed);
+  }
+
+  async function filterList() {
+    if (!state.contextId) return load({ refreshReminders: false });
+    const sequence = state.sequence;
+    if (state.expiry.badges.length && expiryIsStale()) {
+      state.expiry = { badges: [] };
+      renderList();
+    }
+    if (!(await readList(sequence, listPayload())) || sequence !== state.sequence) return;
+    if (expiryIsStale()) void refreshExpiry(sequence, { retry: true });
+    await loadReminders();
+  }
+
   async function load({ open = false, background = false, refreshReminders = true } = {}) {
     if (refreshReminders) reminderRevision++;
     const sequence = ++state.sequence;
-    const observed = Date.parse(state.expiry.observedAt);
-    const beijingDay = (time) => Math.floor((time + 8 * 3600000) / 86400000);
-    if (!background || !Number.isFinite(observed) ||
-        Date.now() - observed >= 300000 || beijingDay(Date.now()) !== beijingDay(observed)) {
+    if (!background || expiryIsStale()) {
       const hadBadges = state.expiry.badges.length > 0;
       state.expiry = { badges: [] };
       renderSyncState();
@@ -296,7 +323,7 @@ function createFanUi() {
     const payload = listPayload();
     await readList(sequence, payload, { open, background });
     if (sequence !== state.sequence) return false;
-    void refreshExpiry(sequence, payload);
+    void refreshExpiry(sequence);
     await loadReminders();
     return sequence === state.sequence;
   }
@@ -313,7 +340,7 @@ function createFanUi() {
     }
     let data;
     try {
-      data = await request(action, payload, sequence);
+      data = await request(action, payload, sequence, revision);
     } catch (error) {
       if (sequence !== state.sequence || contextId !== state.contextId) return;
       if (revision !== listRevision && action === 'list') return;
@@ -332,6 +359,7 @@ function createFanUi() {
     state.settings = data.settings;
     state.listStatus = 'ready';
     renderList();
+    return true;
   }
 
   function loadReminders() {
@@ -581,7 +609,7 @@ function createFanUi() {
       get('fanSearch').value = '';
       for (const button of root.querySelectorAll('[data-fan-filter]'))
         button.setAttribute('aria-pressed', String(!button.dataset.fanFilter));
-      await load({ refreshReminders: false });
+      await filterList();
       return;
     }
     if (name === 'backup') {
@@ -690,14 +718,14 @@ function createFanUi() {
             'aria-pressed',
             String(button.dataset.fanFilter ? state.filters.includes(button.dataset.fanFilter) : !state.filters.length),
           );
-        await load({ refreshReminders: false });
+        await filterList();
       }
     })().catch((error) => showError(error));
   });
   get('fanSearch').addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      void load({ refreshReminders: false }).catch((error) => showError(error));
+      void filterList().catch((error) => showError(error));
     }, 180);
   });
   get('fanRestoreFile').addEventListener('change', () => {

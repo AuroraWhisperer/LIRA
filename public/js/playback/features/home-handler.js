@@ -3,7 +3,7 @@
 'use strict';
 
 import { createPlaybackStateActions } from '../state/actions.js';
-import { findSourcePlaylistIndex, sourcePlaylistTracks } from '../queue/playlist-entries.js';
+import { findSourcePlaylistIndex, matchesLegacyDailyTracks, samePlaylistEntry, sourcePlaylistTracks } from '../queue/playlist-entries.js';
 
 import * as PlaybackUtils from '../utils.js';
 import { HomeService } from '../services/home-service.js';
@@ -191,12 +191,15 @@ export function createHomeHandler(deps) {
   function getHomeCollectionContext(homeState) {
     const currentPlaylist = homeState.action === 'playlist-tracks' ? homeService.getCurrentPlaylist() : null;
     const title = currentPlaylist?.title || HomeService.getActionName(homeState.action);
-    const source = playbackState.selectedSource || 'qq';
+    const source = homeState.action === 'recent' ? 'local' : playbackState.selectedSource || 'qq';
     const sourceId =
       homeState.action === 'playlist-tracks' ? `playlist:${currentPlaylist?.id || title}` : homeState.action;
     // Both radio providers cap the home request to 50 tracks per page.
     const radioOffset = homeState.action === 'radio' ? Math.max(1, Math.min(50, homeState.page || 1)) * 50 : undefined;
-    return { title, sourceKey: `${source}:${sourceId}`, radioOffset };
+    const sourceKey = homeState.action === 'daily'
+      ? `${source}:daily:${JSON.stringify(homeState.items.map((track) => track.id))}`
+      : `${source}:${sourceId}`;
+    return { title, sourceKey, radioOffset };
   }
 
   /**
@@ -307,22 +310,33 @@ export function createHomeHandler(deps) {
     const homeState = homeService.getHomeState();
 
     if (action === 'play-context' || action === 'play') {
+      const current = playbackState.current;
+      if (homeState.action === 'recent' && playbackState.queueType === 'queue' &&
+          current?.source === track.source && samePlaylistEntry(current, track)) {
+        callbacks.playPlaybackTrack(current, { origin: playbackState.currentOrigin });
+        return;
+      }
       const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
       const items = homeState.items.map(normalizeHomeTrack);
       const tracks = queueType === 'playlist' ? sourcePlaylistTracks(items) : items;
       const collection = getHomeCollectionContext(homeState);
       const selectedTrack = tracks[index];
+      const previousKey = playbackState.queueSourceKey;
+      const legacyRecent = homeState.action === 'recent' && ['qq:recent', 'netease:recent'].includes(previousKey);
+      const legacyDaily = homeState.action === 'daily' && previousKey === `${playbackState.selectedSource}:daily` &&
+        matchesLegacyDailyTracks(playbackState.normalQueueTracks, tracks);
       const activeIndex =
         queueType === 'playlist' &&
         playbackState.queueType === 'playlist' &&
-        playbackState.queueSourceKey === collection.sourceKey
+        (previousKey === collection.sourceKey || legacyRecent || legacyDaily)
           ? findSourcePlaylistIndex(playbackState.normalQueueTracks, selectedTrack, homeState.action === 'recent' ? track : null)
           : -1;
 
       if (activeIndex >= 0) {
-        callbacks.jumpToPlaylistTrack(activeIndex);
+        callbacks.jumpToPlaylistTrack(activeIndex, homeState.action === 'daily' ? collection.sourceKey : undefined);
       } else {
-        callbacks.startPlaybackCollection(tracks, index, queueType, collection.title, collection.sourceKey, collection.radioOffset);
+        callbacks.startPlaybackCollection(tracks, index, queueType, collection.title, collection.sourceKey, collection.radioOffset,
+          { waitForStream: homeState.action === 'daily' });
       }
       return;
     }

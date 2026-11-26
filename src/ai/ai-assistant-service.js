@@ -168,7 +168,7 @@ function createAiAssistantService(dependencies) {
     const config = getIngressConfig();
     if (!isAiReady(config) || modelClient.isReady?.(config) === false) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
-    const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;
+    const uid = cleanText(danmaku.uid);
     if (danmaku.isWelcome === true) return { accepted: false, reason: 'auto_ineligible' };
     pruneReplyEchoes();
     if (replyEchoes.some((reply) => reply.uid === uid && reply.messages.includes(message))) {
@@ -177,7 +177,7 @@ function createAiAssistantService(dependencies) {
     const question = extractTriggeredQuestion(message, config.trigger);
     if (question === null) {
       if (!config.autoReplyEnabled) return { accepted: false, reason: 'not_triggered' };
-      if (danmaku.autoReplyExcluded || uid.startsWith('name:')) return { accepted: false, reason: 'auto_ineligible' };
+      if (danmaku.autoReplyExcluded || !uid) return { accepted: false, reason: 'auto_ineligible' };
       if (store.isBlacklisted(uid)) return { accepted: false, reason: 'blacklisted' };
       if (!checkLocalInput(message).allowed) {
         return { accepted: false, reason: 'auto_ineligible' };
@@ -185,6 +185,7 @@ function createAiAssistantService(dependencies) {
       return autoReplies.observe({ ...danmaku, uid, message });
     }
     // A directed request never falls through to automatic chat, even if admission fails.
+    if (!uid) return { accepted: false, reason: 'missing_uid' };
     autoReplies.interrupt();
     if (store.isBlacklisted(uid)) return { accepted: false, reason: 'blacklisted' };
     const localSafety = checkLocalInput(question);
@@ -356,7 +357,7 @@ function createAiAssistantService(dependencies) {
     }
   }
 
-  async function deliverReply(item, result) {
+  async function deliverReply(item, result, regenerate) {
     throwIfReplyCancelled(item);
     if (item.autoTask) return deliverAutoReply(item, result);
     const assertSessionCurrent = (auth) => {
@@ -373,7 +374,7 @@ function createAiAssistantService(dependencies) {
         assertSessionCurrent();
       }
       const mentionTarget = {
-        uid: item.uid.startsWith('name:') ? '' : item.uid,
+        uid: item.uid,
         name: item.userName,
         source: 'ai-assistant',
       };
@@ -405,7 +406,7 @@ function createAiAssistantService(dependencies) {
         `[AI] reply missing from room feed uid=${JSON.stringify(item.uid)} attempt=${attempt}/${MAX_DELIVERY_ATTEMPTS}`,
       );
       if (attempt < MAX_DELIVERY_ATTEMPTS && currentResult.category !== 'conversation_reset') {
-        currentResult = await generateReply(item, { bypassCache: true, singleMessage: true });
+        currentResult = await regenerate({ bypassCache: true, singleMessage: true });
       }
     }
     throw codedError('DANMAKU_SWALLOWED', 'AI 回复连续三次未完整出现在直播间弹幕中。');

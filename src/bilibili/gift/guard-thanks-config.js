@@ -2,7 +2,7 @@
 
 // 大航海感谢：final 礼物行之后识别舰长/提督/总督，生成礼物特效地址播放的感谢事件。
 
-const { canonicalizeGuardGiftId } = require('./guard-gift-aliases');
+const { guardGiftLevel } = require('./guard-gift-aliases');
 const { normalizeAvatarUrl } = require('./avatar-url');
 const { GUARD_THANKS_EFFECTS, readGuardThanksEffect, readNauticalGuardEnabled } = require('../../../public/js/shared/guard-thanks-settings.js');
 
@@ -15,17 +15,13 @@ const DEFAULT_GUARD_THANKS_SETTINGS = Object.freeze({
   guardThanksTextMode: 'bilingual',
   guardThanksStyle: 'aurora',
 });
-const TIER_BY_GUARD_GIFT_ID = Object.freeze({ 'guard-1': 'governor', 'guard-2': 'admiral', 'guard-3': 'captain' });
-const TIER_BY_GIFT_NAME = Object.freeze({ 总督: 'governor', 提督: 'admiral', 舰长: 'captain' });
 const MAX_PREVIEW_MONTHS = 999;
 
 let previewSequence = 0;
 
 function resolveGuardTier(item) {
-  const canonicalId = canonicalizeGuardGiftId(item?.gift_id ?? item?.giftId);
-  if (TIER_BY_GUARD_GIFT_ID[canonicalId]) return TIER_BY_GUARD_GIFT_ID[canonicalId];
-  const name = String(item?.gift_name ?? item?.giftName ?? '').replace(/\s+/gu, '');
-  return TIER_BY_GIFT_NAME[name] || null;
+  const level = guardGiftLevel(item?.gift_id ?? item?.giftId, item?.gift_name ?? item?.giftName);
+  return [null, 'governor', 'admiral', 'captain'][level];
 }
 
 function normalizeTextMode(value) {

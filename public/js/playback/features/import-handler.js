@@ -13,8 +13,24 @@ import { createPlaybackStateActions } from '../state/actions.js';
 export function createImportHandler(deps) {
   const { playbackState, importService, showError, toast } = deps;
   const stateActions = deps.stateActions || createPlaybackStateActions(playbackState);
-  let importing = false;
-  let importGeneration = 0;
+  let activeImport = null;
+
+  function setImporting(importing) {
+    for (const id of ['playbackImportSongQueue', 'songQueueImportPlayback']) {
+      const button = document.getElementById(id);
+      if (!button) continue;
+      if (importing) button.dataset.importing = 'true';
+      else delete button.dataset.importing;
+      button.disabled = importing || playbackState.selectedSource === 'wesing';
+    }
+  }
+
+  function invalidateImports() {
+    if (!activeImport) return;
+    activeImport.abort();
+    activeImport = null;
+    setImporting(false);
+  }
 
   /**
    * 从点歌队列导入歌曲
@@ -24,12 +40,11 @@ export function createImportHandler(deps) {
    * @param {Function} callbacks.renderPlayback - 重新渲染
    */
   async function importSongQueueToPlayback(callbacks) {
-    if (importing || playbackState.selectedSource === 'wesing') return;
-    importing = true;
-    const generation = importGeneration;
-    const isCurrent = () => generation === importGeneration;
-    const buttons = ['playbackImportSongQueue', 'songQueueImportPlayback'].map((id) => document.getElementById(id)).filter(Boolean);
-    buttons.forEach((button) => { button.disabled = true; button.dataset.importing = 'true'; });
+    if (activeImport || playbackState.selectedSource === 'wesing') return;
+    const controller = new AbortController();
+    activeImport = controller;
+    const isCurrent = () => activeImport === controller;
+    setImporting(true);
 
     try {
       callbacks.renderPlayback();
@@ -40,6 +55,7 @@ export function createImportHandler(deps) {
         platforms: platforms,
         importedRequestKeys: playbackState.importedSongRequestKeys,
         isCurrent,
+        signal: controller.signal,
       });
 
       if (!isCurrent()) return;
@@ -54,17 +70,16 @@ export function createImportHandler(deps) {
       if (isCurrent()) showError(error.name === 'TimeoutError'
         ? new Error('读取点歌队列超时，请稍后重试') : error);
     } finally {
-      importing = false;
-      buttons.forEach((button) => {
-        delete button.dataset.importing;
-        button.disabled = playbackState.selectedSource === 'wesing';
-      });
-      callbacks.renderPlayback();
+      if (isCurrent()) {
+        activeImport = null;
+        setImporting(false);
+        callbacks.renderPlayback();
+      }
     }
   }
 
   return {
     importSongQueueToPlayback,
-    invalidateImports: () => { importGeneration += 1; },
+    invalidateImports,
   };
 }

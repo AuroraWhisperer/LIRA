@@ -23,8 +23,8 @@ function extractBilibiliSuperChatMessage(packet, roomOwnerUid = '') {
   const userInfo = data.user_info || data.userInfo || {};
   const medalInfo = data.medal_info || data.medalInfo || userInfo.medal_info || userInfo.medalInfo;
   const currentMedalInfo = selectCurrentRoomMedalInfo([medalInfo], roomOwnerUid);
-  const messageTimestamp =
-    normalizeTimestampMs(readObjectValue(data, ['start_time', 'startTime', 'ts', 'time', 'timestamp'])) || Date.now();
+  const platformTimestamp = readObjectValue(data, ['start_time', 'startTime', 'ts', 'time', 'timestamp']);
+  const messageTimestamp = normalizeTimestampMs(platformTimestamp) || Date.now();
 
   return {
     id: cleanText(readObjectValue(data, ['id_str', 'id', 'message_id', 'messageId', 'token'])),
@@ -48,6 +48,7 @@ function extractBilibiliSuperChatMessage(packet, roomOwnerUid = '') {
     medalLevel: readMedalLevel(currentMedalInfo),
     medalTargetUid: readMedalTargetId(currentMedalInfo),
     messageTimestamp,
+    platformTimestamp,
     currentRoomVerified: Boolean(cleanText(roomOwnerUid) && medalInfo),
   };
 }

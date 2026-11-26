@@ -90,7 +90,7 @@ npm run release:win
 
 脚本先检查凭据与版本标签冲突，在构建和一次完整安装包验证通过后创建并推送版本标签，再创建或复用 Release，只上传缺失或内容不一致的附件。输出 `All expected assets uploaded` 且正常退出即完成，无需再人工检查附件完整性。实现细节见[构建与发布参考](docs/reference/engineering/build.md#7-发布流程scriptspublish-releasejs)。
 
-从独立检出发布时，还需把同次构建的产物交回主工作区的 `release/`。先保留上一版的安装包、块图、清单和解包目录，再交付新版 EXE、blockmap、`builder-debug.yml` 和整个 `win-unpacked/`，最后替换原始 `latest.yml`。核对副本与构建输出的文件摘要，在发布回复中给出主工作区的产物路径。
+从独立检出发布时，还需把同次构建的产物交回主工作区的 `release/`。直接交付新版 EXE、blockmap 和 `builder-debug.yml`，最后替换原始 `latest.yml`。核对副本与构建输出的文件摘要，在发布回复中给出主工作区的产物路径。
 
 ## 失败处理与可选设置
 

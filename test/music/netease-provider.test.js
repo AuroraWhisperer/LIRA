@@ -925,6 +925,28 @@ test('a cold numeric removal confirms its target even when favorite discovery is
   assert.equal(writes, 1);
 });
 
+test('collected playlists cross the mixed-directory boundary and reject incomplete reads', async () => {
+  const provider = createProvider();
+  provider.getUserProfile = async () => ({ userId: '42' });
+  const first = Array.from({ length: 500 }, (_, i) => ({ id: i + 1, name: `Mine ${i}`, creator: { userId: 42 } }));
+  const favorite = { id: 501, name: 'Collected', creator: { userId: 99 } };
+  let nextPage;
+  const offsets = [];
+  provider.requestJson = async (_url, { offset, limit }) => {
+    offsets.push(Number(offset));
+    assert.equal(limit, '500');
+    return offset === '0' ? { playlist: first, more: true } : nextPage;
+  };
+  const read = () => provider.getCollectedPlaylists({ limit: 5000 });
+  for (nextPage of [{ playlist: first, more: true }, { playlist: [], more: true }, {}]) {
+    await assert.rejects(read());
+    assert.deepEqual(offsets.splice(0), [0, 500]);
+  }
+  nextPage = { playlist: [favorite], more: false };
+  assert.deepEqual((await read()).map(row => row.id), ['501']);
+  assert.deepEqual(offsets, [0, 500]);
+});
+
 test('created playlist content marks only playlists without the track as available', async () => {
   const provider = {
     async getCreatedPlaylists() {

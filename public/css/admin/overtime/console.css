@@ -40,11 +40,7 @@
   content: '';
 }
 .overtime-clock-value {
-  font:
-    700 clamp(34px, 4vw, 52px)/1 Bahnschrift SemiCondensed,
-    Bahnschrift,
-    'Arial Narrow',
-    sans-serif;
+  font: 700 clamp(34px, 4vw, 52px)/1 var(--client-font-family, Bahnschrift SemiCondensed, Bahnschrift, 'Arial Narrow', sans-serif);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.035em;
 }

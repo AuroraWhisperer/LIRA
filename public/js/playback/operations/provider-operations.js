@@ -199,7 +199,7 @@ export function createProviderOperations(deps) {
       message: '登录后即可播放在线音乐',
       className: 'toast-with-icon playback-login-toast',
       duration: 5200,
-      actionLabel: `登录 ${sourceName}`,
+      actionLabel: '去登录',
       onClick: () => loginSelectedMusicProvider(platform),
     });
   }

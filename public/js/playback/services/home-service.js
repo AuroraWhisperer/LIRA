@@ -4,7 +4,7 @@
 
 import { assertApiResponse } from '../../shared/json-response.js';
 import { getHomeActionTitle } from '../utils.js';
-import { CACHEABLE_ACTIONS } from '../content/loader.js';
+import { CACHEABLE_ACTIONS, PERSONALIZED_PAGE_SIZE } from '../content/loader.js';
 
 /**
  * 首页服务类
@@ -40,11 +40,12 @@ export class HomeService {
     return { stale: true };
   }
 
-  _setContent({ items, itemType, action }) {
+  _setContent({ items, itemType, action, nextPage }) {
     this.homeItems = items;
     this.homeItemType = itemType;
     this.homeAction = action;
     this.homePage = 1;
+    this.nextDailyPage = nextPage;
   }
 
   async _trackOpening(action, playlistId, ready) {
@@ -260,17 +261,24 @@ export class HomeService {
       throw new Error('当前内容不支持刷新');
     }
 
-    const nextPage = this.homePage + 1;
     const platform = this.state.selectedSource;
+    let nextPage = this.homePage + 1;
+    if (action === 'daily' && platform === 'qq' && this.nextDailyPage !== undefined) {
+      nextPage = this.nextDailyPage;
+    } else if (action === 'personalized' && platform === 'netease' &&
+      (this.homeItems.length < PERSONALIZED_PAGE_SIZE || this.homePage >= 50)) {
+      nextPage = 1;
+    }
 
     try {
+      if (nextPage === null) throw new Error('没有更多内容了');
       const response = await fetch('/api/music/home', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platform,
           action,
-          limit: action === 'personalized' ? 12 : 100,
+          limit: action === 'personalized' ? PERSONALIZED_PAGE_SIZE : 100,
           page: nextPage,
           refresh: true,
         }),
@@ -285,6 +293,7 @@ export class HomeService {
 
       const data = payload.data || {};
       const items = Array.isArray(data.playlists) ? data.playlists : Array.isArray(data.tracks) ? data.tracks : [];
+      this.nextDailyPage = data.nextPage;
 
       if (items.length === 0) {
         throw new Error('没有更多内容了');

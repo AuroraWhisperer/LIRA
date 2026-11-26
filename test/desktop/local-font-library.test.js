@@ -145,6 +145,51 @@ test('shared display fonts keep legacy selections without duplicate options or l
   assert.equal(queries, 1);
 });
 
+test('scoped menus keep their own choices when another menu requests the full font library', async () => {
+  const faces = ['Lira Maiyuan', 'Lira Smiley'].map(family => ({ family, status: 'loaded' }));
+  const decoded = [];
+  faces.load = async descriptor => {
+    const face = faces.find(item => descriptor.includes(`"${item.family}"`));
+    decoded.push(face.family);
+    return [face];
+  };
+  let queries = 0;
+  const library = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/font-library.js'), {
+    document: { createElement: createNode, fonts: faces },
+    window: { queryLocalFonts: async () => { queries++; return [{ family: 'Arial' }, { family: 'SimSun' }]; } },
+  });
+  const mode = { value: 'default', label: '默认' };
+  const provided = { value: '"Weekly Serif"', label: '周表专用字体' };
+  const limited = createSelect('smiley', [mode, { value: 'smiley', label: '旧设置' }, provided]);
+  const releaseLimited = library.registerFontSelect(limited, { allowedFonts: { shared: ['maiyuan'] }, keepProvidedFonts: true });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(decoded, ['Lira Maiyuan']);
+  assert.equal(queries, 0);
+
+  const installed = createSelect('default', [mode]);
+  const full = createSelect('default', [mode]);
+  const releaseInstalled = library.registerFontSelect(installed, { allowedFonts: { local: ['simsun'] } });
+  const releaseFull = library.registerFontSelect(full);
+  await new Promise(resolve => setImmediate(resolve));
+  const choices = select => select.options.filter(option => !option.hidden && !option.disabled).map(option => option.value);
+  assert.equal(queries, 1);
+  assert.equal(limited.value, 'smiley');
+  assert.equal(limited.options.find(option => option.value === limited.value).hidden, true);
+  assert.deepEqual(choices(limited), ['default', '"Lira Maiyuan"']);
+  assert.deepEqual(choices(installed), ['default', '"SimSun"']);
+  assert.ok(choices(full).includes('"Lira Smiley"') && choices(full).includes('"Arial"'));
+
+  limited.value = '"Lira Maiyuan"';
+  library.ensureSavedFontOption(limited, limited.value);
+  assert.ok(!limited.options.some(option => option.value === 'smiley'));
+  releaseFull();
+  releaseInstalled();
+  releaseLimited();
+  const releaseProvided = library.registerFontSelect(limited, { keepProvidedFonts: true });
+  assert.ok(choices(limited).includes(provided.value), 'Reusing a menu without a list restores its page-provided fonts.');
+  releaseProvided();
+});
+
 test('installed font discovery preserves legacy system aliases and stacks while allowing a new selection', async () => {
   const query = Promise.withResolvers();
   const library = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/font-library.js'), {

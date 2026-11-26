@@ -3,6 +3,8 @@
 const { fetchJson, joinApiUrl, createPublicError, throwIfAborted } = require('../http-client');
 const { withApiQuota } = require('../api-quota-store');
 
+const BEIJING_DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' });
+
 function createQWeatherTool(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const quotaStore = options.quotaStore;
@@ -32,6 +34,9 @@ function createQWeatherTool(options = {}) {
   }
 
   async function getWeather(config, input, options = {}) {
+    if (input.dataType === 'air' && !isCurrentAirDate(input.date)) {
+      return { unavailable: true, reason: 'air_forecast_unavailable', instruction: '仅支持查询当前空气质量，无法提供指定日期的空气质量预报。' };
+    }
     const resolved = await resolveLocation(config, input.location, options);
     if (resolved.ambiguous) return resolved;
     const location = resolved.location;
@@ -172,6 +177,16 @@ function shouldUseForecast(date) {
       .trim()
       .toLowerCase(),
   );
+}
+
+function isCurrentAirDate(date) {
+  const text = String(date ?? '').trim();
+  if (!shouldUseForecast(text) || ['今日', '当前', '目前', '此刻', '此时', '实时', '当日', '当天'].includes(text)) return true;
+  const today = BEIJING_DATE_FORMAT.format(Date.now());
+  const chineseDate = /^(?:(\d{4})年)?(\d{1,2})月(\d{1,2})日$/.exec(text);
+  if (!chineseDate) return text === today;
+  const [, year = today.slice(0, 4), month, day] = chineseDate;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}` === today;
 }
 
 module.exports = { createQWeatherTool, isAmbiguousLocation };

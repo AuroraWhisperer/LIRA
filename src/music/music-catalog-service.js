@@ -93,24 +93,25 @@ async function getMusicHomeContent(registry, body, apiCacheDir = '') {
       tracks: await provider.getPlaylistTracks(playlistId, { limit }),
     };
   }
-  if (action === 'daily')
-    return {
-      source: platform,
-      action,
-      tracks: await provider.getDailyTracks({ limit, page }),
-    };
+  if (action === 'daily') {
+    const batch = provider.getDailyTrackPage
+      ? await provider.getDailyTrackPage({ limit, page })
+      : { tracks: await provider.getDailyTracks({ limit, page }) };
+    return { source: platform, action, ...batch };
+  }
   if (action === 'radio')
     return {
       source: platform,
       action,
       tracks: await provider.getRadioTracks({ limit, page }),
     };
-  if (action === 'liked')
-    return {
-      source: platform,
-      action,
-      tracks: await provider.getLikedTracks({ limit, offset, loadingSession: cleanText(input.loadingSession).slice(0, 100) }),
-    };
+  if (action === 'liked') {
+    const options = { limit, offset, loadingSession: cleanText(input.loadingSession).slice(0, 100) };
+    const batch = provider.getLikedTrackPage
+      ? await provider.getLikedTrackPage(options)
+      : { tracks: await provider.getLikedTracks(options) };
+    return { source: platform, action, ...batch };
+  }
   if (action === 'created-playlists') {
     const playlists = await provider.getCreatedPlaylists({ limit });
     return {

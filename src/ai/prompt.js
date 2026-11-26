@@ -25,7 +25,7 @@ const FUNCTION_TOOLS = Object.freeze([
   {
     type: 'function',
     name: 'get_weather',
-    description: '查询指定地点和日期的实时天气、预报、空气质量或天气预警。',
+    description: '查询指定地点的实时天气、天气预报、当前空气质量或天气预警。空气质量只支持当前观测。',
     strict: true,
     parameters: {
       type: 'object',

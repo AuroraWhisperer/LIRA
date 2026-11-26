@@ -154,8 +154,8 @@
 .playback-home-card:hover {
   background: var(--surface);
   box-shadow:
-    0 1px 2px color-mix(in srgb, var(--text) 6%, transparent),
-    0 10px 26px color-mix(in srgb, var(--text) 8%, transparent);
+    0 1px 2px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(0, 0, 0, 0.28)),
+    0 10px 26px light-dark(color-mix(in srgb, var(--text) 8%, transparent), rgba(0, 0, 0, 0.45));
   transform: translateY(-2px);
 }
 

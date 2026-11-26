@@ -62,7 +62,7 @@ export function getPlaybackOutput(audio, options = {}) {
     if (!disposed) for (const listener of listeners) listener(snapshot());
   }
 
-  async function enumerate() {
+  async function enumerate(targetId = selected.deviceId) {
     const browserDevices = (await mediaDevices.enumerateDevices())
       .filter((device) => device.kind === 'audiooutput' && device.deviceId && !['default', 'communications'].includes(device.deviceId))
       .map((device, index) => ({ deviceId: device.deviceId,
@@ -71,7 +71,7 @@ export function getPlaybackOutput(audio, options = {}) {
     let nativeDevices;
     try { nativeDevices = await native.enumerate(); }
     catch (error) {
-      if (error.code === 'AUDIO_COMPONENT_NOT_READY' && !/^(wasapi|directsound|waveout|asio):/.test(selected.deviceId)) return browserDevices;
+      if (error.code === 'AUDIO_COMPONENT_NOT_READY' && !/^(wasapi|directsound|waveout|asio):/.test(targetId)) return browserDevices;
       throw error;
     }
     if (selected.deviceId.startsWith('asio:') && !nativeDevices.some(device => device.deviceId === selected.deviceId)
@@ -102,7 +102,7 @@ export function getPlaybackOutput(audio, options = {}) {
           if (deviceId) throw new Error('当前环境无法切换输出，请在 LIRA 桌面客户端重新选择。');
           return true;
         }
-        const available = await enumerate();
+        const available = await enumerate(deviceId);
         if (disposed || request !== revision) return false;
         devices = available;
         if (processing) {

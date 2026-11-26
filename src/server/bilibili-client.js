@@ -73,6 +73,7 @@ function createBilibiliClient(roomId, context) {
             fanScope,
             source: danmaku.source || 'danmaku',
             messageTimestamp: danmaku.messageTimestamp,
+            historyCancellation: danmaku.historyCancellation,
             requesterGuardLevel: danmaku.requesterGuardLevel,
             requesterMedalName: danmaku.requesterMedalName,
             requesterMedalLevel: danmaku.requesterMedalLevel,
@@ -86,18 +87,19 @@ function createBilibiliClient(roomId, context) {
           if (result.reason === 'cloud-owned') return;
           const replySessionKey = context.getReplySessionKey?.();
           const sendingAccountUid = context.getSendingAccountUid?.() ?? bilibiliAuthCache.uid;
+          const fromSendingAccount = Boolean(sendingAccountUid && String(danmaku.uid) === String(sendingAccountUid));
           aiAssistant.handleDanmaku({
             roomId: String(roomId),
             message: danmaku.message,
             userName: danmaku.userName,
-            uid: String(danmaku.uid || ''),
+            uid: /^[1-9]\d{0,19}$/.test(danmaku.uid) ? String(danmaku.uid) : '',
             source: danmaku.source,
             isWelcome: danmaku.isWelcome === true,
             messageTimestamp: danmaku.messageTimestamp,
             sessionKey: replySessionKey,
             isSessionCurrent: () => !isShuttingDown() && replySessionKey === context.getReplySessionKey?.(),
             autoReplyExcluded: Boolean(danmaku.isWelcome === true
-              || (sendingAccountUid && String(danmaku.uid) === String(sendingAccountUid))
+              || fromSendingAccount
               || result.accepted || result.command || result.customReply?.command || result.autoReply || result.customReplyReply || gameResult?.game),
             captureReplySession: context.captureReplySession,
           });
@@ -110,7 +112,7 @@ function createBilibiliClient(roomId, context) {
                 );
               });
           }
-          if (result.customReplyReply) {
+          if (result.customReplyReply && !fromSendingAccount) {
             void fixedReplies
               .send(result.customReplyReply)
               .catch((error) => {

@@ -137,12 +137,14 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
     });
     onSession(result.data);
     await refreshHostState();
-    setDrawDetails(true);
     toast('请选择本局题词');
   }
 
   async function controlDrawRound(action) {
+    const sessionId = sessionSnapshot?.sessionId;
     const result = await api('/api/games/session/move', { value: { action } });
+    if (!sessionSnapshot || sessionSnapshot.sessionId !== sessionId || result.data?.sessionId !== sessionId
+      || result.data.eventRevision < sessionSnapshot.eventRevision) return;
     onSession(result.data);
     await refreshHostState();
     if (action !== 'reveal-answer') {
@@ -163,12 +165,14 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
   }
 
   function syncSession(session, collecting) {
+    if (session?.game === 'draw-guess' && session.sessionId !== sessionSnapshot?.sessionId) setDrawDetails(true);
     if (session?.sessionId !== sessionSnapshot?.sessionId || session?.state?.round !== sessionSnapshot?.state?.round || session?.state?.phase !== sessionSnapshot?.state?.phase) {
       hostStateRequest += 1;
       byId('drawHostWord').textContent = session?.game === 'draw-guess'
         ? session.state.phase === 'choosing' ? '请选择本局题词' : '正在读取题词…'
         : '开始游戏后选择题词';
     }
+    const newSnapshot = session !== sessionSnapshot;
     sessionSnapshot = session || null;
     interactionCollecting = collecting;
     drawWordPicker?.sync(sessionSnapshot);
@@ -179,7 +183,7 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
     });
     setDrawCategoryControlsDisabled(Boolean(session));
     syncDrawStartAvailability();
-    renderDrawSession(session);
+    if (newSnapshot || !session) renderDrawSession(session);
   }
 
   function renderDrawSession(session) {
@@ -197,7 +201,6 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
       byId('drawHostClock').textContent = '01:30';
       return;
     }
-    setDrawDetails(true);
     byId('drawTotalRounds').value = String(state.totalRounds);
     byId('drawRoundDuration').value = String(Math.round(state.roundDurationMs / 1000));
     drawClock = {

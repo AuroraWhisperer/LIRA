@@ -89,17 +89,29 @@ export function createCanvasSharedAppearance({ model, request }) {
       pendingRefresh = false;
     }
   }
+  function releaseIfUnused(entry) {
+    if (active.has(entry.key) || entry.saving) return;
+    const { dirty, error } = entry.controller.getStatus();
+    // The style still owns its scheduled edit when the last layer goes away.
+    if (dirty && !error) return;
+    clearTimeout(entry.timer);
+    entry.stop();
+    entries.delete(entry.key);
+  }
   function save(entry) {
     clearTimeout(entry.timer);
     if (entry.saving) return entry.saving;
     entry.saving = (async () => {
-      while (entry.controller.getStatus().dirty) {
+      while (entries.get(entry.key) === entry && entry.controller.getStatus().dirty) {
         if (!await entry.controller.save()) {
           return false;
         }
       }
       return true;
-    })().finally(() => { entry.saving = null; });
+    })().finally(() => {
+      entry.saving = null;
+      releaseIfUnused(entry);
+    });
     return entry.saving;
   }
   const stopModel = model.subscribeSnapshot(() => {
@@ -112,8 +124,10 @@ export function createCanvasSharedAppearance({ model, request }) {
       return entry ? [[entry.key, entry]] : [];
     }));
     const changed = next.size !== active.size || [...next.keys()].some(key => !active.has(key));
+    const previous = active;
     active = next;
     if (!changed) return;
+    for (const [key, entry] of previous) if (!active.has(key)) releaseIfUnused(entry);
     if (reading) pendingRefresh = true;
     else { clearTimeout(timer); if (active.size) timer = setTimeout(refresh, 0); }
   });
@@ -124,7 +138,7 @@ export function createCanvasSharedAppearance({ model, request }) {
       const state = entry.controller.getState();
       return { ...state, error: state.error || entry.readError };
     },
-    getStatuses() { return [...entries.values()].map(entry => {
+    getStatuses() { return [...active.values()].map(entry => {
       const state = entry.controller.getStatus();
       return { ...state, error: state.error || entry.readError };
     }); },
@@ -139,11 +153,15 @@ export function createCanvasSharedAppearance({ model, request }) {
     reload: refresh,
     discard(item) { const entry = entryFor(item); clearTimeout(entry?.timer); entry?.controller.discard(); },
     discardAll() {
-      for (const entry of entries.values()) { clearTimeout(entry.timer); entry.controller.discard(); }
+      for (const entry of entries.values()) {
+        clearTimeout(entry.timer);
+        entry.controller.discard();
+        releaseIfUnused(entry);
+      }
     },
     async flush() {
       for (const entry of entries.values()) {
-        if (!await save(entry)) throw new Error(entry.controller.getState().error || '共享参数尚未保存，请重试。');
+        if (!await save(entry) && active.get(entry.key) === entry) throw new Error(entry.controller.getState().error || '共享参数尚未保存，请重试。');
       }
     },
     subscribe(listener, item) {

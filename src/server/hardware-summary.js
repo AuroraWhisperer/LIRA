@@ -12,8 +12,13 @@ function createHardwareSummaryService(options = {}) {
   const readTemperatures = options.readTemperatures || readHardwareTemperatures;
   const readDisplays = options.readDisplays || readDisplaySummary;
 
-  async function getStaticSummary() {
-    if (!staticSummaryPromise) staticSummaryPromise = Promise.resolve().then(readStatic);
+  function getStaticSummary() {
+    if (!staticSummaryPromise) {
+      staticSummaryPromise = Promise.resolve().then(readStatic).catch(() => {
+        staticSummaryPromise = null;
+        return buildHardwareSummary({}, readOsSnapshot());
+      });
+    }
     return staticSummaryPromise;
   }
 
@@ -36,8 +41,7 @@ function createHardwareSummaryService(options = {}) {
       let temperatureIndex = 0;
       result.gpus = result.gpus.map((gpu) => {
         if (!isNvidiaGpu(gpu)) return gpu;
-        const temperature = temperatures.gpuTemperatures[temperatureIndex];
-        temperatureIndex += 1;
+        const temperature = temperatures.gpuTemperatures[temperatureIndex++];
         return {
           ...gpu,
           temperatureCelsius: Number.isFinite(temperature) ? temperature : null,
@@ -49,23 +53,19 @@ function createHardwareSummaryService(options = {}) {
   };
 }
 
-async function readStaticHardwareSummary() {
-  const osSnapshot = {
+function readOsSnapshot() {
+  return {
     cpuModel: os.cpus()[0]?.model || '',
     logicalCpuCount: os.cpus().length,
     totalMemoryBytes: os.totalmem(),
     osName: os.version(),
     osBuild: process.platform === 'win32' ? os.release().split('.')[2] : '',
   };
-  if (process.platform !== 'win32') {
-    return buildHardwareSummary({}, osSnapshot);
-  }
+}
 
-  try {
-    return buildHardwareSummary(await readWindowsDeviceDetails(), osSnapshot);
-  } catch (_) {
-    return buildHardwareSummary({}, osSnapshot);
-  }
+async function readStaticHardwareSummary() {
+  const details = process.platform === 'win32' ? await readWindowsDeviceDetails() : {};
+  return buildHardwareSummary(details, readOsSnapshot());
 }
 
 function readWindowsDeviceDetails() {
@@ -206,7 +206,13 @@ async function readHardwareTemperatures(gpus) {
       ['--query-gpu=name,temperature.gpu', '--format=csv,noheader,nounits'],
       { timeout: 3000 },
     );
-    return { gpuTemperatures: parseNvidiaSmiOutput(stdout), gpuMessage: '' };
+    const readings = parseNvidiaSmiOutput(stdout);
+    const inventory = Map.groupBy(nvidiaGpus, (gpu) => gpu.name.toLowerCase());
+    const gpuTemperatures = nvidiaGpus.map((gpu) => {
+      const name = gpu.name.toLowerCase();
+      return inventory.get(name).length === 1 ? readings.get(name) ?? null : null;
+    });
+    return { gpuTemperatures, gpuMessage: '' };
   } catch (_) {
     return { gpuTemperatures: [], gpuMessage: 'NVIDIA GPU 温度不可用' };
   }
@@ -288,16 +294,16 @@ function parseCommandJson(stdout) {
 }
 
 function parseNvidiaSmiOutput(stdout) {
-  return String(stdout || '')
-    .split(/\r?\n/)
-    .filter(Boolean)
-    .flatMap((line) => {
-      const parts = line.split(',', 2);
-      if (parts.length < 2) return [];
-      const rawTemperature = parts[1];
-      const temperature = Number(String(rawTemperature).trim());
-      return [Number.isFinite(temperature) ? temperature : null];
-    });
+  const readings = new Map();
+  for (const line of String(stdout || '').split(/\r?\n/)) {
+    const [name, value] = line.split(',').map((part) => part.trim());
+    if (!name || value === undefined) continue;
+    const key = name.toLowerCase();
+    const temperature = Number(value);
+    // Neither inventory order nor a duplicate model identifies a physical card.
+    readings.set(key, !readings.has(key) && value && Number.isFinite(temperature) ? temperature : null);
+  }
+  return readings;
 }
 
 function runCommand(file, args, options = {}) {

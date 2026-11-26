@@ -241,6 +241,18 @@ test('cancelling without a title removes the latest own active request by reques
   assert.equal(f.count('queue'), 1, 'exhausting own requests must leave another viewer\'s request intact');
 });
 
+test('a replayed cancellation cannot remove a request made after the command', (t) => {
+  const f = requestFixture(t);
+  const at = Date.parse('2026-10-27T04:00:00Z');
+  const older = f.request({ message: '点歌甲', messageTimestamp: at }).queueItem;
+  const newer = f.request({ message: '点歌乙', messageTimestamp: at + 2000 }).queueItem;
+  const cancel = { message: '取消点歌', source: 'history', messageTimestamp: at + 1000 };
+  assert.equal(f.request(cancel).queueItem.id, older.id);
+  assert.equal(f.request(cancel).accepted, false);
+  assert.equal(f.request({ message: '取消点歌', source: 'history' }).accepted, false);
+  assert.deepEqual(getQueueSnapshot(f.context).waiting.map(item => item.id), [newer.id]);
+});
+
 test('cancelling by full title removes only the latest own matching song and leaves newer different titles intact', (t) => {
   const f = requestFixture(t);
   const messageTimestamp = '2026-10-27T04:00:00Z';
@@ -354,7 +366,7 @@ test('request results reach display snapshots once while ordinary messages and c
   }
 });
 
-test('realtime and history cancellation share deduplication and broadcast each actual queue removal once', async (t) => {
+function cancellationClient(t) {
   const { createSettingsStore } = require('../../src/storage/settings-store');
   const { createDomainServices } = require('../../src/server/domain-services');
   const { createBilibiliClient } = require('../../src/server/bilibili-client');
@@ -377,40 +389,184 @@ test('realtime and history cancellation share deduplication and broadcast each a
     bilibiliDiagnostics: {},
     bilibiliAuthCache: {},
   });
-  try {
-    client.stopped = false;
-    client.userInfoService.setRoom({ roomId: '123', ownerUid: '456' });
-    client.roomRunContext = client.userInfoService.beginRoomRun();
-    client.messageHandlers.updateRoomRunContext(client.roomRunContext);
-    const at = Date.now();
-    const own = ['保留', '按名取消', '最后点的'].map((title, index) => services.messages.handleDanmaku({
-      message: `点歌 ${title}`, uid: '42', userName: '同名观众', messageTimestamp: at - 3000 + index * 1000,
-    }).queueItem);
-    const other = services.messages.handleDanmaku({
-      message: '点歌 按名取消', uid: '43', userName: '同名观众', messageTimestamp: at,
-    }).queueItem;
-    const packet = { cmd: 'DANMU_MSG', info: [[0, 0, 0, 0, at], '取消点歌', [42, '同名观众']] };
-    client.messageHandlers.handleDanmaku(packet);
-    client.messageHandlers.handleDanmaku(packet);
-    assert.equal(broadcasts.length, 1);
-    assert.deepEqual(broadcasts[0].queue.waiting.map((item) => item.id), [own[0].id, own[1].id, other.id]);
-
-    t.mock.method(client.apiClient, 'fetchHistory', async () => ({ room: [
-      { text: '取消点歌', uid: 42, nickname: '同名观众', timeline: at - 60000 },
-      { text: '取消点歌', uid: 42, nickname: '同名观众', timeline: at },
-      { text: '取消点歌 按名取消', uid: 42, nickname: '新昵称', timeline: at + 1000 },
-    ] }));
-    await client.historyPoller.pollHistory(client.roomRunContext);
-    await client.historyPoller.pollHistory(client.roomRunContext);
-    assert.deepEqual(broadcasts.map((item) => item.reason), ['bilibili:danmaku', 'bilibili:danmaku']);
-    assert.deepEqual(services.queue.getSnapshot().waiting.map((item) => item.id), [own[0].id, other.id]);
-    assert.equal(f.count('requests'), 2);
-  } finally {
+  client.stopped = false;
+  client.userInfoService.setRoom({ roomId: '123', ownerUid: '456' });
+  client.roomRunContext = client.userInfoService.beginRoomRun();
+  client.messageHandlers.updateRoomRunContext(client.roomRunContext);
+  t.after(() => {
     client.stop();
     services.gifts.dispose();
     services.overtime.dispose();
     services.superChats.dispose();
+  });
+  return { ...f, client, services, broadcasts };
+}
+
+test('realtime and history cancellation share deduplication and broadcast each actual queue removal once', async (t) => {
+  const { client, services, broadcasts, count } = cancellationClient(t);
+  const at = Date.now();
+  const own = ['保留', '按名取消', '最后点的'].map((title, index) => services.messages.handleDanmaku({
+    message: `点歌 ${title}`, uid: '42', userName: '同名观众', messageTimestamp: at - 3000 + index * 1000,
+  }).queueItem);
+  const other = services.messages.handleDanmaku({
+    message: '点歌 按名取消', uid: '43', userName: '同名观众', messageTimestamp: at,
+  }).queueItem;
+  const packet = { cmd: 'DANMU_MSG', info: [[0, 0, 0, 0, at], '取消点歌', [42, '同名观众']] };
+  client.messageHandlers.handleDanmaku(packet);
+  client.messageHandlers.handleDanmaku(packet);
+  assert.equal(broadcasts.length, 1);
+  assert.deepEqual(broadcasts[0].queue.waiting.map((item) => item.id), [own[0].id, own[1].id, other.id]);
+
+  t.mock.method(client.apiClient, 'fetchHistory', async () => ({ room: [
+    { text: '取消点歌', uid: 42, nickname: '同名观众', timeline: at - 60000 },
+    { text: '取消点歌', uid: 42, nickname: '同名观众', timeline: at },
+    { text: '取消点歌 按名取消', uid: 42, nickname: '新昵称', timeline: at + 1000 },
+  ] }));
+  await client.historyPoller.pollHistory(client.roomRunContext);
+  await client.historyPoller.pollHistory(client.roomRunContext);
+  assert.deepEqual(broadcasts.map((item) => item.reason), ['bilibili:danmaku', 'bilibili:danmaku']);
+  assert.deepEqual(services.queue.getSnapshot().waiting.map((item) => item.id), [own[0].id, other.id]);
+  assert.equal(count('requests'), 2);
+});
+
+test('history cancellation uses platform precision and the order in its own list', async t => {
+  const { client, services } = cancellationClient(t);
+  const second = Math.floor(Date.now() / 1000) * 1000;
+  const seconds = new Date(second).toISOString().replace('.000Z', 'Z');
+  const history = { room: [], admin: [] };
+  t.mock.method(client.apiClient, 'fetchHistory', async () => history);
+  let uid = 200;
+  async function replay(timeline, texts, { cancel = '取消点歌', admin = [], firstAt = second - 1000 } = {}) {
+    uid++;
+    const request = (title, at) => client.messageHandlers.handleDanmaku({
+      cmd: 'DANMU_MSG', info: [[0, 0, 0, 0, at], `点歌 ${title}`, [uid, '合成观众']],
+    });
+    request('甲', firstAt);
+    request('乙', second + 125);
+    const row = text => ({ text: text === '取消' ? cancel : `点歌 ${text}`, timeline, uid, nickname: '合成观众' });
+    history.room = texts.map(row);
+    history.admin = admin.map(row);
+    await client.historyPoller.pollHistory(client.roomRunContext);
+    return services.queue.getSnapshot().waiting.filter(item => item.requester_uid === String(uid)).map(item => item.song_name);
   }
+  assert.deepEqual(await replay(seconds, ['乙', '取消']), ['甲']);
+  assert.deepEqual(await replay(second / 1000, ['取消', '乙']), ['乙']);
+  assert.deepEqual(await replay(seconds, ['乙', '取消'], { cancel: '取消点歌 乙' }), ['甲']);
+  assert.deepEqual(await replay(seconds, ['取消']), ['甲', '乙']);
+  assert.deepEqual(await replay(seconds, ['取消'], { admin: ['乙'] }), ['甲', '乙']);
+  assert.deepEqual(await replay(seconds, ['乙', '取消'], { admin: ['取消'] }), ['甲']);
+  assert.deepEqual(await replay(seconds, ['乙', '取消'], { admin: ['取消', '乙'] }), ['甲', '乙']);
+  assert.deepEqual(await replay(seconds, ['甲', '取消', '乙'], { firstAt: second + 30 }), ['乙']);
+  assert.deepEqual(await replay(seconds, ['甲', '取消', '乙'], { firstAt: second + 500 }), ['乙', '甲']);
+  assert.deepEqual(await replay(seconds, ['乙', '取消', '乙']), ['甲', '乙']);
+  assert.deepEqual(await replay(new Date(second).toISOString(), ['取消']), ['乙']);
+  assert.deepEqual(await replay(second + 200, ['取消']), ['甲']);
+});
+
+test('history-only requests retain their time precision across polls and mixed-precision list entries', async t => {
+  const { client, services } = cancellationClient(t);
+  const second = Math.floor(Date.now() / 1000) * 1000;
+  const precise = new Date(second).toISOString();
+  const coarse = precise.replace('.000Z', 'Z');
+  let history;
+  t.mock.method(client.apiClient, 'fetchHistory', async () => history);
+  const event = (uid, text, timeline) => ({ uid, text, timeline, nickname: '合成观众' });
+  const poll = async (room, admin = []) => {
+    history = { room, admin };
+    await client.historyPoller.pollHistory(client.roomRunContext);
+  };
+  const remaining = uid => services.queue.getSnapshot().waiting.filter(row => row.requester_uid === uid)
+    .map(row => row.song_name);
+  await poll([event('42', '点歌 甲', precise), event('43', '点歌 乙', coarse)]);
+  await poll(['42', '43'].map(uid => event(uid, '取消点歌', second + 200)));
+  assert.deepEqual(remaining('42'), []);
+  assert.deepEqual(remaining('43'), ['乙']);
+
+  await poll([event('44', '点歌 甲', second - 1000), event('44', '点歌 乙', second + 125),
+    event('44', '取消点歌', coarse)]);
+  assert.deepEqual(remaining('44'), ['甲']);
+  await poll([event('45', '点歌 甲', second - 1000)]);
+  await poll([event('45', '点歌 乙', coarse)], [event('45', '取消点歌', coarse)]);
+  assert.deepEqual(remaining('45'), ['甲', '乙']);
+});
+
+function historyListReplay(t, previousTitle = '甲') {
+  const { client, services } = cancellationClient(t);
+  const second = Math.floor(Date.now() / 1000) * 1000;
+  let history;
+  let nextUid = 60;
+  t.mock.method(client.apiClient, 'fetchHistory', async () => history);
+  async function replay(admin, room) {
+    const uid = String(++nextUid);
+    const event = row => ({ uid, nickname: '同名观众', ...row });
+    history = { room: [event({ text: `点歌 ${previousTitle}`, timeline: second - 1000 })] };
+    await client.historyPoller.pollHistory(client.roomRunContext);
+    history = { admin: admin.map(event), room: room.map(event) };
+    await client.historyPoller.pollHistory(client.roomRunContext);
+    return services.queue.getSnapshot().waiting.filter(row => row.requester_uid === uid).map(row => row.song_name);
+  }
+  return { replay, second, services };
+}
+
+test('history-only cancellation honors matching later requests in admin and room without guessing across lists', async t => {
+  const { replay, second } = historyListReplay(t);
+  const coarse = second / 1000;
+  const cancel = { text: '取消点歌', timeline: coarse };
+  const request = { text: '点歌 乙', timeline: coarse };
+  const forward = [cancel, request];
+  assert.deepEqual(await replay(forward, forward), ['乙']);
+  assert.deepEqual(await replay(forward, [request, cancel]), ['甲', '乙']);
+  assert.deepEqual(await replay(forward, [cancel, request, request]), ['甲', '乙']);
+  assert.deepEqual(await replay(forward, [...forward, { ...cancel, timeline: second + 250 }]), ['甲', '乙']);
+  assert.deepEqual(await replay(forward, [{ ...cancel, timeline: second }, request]), ['甲', '乙']);
+  assert.deepEqual(await replay(forward, [cancel, { ...request, timeline: second }]), ['甲', '乙']);
+  assert.deepEqual(await replay(forward, [{ ...cancel, uid: '99' }, request]), ['甲', '乙']);
+  const partial = await replay(forward, [{ text: '点歌 丙', timeline: coarse }, ...forward]);
+  assert.deepEqual(partial.sort(), ['甲', '乙', '丙'].sort());
+});
+
+test('a named history cancellation only waits for conflicts that can change the matching song', async t => {
+  const { replay, second, services } = historyListReplay(t, '晴天');
+  services.songs.save({ name: '晴天', artist: '周杰伦' });
+  const row = text => ({ text, timeline: second / 1000 });
+  const cancel = row('取消点歌 晴天');
+  const other = row('点歌 稻香');
+  assert.deepEqual(await replay([other, cancel], [cancel, other]), ['稻香']);
+  assert.deepEqual(await replay([cancel, other], [other, cancel]), ['稻香']);
+  assert.deepEqual(await replay([cancel], [other]), ['稻香']);
+  for (const text of ['点歌 晴天', '点歌 晴', '随机点歌']) {
+    const possibleTarget = row(text);
+    assert.deepEqual(await replay([cancel, possibleTarget], [possibleTarget, cancel]), ['晴天', '晴天'], text);
+  }
+});
+
+test('an untitled history cancellation requires the two lists to agree on the latest eligible song', async t => {
+  const { replay, second } = historyListReplay(t);
+  const [a, b, c, cancel] = ['点歌 晴天', '点歌 稻香', '点歌 夜曲', '取消点歌']
+    .map(text => ({ text, timeline: second / 1000 }));
+  assert.deepEqual(await replay([a, b, cancel], [b, a, cancel]), ['甲', '晴天', '稻香']);
+  assert.deepEqual(await replay([a, b, c, cancel], [b, a, c, cancel]), ['甲', '晴天', '稻香']);
+});
+
+test('history cancellation distinguishes second and aligned millisecond timestamps on live requests', async t => {
+  const { client, services } = cancellationClient(t);
+  const second = Math.floor(Date.now() / 1000) * 1000;
+  const cancelEvents = [];
+  for (const [uid, timeline] of [['51', second / 1000], ['52', second], ['53', second / 1000], ['54', second]]) {
+    if (uid === '51' || uid === '52') {
+      client.messageHandlers.handleDanmaku({ cmd: 'DANMU_MSG', info: [[0, 0, 0, 0, timeline], '点歌 甲', [uid, '观众']] });
+    } else {
+      client.messageHandlers.handleSuperChat({ cmd: 'SUPER_CHAT_MESSAGE', data: {
+        id: uid, uid, message: '点歌 甲', start_time: timeline, price: 30, user_info: { uname: '观众' },
+      } });
+    }
+    cancelEvents.push({ uid, text: '取消点歌', timeline: second + 200, nickname: '观众' });
+  }
+  const uids = () => services.queue.getSnapshot().waiting.map(row => row.requester_uid).sort();
+  assert.deepEqual(uids(), ['51', '52', '53', '54']);
+  t.mock.method(client.apiClient, 'fetchHistory', async () => ({ room: cancelEvents }));
+  await client.historyPoller.pollHistory(client.roomRunContext);
+  assert.deepEqual(uids(), ['51', '53']);
 });
 
 test('request controls default to unrestricted and manual library insertion keeps its existing authority', (t) => {

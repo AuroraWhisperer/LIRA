@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { MAX_SCENE_BYTES } = require('../scenes/scene-contract');
+const { MAX_SCENE_BYTES, normalizeSceneId } = require('../scenes/scene-contract');
 const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../shared/scene-component-types');
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 const { DANMAKU_STYLE_OPTIONS } = require('../shared/danmaku-style-options');
@@ -410,8 +410,13 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
         : change.action === 'create' ? Object.keys(change).some(key => !['action', 'title', 'duplicate'].includes(key))
           || typeof change.title !== 'string' || !change.title.trim() || change.title.length > 80
           || typeof change.duplicate !== 'boolean' : true))) fail(400, '场景预设参数无效。');
+    if (action === 'source' && change !== undefined) {
+      if (!record(change) || Object.keys(change).length !== 1) fail(400, '场景图层标识无效。');
+      change = { itemId: normalizeSceneId(change.itemId) };
+    }
     const sequence = ++session.sequence;
     session.commands.push({ sequence, action, ...(['edit', 'preset', 'control', 'favorite'].includes(action) ? { change: copy(change) } : {}),
+      ...(action === 'source' && change ? { change } : {}),
       ...(baseItemIds === undefined ? {} : { baseItemIds: [...baseItemIds] }) });
     if (commandId !== undefined) session.lastCommand = { id: commandId, sequence };
     session.touched = now();

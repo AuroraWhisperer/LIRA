@@ -7,9 +7,76 @@ const test = require('node:test');
 const { openSqliteDatabase } = require('../../src/storage/database');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSettingsStore } = require('../../src/storage/settings-store');
+const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { createCloudSyncRuntime } = require('../../src/server/cloud-sync-runtime');
 const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('../../src/server/settings-contract');
 const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
+
+test('same revision restores the confirmed mapping after authorization resumes, respecting pending edits and account changes', async (t) => {
+  let revision = 8, count = 4, identity = 1, pending = null;
+  let applied = 0;
+  const settings = { ...DEFAULT_SETTINGS };
+  const published = [];
+  const projection = createCloudSyncRuntime({
+    getSettingsStore: () => ({ getSettings: () => settings, setSettings: patch => Object.assign(settings, patch) }),
+    getBilibiliRuntime: () => ({ configure() { applied++; } }),
+    getAiConfig: () => ({}), getGameSession: () => null, getInteractionSession: () => null,
+    isActive: () => true,
+    broadcastSnapshot(reason) {
+      assert.equal(reason, 'cloud:settings');
+      published.push([settings.roomId, projection.getBlindBoxMappingState()?.customCount ?? null]);
+    },
+  });
+  const mapping = projection.getBlindBoxMappingState;
+  const fixture = createFixture({
+    licenseManager: {
+      getCloudSyncIdentity: () => ({ accountName: `fixture-${identity}`, streamerId: identity }),
+      getCloudState: async () => ({
+        settings: { initialized: true, revision, values: { ...serializeCloudSettings(settings), roomId: String(identity * 111) },
+          blindBoxMapping: { mode: 'v2', applied: true, customCount: count, settingsRevision: revision } },
+        songs: { initialized: true, revision: 1 }, bilibili: { initialized: true, revision: 1 },
+      }),
+      updateCloudSettings: async () => { throw new Error('synthetic pending upload'); },
+    },
+    runtime: { applyCloudSettingsSnapshot: projection.applyCloudSettingsSnapshot,
+      setBlindBoxMappingState: projection.setBlindBoxMappingState, getPendingCloudSettings: () => pending },
+  });
+  t.after(() => fixture.controller.dispose());
+  await fixture.controller.start();
+  assert.equal(mapping().customCount, 4);
+  assert.deepEqual(published, [['111', 4]], 'the first settings broadcast already carries its mapping');
+  assert.equal(applied, 1);
+  fixture.emitState('offline');
+  assert.equal(mapping(), null);
+  revision = 7;
+  fixture.emitState('authorized');
+  await fixture.controller.whenIdle();
+  assert.equal(mapping(), null);
+  revision = 8;
+  await fixture.controller.syncNow();
+  assert.equal(mapping()?.customCount, 4);
+  await fixture.controller.syncNow();
+  assert.deepEqual(published.splice(0), [['111', 4], ['111', null], ['111', 4]]);
+  count = 6;
+  await fixture.controller.syncNow();
+  await fixture.controller.syncNow();
+  assert.deepEqual(published.splice(0), [['111', 6]], 'a mapping-only change publishes once');
+  assert.equal(applied, 1, 'same revision only publishes the server summary');
+  pending = { mutationId: 'editing', values: { giftBlindBoxConfig: [] } };
+  count = 9;
+  await fixture.controller.syncNow();
+  assert.equal(mapping().customCount, 6);
+  fixture.emitState('offline');
+  pending = null;
+  identity = 2;
+  revision = 1;
+  count = 2;
+  fixture.emitState('authorized');
+  await fixture.controller.whenIdle();
+  assert.equal(mapping().customCount, 2);
+  assert.deepEqual(published, [['111', null], ['222', 2]]);
+  assert.equal(applied, 2);
+});
 
 function fixture(t) {
   const root = path.resolve(__dirname, '../../tmp');

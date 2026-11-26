@@ -215,7 +215,17 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   await page.locator('[data-danmaku-tab="welcome"]').click();
   await app.evaluate(() => { global.dailyLibraryTest.failNext = true; });
   await page.locator('#danmakuViewerNamesToggle + .switch-track').click();
-  await page.locator('#danmakuViewerNamesStatus').filter({ hasText: '未确认' }).waitFor();
+  const nameHelp = page.getByRole('button', { name: '昵称管理说明', exact: true });
+  const nameWarning = page.getByRole('button', { name: '昵称管理状态提示', exact: true });
+  await nameWarning.waitFor();
+  await nameHelp.focus();
+  const helpTip = nameHelp.getByRole('tooltip');
+  await helpTip.waitFor();
+  const statusMessage = await page.locator('#danmakuViewerNamesStatus').textContent();
+  assert.equal((await helpTip.textContent()).includes(statusMessage), false);
+  await page.keyboard.press('Tab');
+  await nameWarning.getByRole('tooltip').filter({ hasText: '未确认' }).waitFor();
+  assert.equal(await helpTip.isVisible(), false);
   assert.equal(await page.locator('#danmakuViewerNamesPanel').isHidden(), true);
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.viewerNames.enabled), true);
   await page.getByRole('button', { name: '管理观众昵称', exact: true }).click();
@@ -252,6 +262,7 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   await page.locator('#danmakuViewerNamesList > div').nth(19).waitFor();
   assert.equal(await page.locator('#danmakuViewerNamesNext').isDisabled(), true);
   await page.keyboard.press('Escape');
+  await nameWarning.waitFor({ state: 'hidden' });
   await page.locator('#danmakuViewerNamesToggle + .switch-track').click();
   await page.waitForFunction(() => {
     const toggle = document.getElementById('danmakuViewerNamesToggle');

@@ -1,6 +1,6 @@
 'use strict';
 
-const registeredSelects = new Set();
+const registeredSelects = new Map();
 let localFontFamilies = null;
 let localFontQuery = null;
 let gestureRetryInstalled = false;
@@ -40,7 +40,7 @@ function firstCssFontFamily(value) {
   return source.split(',')[0].trim();
 }
 
-function replaceLocalFontOptions(select, families) {
+function replaceLocalFontOptions(select, families, allowedFamilies) {
   const currentValue = select.value;
   const currentOption = Array.from(select.options).find(option => option.value === currentValue);
   const currentFont = { label: currentOption?.textContent, fontFamily: currentOption?.dataset.fontFamily || currentValue };
@@ -55,7 +55,8 @@ function replaceLocalFontOptions(select, families) {
   group.label = '系统字体库';
   group.dataset.localFonts = 'true';
   families.forEach((family) => {
-    if (existingFamilies.has(family.toLocaleLowerCase())) return;
+    const key = family.toLocaleLowerCase();
+    if (existingFamilies.has(key) || (allowedFamilies && !allowedFamilies.has(key))) return;
     const value = quoteCssFontFamily(family);
     if (Array.from(value).length > Number(select.dataset?.fontMaxLength || Infinity)) return;
     const option = document.createElement('option');
@@ -71,7 +72,7 @@ function replaceLocalFontOptions(select, families) {
 }
 
 function populateRegisteredSelects(families) {
-  registeredSelects.forEach((select) => replaceLocalFontOptions(select, families));
+  for (const [select, allowedFamilies] of registeredSelects) replaceLocalFontOptions(select, families, allowedFamilies);
 }
 
 function installGestureRetry() {
@@ -88,6 +89,7 @@ function installGestureRetry() {
 }
 
 async function loadRegisteredLocalFonts() {
+  if (!registeredSelects.size) return;
   if (localFontFamilies !== null) {
     populateRegisteredSelects(localFontFamilies);
     return;
@@ -130,9 +132,8 @@ export function ensureSavedFontOption(select, value, { label, fontFamily = value
     group.remove();
     group = null;
   }
-  if (!value) return;
-  const exists = Array.from(select.options).some((option) => option.value === value);
-  if (exists) return;
+  const retained = existing || Array.from(select.options).find(option => option.value === value);
+  if (!value || retained) return retained;
 
   if (!group) {
     group = document.createElement('optgroup');
@@ -146,14 +147,16 @@ export function ensureSavedFontOption(select, value, { label, fontFamily = value
   option.dataset.fontFamily = fontFamily;
   option.dataset.savedLocalFont = 'true';
   group.appendChild(option);
+  return option;
 }
 
 /** Register one selector to receive the shared, deduplicated local font inventory. */
-export function registerLocalFontSelect(select) {
-  if (!select) return;
-  registeredSelects.add(select);
+export function registerLocalFontSelect(select, families) {
+  if (!select || families?.length === 0) return;
+  const allowedFamilies = families && new Set(families.map(family => family.toLocaleLowerCase()));
+  registeredSelects.set(select, allowedFamilies);
   if (localFontFamilies !== null) {
-    replaceLocalFontOptions(select, localFontFamilies);
+    replaceLocalFontOptions(select, localFontFamilies, allowedFamilies);
   } else {
     void loadRegisteredLocalFonts();
   }

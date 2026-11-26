@@ -7,6 +7,7 @@ import { PlaybackConfig } from '../config.js';
 
 import * as PlaybackUtils from '../utils.js';
 import { QueueManager } from '../queue/manager.js';
+import { samePlaylistEntry } from '../queue/playlist-entries.js';
 import { isInterruptedMediaPlayError } from '../../shared/media-playback-feedback.js';
 import { preparePlaybackOutput } from './output-device.js';
 
@@ -42,6 +43,7 @@ export function createPlaybackControls(deps) {
   let playRequestSource = null;
   let playRequested = false;
   let waitingForRadio = false;
+  let playlistAttempts = null;
 
   function invalidatePlaybackRequests(source, { keepLyrics = false } = {}) {
     if (source && source !== playRequestSource) return playRequestGeneration;
@@ -76,6 +78,18 @@ export function createPlaybackControls(deps) {
       isCurrentPlaybackRequest(requestGeneration, track) && (!requirePlayIntent || playRequested);
   }
 
+  function notePlaybackProgress(audio) {
+    if (!playlistAttempts || !playbackState.current || !isCurrentPlaybackRequest(audioRequestGeneration, playbackState.current)) return;
+    // Seeking or restoring a position alone does not add a played interval.
+    const played = audio.played;
+    for (let i = 0; i < (played?.length || 0); i++) {
+      if (played.end(i) - played.start(i) >= 1) {
+        playlistAttempts = null;
+        break;
+      }
+    }
+  }
+
   async function resumePlayback(audio, track) {
     const requestGeneration = playRequestGeneration;
     const isCurrent = () => isCurrentPlaybackRequest(requestGeneration, track);
@@ -103,38 +117,67 @@ export function createPlaybackControls(deps) {
     return true;
   }
 
+  function applyRestoredTime() {
+    const audio = getPlaybackAudio();
+    const track = playbackState.current;
+    if (!track || !audio.src || !playbackState.restoredTime ||
+        !isCurrentPlaybackRequest(audioRequestGeneration, track) ||
+        audio.readyState === 0 || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
+    audio.currentTime = Math.min(playbackState.restoredTime, Math.max(0, audio.duration - 1));
+    if (audio.dataset.trackId === track.id) stateActions.setRestoredTime(0);
+  }
+
+  function replacementStartTime(audio, current, replacement) {
+    if (!audio.src || audio.dataset.trackId !== current.id) return playbackState.restoredTime;
+    const position = audio.readyState !== 0 && Number.isFinite(audio.currentTime)
+      ? audio.currentTime : playbackState.restoredTime;
+    const offsetChange = PlaybackUtils.getPlaybackLyricOffsetMs(current) - PlaybackUtils.getPlaybackLyricOffsetMs(replacement);
+    return Math.max(0, position + offsetChange / 1000);
+  }
+
   async function ensureLocalTrackPlayable(track) {
     if (!PlaybackUtils.isLocalTrack(track)) return true;
     if (track.objectUrl) {
       track.fileMissing = false;
       return true;
     }
+    const generation = playRequestGeneration;
+    const sourceEntry = playbackState.queueType === 'playlist'
+      ? playbackState.normalQueueTracks[playbackState.playlistIndex] : null;
 
     // Try IPC restore from saved filePath
+    let restored;
     if (track.filePath && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
       try {
         const res = await window.musicAPI.resolveLocalMediaUrls([track.filePath]);
-        const entry = res && res.results && res.results[track.filePath];
-        if (entry && entry.ok) {
-          track.objectUrl = entry.url;
-          track.fileMissing = false;
-          savePlaybackState();
-          return true;
-        }
+        restored = res?.results?.[track.filePath];
       } catch (_) {}
+    }
+    if (generation !== playRequestGeneration) return false;
+    if (restored?.ok) {
+      track.objectUrl = restored.url;
+      track.fileMissing = false;
+      savePlaybackState();
+      return true;
     }
 
     // File missing: prompt re-selection
     toast('文件已移动或删除，请重新选择本地文件');
-    try {
-      const updated = await localFileManager.reselectLocalFile(track);
-      if (updated && updated.objectUrl) {
-        Object.assign(track, updated);
-        track.fileMissing = false;
-        stateActions.commit();
-        return true;
+    let updated;
+    try { updated = await localFileManager.reselectLocalFile(track); } catch (_) {}
+    if (generation !== playRequestGeneration) return false;
+    if (updated?.objectUrl) {
+      Object.assign(track, updated);
+      track.fileMissing = false;
+      if (sourceEntry?.source === 'local' && sourceEntry !== track && samePlaylistEntry(sourceEntry, track) &&
+          playbackState.normalQueueTracks.includes(sourceEntry)) {
+        Object.assign(sourceEntry, {
+          filePath: updated.filePath, fileName: updated.fileName, objectUrl: updated.objectUrl, fileMissing: false,
+        });
       }
-    } catch (_) {}
+      stateActions.commit();
+      return true;
+    }
 
     track.fileMissing = true;
     renderPlayback();
@@ -185,44 +228,32 @@ export function createPlaybackControls(deps) {
       return false;
     }
     Object.assign(track, streamTrack);
+    if (options.commitCollection) track = options.commitCollection();
 
-    if (!options.isRetry) streamService.resetRetryCount();
+    if (!options.isRetry) {
+      streamService.resetRetryCount();
+      playlistAttempts = options.playlistAttempts || null;
+    }
     if (playlistEntry) {
       const playlistIndex = playbackState.normalQueueTracks.indexOf(playlistEntry);
-      if (!queueManager.jumpToPlaylistTrack(playlistIndex)) return false;
+      if (!queueManager.jumpToPlaylistTrack(playlistIndex, options.dailySourceKey)) return false;
     }
     if (options.consumeHistory) stateActions.takePrevious();
+    if (!options.resumeRestored) {
+      stateActions.setRestoredTime(options.isRetry ? replacementStartTime(audio, playbackState.current, track) : 0);
+    }
     stateActions.beginTrack(track, options);
     audioRequestGeneration = requestGeneration;
     audio.dataset.trackId = track.id;
     audio.src = streamUrl;
     audio.load();
 
-    const startAt = Math.max(0, Number(options.startAt || 0));
-    if (startAt > 0) {
-      audio.addEventListener(
-        'loadedmetadata',
-        () => {
-          if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
-          if (Number.isFinite(audio.duration) && audio.duration > 0) {
-            audio.currentTime = Math.min(startAt, Math.max(0, audio.duration - 1));
-          }
-        },
-        { once: true },
-      );
-    }
-
     try {
       await preparePlaybackOutput(audio);
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       if (playRequested) await audio.play();
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
-      if (startAt > 0) {
-        const dur = audio.duration;
-        if (Number.isFinite(dur) && dur > 0) {
-          audio.currentTime = Math.min(startAt, Math.max(0, dur - 1));
-        }
-      }
+      applyRestoredTime();
     } catch (error) {
       if (requestGeneration === playRequestGeneration && !isInterruptedMediaPlayError(error)) {
         showError(error);
@@ -230,8 +261,6 @@ export function createPlaybackControls(deps) {
     }
 
     if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
-
-    stateActions.finishTrackStart();
 
     loadPlaybackLyrics(track);
     stateActions.commit();
@@ -287,27 +316,13 @@ export function createPlaybackControls(deps) {
       }
       // A lyric refresh may have completed while the stream snapshot was resolving.
       delete streamTrack.lyrics;
-      // Before first play the saved cursor is the only position for this track.
-      let resumeAt = playbackState.restoredTime;
-      if (audio.src && audio.dataset.trackId === track.id && Number.isFinite(audio.currentTime)) {
-        const songPosition = audio.currentTime + PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
-        resumeAt = Math.max(0, songPosition - PlaybackUtils.getPlaybackLyricOffsetMs(streamTrack) / 1000);
-      }
+      const resumeAt = replacementStartTime(audio, track, streamTrack);
       Object.assign(track, streamTrack);
 
       const shouldResume = !audio.paused;
+      stateActions.setRestoredTime(resumeAt);
       audio.src = streamUrl;
       audio.load();
-      audio.addEventListener(
-        'loadedmetadata',
-        () => {
-          if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
-          if (Number.isFinite(audio.duration) && audio.duration > 0) {
-            audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 1));
-          }
-        },
-        { once: true },
-      );
       if (shouldResume) {
         await preparePlaybackOutput(audio);
         if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
@@ -370,7 +385,7 @@ export function createPlaybackControls(deps) {
     if (!audio.src || audio.dataset.trackId !== track.id) {
       await playPlaybackTrack(track, {
         origin: playbackState.currentOrigin,
-        startAt: playbackState.restoredTime,
+        resumeRestored: true,
       });
       return;
     }
@@ -428,7 +443,9 @@ export function createPlaybackControls(deps) {
     const playlistCount = playbackState.queueType === 'playlist' ? playbackState.normalQueueTracks.length : 0;
     const refillCount = playbackState.queueType === 'radio' ? PlaybackConfig.RADIO_REFILL_BATCH_SIZE : 0;
     const limit = automatic ? remainingCount + playlistCount + refillCount + (repeat ? 1 : 0) : 1;
-    const attempted = new Set();
+    const recoveringPlaylist = options.skipUnavailable && playlistCount > 0;
+    const attempted = recoveringPlaylist && playlistAttempts ? playlistAttempts : new Set();
+    if (recoveringPlaylist) attempted.add(PlaybackUtils.getQueueTrackKey(playbackState.current));
     let restarted = false;
     let waitedForRadio = false;
 
@@ -458,11 +475,16 @@ export function createPlaybackControls(deps) {
           next = takeNextPlaybackTrack();
         }
         if (!next) break;
-        const key = PlaybackUtils.getQueueTrackKey(next.track);
-        if (attempted.has(key)) continue;
-        attempted.add(key);
+        if (playbackState.queueType !== 'queue') {
+          const key = PlaybackUtils.getQueueTrackKey(next.track);
+          if (attempted.has(key)) continue;
+          attempted.add(key);
+        }
 
-        const playing = playPlaybackTrack(next.track, { origin: next.origin });
+        const playing = playPlaybackTrack(next.track, {
+          origin: next.origin,
+          playlistAttempts: automatic && playlistCount ? attempted : null,
+        });
         const requestGeneration = playRequestGeneration;
         if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
         if (!automatic) return;
@@ -471,6 +493,8 @@ export function createPlaybackControls(deps) {
       }
 
       if (automatic) {
+        playRequested = false;
+        playlistAttempts = null;
         audio.pause();
         audio.removeAttribute('src');
         audio.load();
@@ -489,6 +513,8 @@ export function createPlaybackControls(deps) {
     changePlaybackQuality,
     togglePlayback,
     seekPlayback,
+    applyRestoredTime,
+    notePlaybackProgress,
     playbackPrevious,
     playbackNext,
     loadPlaybackLyrics,

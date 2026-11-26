@@ -17,12 +17,12 @@
 | `POST /api/component-styles/inventory` | `POST /api/component-preview/styles/inventory` | JSON `{}`；返回 `entries[{id,name,version,bytes,state}]`、`totalBytes/reclaimableBytes/pendingBytes/unregisteredBytes`、`integrity{backupCurrent,recovery}`。state 为 installed/referenced/reclaimable/reclaimed，不返回其他账号的场景信息或磁盘路径；引用不可读取时返回 503 |
 | `POST /api/component-styles/cleanup` | `POST /api/component-preview/styles/cleanup` | JSON `{ids}`，最多 1000 个不重复包 UUID、请求体至多 64 KiB；重新检查完整引用及当前权限后回收指定的已移除无引用目录，返回 `{freedBytes,failed}`。使用情况变化返回 409，完整性问题返回 503；重复清理已回收项成功且释放字节为 0 |
 | `GET /api/component-styles/list` | `GET /api/component-preview/styles/list` | 返回包数组；包含 `id/name/packageId?/version?/bytes/createdAt/styles/isSuite/importTarget`，样式含 `id/type/name/config`；过滤已移除包及样式；套装分类基于完整历史成员，不受逐项移除或新版减少成员影响 |
-| `POST /api/component-styles/backup` | `POST /api/component-preview/styles/backup` | JSON `{}`，返回 `application/zip` 下载；包含可见样式库、当前账号已保存/已发布布局所引用的保留素材、最新资源参数和文本框图片；不含凭据、业务数据或未保存草稿，外部浏览器源及本地加班机背景路径排除 |
-| `POST /api/component-styles/inspect-backup` | `POST /api/component-preview/styles/inspect-backup` | 原始备份 ZIP bytes，至多 2 GiB；预检后返回 `{id,packages,scenes,bytes,warnings}`，绑定当前账号状态并暂存，不创建场景 |
-| `POST /api/component-styles/restore-backup` | `POST /api/component-preview/styles/restore-backup` | JSON `{id}`；重验当前账号、权限、文件摘要和引用后恢复新身份的副本，返回 `{created,existing,packages,warnings}`；原场景、输出绑定和直播凭据不变。同一备份在同账号重复恢复复用副本且不覆盖后续修改；发布布局作为未发布预设导入。账号变化返回 409，暂存可用 cancel 清理 |
+| `POST /api/component-styles/backup` | `POST /api/component-preview/styles/backup` | JSON `{}`，返回 `application/zip` 下载；包含可见样式库、当前账号已保存/已发布布局所引用的保留素材、最新资源参数和文本框图片；不含凭据、业务数据或未保存草稿，外部浏览器源及本地加班机背景路径排除。保存布局和发布快照合计超过 1,000 份时，发送 ZIP 前返回 HTTP 400 JSON |
+| `POST /api/component-styles/inspect-backup` | `POST /api/component-preview/styles/inspect-backup` | 原始备份 ZIP bytes，至多 2 GiB。记录接收方账号归属和授权代次，校验来包后暂存并返回 `{id,packages,scenes,bytes,warnings}`。预检阶段不创建场景 |
+| `POST /api/component-styles/restore-backup` | `POST /api/component-preview/styles/restore-backup` | JSON `{id}`。重验预检时的账号归属、授权代次、权限及来包摘要与引用，恢复新身份的副本并返回 `{created,existing,packages,warnings}`；原场景、输出绑定和直播凭据不变。同一备份在同账号重复恢复复用副本且不覆盖后续修改；发布布局作为未发布预设导入。账号变化返回 409，暂存可用 cancel 清理 |
 | `POST /api/component-styles/config` | `POST /api/component-preview/styles/config` | JSON `{id,patch}`（至多 64 KiB），修改已安装资源型样式的共享外观；禁止替换 `resourceStyle/mediaStyle/cssStyle`，合并后通过场景配置合同校验并原子保存；返回样式 `{id,type,name,config}`。第三方媒体/网页/CSS 不支持此操作，已移除样式返回 404；同 ID 的画布及发布实例跟随新值，场景 JSON 不批量改写 |
 | `POST /api/component-styles/add` | `POST /api/component-preview/styles/add` | 原始媒体 bytes；查询 `description` 为 URL 编码 JSON `{type,filename,name,width,height,media?}`。校验并安装一个样式，返回包 |
-| `POST /api/component-styles/web` | `POST /api/component-preview/styles/web` | 查询 `description` 为 URL 编码 JSON `{type,entry,name?,width?,height?}`；请求体第一行为 UTF-8 JSON 数组 `[{path,size}]` 加换行，随后按顺序拼接各文件 bytes。验证配套资源并原子安装，返回包 |
+| `POST /api/component-styles/web` | `POST /api/component-preview/styles/web` | 查询 `description` 为 URL 编码 JSON `{type,entry,name?,width?,height?}`；请求体第一行为 UTF-8 JSON 数组 `[{path,size}]` 加换行，随后按顺序拼接各文件 bytes。验证配套资源并原子安装，返回包。示例见[网页素材的配套文件](../../guides/component-style-packages.md#网页素材的配套文件) |
 | `POST /api/component-styles/pick-web` | `POST /api/component-preview/styles/pick-web` | JSON `{kind:"auto"或"html"或"css",description:{type,name?,width?,height?}}`；主进程打开文件选择器，HTML/CSS 复制配套目录并返回已安装样式；引用越界时须再明确选择包含入口及全部资源的独立素材根，确认前不读取越界资源。`auto` 选择图片/视频/ZIP 时返回 `application/octet-stream` 与 URL 编码的 `X-Lira-Filename` 文件名，客户端交给已有媒体编辑/ZIP 检查；大小沿用媒体 512 MiB、ZIP 1 GiB 上限。renderer 不提供或接收磁盘路径，读取前复核授权。取消返回 `data:null`；无桌面选择器返回 503 与 `code:"FILE_PICKER_UNAVAILABLE"`，供显式文件/文件夹选择回退 |
 | `POST /api/component-styles/inspect` | `POST /api/component-preview/styles/inspect` | 原始 ZIP bytes；必填查询 `target` 为当前组件类型或 `suite`。服务端校验包与入口匹配后暂存，返回临时 `id`、清单、`isSuite` 和 `replaces:[{id,name,version}]`（同 packageId 将被替换的已安装版本）；此时不修改已安装列表、不可用于场景 |
 | `POST /api/component-styles/install` | `POST /api/component-preview/styles/install` | JSON `{id,target}`，必填 `target` 为当前组件类型或 `suite`；每次安装尝试前按待安装包及当前历史成员重新核对入口，再原子登记套装并撤下同 packageId 其他版本，返回包及 `replaced` 数量；重复内容返回 `alreadyInstalled:true`，恢复已移除包或样式返回 `restored:true`；保留旧场景及资源 |
@@ -32,9 +32,9 @@
 
 ZIP 的 `target` 缺失或无效返回 400 并提示重新选择导入入口；类型不匹配同样返回 400，`code:STYLE_IMPORT_TARGET_MISMATCH`、`importTarget` 与 `importTargetName` 提供服务端确定的正确入口，`error` 指明分类路径。客户端可跳转并复用已选文件，但检查及安装仍必须传入新入口并再次校验。同类多个变体仍是该组件的样式包；历史套装减少成员后仍走套装入口。检查失败清理本次暂存，安装拒绝不修改索引或现有版本，暂存仍可取消。旧调用方需补传 `target`，不能省略入口绕过检查；正在处理的暂存取消返回 409。
 
-备份格式为 `lira-library-backup.json`（`format:lira-component-library-backup, version:1`）及 `packages/<UUID>/…`、`images/<UUID>.<扩展名>` 文件（最多 8192 条目、解压 ≤ 2 GiB、单文件 ≤ 512 MiB、清单 ≤ 16 MiB、包与场景文档各 ≤ 1000 项、文本框图片 ≤ 5 MiB、网页代码 ≤ 4 MiB），拒绝目录条目、符号链接、加密、路径穿越、大小写重复、摘要不符与缺失引用。导出流与恢复前均复核授权，存储与恢复重映射细则见 [存储合同](storage.md#本地组件样式库)。
+备份格式为 `lira-library-backup.json`（`format:lira-component-library-backup, version:1`）及 `packages/<UUID>/…`、`images/<UUID>.<扩展名>` 文件（最多 8192 条目、解压 ≤ 2 GiB、单文件 ≤ 512 MiB、清单 ≤ 16 MiB、包与场景文档各 ≤ 1000 项、文本框图片 ≤ 5 MiB、网页代码 ≤ 4 MiB），拒绝目录条目、符号链接、加密、路径穿越、大小写重复、摘要不符与缺失引用。场景文档按保存布局和发布快照分别计数。预检和恢复仅从接收方场景库取得账号绑定及代次，接收方已有布局超限或草稿损坏时仍可恢复有效备份。原生礼物动效图层保留样式选择（`{}`、`follow`、`gift-drop`、`gift-swing`），播放参数取接收端的礼物设置。导出流与恢复前均复核授权，存储与恢复重映射细则见 [存储合同](storage.md#本地组件样式库)。
 
-网页导入最多 1024 文件、总量 ≤ 512 MiB（HTML/CSS/JS/MJS/JSON 单文件 ≤ 4 MiB，上传清单 ≤ 256 KiB）；入口为 HTML/HTM/CSS，配套允许常见图片、音视频与字体，拒绝路径穿越、符号链接与大小写重复。静态引用缺失时返回具体文件名；HTML 样式记 `type:browser`（`category` 保留原分类），CSS 样式保存原生配置与 `cssStyle`。安装前复核权限（瞬时锁定重试见 [存储合同](storage.md#本地组件样式库)）。
+网页导入最多 1024 文件、总量 ≤ 512 MiB（HTML/CSS/JS/MJS/JSON 单文件 ≤ 4 MiB，上传清单 ≤ 256 KiB）；入口为 HTML/HTM/CSS，配套允许常见图片、音视频与字体，拒绝路径穿越、符号链接与大小写重复。静态检查覆盖 HTML 的 `src`、`srcset` 等加载属性、CSS 的 `url()`、`@import`，以及脚本直接赋给新建图片 `src` 的路径字面量。缺少本地文件返回 HTTP 400 和具体路径。CSS 属性选择器如 `img[src="placeholder.png"]` 只匹配元素，脚本中的示例字符串也跳过。`iframe` 有 `srcdoc` 时检查解码后的内嵌文档，跳过备用 `src`。子文档继承父文档基址，也可用自己的 `<base href>` 指定基址。其外链脚本给图片 `src` 赋值或调用 `fetch()` 时，相对路径字面量按子文档基址解析。HTML 样式记 `type:browser`（`category` 保留原分类），CSS 样式保存原生配置与 `cssStyle`。安装前复核权限（瞬时锁定重试见 [存储合同](storage.md#本地组件样式库)）。
 
 `GET/HEAD /component-web/<包 UUID>/<原相对路径>` 匿名读取已导入网页资源（保留 Host 校验、无目录枚举，按扩展名设 MIME、`nosniff`、CORS `*`、`immutable` 与 `no-referrer`）；HTML/HTM/SVG 强制 `sandbox allow-scripts; object-src 'none'; form-action 'none'`，不注入管理凭据、桌面桥或同源权限；其他方法返回 405，非法或缺失返回 404。
 
@@ -42,7 +42,7 @@ API 响应均为 `no-store`：400 为格式/清单/文件错误，401 为管理�
 
 `GET/HEAD /component-media/<包 UUID>/<SHA-256>.<扩展名>` 提供匿名本机媒体读取（保留 Host 门禁，拒绝链接与非普通文件，支持单段 byte Range 206/416、MIME、`nosniff`、`immutable` 与 CORS；SVG 施加 `sandbox; default-src 'none'; style-src 'unsafe-inline'` CSP，WOFF2 为 `font/woff2`，无目录枚举）。持久化见 [存储合同](storage.md#本地组件样式库)，清单格式见 [作者指南](../../guides/component-style-packages.md)。
 
-`GET/HEAD /img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm` 是既有林间花信图层的兼容入口，由 `gift-frame-resource.js` 解析已安装 `lira.woodland-gift-frame` 包中的受信 `woodland-gift-frame` 预设，返回 `307` 到其 `/component-media/` 视频（`no-store` + CORS）；未导入或仅暂存返回 404，其他方法 405，软删除包仍可供旧图层读取。
+`GET/HEAD /img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm` 是既有林间花信图层的兼容入口。`gift-frame-resource.js` 优先选取 `lira.woodland-gift-frame` 当前安装版本中的受信 `woodland-gift-frame` 预设。回退到旧版本后，入口随之指向该版本。仅在没有可选安装版本时才使用素材目录仍在的软移除版本。命中返回 `307` 到对应 `/component-media/` 视频（`no-store` + CORS）。没有可用版本时返回 404，其他方法返回 405。
 
 ### 画布共享参数
 
@@ -63,9 +63,11 @@ API 响应均为 `no-store`：400 为格式/清单/文件错误，401 为管理�
 
 兼容旧 `/component-preview` 页面与 43 字符短入口解析。旧 query `component` 与 fragment `id`/`token` 表示初始组件，`components` 携带 `{component,id,token,draftKey}` 数组，`canvas` 携带独立场景会话；旧 `size` 仍可读。场景编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。短入口在同标签 `sessionStorage` 中仅按入口凭证 SHA-256 缓存组件名及恢复用 `draftKey`，不缓存明文凭证或组件 token；已断开页面刷新后仍可只读查看该标签本地恢复草稿。
 
-“保存并应用”先等待当前场景及其共享外观归属模块的浏览器编辑被客户端确认，再同步预检、冻结并批量保存，最后按修订号（revision）发布组合画面（原生时钟、队列、弹幕与加班机的独立实例同样参与对应公共归属模块保存，无关默认草稿不保存）。全部保存结束后再次核对各参与者的读取、保存、冲突、草稿与账号代次状态，以及本次场景保存的规范化结果与修订号；任一失败或并发修改均中止发布，保留已成功保存的部分，发布请求后的后续编辑留作下次草稿。
+“保存并应用”先处理资源样式已排队的公共参数写入，再等待当前场景及其共享外观归属模块的浏览器编辑被客户端确认，随后同步预检、冻结并批量保存，最后按修订号（revision）发布组合画面（原生时钟、队列、弹幕与加班机的独立实例同样参与对应公共归属模块保存，无关默认草稿不保存）。全部保存结束后再次核对各参与者的读取、保存、冲突、草稿与账号代次状态，以及本次场景保存的规范化结果与修订号；任一失败或并发修改均中止发布，保留已成功保存的部分，发布请求后的后续编辑留作下次草稿。
 
-`publish` / `source` 仅允许 canvas 访问凭证排队，结果经该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。编辑页显式复制时读取来源并拼接为 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源访问凭证>`；客户端地址目录在首次读取、页签点击、窗口 focus 及 `scene:published` 后刷新（未发布场景提示先保存并应用）。后续正常保存与发布沿用该地址，来源访问凭证不进入文档或模板。
+资源样式的公共参数一经排入自动保存，移除最后一个图层引用后仍会提交。撤销删除或重新使用同款样式可接续待保存草稿。写入失败时，仍有引用的样式保留草稿供重试，并阻止本次发布。已无引用的样式释放失败状态，其余图层可继续发布。
+
+`publish` / `source` 仅允许 canvas 访问凭证排队，结果经该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。复制整场景时，编辑页从来源结果读取 `canvas` 并拼接 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源访问凭证>`。复制独立实例时取 `itemSizes[itemId]`。仅复制所选共享组件的原始地址时，`source` 命令携带 `change: {itemId}`。桌面核对该 ID 已发布，再按已保存图层的类型读取该组件尺寸。客户端地址目录在首次读取、页签点击、窗口 focus 及 `scene:published` 后刷新（未发布场景提示先保存并应用）。后续正常保存与发布沿用该地址，来源访问凭证不进入文档或模板。
 
 除仅用于解析的短入口凭证外，每个组件请求仅使用目标会话自身凭据且不可互换。多图层同时保留各自渲染器，选中组件仅切换参数面板。客户端再次进入预览时先经管理端 `focus` 请求已连接页面定位组件（保留场景、其他图层与未保存草稿）；当前 `attachment` 确认收到后不再新开标签页，尚无 `attachment` 或 2 秒未确认则打开稳定短入口。网页刷新或离开仅释放当前页面资源，新页面接管后旧页面刷新仍可继续编辑；显式 `close` 时各会话先处理已接受命令再撤销，不提前撤销其他会话待保存操作。
 
@@ -83,7 +85,7 @@ API 响应均为 `no-store`：400 为格式/清单/文件错误，401 为管理�
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`（UUID v4） | 同完整 `read`；比对原标识接管，同接管重试幂等，拒绝迟到旧页面接管，保留已接受命令与确认序号 |
 | `detach` | 当前会话 Bearer；`{id,attachmentId}`（须匹配最后接管页面） | `{}`；释放页面并结束待确认 `focus`，保留会话、草稿与已接受命令；重复释放幂等，迟到旧页面不能释放新页面 |
 | `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?,baseItemIds?}`；`clock`/`danmaku` 另允许新增经类型校验的 `styleParameters`（禁原型键）；`baseItemIds` 仅限 canvas `edit` | `{sequence}`（仅表示已排队，保存完成以随后 `state` 为准）；桌面应用 `baseItemIds` 时保留基线与提交文档外的新增图层 |
-| `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}` | `{sequence}`；`publish` 结果 `{publishedVersion}`、`source` 结果 `{id,token}` 经后续 `display` 按 `sequence` 读取 |
+| `publish` / `source` | 仅当前 canvas 会话 Bearer。`{id,attachmentId?,commandId?}`，`source` 可附 `change: {itemId}` 指定要复制原始地址的共享组件 | 返回 `{sequence}`。经后续 `display` 按 `sequence` 读取结果，`publish` 返回 `{publishedVersion}`，`source` 返回 `{id,token,itemIds,canvas,itemSizes,componentSizes}`，`componentSizes` 仅在选定共享组件时填入该类型 |
 | `control` | 仅当前 overtime 会话 Bearer；`change:{action:'time',seconds}` 或 `{action:'enable'\|'disable'\|'start'\|'pause'\|'reset'}` | `{sequence}`；由客户端依次调用加班机接口，结果经 `display.operation` 按 `sequence` 返回，重试不重复执行 |
 | `preset` | 仅当前 canvas 会话 Bearer；`select`/`create`/`delete`/`refresh` | 操作 `state.presets` 中的预设；`refresh` 仅补入新增预设不覆盖草稿；删除当前输出时切向剩余已保存预设或透明空画面 |
 | `favorite` | 仅当前 canvas 会话 Bearer；`change:{style,favorite:boolean}` | `{sequence}`；写入当前账号本机弹幕样式收藏，经 `display.previewData.danmakuStyleFavorites` 同步（排序见 [弹幕姬参考](../frontend/overlays.md#61-弹幕姬)） |
@@ -128,15 +130,15 @@ API 响应均为 `no-store`：400 为格式/清单/文件错误，401 为管理�
 | `POST /api/scenes/create` | `{title,canvas:{width,height}}` | 空场景管理 DTO，凭据仅加密保存 |
 | `POST /api/scenes/save` | `{id,expectedRevision,document}` | 更新草稿并递增 revision，不改变已发布版；旧 revision 返回 409 |
 | `POST /api/scenes/delete` | `{id,expectedRevision,expectedPublishedVersion?}` | 删除当前账号指定预设，返回 `{id,canvas}`，canvas 同画布绑定 DTO。编辑器携带输出版本，防止确认期间输出变化后误删。当前输出被删除时原子切换到剩余 ID 排序首项的已保存版本；删空则发布透明空画面，固定来源 ID/凭据保留。未应用过的画布不因删除而发布。版本或绑定冲突返回 409，不存在、已删除或跨账号返回 404；其他草稿不变 |
-| `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 原子发布布局、样式选择及场景自有字段，递增 publishedVersion；旧 shared 模式传外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版布局，共享参数继续跟随各 owner 已保存值 |
-| `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
-| `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds,canvas,itemSizes}`，取已发布版本；canvas 为 `{width,height}`（未发布为 null），itemSizes 按实例 ID 映射 `{width,height}`；仅显式复制来源使用 |
+| `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 原子发布布局、样式选择及场景自有字段，递增 publishedVersion。旧 shared 模式用 `expectedDefaults` 确认外观快照，共享点歌板同时比较已保存的歌名色 `queueRequestSongColor` 和点歌人色 `queueRequestRequesterColor`。默认值已变化或缓存尚未同步时返回 `503 SCENE_DEFAULT_CHANGED`，保留旧版布局，共享参数继续跟随各 owner 已保存值 |
+| `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源。事务检查预设 revision 和来源 publishedVersion，冲突返回 409。共享外观按上行 `expectedDefaults` 规则核对。全部通过才提交发布快照、当前预设和共享尺寸 |
+| `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds,canvas,itemSizes}`，取已发布版本。复制整场景使用 `canvas` 的 `{width,height}`（未发布为 null），复制独立图层使用 `itemSizes[itemId]` 的 `{width,height}` |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
 | `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?,dataVersions?,incrementalParts?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances,dataVersions?}`；相同发布版本 document 为 null，appearances 仍按已发布可见 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，强制可见、移至原点并使用保存宽高；凭据权限仍属于整个场景 |
 | `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
 | `GET /api/scene/events` | `id,version,item?,projection?` 查询；场景 Bearer | `text/event-stream`，仅通知 `ready` / `change` / `revoked` 与注释心跳；数据仍从 output 读取；本地运行时最多四条连接，超限 429 |
 | `OPTIONS /api/scene/events` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
-| `GET /api/component/size` | clock/queue/overtime/danmaku 的 overlay 凭据；管理请求使用 type 查询 | `{ok:true,data:{width,height}\|null}`；组件 scope 取自凭据，不能由查询覆盖；当前账号尚无保存尺寸时为 null |
+| `GET /api/component/size` | clock/queue/overtime/danmaku 的 overlay 凭据；管理请求使用 type 查询 | `{ok:true,data:{width,height}\|null}`；组件 scope 取自凭据，不能由查询覆盖；当前账号尚无保存尺寸时为 null。画布复制来源时，只有所选共享组件的原始地址使用此查询 |
 
 输出中的 `projection` 是服务进程签发的类型投影令牌，绑定已认证的账号 scope/epoch、`sceneId`、来源访问凭证、可选 `item` 及发布版本；不包含实时数据或来源 token，本身不单独授予访问权限。父页面在整套渲染器成功提交时记录 `version`/`projection`，后续请求携带该有效令牌。服务端仅合并最新文档与已验证令牌的类型集合，新版移除某类组件但准备失败时旧版仍获更新，切换成功后释放旧类型；伪造、跨账号/场景/实例、版本不匹配、轮换或重启后的令牌返回 403，父页清空旧版与令牌后重新读取。省略 `projection` 的旧客户端沿用仅投影最新文档的行为。
 
@@ -146,7 +148,7 @@ API 响应均为 `no-store`：400 为格式/清单/文件错误，401 为管理�
 
 `incrementalParts=1` 声明支持游戏嵌套数据与礼物事件基线的条件输出（须同时携带 `dataVersions`）：你画我猜的 `gamesCanvas` / `gamesScores` 版本匹配时分别省略 `canvas` 或 `correct`/`scores`（同会话同回合内合并，换回合、换账号、断线或重发布补齐）；`gift-frame` / `guard-thanks` 版本绑定账号 epoch 与共享事件序号，匹配时省略整段最多 200 条事件窗口，父页保留事件游标与待播事件。
 
-上述响应均禁止 HTTP 缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、`Authorization` 头与省略凭据模式（不接受 query token），40 ms 合并突发变化，每次通知与每秒心跳均复核访问与服务许可/生命周期；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流，停机在 HTTP 排空前释放所有流。含弹幕的有效来源在成功发送 `ready`/`change` 或心跳时续期同一展示需求（独立 `/api/danmaku/events` 同理），无活动后经 15 秒宽限释放共享云连接。
+上述响应均禁止 HTTP 缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、`Authorization` 头与省略凭据模式（不接受 query token），40 ms 合并突发变化，每次通知与每秒心跳均复核访问与服务许可/生命周期；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流，停机在 HTTP 排空前释放所有流。含弹幕的有效来源在成功发送 `ready`/`change` 或心跳时续期同一展示需求（独立 `/api/danmaku/events` 同理）。最后一次活动后，按单调时钟计满 15 秒即释放共享云连接。
 
 客户端输出读取不重叠（至少间隔 100 ms）；通知正常时每 5 秒补读检查，异常或超连接上限回退约 750 ms 轮询并退避重连。云弹幕展示 `epoch` 按授权账号与直播场次隔离（不随同场 SSE 重连改变，短暂断线推进游标并以 `gap`/`reset` 报告，不要求删除已显示弹幕；账号/代次或场次变更则更换展示 `epoch`，确认下播、撤销或授权失败清空画面）。
 
@@ -180,12 +182,12 @@ API 响应均为 `no-store`：400 为格式/清单/文件错误，401 为管理�
 
 | Scope | 允许的本地 API | 附加限制 |
 | --- | --- | --- |
-| 全部已登记 overlay scope | `GET /api/state` | 仅本页最小状态；无 snapshot 订阅返回 `{}`，也用于旧凭据恢复探测 |
+| 全部已登记 overlay scope | `GET /api/state` | 仅本页最小状态。无 snapshot 订阅返回 `{}`，也用于旧凭据恢复探测。`blindbox` 和 `gift-effects` 的状态含 `giftSourceEpoch`，见[快照投影](ws.md#21-overlay-scope-投影) |
 | `queue` / `overtime` | `GET /api/component/size` | 只读本 scope 的已保存输出尺寸（无保存值返回 `null`），不接受查询参数切换组件 |
 | `lyrics` / `gift-sprint` | 无额外 REST | 专用推送与快照字段见 [ws.md](ws.md) |
 | `gift-effects` | `GET /api/bilibili/avatar` | 仅经受限头像代理读取送礼头像，无礼物历史或管理接口权限，专用推送见 [ws.md](ws.md) |
 | `songlist` | `GET /api/songs` | 服务端强制 `enabledOnly`，仅允许 `category` 过滤；不返回文件路径、禁用歌或导入元数据 |
-| `blindbox` | `GET /api/gifts/blind-box-stats` | 可选 `boxName`/`top`/`hideLoss`，仅公开统计字段 |
+| `blindbox` | `GET /api/gifts/blind-box-stats` | 可选 `boxName`/`top`/`hideLoss`，仅读取公开汇总和排行 |
 | `gift-feed` | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | `history` 强制北京时间今日、100 条、`created_at` 升序，仅转发 `cursor`/`viewRevision` 与可选 `conditional`/`contentRevision`/`delta`；`card-profiles` 转发 `viewRevision`/`contentRevision`，禁止选择旧日期、来源或用户过滤 |
 | `gift-export` | `GET /api/bilibili/avatar` | 导出数据由主进程注入冻结快照，无历史、selection 或导出 IPC 权限 |
 | `gift-wishes` | `GET /api/gifts/wishes` | 仅心愿展示字段、整数计数、进度及直播窗口，无来源 ID、送礼人或写权限 |
@@ -270,9 +272,9 @@ Electron 主进程经 [remote-license-client.js](../../../src/electron/license/r
 | `GET /api/system/hardware`  | 查询参数 `includeTemperatures=true`(可选)                                                                                                                                 | 本机操作系统版本、CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器），以及当前显示器配置；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号                 | —                    |
 | `POST /api/system/shutdown` | body `{confirm: true}`(必须)                                                                                                                                              | `{shuttingDown: true}`,随后延迟 250ms 关闭服务                                                                                | 400 `缺少退出确认。` |
 
-硬件查询的 `operatingSystem` 为 `{name,displayVersion,buildNumber}`，均为字符串：`name` 为系统名称及版本类型，`displayVersion` 为功能版本（如 `25H2`），`buildNumber` 为系统内部版本（如 `26200.6899`）。未知名称为“未知系统”，其余未知字段为空字符串；只知道主 build 时不补造修订号。系统版本随静态硬件信息在进程内缓存。
+硬件查询的 `operatingSystem` 为 `{name,displayVersion,buildNumber}`，均为字符串：`name` 为系统名称及版本类型，`displayVersion` 为功能版本（如 `25H2`），`buildNumber` 为系统内部版本（如 `26200.6899`）。未知名称为“未知系统”，其余未知字段为空字符串；只知道主 build 时不补造修订号。成功读取的系统和静态硬件信息在进程内缓存。静态硬件查询失败时先返回操作系统可提供的基础信息，下次检测再试。GPU 温度只在型号可唯一对应时返回数值。CPU 采样的 `windowMs` 取单调时钟耗时，`sampledAt` 记录采样结束时刻。
 
-硬件查询的 `displays` 为主屏优先的数组，元素为 `{name,primary,width,height,scalePercent,refreshRate}`；宽高是 Windows 当前显示模式的像素值，不是网页逻辑尺寸或屏幕最大支持分辨率。缩放百分比与刷新率（Hz）未知时为 `null`，Windows 默认频率标记 0/1 不作实际 Hz 展示。显示配置每次查询重新读取，系统版本与 CPU/GPU/内存型号仍缓存；不支持、读取失败或无可用显示器时返回 `displays:[]` 和 `displayMessage`，不阻断其他硬件信息。性能页打开和开始检测时查询，不后台轮询。
+硬件查询的 `displays` 为主屏优先的数组，元素为 `{name,primary,width,height,scalePercent,refreshRate}`；宽高是 Windows 当前显示模式的像素值，不是网页逻辑尺寸或屏幕最大支持分辨率。缩放百分比与刷新率（Hz）未知时为 `null`，Windows 默认频率标记 0/1 不作实际 Hz 展示。显示配置按需读取，从发起采样起 5 秒内复用同一次读取，期满后由下次请求重新采样。系统版本与 CPU/GPU/内存型号使用静态缓存。不支持、读取失败或无可用显示器时返回 `displays:[]` 和 `displayMessage`，不阻断其他硬件信息。性能页打开和开始检测时查询，不后台轮询。
 
 行为文档:[server-core.md](server-core.md) §6(启动/关闭时序)。
 
@@ -283,7 +285,9 @@ Electron 主进程经 [remote-license-client.js](../../../src/electron/license/r
 
 | 端点 | 请求 | 响应(data) | 错误 |
 | --- | --- | --- | --- |
-| `POST /api/settings` | 设置键值 patch；只处理 `settings.defaults` 白名单键，未知键静默忽略；下表说明特殊归一化 | `system.getState()` 业务快照 | 字段无效 400 `设置 <key> 的值无效。`；WeSing prepare 失败为 400；账号切换后云设置尚未恢复时修改同步字段返回 503 `CLOUD_SETTINGS_NOT_READY`，不落盘；其他未捕获异常走顶层错误映射 |
+| `POST /api/settings` | 设置键值 patch，只处理 `settings.defaults` 白名单键，未知键静默忽略。查询参数 `return=minimal` 可请求仅确认保存。下表说明特殊归一化 | 默认返回 `system.getState()` 业务快照。选择 `return=minimal` 时返回 `{ok:true}` | 字段无效 400 `设置 <key> 的值无效。`；WeSing prepare 失败为 400；账号切换后云设置尚未恢复时修改同步字段返回 503 `CLOUD_SETTINGS_NOT_READY`，不落盘；其他未捕获异常走顶层错误映射 |
+
+单独保存 `enableAutoUpdate` 时，桌面页可附 `X-Lira-Update-Edit: <页面 UUID>/<序号>`。UUID 用小写十六进制，序号为页面内递增的正整数（最多 15 位，无前导零）。每个设置存储在内存中保留最近 32 个页面各自成功写入的最大序号。同页重复或更小的序号跳过写入，仍按请求的响应格式返回成功。缺少此头、格式无效或同时写入其他设置时，沿用普通写入流程。
 
 归一化由 [settings-contract.js](../../../src/server/settings-contract.js) 的 `normalizeSettingsPatch` 负责；存储默认值与分组见 [storage.md](storage.md) §7。未在下表单独列出的白名单键才会回退为 `String(rawValue)` 写入，不可绕过下表的领域校验规则。
 
@@ -304,7 +308,7 @@ Electron 主进程经 [remote-license-client.js](../../../src/electron/license/r
 | `userCooldownCaptainSeconds` / `userCooldownAdmiralSeconds` / `userCooldownGovernorSeconds` | 默认精确空串，表示该身份不限制且不继承其他身份；否则接受 0–3600 的整数或十进制整数字符串，0 同样不限制，纯空白串无效 |
 | `userDailyLimit` / `userDailyCaptainLimit` / `userDailyAdmiralLimit` / `userDailyGovernorLimit` | 每种身份各自的每日点歌上限；默认精确空串，或 0 表示不限；接受 0–300 的整数或十进制整数字符串。按账号同步设置，执行及次数只在本机，计数见 [音乐服务](music/services.md#82-addqueueitemcontext-inputqueue-servicejs) |
 | `songRequestMinMedalLevel` / `songRequestGuardLevel` / `songRequestGuardMedalBypass` | 粉丝牌要求为 0–100（默认 0 不限）；大航海要求为 0 不限、3 舰长及以上、2 提督及以上、1 总督；前两项接受整数或十进制整数字符串。免牌开关默认 false，接受既有兼容 boolean 标量，只免粉丝牌、不免大航海等级要求 |
-| `songRequestUserBlacklist` | 数组或 JSON 数组文本，最多 200 项；每项仅允许 `uid`、`name`、`expiresAt`。uid 必填且为 1–25 位正整数文本、不能重复；name 可省略为空，原始值最多 80 个 Unicode code point，保存去首尾空白；expiresAt 可省略为 0，仅接受 0–253402300799999 的整数毫秒时间，0 永久，到期自动失效。默认 `[]`，不与点歌屏蔽词混用 |
+| `songRequestUserBlacklist` | 数组或 JSON 数组文本，最多 200 项；每项仅允许 `uid`、`name`、`expiresAt`。uid 必填且为 1–25 位正整数文本、不能重复；name 可省略为空，原始值最多 80 个 Unicode code point，保存去首尾空白；expiresAt 可省略为 0，仅接受 0–253402300799999 的整数毫秒时间，0 永久，到期自动失效。默认 `[]`，不与点歌屏蔽词混用。提交该键会替换整份名单。管理页按 UID 合并已收到的快照，保留提交后继续编辑或删除的草稿。多个客户端并发提交时以最后写入的名单为准 |
 | `roomId` | §2.2 的 `normalizeRoomInput`；空值可清空，非空但不能解析的输入失败，不默认为有效空房间 |
 | `customReplyRules` | §2.3 的数组/JSON 解析与清洗，结果保存为 JSON 文本；非法 JSON 按该 owner 的既有规则回退空数组 |
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
@@ -414,7 +418,7 @@ Electron 主进程经 [remote-license-client.js](../../../src/electron/license/r
 
 用语参考[和风天气的天气现象表](https://dev.qweather.com/docs/start/icons/)，仅用于本地展示文案，不调用其服务。未列出的描述保留原文，不按子串替换；降水强度、雨雪类型、雷电、局部范围、可能性和天气变化等限定信息保留，例如「小阵雨」「雷阵雨伴有冰雹」「局部阵雨」「可能有雷雨」「多云转晴」。
 
-内存缓存按坐标合并并发请求，成功结果缓存至请求发起时的下一个整点（最长 1 小时），容量上限 128 项，未过期前不主动淘汰；缓存已满时先清理已过期且无在途请求的条目，仍无空位则返回 503。缓存命中保留原始数据时间与获取时间，跨整点完成的请求不延长缓存期限。错误至少退避 1 分钟并遵守更长的 `Retry-After`，不把旧结果包装为新的成功响应，不回退到收费来源。前端在启动和每个整点请求，切页不发起请求；缓存仅在当前 runtime 内共享，不跨主播电脑共享。定时刷新由管理页控制器调度，后端服务本身不做定时抓取或持久化；单个调用方取消不中断共享上游请求，服务关闭时在 HTTP 排空前统一取消并等待在途请求结束。用户可见行为见 [世界地图](../frontend/app.md#世界地图)。
+内存缓存按坐标合并并发请求，成功结果缓存至请求发起时电脑所在时区的下一个整点（最长 1 小时）。例如加尔各答时间 08:50 发起的请求，缓存到 09:00 到期。容量上限 128 项，未过期前不主动淘汰；缓存已满时先清理已过期且无在途请求的条目，仍无空位则返回 503。缓存命中保留原始数据时间与获取时间，跨整点完成的请求不延长缓存期限。错误至少退避 1 分钟并遵守更长的 `Retry-After`，不把旧结果包装为新的成功响应，不回退到收费来源。前端在启动时和此后每个本地整点请求，切页不发起请求；缓存仅在当前 runtime 内共享，不跨主播电脑共享。定时刷新由管理页控制器调度，后端服务本身不做定时抓取或持久化；单个调用方取消不中断共享上游请求，服务关闭时在 HTTP 排空前统一取消并等待在途请求结束。用户可见行为见 [世界地图](../frontend/app.md#世界地图)。
 
 ## 2.6 正在播放配置(now-playing)
 
@@ -538,7 +542,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 歌曲保存接受可选 `requestPrice` / `songClip`（兼容 `request_price` / `song_clip`）；省略保留已有值，显式空值清空。这两项保留内部空格与换行，规范化 CRLF、控制字符及首尾空白。客户端价格表单超过 1000 UTF-16 code unit 阻止提交，但历史超长值回填不截断；本地 API 不新增截断行为。
 
-导入价格额外接受「点歌条件 / 点歌说明」；同一行价格别名的不同非空文本计为该行失败，相同值或单非空值接受。默认 `import` / `import-xlsx` 以 HTTP 200 返回统计和 `failures: [{row, reason}]`（`row` 从 1 起），合法行继续导入，已有同歌名同歌手跳过。模板 5 首各带价格文本，导出保持 10 列，CSV 防公式注入（详见 [点歌资料规范](../../../specs/song-request-metadata.md)）。
+导入价格额外接受「点歌条件 / 点歌说明」。同一行各价格列有不同非空文本时该行失败，相同值或单非空值可导入。价格表头重名时，文件解析器在行对象的 `requestPriceColumns` 字符串数组中保留全部原始价格格，与命名字段一起校验。默认 `import` / `import-xlsx` 以 HTTP 200 返回统计和 `failures: [{row, reason}]`（`row` 从 1 起），合法行继续导入，已有同歌名同歌手跳过。模板 5 首各带价格文本，导出保持 10 列，CSV 防公式注入（详见 [点歌资料规范](../../../specs/song-request-metadata.md)）。
 
 整份替换与兼容更新沿用本机鉴权与 Origin 边界，不改变云端传输契约：
 
@@ -547,7 +551,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `POST /api/songs/import-preview` | `{rows?,base64?,replaceAll?:boolean,allowEmptyClear?:boolean}`，XLSX 用 base64，否则提供保留实际列的原始行对象，1–5000 行 | `{previewToken,counts:{inserted,updated,unchanged,conflict,invalid,deleted?},rows:[{row,name,artist,status,differences:[{field,before,after}],reason?}],canApply}` | 400 `SONG_IMPORT_INPUT_INVALID`，500 `SONG_IMPORT_FAILED` |
 | `POST /api/songs/import-apply` | 同一原始输入和导入选项，加 `previewToken`；客户端不传执行计划 | `{total,inserted,updated,unchanged,conflict,invalid,deleted?,createdCategories}` | 409 `SONG_IMPORT_PREVIEW_STALE`，422 `SONG_IMPORT_PREVIEW_INVALID`，400 输入无效，500 `SONG_IMPORT_FAILED`。保存、后续广播或请求同步失败时均可能返回此错误，重试前需核对歌库 |
 
-错误体 `{ok:false,error,message}`；请求体须为对象（`null`、数组或同时传 `rows`/`base64` 返回 400）。预览纯读取；应用在本地事务内重读全部歌曲与曲风，重算变更并核对绑定输入与快照的 SHA-256 令牌（任一冲突/无效行或零变更不可应用）。管理页固定传 `replaceAll: true`：以表格为完整歌库，删除未匹配旧歌曲并覆盖匹配歌曲字段（空白/缺列用默认值），替换预览额外返回 `deleted` 计数与删除明细；令牌同时绑定 `replaceAll` 选项，成功广播 `songs:import` 并请求一次 `songs` 云同步。
+错误体 `{ok:false,error,message}`；请求体须为对象。`null`、数组、同时传 `rows`/`base64` 或 XLSX 含无效共享字符串索引时，预览和应用均返回 400 `SONG_IMPORT_INPUT_INVALID`。预览纯读取；应用在本地事务内重读全部歌曲与曲风，重算变更并核对绑定输入与快照的 SHA-256 令牌（任一冲突/无效行或零变更不可应用）。管理页固定传 `replaceAll: true`：以表格为完整歌库，删除未匹配旧歌曲并覆盖匹配歌曲字段（空白/缺列用默认值），替换预览额外返回 `deleted` 计数与删除明细；令牌同时绑定 `replaceAll` 选项，成功广播 `songs:import` 并请求一次 `songs` 云同步。
 
 | 端点                           | 请求                                                                                                                                       | 响应(data)                                                             | 错误码                                                                                                                      |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -630,14 +634,14 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `GET /api/gifts/card-profiles` | 可选 `viewRevision/contentRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial/contentRevision`；匹配内容版本时返回空 items 和 `unchanged:true`。完整 items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时验证服务端分页的来源、日期和同步代次，支持版本的服务端只在变化时重新翻页；不可用时只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |
 | `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数；minGiftAmountCents 为非负安全整数分且是 10 的倍数（界面金额最多一位小数），省略默认 0；独立字符串枚举 tailStyle（`slant\|swallowtail\|ribbon\|capsule`，默认 `slant`）与 textureStyle（`solid\|satin\|starlight\|facets\|argyle\|polka\|ripple\|lace\|petals\|foil`，默认 `solid`）；sheen 为独立布尔开关，省略默认 false，非布尔值无效 | 读取/保存本地礼物展示配置，保存后广播刷新；条带外形与内部纹理独立组合，共用于设置预览、画布、滚动画面和 PNG 导出。白色扫光适用于所有外形和纹理，不受金额限制，仅用于动态展示；导出预览和 PNG 显式关闭扫光。缺外观字段的旧配置/请求补原样默认且保留原金额、行数及速度。速率线性对应每行 5–0.1 秒，默认 12（每行 3.9 秒）。最小金额 0 不过滤，正数仅让当天合并后累计金额严格大于门槛的卡片进入滚动，不影响历史或导出。旧配置/请求缺金额字段补 0；合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
 | `GET /api/gifts/statistics`         | 查询参数:`query?`、`range?` 同 history;禁止 `sourceId/source_id`                                                          | 当前授权 source 的 8 项整数分 summary、`topGifts`(≤50)、`timeSeries`(≤240)及同步完整性状态 | 400(参数/来源选择器无效)、409(来源未就绪) |
-| `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`、`top?`（-1 全榜、0 汇总、1–10 前 N）、`hideLoss?`（0/1，默认 0） | 今日盲盒汇总、排行及 `heartBoxProgress`；先过滤非盈利用户再 top，汇总值不变；非法参数返回 `400 INVALID_GIFT_STATS_OPTIONS` | — |
+| `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`、`top?`（-1 全榜、0 汇总、1–10 前 N）、`hideLoss?`（0/1，默认 0）、`includeRecords?`（0/1，默认 1） | 管理请求返回今日汇总、排行及 `heartBoxProgress`。省略 `includeRecords` 或传 `1` 时附 `records`（最多 500 条开盒明细），传 `0` 时省略该字段。`hideLoss` 先过滤非盈利用户，再取前 N 名。`includeRecords` 的其他值及非法筛选参数返回 `400 INVALID_GIFT_STATS_OPTIONS` | — |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`)、`startDate?/endDate?`(本机日期 YYYY-MM-DD，含首尾两天；只给一端为单日，都省略为今天) | 当前授权来源的盲盒开盒分析；`dateRange` 返回生效日期，`today` 仍为本机当天零点 | 400(日期无效或逆序) |
 | `GET /api/gifts/search`             | 查询参数:`from?`、`to?`、`limit?`(**1–500**,默认 100)                                                                         | 时间范围检索结果                                    | —                                   |
 | `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, themeId?}`；themeId 仅支持 `woodland-bloom`（默认），num 默认 1 | 广播 `gift:frame` 预览事件，不读取实时开关/阈值；不再需要金额（内部占位 1 分且不展示），旧金额若提供仍须大于 0，旧 motionMode 忽略 | 400(数量、主题或显式旧金额无效) |
 | `POST /api/gifts/guard-thanks/preview` | `{tier, userName?, months?, textMode?}`；tier 为 `captain/admiral/governor`，months 为 1–999 整数（默认 1），textMode 为 `bilingual/zh/en`（默认 `bilingual`） | 广播独立 `gift:guard-thanks` 预览事件（`preview:true`，不带头像），不读取实时开关 | 400(等级、月数或文字模式无效) |
 | `POST /api/gifts/clear-recent`      | `{confirm: true}`(必须)                                                                                                       | 清空最近礼物;广播 `gift:clear-recent`               | 400(`缺少清空确认。`)               |
 
-`GET /api/gifts/blind-box-stats?boxName=心动盲盒` 的 `heartBoxProgress` 为 `{openedSinceCastle: 非负整数}`；其他盒型或不筛选时为 `null`。它表示今天最近一次开出浪漫城堡之后的心动盲盒数，未出堡则为今日累计；无记录为 0。身份、未知盈亏和时间顺序规则见[盲盒统计](bilibili/gift.md#4-盲盒服务器结果与客户端展示)。公开 overlay 投影仅保留此数值，不附带原始开盒记录或身份信息。
+`GET /api/gifts/blind-box-stats?boxName=心动盲盒` 的 `heartBoxProgress` 为 `{openedSinceCastle: 非负整数}`；其他盒型或不筛选时为 `null`。它表示今天最近一次开出浪漫城堡之后的心动盲盒数，未出堡则为今日累计；无记录为 0。身份、未知盈亏和时间顺序规则见[盲盒统计](bilibili/gift.md#4-盲盒服务器结果与客户端展示)。礼物首页取 `top=10&includeRecords=0`。独立盲盒源与场景均按不含明细的模式读取公开汇总、排行和此进度值。
 
 `GET /api/gifts/blind-box-analysis` 在筛选区间包含本地归档时附带 `hasArchivedDetails: true`、`archivePrecision:'day'`、`archiveTimeZones` 及 `hasArchivedTimezoneMismatch`。用户与盒型统计包含同资格日合计，`records` 仅返回实际逐笔记录。归档按记录的民用日期匹配；时区变化时显示精度限制，不能还原跨日逐笔分布。未发布旧归档随一次性基线重置清理，不再产生 `hasLegacyArchivedDates`。
 
@@ -838,11 +842,11 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 
 ### 实时四榜
 
-`GET /api/bilibili/live-rankings?version=<上次版本>` 仅接受本机管理身份，返回 `{ok:true,data}` 并设置 `Cache-Control: no-store`。房间取当前授权账号保存的配置，不接受客户端指定房间。首次返回 `{version,room,intervalMs:500,status,message,boards,serverNow}`；版本相同时只返回 `{unchanged:true,serverNow}`，仍续期消费需求。
+`GET /api/bilibili/live-rankings?version=<上次版本>` 仅接受本机管理身份，返回 `{ok:true,data}` 并设置 `Cache-Control: no-store`。房间取当前授权账号保存的配置，不接受客户端指定房间。首次返回 `{version,room,intervalMs:500,status,message,boards,serverNow}`。各榜完成刷新即发布新的快照版本，其他榜可继续在途。客户端提交当前版本时只返回 `{unchanged:true,serverNow}`，仍续期消费需求。
 
 `boards` 的 ID 为 `hot`、`hot-new`、`popular`、`popular-area`，分别对应热门全站 / 新人 TOP50、人气全站 / 当前房间推荐分区 TOP100。分区来自 B 站 `getRankTabConfigWithList`，不是全站列表的筛选结果。每榜包含 `title,unit,limit,rows,current,eligible,status,message,updatedAt,requestMs,endsAt`；失败重试时可附 `retryAt`。行字段为 `roomId,uid,name,avatarUrl,rank,score,supporters,areaName,distance`，未知数值为 `null`，不附带播放地址或凭据。时间为本机毫秒时间戳；`endsAt` 根据上游剩余秒数和请求中点估算，不能作为 B 站权威结榜时刻。
 
-[live-rank-provider.js](../../../src/bilibili/live-rank-provider.js) 只读官方接口并投影字段；[live-rank-service.js](../../../src/bilibili/live-rank-service.js) 由 `scene-runtime.js` 持有。管理页、编辑器和场景输出共享一轮四榜请求，以 500ms 为目标间隔，慢请求不重叠；每分钟刷新房间分区上下文。无人读取或续期三秒后停止并取消在途请求，账号 / 房间变化清空旧快照。每榜错误独立退避 1–30 秒，HTTP Retry-After 最多采用 60 秒，保留最后成功数据；恢复后回到 500ms。上游建议的 15 秒不替代用户选择的查询间隔，也不保证每次查询有新分值。
+[live-rank-provider.js](../../../src/bilibili/live-rank-provider.js) 只读官方接口并投影字段；[live-rank-service.js](../../../src/bilibili/live-rank-service.js) 由 `scene-runtime.js` 持有。管理页、编辑器和场景输出共享四榜调度，以 500ms 为目标间隔，每榜最多一个请求在途。刷新、退避、房间分区上下文的一分钟有效期和三秒观看租约均按单调时钟计时。租约从最后一次读取或续期起算，到期停止刷新并取消在途请求，系统时间回拨也按时释放。账号 / 房间变化清空旧快照。每榜错误独立退避 1–30 秒，HTTP Retry-After 最多采用 60 秒，保留最后成功数据；恢复后回到 500ms。上游建议的 15 秒不替代用户选择的查询间隔，也不保证每次查询有新分值。
 
 浏览器源通过场景访问凭证读取同一快照，并以 `dataVersions['live-rankings']` 确认版本；该凭证不能访问管理端点。配置与呈现见 [榜单展示](../frontend/overlays.md#实时榜单)。画布预览的实时订阅启停由 `exchange`/`exchange-batch` 返回的 `attached` 状态控制，详见 [浏览器组件预览](#浏览器组件预览)。
 
@@ -871,8 +875,8 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 
 | 端点 | 输入 | 输出与行为 |
 | --- | --- | --- |
-| `GET /api/bilibili/dynamic-lottery/state` | 可选 `taskId` 查询参数 | `{ok:true,data:{tasks,task,result,job,error}}`；当前授权账号最近 50 个活动、选中活动进度与获奖者（不返回 Cookie、内部游标或随机顺序，不触发上游请求） |
-| `POST /api/bilibili/dynamic-lottery/tasks` | `{url,winnerCount,requireLike,requireRepost,requireFollow,requestId}` | 中奖人数 1–100，三个开关须为 boolean；作者检查与采集后台执行，返回同形状态；同 `requestId` 同参数幂等，异参冲突 |
+| `GET /api/bilibili/dynamic-lottery/state` | 可选 `taskId` 查询参数 | `{ok:true,data:{tasks,task,result,job,error}}`；当前授权账号最近 50 个活动、选中活动的进度、错误和获奖者（不返回 Cookie、内部游标或随机顺序，不触发上游请求） |
+| `POST /api/bilibili/dynamic-lottery/tasks` | `{url,winnerCount,requireLike,requireRepost,requireFollow,requestId,submittedAtMs?}` | 中奖人数 1–100，三个开关须为 boolean；`submittedAtMs` 为点击时的正整数毫秒值，同一次创建重试时复用。截止取点击与服务接收两者较早者，旧调用省略时取接收时刻。作者检查与采集后台执行，返回同形状态；同 `requestId` 同参数幂等，异参冲突 |
 | `POST /api/bilibili/dynamic-lottery/tasks/action` | `{taskId,revision,action:'pause'\|'resume'\|'draw'}` | 校验受信 scope 归属，继续/开奖须匹配 `revision`；`pause` 可省略 `taskId` 取消正在解析的链接；继续不重新随机，已结束活动不重抽 |
 
 `result.winners[]` 包含 `uid`、`position`、`verification`、`drawnAtMs` 及可空的 `displayName`（≤ 256 字符）与 `commentText`（均来自本轮冻结成员指向的评论证据，不可信纯文本，旧记录缺失返回 `null`）。响应均为 `Cache-Control: no-store`；错误为 `{ok:false,error:LOTTERY_*}`（401 通用鉴权、403 `LOTTERY_IDENTITY_UNAVAILABLE`、404 `LOTTERY_TASK_NOT_FOUND`、409 `LOTTERY_BUSY`/`LOTTERY_DRAW_CONFLICT`、其余 400）。

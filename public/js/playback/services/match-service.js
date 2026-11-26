@@ -24,7 +24,7 @@ export class MatchService {
    * @param {Function} [onAttempt] - 诊断观察回调，不参与匹配决策
    * @returns {Promise<Object|null>} 匹配结果 {autoAccept, score, reasons, track}
    */
-  async matchQueueItem(item, platforms = [], onAttempt) {
+  async matchQueueItem(item, platforms = [], onAttempt, { isCurrent = () => true, signal } = {}) {
     const songName = item.song_name || item.songName || '';
 
     if (!songName) return null;
@@ -32,8 +32,10 @@ export class MatchService {
     let fallbackMatch = null;
 
     for (const platform of platforms) {
+      if (!isCurrent()) return null;
       try {
-        const matched = await this.matchOnPlatform(item, platform, onAttempt);
+        const matched = await this.matchOnPlatform(item, platform, onAttempt, isCurrent, signal);
+        if (!isCurrent()) return null;
         if (!matched) continue;
 
         // 找到可自动接受的匹配，直接返回
@@ -46,6 +48,7 @@ export class MatchService {
           fallbackMatch = matched;
         }
       } catch (error) {
+        if (!isCurrent()) return null;
         const message = error.name === 'TimeoutError' ? '搜索或匹配超时，请稍后重试' : error.message || String(error);
         onAttempt?.(null, { error: message }, platform);
         console.warn('[MatchService] match failed on platform:', platform, message);
@@ -62,9 +65,10 @@ export class MatchService {
    * @param {Function} [onAttempt] - 诊断观察回调
    * @returns {Promise<Object|null>} 匹配结果
    */
-  async matchOnPlatform(item, platform, onAttempt) {
-    const data = await this.searchAndRank(item, platform);
-    const best = data.results?.[0];
+  async matchOnPlatform(item, platform, onAttempt, isCurrent = () => true, signal) {
+    const data = await this.searchAndRank(item, platform, isCurrent, signal);
+    if (!isCurrent()) return null;
+    const best = data.results?.find((row) => row.autoAccept && row.track) || data.results?.[0];
     if (!best?.track) {
       onAttempt?.(null, data, platform);
       return null;
@@ -76,14 +80,18 @@ export class MatchService {
       reasons: Array.isArray(best.reasons) ? best.reasons : [],
       track: PlaybackUtils.normalizeOnlineTrack(best.track),
     };
-    onAttempt?.(matched, data, platform);
+    if (onAttempt) {
+      const results = [best, ...data.results.filter((candidate) => candidate !== best)];
+      onAttempt(matched, { ...data, results }, platform);
+    }
     return matched;
   }
 
-  async searchAndRank(item, platform) {
+  async searchAndRank(item, platform, isCurrent = () => true, cancelSignal) {
     const songName = item.song_name || item.songName || '';
     const artist = item.artist || '';
-    const signal = AbortSignal.timeout(30000);
+    const timeout = AbortSignal.timeout(30000);
+    const signal = cancelSignal ? AbortSignal.any([cancelSignal, timeout]) : timeout;
 
     // 第一步：搜索候选曲目
     const searchResponse = await fetch('/api/music/search', {
@@ -98,6 +106,7 @@ export class MatchService {
     });
 
     const searchPayload = await this.readJsonResponse(searchResponse, '搜索点歌候选失败');
+    if (!isCurrent()) return null;
     assertApiResponse(searchResponse, searchPayload, '搜索点歌候选失败');
 
     const candidates = Array.isArray(searchPayload.data && searchPayload.data.tracks) ? searchPayload.data.tracks : [];
@@ -124,7 +133,7 @@ export class MatchService {
    * @param {number} durationMs - 时长（可选）
    * @returns {Promise<Object>} 匹配结果
    */
-  async testMatch(songName, artist = '', durationMs = 0) {
+  async testMatch(songName, artist = '', durationMs = 0, options = {}) {
     if (!songName) {
       throw new Error('请输入要测试的歌名');
     }
@@ -132,7 +141,7 @@ export class MatchService {
     const attempts = [];
     const platforms = PlaybackUtils.preferredPlatforms(this.state?.current?.source, this.state?.selectedSource || 'qq');
     const matched = await this.matchQueueItem({ songName, artist, durationMs }, platforms,
-      (match, data, platform) => attempts.push({ match, data, platform }));
+      (match, data, platform) => attempts.push({ match, data, platform }), options);
     const selected = matched && attempts.find((attempt) => attempt.match === matched);
     const platformName = (platform) => platform === 'qq' ? 'QQ 音乐' : '网易云音乐';
     const summary = `按点歌导入顺序查询：${attempts.map((attempt) => platformName(attempt.platform)).join(' → ')}。`

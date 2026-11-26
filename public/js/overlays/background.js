@@ -15,9 +15,10 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let animated = new URLSearchParams(location.search).get('style') === 'moonlit-animated';
 let currentConfig = {};
 let configuration = 0;
+let playbackActive = true;
 function update() {
   if (disposed) return;
-  animation.update({ animated, reducedMotion: reducedMotion.matches, visible: !document.hidden });
+  animation.update({ animated, reducedMotion: reducedMotion.matches, visible: playbackActive && !document.hidden });
   return windowlight.update(currentConfig, { reducedMotion: reducedMotion.matches, visible: !document.hidden });
 }
 function updateVisibility() { update()?.catch(() => {}); }
@@ -31,6 +32,10 @@ function dispose() {
   window.removeEventListener('pagehide', dispose);
 }
 const component = mountSceneExtraClient('background', {
+  onPlaybackActive(active) {
+    playbackActive = active;
+    updateVisibility();
+  },
   async onConfig(config) {
     if (!['none', 'moonlit', 'moonlit-animated', 'windowlight'].includes(config?.style)) return false;
     const current = ++configuration;

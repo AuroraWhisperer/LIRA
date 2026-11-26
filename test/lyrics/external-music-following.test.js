@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { buildMusicRuntime } = require('../../src/server/music-runtime');
 const { routes } = require('../../src/server/routes/playback-routes');
+const { createExternalClientLyricResolver } = require('../../src/music/external-client-lyrics');
 
 async function fixture(t, extra = {}) {
   const samples = {};
@@ -32,6 +33,182 @@ async function fixture(t, extra = {}) {
     await new Promise(setImmediate);
   }
   return { runtime, samples, sample, starts, stops, messages };
+}
+
+async function smtcFixture(t, platform, resolveLyrics) {
+  let time = 100000;
+  t.mock.method(Date, 'now', () => time);
+  const { runtime, samples } = await fixture(t, resolveLyrics ? { [`${platform}ClientLyricResolver`]: resolveLyrics } : {});
+  return {
+    runtime,
+    async send(at, changes = {}) {
+      time = at;
+      samples[platform]({ detected: true, appId: platform, title: 'Song', artist: 'Artist', clockSource: 'smtc',
+        playbackStatus: 'Playing', positionMs: 0, durationMs: 180000, timelineUpdatedAt: 100000, ...changes });
+      await new Promise(setImmediate);
+    },
+  };
+}
+
+for (const platform of ['qq', 'netease']) {
+  test(`${platform} rematches a different recording of the same title and artist`, async (t) => {
+    const fetched = [];
+    const resolver = createExternalClientLyricResolver({ platform, getRegistry: () => ({}),
+      catalogService: { async searchMusicTracks() {
+        return { tracks: [180000, 240000].map((durationMs, i) => ({
+          source: platform, sourceTrackId: String(101 + i), title: 'Song', artists: ['Artist'], durationMs,
+        })) };
+      } },
+      lyricsService: { async getMusicTrackLyrics(_registry, { track }) {
+        fetched.push(track.sourceTrackId);
+        return { source: platform, lines: [{ startMs: 0, text: `歌词 ${track.sourceTrackId}` }] };
+      } },
+    });
+    const { runtime, send } = await smtcFixture(t, platform, resolver);
+    await send(100000);
+    await send(100500);
+    await send(101000, { durationMs: 185000 });
+    assert.equal(runtime.getLyricState().lineText, '歌词 101');
+    const next = { durationMs: 240000, timelineUpdatedAt: 101500 };
+    await send(101500, next);
+    await send(102000, next);
+    assert.equal(runtime.getLyricState().lineText, '歌词 102');
+    assert.deepEqual(fetched, ['101', '102']);
+  });
+
+  test(`${platform} recovers the current lyrics after a late sample reports a different duration`, async (t) => {
+    const durations = [];
+    const { runtime, send } = await smtcFixture(t, platform, async ({ durationMs }) => {
+      durations.push(durationMs);
+      return { source: platform, lines: [{ startMs: 0, text: 'Current' }] };
+    });
+    await send(100000);
+    await send(100500);
+    await send(101000, { durationMs: 241000, timelineUpdatedAt: 98000 });
+    assert.equal(runtime.getLyricSource()[`${platform}Client`].status, 'loading');
+    await send(101500);
+    assert.equal(runtime.getLyricState().lineText, 'Current');
+    assert.deepEqual(durations, [180000]);
+  });
+
+  test(`${platform} holds and resumes a stale SMTC anchor until a seek supplies a new position`, async (t) => {
+    const { runtime, send } = await smtcFixture(t, platform);
+    await send(100000);
+    await send(110000);
+    await send(110500, { playbackStatus: 'Paused' });
+    assert.equal(runtime.getLyricState().currentMs, 10500);
+    await send(140000, { playbackStatus: 'Paused' });
+    assert.equal(runtime.getLyricState().currentMs, 10500);
+    await send(140500);
+    assert.equal(runtime.getLyricState().currentMs, 10500);
+    await send(141000);
+    assert.equal(runtime.getLyricState().currentMs, 11000);
+    await send(141250, { positionMs: 10500, timelineUpdatedAt: 110500 });
+    assert.equal(runtime.getLyricState().currentMs, 11250, 'a late pause reading cannot replay the pause interval');
+    await send(141500, { positionMs: 2000, timelineUpdatedAt: 141500 });
+    assert.equal(runtime.getLyricState().currentMs, 2000);
+  });
+
+  test(`${platform} integrates half-speed, pause and resume at the observed transitions`, async (t) => {
+    const { runtime, send } = await smtcFixture(t, platform);
+    await send(100000);
+    await send(102000);
+    const slow = { playbackRate: 0.5 };
+    await send(103000, slow);
+    assert.equal(runtime.getLyricState().playbackRate, 0.5);
+    const paused = { ...slow, playbackStatus: 'Paused' };
+    await send(107000, paused);
+    assert.equal(runtime.getLyricState().currentMs, 5000);
+    await send(137000, paused);
+    assert.equal(runtime.getLyricState().currentMs, 5000);
+    await send(137500, { ...slow, positionMs: 5000, timelineUpdatedAt: 107000 });
+    assert.equal(runtime.getLyricState().currentMs, 5000);
+    await send(138000, { ...slow, positionMs: 5000, timelineUpdatedAt: 107000 });
+    assert.equal(runtime.getLyricState().currentMs, 5250);
+  });
+
+  test(`${platform} applies a paused seek stamped before the pause was observed`, async (t) => {
+    const { runtime, send } = await smtcFixture(t, platform);
+    await send(100000);
+    await send(102000);
+    await send(103000, { playbackStatus: 'Paused' });
+    const seek = { positionMs: 50700, timelineUpdatedAt: 102800 };
+    await send(103500, { ...seek, playbackStatus: 'Paused' });
+    assert.equal(runtime.getLyricState().currentMs, 50700);
+    await send(108000, seek);
+    await send(108500, seek);
+    assert.equal(runtime.getLyricState().currentMs, 51200);
+    await send(109000, { playbackStatus: 'Paused', positionMs: 900, timelineUpdatedAt: 108200 });
+    assert.equal(runtime.getLyricState().currentMs, 900);
+  });
+
+  test(`${platform} waits for a new clock through two same-title switches and ignores late lyrics`, async (t) => {
+    const requests = [];
+    const { runtime, send } = await smtcFixture(t, platform, (track) => {
+      const request = Promise.withResolvers();
+      requests.push({ ...request, track });
+      return request.promise;
+    });
+    // For QQ the duration identifies each recording. For NetEase only its ID changes.
+    const version = (index) => platform === 'qq' ? { durationMs: 180000 + 60000 * index } : { sourceTrackId: String(101 + index) };
+    let clock = { timelineUpdatedAt: 100000, positionMs: 40000 };
+    await send(100000, { ...version(0), ...clock });
+    await send(100500, { ...version(0), ...clock });
+    for (let index = 1; index <= 2; index++) {
+      const at = 100000 + index * 10000;
+      const recording = version(index);
+      await send(at, { ...recording, ...clock });
+      await send(at + 500, { ...recording, ...clock });
+      assert.equal(requests.length, index, 'metadata alone must not pair the new recording with the old clock');
+      assert.equal(runtime.getLyricSource()[`${platform}Client`].status, 'loading');
+      clock = { timelineUpdatedAt: at + 1000, positionMs: 0 };
+      await send(at + 1000, { ...recording, ...clock });
+      assert.equal(requests.length, index + 1);
+    }
+    for (const index of [2, 1, 0]) {
+      const expected = version(index);
+      for (const [key, value] of Object.entries(expected)) assert.equal(requests[index].track[key], value);
+      requests[index].resolve({ source: platform, coverUrl: `https://example.test/${index}.jpg`,
+        lines: [{ startMs: 0, text: `版本 ${index}` }] });
+      await new Promise(setImmediate);
+    }
+    assert.equal(runtime.getLyricState().lineText, '版本 2');
+    assert.equal(runtime.getLyricState().currentMs, 0);
+    assert.equal(runtime.getLyricTimeline().lines[0].text, '版本 2');
+    assert.equal(runtime.getNowPlayingState().coverUrl, 'https://example.test/2.jpg');
+  });
+
+  test(`${platform} accepts a new song's only zero anchor after the old zero has advanced`, async (t) => {
+    const { runtime, send } = await smtcFixture(t, platform, async ({ title }) => ({
+      source: platform, lines: [{ startMs: 0, text: title }],
+    }));
+    await send(100000);
+    await send(110000);
+    assert.equal(runtime.getLyricState().currentMs, 10000);
+    const next = { title: 'Next', timelineUpdatedAt: 110500 };
+    await send(110500, next);
+    await send(111000, next);
+    assert.equal(runtime.getLyricState().lineText, 'Next');
+    assert.equal(runtime.getLyricState().currentMs, 500);
+  });
+
+  test(`${platform} waits when the handoff reading advances more slowly than the old clock`, async (t) => {
+    const titles = [];
+    const { runtime, send } = await smtcFixture(t, platform, async ({ title }) => {
+      titles.push(title);
+      return { source: platform, lines: [{ startMs: 0, text: title }] };
+    });
+    await send(100000, { positionMs: 40000 });
+    await send(104000, { positionMs: 40000 });
+    const handoff = { title: 'Next', positionMs: 48800, timelineUpdatedAt: 110000 };
+    await send(110000, handoff);
+    await send(110500, handoff);
+    assert.equal(runtime.getLyricSource()[`${platform}Client`].status, 'loading');
+    assert.deepEqual(titles, ['Song']);
+    await send(111000, { title: 'Next', positionMs: 300, timelineUpdatedAt: 111000 });
+    assert.equal(runtime.getLyricState().lineText, 'Next');
+    assert.equal(runtime.getLyricState().currentMs, 300);
+  });
 }
 
 test('sole playing external client follows without selection; choosing another does not disable it', async (t) => {

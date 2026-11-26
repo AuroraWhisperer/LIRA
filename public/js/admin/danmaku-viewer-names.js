@@ -25,6 +25,7 @@ export function initDanmakuViewerNames({
     toggle.checked = settings?.enabled === true;
     toggle.disabled = !owner || !available || !settings || busy;
     open.disabled = !owner || !available || !settings;
+    get('Status').ariaBusy = String(Boolean(owner && available && busy && !settings));
     get('Status').textContent = !available ? '请更新客户端后使用昵称管理' : !owner ? '连接 LIRA 账号后可设置' :
       stateNotice || (!settings ? notice || '正在读取云端状态…' : '');
     get('Notice').textContent = notice;

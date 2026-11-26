@@ -94,7 +94,7 @@
   height: 34px;
   border-radius: var(--radius-md);
   background: var(--color-control-accent-light);
-  color: var(--color-control-accent);
+  color: var(--color-primary-text, var(--color-selection-text, var(--color-control-accent)));
   font-size: 16px;
   font-weight: var(--type-weight-bold);
 }
@@ -212,8 +212,8 @@
 }
 
 .lira-confirm-backdrop.is-destructive .lira-confirm-confirm:hover {
-  border-color: color-mix(in srgb, var(--color-danger) 82%, #000);
-  background: color-mix(in srgb, var(--color-danger) 82%, #000);
+  border-color: color-mix(in srgb, var(--color-danger) 82%, light-dark(#000000, #ffffff));
+  background: color-mix(in srgb, var(--color-danger) 82%, light-dark(#000000, #ffffff));
 }
 
 .lira-confirm-actions button:focus-visible {

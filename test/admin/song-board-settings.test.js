@@ -110,9 +110,17 @@ test('standalone theme preserves inheritance, custom black, percentage opacity a
   assert.equal(await page.evaluate(() => window.writes[3].body.songBoardSongColor), '');
   await page.evaluate(() => window.writes[3].finish());
   await page.waitForFunction(() => !window.controller.getState().dirty);
-  await page.locator('#songBoardThemeOpacityNumber').fill('29');
+  const opacity = page.locator('#songBoardThemeOpacityNumber');
+  await opacity.fill('29');
   await page.waitForFunction(() => window.writes.length === 5);
   assert.equal(await page.evaluate(() => window.writes[4].body.songBoardThemeOpacity), '0.29');
+  await page.evaluate(() => window.writes[4].finish());
+  await opacity.fill('129');
+  assert.equal(await page.locator('#songBoardThemeOpacity').inputValue(), '0.29');
+  await opacity.press('Tab');
+  assert.equal(await opacity.inputValue(), '100');
+  await page.waitForFunction(() => window.writes.length === 6);
+  assert.equal(await page.evaluate(() => window.writes[5].body.songBoardThemeOpacity), '1');
 });
 
 test('reset and presets save only persisted fields', async (t) => {

@@ -3,6 +3,8 @@
 const { createQQClientMonitor } = require('./qq-client-monitor');
 const { isDeepStrictEqual } = require('node:util');
 const { findCurrentLyricLine } = require('./lyric-parser');
+const { recordingDurationChanged } = require('./external-client-lyrics');
+const { hasTrackClockReset, readSmtcClock, smtcPositionAt } = require('./smtc-clock');
 
 function createQQClientCapture({
   platform = process.platform,
@@ -28,6 +30,7 @@ function createQQClientCapture({
   let previousTrackTimeline = null;
   let stableTrack = false;
   let lyrics = null;
+  let lyricDurationMs = 0;
   let lastEmitted, lastLyrics;
   let resolving = false;
   let resolved = false;
@@ -69,26 +72,26 @@ function createQQClientCapture({
     onTimeline(getTimeline());
   }
 
-  function clearLyrics(status = 'idle') {
+  function resetLyrics() {
+    trackVersion += 1;
+    resolving = resolved = lyricError = false;
     lyrics = null;
-    publishTimeline(status);
+    lyricDurationMs = 0;
+    state.lyricSource = '';
+    state.coverUrl = '';
   }
 
   function resetTrack(preserveTimeline = false) {
-    trackVersion += 1;
+    resetLyrics();
     trackKey = '';
     stableTrack = false;
-    resolving = false;
-    resolved = false;
     if (!preserveTimeline) {
       lastTimelineStamp = 0;
       lastTimeline = null;
     }
     previousTrackStamp = 0;
     previousTrackTimeline = null;
-    lyrics = null;
     clockReady = false;
-    lyricError = false;
     missingSince = null;
   }
 
@@ -105,6 +108,7 @@ function createQQClientCapture({
   async function loadLyrics() {
     if (resolving || resolved) return;
     resolving = true;
+    lyricDurationMs = state.durationMs;
     const version = trackVersion;
     try {
       const result = await resolveLyrics({ title: state.trackTitle, artists: state.artists, durationMs: state.durationMs });
@@ -141,7 +145,7 @@ function createQQClientCapture({
         status: sample.error ? 'error' : 'waiting',
         message: sample.error ? '无法读取 QQ 音乐播放状态，请重新检测' : '请打开 QQ 音乐客户端并播放歌曲',
       };
-      if (clearTimeline) clearLyrics();
+      if (clearTimeline) publishTimeline('idle');
       emit();
       return;
     }
@@ -149,40 +153,34 @@ function createQQClientCapture({
     const title = String(sample.title || '').trim().slice(0, 120);
     const artist = String(sample.artist || '').trim().slice(0, 80);
     const key = JSON.stringify([sample.appId, title, artist]);
-    const stamp = sample.timelineUpdatedAt;
-    const changed = key !== trackKey;
-    if (changed) {
+    const { positionMs: position, durationMs: duration, timelineUpdatedAt: stamp } = sample;
+    const validClock = Number.isFinite(position) && position >= 0 && Number.isFinite(duration) && duration > 0 &&
+      position <= duration && Number.isFinite(stamp) && stamp > 0 && stamp >= lastTimelineStamp;
+    const changedRecording = validClock && recordingDurationChanged(lyricDurationMs, duration);
+    if (key !== trackKey || changedRecording) {
       // QQ can publish a new title with one final clock update from the old song.
       previousTrackStamp = lastTimelineStamp > 0 && Number.isFinite(stamp)
         ? Math.max(lastTimelineStamp, stamp) : lastTimelineStamp;
       previousTrackTimeline = lastTimeline;
-      trackVersion += 1;
       trackKey = key;
       stableTrack = false;
-      resolving = false;
-      resolved = false;
-      lyricError = false;
       state.trackTitle = title;
       state.artists = artist ? [artist] : [];
-      state.lyricSource = '';
-      state.coverUrl = '';
+      resetLyrics();
+      if (changedRecording) lyricDurationMs = duration;
       state.status = 'loading';
-      clearLyrics('loading');
+      publishTimeline('loading');
     } else {
       stableTrack = true;
     }
     state.detected = true;
-    const position = sample.positionMs;
-    const duration = sample.durationMs;
     const playing = sample.playbackStatus === 'Playing';
     state.playing = playing;
     // A fresh song may publish its only anchor together with the title. A changed
     // duration or reset position distinguishes that anchor from the old clock.
     const newTrackClock = previousTrackTimeline && stamp >= previousTrackTimeline.stamp &&
-      (duration !== previousTrackTimeline.duration || position + 1000 < previousTrackTimeline.position);
-    const usable = title && stableTrack && ['Playing', 'Paused'].includes(sample.playbackStatus) &&
-      Number.isFinite(position) && position >= 0 && Number.isFinite(duration) && duration > 0 && position <= duration &&
-      Number.isFinite(stamp) && stamp > 0 && stamp >= lastTimelineStamp &&
+      hasTrackClockReset(previousTrackTimeline, sample);
+    const usable = title && stableTrack && validClock && ['Playing', 'Paused'].includes(sample.playbackStatus) &&
       (stamp > previousTrackStamp || newTrackClock);
     if (!usable) {
       clockReady = false;
@@ -194,16 +192,14 @@ function createQQClientCapture({
       emit();
       return;
     }
+    const time = now();
     lastTimelineStamp = stamp;
-    lastTimeline = { stamp, position, duration };
+    lastTimeline = readSmtcClock(sample, time, previousTrackTimeline ? null : lastTimeline);
     previousTrackStamp = 0;
     previousTrackTimeline = null;
     clockReady = true;
-    // SMTC Position is current as of LastUpdatedTime, not as of this poll.
-    const rate = Number.isFinite(sample.playbackRate) && sample.playbackRate > 0 ? sample.playbackRate : 1;
-    state.playbackRate = rate;
-    const elapsed = playing ? Math.max(0, now() - stamp) * rate : 0;
-    state.currentMs = Math.round(Math.min(duration, position + elapsed));
+    state.playbackRate = lastTimeline.rate;
+    state.currentMs = Math.round(smtcPositionAt(lastTimeline, time));
     state.durationMs = Math.round(duration);
     if (resolved) {
       applyResolvedLyrics();
@@ -224,7 +220,7 @@ function createQQClientCapture({
     resetTrack();
     state = { ...initial, active, status: active ? 'waiting' : 'inactive',
       message: active ? '请打开 QQ 音乐客户端并播放歌曲' : initial.message };
-    clearLyrics();
+    publishTimeline('idle');
     emit();
     if (active) {
       const version = lifecycle;

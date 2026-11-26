@@ -6,7 +6,8 @@ const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { SAFE_REFUSAL, DOUBAO_CHAT_POLICY, checkLocalInput, buildInputReviewPrompt,
   buildOutputReviewPrompt, parseSafetyReview } = require('./safety');
 const { getQuotaToolNames } = require('./api-quota-store');
-const { resolvePersona } = require('./personas');
+const { resolvePersona, getPersonaScope } = require('./personas');
+const { buildTools } = require('./prompt');
 const { getCurrentTime } = require('./tools/current-time-tool');
 const { normalizeConversationContext } = require('./conversation-context');
 const { buildAutoReplyInput, buildAutoReplyInstructions, buildAutoInputReviewPrompt,
@@ -85,7 +86,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
           assertCurrent();
           const result = { action: 'reply', text, targetMessageId: decision.targetMessageId, category: 'auto', usage, toolCalls: 0 };
           if (snapshot.roomId && target?.uid && !target.uid.startsWith('name:')) {
-            const personaScope = JSON.stringify([snapshot.roomId, persona.id, persona.prompt]);
+            const personaScope = getPersonaScope(snapshot.roomId, config, persona);
             // Only the selected viewer's delivered conversation is extended; it is not model input.
             const context = normalizeConversationContext(store.getContext(target.uid, personaScope));
             result.memory = { uid: target.uid, question: target.text, personaScope, context, sessionId: context?.sessionId || randomUUID() };
@@ -132,7 +133,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
       let toolCallCount = 0;
       try {
         persona ||= resolvePersona(config);
-        personaScope = JSON.stringify([roomId, persona.id, persona.prompt]);
+        personaScope = getPersonaScope(roomId, config, persona);
         if (endConversation) {
           if (canRemember) store.clearContext(uid, personaScope);
           return { text: '这段对话结束啦，下次叫我会重新开始～', category: 'conversation_reset', usage, toolCalls: 0 };
@@ -144,10 +145,18 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
         const context = conversationContext;
         conversationSessionId ||= context?.sessionId || randomUUID();
         const input = buildConversationInput(question, context);
-        const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
+        const configuredTools = buildTools(config);
+        const offeredNames = configuredTools.map(tool => tool.name || tool.type);
+        const excludedToolNames = new Set();
+        function availableAfterQuotaCheck() {
+          const remaining = offeredNames.filter(name => !excludedToolNames.has(name));
+          for (const name of quotaStore?.getExcludedToolNames?.(remaining) || []) excludedToolNames.add(name);
+          return configuredTools.filter(tool => !excludedToolNames.has(tool.name || tool.type));
+        }
+        let availableTools = availableAfterQuotaCheck();
         // The store persists only the key hash, not config secrets or context text.
         const cacheKey = JSON.stringify([
-          'reply-v10',
+          'reply-v11',
           config,
           modelSessionRevision,
           personaScope,
@@ -172,7 +181,6 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
         const currentTime = getCurrentTime({}, { now: new Date(now()) }).formatted;
         const replyBudget = getReplyLengthBudget(userName, config.replyMaxChars);
         const replyLimit = options.singleMessage ? replyBudget.oneMessage : replyBudget.threeMessages;
-        let availableTools = buildAvailableTools(config, excludedToolNames);
         let response = await modelClient.createResponse({
           config,
           instructions: buildReplyInstructions(
@@ -208,7 +216,11 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
             });
             toolCallCount += 1;
           }
-          availableTools = buildAvailableTools(config, excludedToolNames);
+          const enabledNames = buildTools(store.getConfig()).map(tool => tool.name || tool.type);
+          for (const name of offeredNames) {
+            if (!enabledNames.includes(name)) excludedToolNames.add(name);
+          }
+          availableTools = availableAfterQuotaCheck();
           response = await modelClient.createResponse({
             config,
             instructions: buildReplyInstructions(

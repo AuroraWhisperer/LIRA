@@ -206,6 +206,7 @@ async function createPlaybackApp(initialState, options = {}) {
   const sandbox = {
     console,
     AbortSignal,
+    AbortController,
     document,
     encodeURIComponent,
     fetch,

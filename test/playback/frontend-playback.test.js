@@ -95,6 +95,79 @@ test('song import retries failed matches and distinguishes reused numeric IDs by
   assert.notEqual(afterClear.importedRequestKeys[0], retry.importedRequestKeys[0]);
 });
 
+test('song import serves the unattempted tail first and rotates retries through the remaining slots', async () => {
+  const { ImportService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/import-service.js'));
+  const attempts = [];
+  const service = new ImportService({ matchService: { async matchQueueItem({ id }) {
+    attempts.push(id);
+    return id === 31 ? { autoAccept: true, track: { id: 'tail' } } : null;
+  } } });
+  service.fetchSongQueue = async () => ({ items: Array.from({ length: 31 }, (_, i) => ({ id: i + 1 })) });
+  const first = await service.importFromSongQueue();
+  const firstIds = Array.from({ length: 30 }, (_, i) => i + 1);
+  assert.deepEqual(attempts, firstIds);
+  attempts.length = 0;
+  const second = await service.importFromSongQueue({ importedRequestKeys: first.importedRequestKeys });
+  assert.deepEqual(Array.from(second.tracks, (track) => track.id), ['tail']);
+  assert.deepEqual(attempts, [31, ...firstIds.slice(0, 29)]);
+  attempts.length = 0;
+  await service.importFromSongQueue({ importedRequestKeys: second.importedRequestKeys });
+  assert.deepEqual(attempts, [30, ...firstIds.slice(0, 29)]);
+});
+
+test('song import retries a temporary failure once per batch while new requests keep arriving', async () => {
+  const { ImportService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/import-service.js'));
+  const attempts = [];
+  const items = [];
+  const service = new ImportService({ matchService: { async matchQueueItem({ id }) {
+    attempts.push(id);
+    return id === 1 && items.length < 4 ? null : { autoAccept: true, track: { id } };
+  } } });
+  service.fetchSongQueue = async () => ({ items: [...items, items[0]] });
+  let importedRequestKeys = [];
+  for (const [index, expected] of [[1], [2, 1], [3, 1], [4, 1], [5]].entries()) {
+    items.push({ id: index + 1 });
+    attempts.length = 0;
+    ({ importedRequestKeys } = await service.importFromSongQueue({ importedRequestKeys }));
+    assert.deepEqual(attempts, expected);
+  }
+  assert.equal(importedRequestKeys.length, 5);
+});
+
+test('a superseded diagnosis cannot replace the latest result or report a stale error', async () => {
+  const requests = new Map();
+  const node = { textContent: '' };
+  const errors = [];
+  let title;
+  const { createMatchHandler } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/features/match-handler.js'), {
+    document: { getElementById: () => node },
+  });
+  const handler = createMatchHandler({
+    value: id => id === 'playbackMatchSong' ? title : '',
+    matchService: { testMatch(name) {
+      const gate = Promise.withResolvers();
+      requests.set(name, gate);
+      return gate.promise;
+    } },
+    renderPlaybackMatchResults: result => { node.textContent = result; },
+    showError: error => errors.push(error.message),
+  });
+  const submit = name => { title = name; return handler.runPlaybackMatchTest(); };
+  const a = submit('A'), b = submit('B'), c = submit('C');
+  requests.get('C').resolve('C');
+  await c;
+  requests.get('B').reject(new Error('B'));
+  requests.get('A').resolve('A');
+  await Promise.all([a, b]);
+  assert.equal(node.textContent, 'C');
+  assert.deepEqual(errors, []);
+  const latest = submit('D');
+  requests.get('D').reject(new Error('D'));
+  await latest;
+  assert.equal(node.textContent, 'D');
+  assert.deepEqual(errors, ['D']);
+});
+
 test('timed out queue reads restore the import control and leave request history available for retry', async () => {
   const button = { disabled: false, dataset: {} };
   const state = { importedSongRequestKeys: ['already-imported'], selectedSource: 'qq' };
@@ -105,6 +178,7 @@ test('timed out queue reads restore the import control and leave request history
   const { ImportService } = await loadModuleExports(
     path.join(ROOT_DIR, 'public/js/playback/services/import-service.js'), {
       AbortSignal: {
+        any: AbortSignal.any.bind(AbortSignal),
         timeout(ms) {
           assert.equal(ms, 10000);
           return AbortSignal.abort(new DOMException('Timed out', 'TimeoutError'));
@@ -119,7 +193,7 @@ test('timed out queue reads restore the import control and leave request history
   );
   const { createImportHandler } = await loadModuleExports(
     path.join(ROOT_DIR, 'public/js/playback/features/import-handler.js'),
-    { document: { getElementById: () => button } },
+    { AbortController, document: { getElementById: () => button } },
   );
   const handler = createImportHandler({
     playbackState: state,

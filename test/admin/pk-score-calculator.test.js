@@ -67,7 +67,10 @@ test('a yuan budget buys whole batteries and the event bonus applies once at set
   assert.equal(result.awardedScore, 10);
   assert.equal(result.awardFraction, 0.032);
   assert.equal(calculatePkScore('0.09', true, true, options).batteries, 0);
-  for (const amount of ['', '-1', '1.001', '900719925474099.20']) {
+  const formatted = (calculatePkScore(1000, false, true).batteries / 10).toLocaleString('zh-CN', { minimumFractionDigits: 2 });
+  const reverse = calculatePkScore(formatted, false, true, { byAmount: true });
+  assert.deepEqual([reverse.batteries, reverse.awardedScore], [25000, 1000]);
+  for (const amount of ['', '-1', '1.001', '25,00.00', '900719925474099.20']) {
     assert.equal(calculatePkScore(amount, false, false, options), null);
   }
 });

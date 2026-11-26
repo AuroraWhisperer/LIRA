@@ -25,6 +25,53 @@ const {
 const QQ_PLAYLIST_DETAIL_URL = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg';
 const QQ_CREATED_PLAYLIST_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss';
 const QQ_COLLECTED_ASSET_URL = 'https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg';
+const MAX_DAILY_FEED_PAGE = 50;
+
+function publicLikedTrackPage(songs, session, offset, limit, directoryCount) {
+  // A row without a title can still identify one of the account's favorites.
+  const songOffsets = session.publicSongOffsets ||= new Map();
+  const previousCount = songOffsets.size;
+  const tracks = new Map();
+  const ids = songs.map((song) => {
+    const id = qqSongId(song || {});
+    const mid = qqSongMid(song || {});
+    const key = Number.isSafeInteger(id) && id > 0 ? `id:${id}` : mid && `mid:${mid}`;
+    if (!key) return '';
+    if (!songOffsets.has(key)) songOffsets.set(key, null);
+    const track = mapQQSong(song);
+    if (track && (songOffsets.get(key) === null || songOffsets.get(key) === offset)) {
+      songOffsets.set(key, offset);
+      tracks.set(key, track);
+    }
+    return key;
+  });
+  // The directory is a separate snapshot. It can prompt another read after a short page.
+  const needsMore = session.publicSongCount != null
+    ? songOffsets.size < session.publicSongCount
+    : songs.length === limit || (songs.length > 0 && songOffsets.size < directoryCount);
+  let nextOffset = null;
+  if (needsMore) {
+    const signature = JSON.stringify(ids);
+    const seenPages = session.publicPages ||= new Map();
+    const allRepeated = ids.length > 0 && ids.every(Boolean) && songOffsets.size === previousCount;
+    if ((seenPages.has(signature) || allRepeated) && seenPages.get(signature) !== offset) {
+      throw createPublicError('QQ 音乐重复返回同一页收藏，请重试。', 501);
+    }
+    seenPages.set(signature, offset);
+    if (!songs.length || offset + songs.length > 200000) {
+      throw createPublicError('QQ 音乐未返回完整收藏，请重试。', 501);
+    }
+    nextOffset = offset + songs.length;
+  }
+  return { tracks: [...tracks.values()], nextOffset };
+}
+
+function dailyPageItems(response, field) {
+  const result = response?.req_1;
+  const items = result?.data?.[field];
+  if (Number(response?.code ?? 0) !== 0 || Number(result?.code ?? 0) !== 0) return null;
+  return Array.isArray(items) ? items : null;
+}
 
 class QQMusicProvider extends QQMusicStreamProvider {
   async getPersonalizedPlaylists(options = {}) {
@@ -83,8 +130,12 @@ class QQMusicProvider extends QQMusicStreamProvider {
   }
 
   async getDailyTracks(options = {}) {
+    return (await this.getDailyTrackPage(options)).tracks;
+  }
+
+  async getDailyTrackPage(options = {}) {
     const limit = clampInteger(options.limit, 1, 100, 30);
-    const page = clampInteger(options.page, 1, 50, 1);
+    const page = clampInteger(options.page, 1, MAX_DAILY_FEED_PAGE, 1);
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
     const guid = buildGuid();
@@ -96,14 +147,16 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const tracks = [];
     const seen = new Set();
     const maxPages = Math.min(5, Math.max(1, Math.ceil(limit / 9)));
-    for (let currentPage = page; currentPage < page + maxPages && tracks.length < limit; currentPage++) {
-      const pageCookie = currentPage === page ? cookieHeader : await this.getCookieForUin(uin);
+    const lastPage = Math.min(page + maxPages - 1, MAX_DAILY_FEED_PAGE);
+    let nextPage = page;
+    while (nextPage <= lastPage && tracks.length < limit) {
+      const pageCookie = nextPage === page ? cookieHeader : await this.getCookieForUin(uin);
       const data = await this.requestMusicuPost(
         {
           req_1: {
             module: 'music.recommend.RecommendFeed',
             method: 'get_recommend_feed',
-            param: { direction: 1, page: currentPage, v_cache: [], v_uniq: [], s_num: 4 },
+            param: { direction: 1, page: nextPage, v_cache: [], v_uniq: [], s_num: 4 },
           },
         },
         {
@@ -121,8 +174,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
         pageCookie,
       ).catch(() => null);
 
-      const shelves =
-        data && data.req_1 && data.req_1.data && Array.isArray(data.req_1.data.v_shelf) ? data.req_1.data.v_shelf : [];
+      const shelves = dailyPageItems(data, 'v_shelf');
+      if (!shelves) break;
 
       // 从所有 shelf 收集 type 200 的歌曲 id
       const songIds = [];
@@ -135,11 +188,16 @@ class QQMusicProvider extends QQMusicStreamProvider {
           });
         });
       });
-      if (songIds.length === 0) break;
+      if (songIds.length === 0) {
+        nextPage++;
+        break;
+      }
 
       // 第二步：批量拉完整歌曲信息（含 mid / singer / album / interval）
       const detailCookie = await this.getCookieForUin(uin);
-      const resolved = await this.resolveTrackInfoByIds(songIds, uin, guid, detailCookie);
+      const resolved = await this.resolveTrackInfoByIds(songIds, uin, guid, detailCookie).catch(() => null);
+      if (!resolved) break;
+      nextPage++;
       for (const song of resolved) {
         const mapped = mapQQSong(song);
         if (!mapped || seen.has(mapped.sourceTrackId)) continue;
@@ -151,9 +209,10 @@ class QQMusicProvider extends QQMusicStreamProvider {
       songIds.forEach((id) => seen.add(String(id)));
     }
 
-    if (tracks.length > 0) return tracks;
-    // Feed 没有单曲卡片（极少情况）时退回电台
-    return this.getRadioTracks({ limit, page });
+    return {
+      tracks: tracks.length ? tracks : await this.getRadioTracks({ limit, page }),
+      nextPage: nextPage <= MAX_DAILY_FEED_PAGE ? nextPage : null,
+    };
   }
 
   // 把 type 200 的 songId 列表批量转成完整歌曲对象（含 mid）
@@ -184,8 +243,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
         needNewCode: 1,
       },
       cookieHeader,
-    ).catch(() => null);
-    return data && data.req_1 && data.req_1.data && Array.isArray(data.req_1.data.tracks) ? data.req_1.data.tracks : [];
+    );
+    return dailyPageItems(data, 'tracks');
   }
 
   async getRadioTracks(options = {}) {
@@ -227,20 +286,32 @@ class QQMusicProvider extends QQMusicStreamProvider {
   }
 
   async getLikedTracks(options = {}) {
+    return (await this.getLikedTrackPage(options)).tracks;
+  }
+
+  async getLikedTrackPage(options = {}) {
     const cookie = await this.getLoginCookieHeader('QQ 音乐”我喜欢”需要先登录。');
     const limit = clampInteger(options.limit, 1, 5000, 200);
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const session = getLikedTracksSession(this, options.loadingSession, cookie);
     const liked = session ? await (session.playlist ||= this.getLikedPlaylist(cookie)) : await this.getLikedPlaylist(cookie);
-    return this.getPlaylistTracks(liked.id, { limit, offset, likedSession: session }, extractUin(cookie) || '0');
+    const songs = await this.#readPlaylistSongs(liked.id, { limit, offset, likedSession: session }, extractUin(cookie) || '0');
+    if (session && !session.songs && (offset === 0 || session.publicSongOffsets)) {
+      return publicLikedTrackPage(songs, session, offset, limit, liked.trackCount);
+    }
+    const nextOffset = offset + songs.length;
+    return {
+      tracks: songs.map(mapQQSong).filter(Boolean),
+      nextOffset: songs.length === limit && nextOffset <= 200000 ? nextOffset : null,
+    };
   }
 
   async getLikedPlaylist(cookieHeader) {
     const playlists = await this.getCreatedPlaylists({
-      limit: 50,
+      limit: 500,
       includeLiked: true,
     }, cookieHeader);
-    const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title));
+    const liked = playlists.find((playlist) => playlist.dirId === '201');
     if (!liked) {
       throw createPublicError('没有从 QQ 音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录 QQ 音乐。', 501);
     }
@@ -487,6 +558,15 @@ class QQMusicProvider extends QQMusicStreamProvider {
     }
     const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, params, cookieHeader);
     const cdlist = data && Array.isArray(data.cdlist) ? data.cdlist : [];
+    if (options.likedSession) {
+      if (!Array.isArray(cdlist[0]?.songlist)) {
+        throw createPublicError('QQ 音乐未返回完整收藏，请重试。', 501);
+      }
+      const count = cdlist[0]?.total_song_num ?? cdlist[0]?.songnum;
+      if (count != null && count !== '' && Number.isSafeInteger(Number(count)) && Number(count) >= 0) {
+        options.likedSession.publicSongCount = Number(count);
+      }
+    }
     const songlist = cdlist[0] && Array.isArray(cdlist[0].songlist) ? cdlist[0].songlist : [];
     return songlist.slice(0, limit);
   }

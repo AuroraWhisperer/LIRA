@@ -8,6 +8,7 @@ const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
 const { createPackage, extractFile, listPackage } = require('@electron/asar');
 const { createPackagedApp } = require('../helpers/packaged-app');
 const { launchElectron } = require('../helpers/shared-electron');
+const { checkClientFontCoverage } = require('../helpers/client-font-coverage');
 const { fonts } = require('../../src/fonts/catalog.json');
 const pkg = require('../../package.json');
 const { exportCdnResources } = require('../../scripts/export-cdn-resources');
@@ -68,6 +69,7 @@ test('an ASAR bundles tiny title subsets, downloads shared fonts once, renders t
     renderedFamilies.add(rendered.map(face => face.familyName).join(','));
   }
   assert.equal(renderedFamilies.size, fonts.length, 'Every choice uses a different font, not a common fallback.');
+  await checkClientFontCoverage(page, cdp);
   const result = await app.evaluate(() => ({ ...global.cdnResourcesTest }));
   assert.equal(result.state.status, 'ready');
   assert.equal(result.state.total, fonts.length + 1, 'Shared fonts and the map are complete without imported style artwork.');

@@ -43,7 +43,7 @@ export class LyricService {
 
     // 跳过本地音频或已有歌词的曲目
     if (this.isLocalTrack(track)) return null;
-    if (track.lyrics && Array.isArray(track.lyrics.lines)) return track.lyrics;
+    if (Array.isArray(track.lyrics?.lines) && !track.lyrics.retryable) return track.lyrics;
 
     try {
       const response = await fetch('/api/music/lyrics', {
@@ -61,7 +61,7 @@ export class LyricService {
       return payload.data;
     } catch (error) {
       console.warn('[LyricService] load lyrics failed:', error.message || error);
-      return null;
+      return { lines: [], retryable: true };
     }
   }
 

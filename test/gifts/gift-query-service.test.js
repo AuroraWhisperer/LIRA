@@ -11,6 +11,20 @@ const { getGiftSprintSnapshot, resetGiftSprintProgress } = require('../../src/bi
 const { getBlindBoxStats, getBlindBoxAnalysis } = require('../../src/bilibili/gift/blind-box-analysis');
 const { createFixture } = require('../helpers/gift-query-fixture');
 
+test('recent gifts keep the latest 30 by event time when earlier gifts from the same second arrive later', (t) => {
+  const f = createFixture();
+  t.after(() => f.close());
+  const source = f.resolveSource('a'.repeat(64));
+  f.setActiveSource(source.id);
+  const start = Date.parse('2026-09-01T12:00:00Z');
+  for (const i of [30, ...Array.from({ length: 30 }, (_, i) => i)]) {
+    f.insertGift(source.id, `event-${i}`, { giftName: `gift-${i}`, createdAt: new Date(start + 30 * i).toISOString() });
+  }
+  const expected = Array.from({ length: 30 }, (_, i) => `gift-${30 - i}`);
+  assert.deepEqual(getGiftSnapshot(f.context).recent.map(row => row.gift_name), expected);
+  assert.deepEqual(getGiftHistory(f.context, { range: 'all', limit: 30 }).items.map(row => row.gift.giftName), expected);
+});
+
 test('gift query stores fail closed for missing or invalid structured source scopes', (t) => {
   const fixture = createFixture();
   t.after(() => fixture.close());

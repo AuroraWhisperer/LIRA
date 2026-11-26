@@ -46,11 +46,14 @@ class BilibiliApiClient {
     }
     const uid = payload.data.uid || '';
     let ownerName = '';
+    let ownerAvatarUrl = '';
     if (uid && includeOwner) {
       try {
-        ownerName = await this.fetchOwnerName(uid);
+        const owner = await this.fetchOwnerProfile(uid);
+        ownerName = owner?.name || '';
+        ownerAvatarUrl = owner?.avatarUrl || '';
       } catch (e) {
-        console.warn(`[Bilibili] failed to fetch owner name for uid=${uid}: ${e.message}`);
+        console.warn(`[Bilibili] failed to fetch owner profile for uid=${uid}: ${e.message}`);
       }
     }
     console.log(
@@ -61,6 +64,7 @@ class BilibiliApiClient {
       shortId: payload.data.short_id || 0,
       uid,
       ownerName,
+      ownerAvatarUrl,
       liveStatus: payload.data.live_status,
     };
   }

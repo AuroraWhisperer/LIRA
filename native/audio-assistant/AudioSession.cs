@@ -21,10 +21,12 @@ internal sealed class AudioSession : IDisposable
   string source, status = "选择音乐来源，开启当前歌曲的处理。";
   string? filePath;
   int ticks;
+  float inputLevel, outputLevel;
   int? activePid;
   bool starting, disposed, original, pendingRecovery, recoveryDeferred;
   public event Action? Changed;
   public int? PlaybackProcessId { get; set; }
+  public IReadOnlyList<AudioApp> Apps => apps;
 
   public AudioSession(Action<Action> dispatch)
   {
@@ -43,23 +45,25 @@ internal sealed class AudioSession : IDisposable
   bool DeviceSource => source is "input" or "loopback";
   bool PlayerSource => source != "file" && !DeviceSource;
 
-  public object Snapshot()
+  public object Snapshot(bool levelsOnly = false)
   {
     var app = SelectedApp();
+    int? sourceProcessId = PlayerSource ? activePid ?? app?.Pid : null;
+    string song = DeviceSource ? inputDevice?.Name ?? "请选择可用的输入设备"
+      : source == "file" ? filePath == null ? "尚未选择本地歌曲" : Path.GetFileName(filePath)
+      : app == null ? "等待播放器播放歌曲" : $"{app.Name} · {app.Title}";
+    string sourceDevice = DeviceSource ? "" : app?.Device ?? "";
+    double position = engine?.PositionSeconds ?? 0, duration = engine?.DurationSeconds ?? 0;
+    if (levelsOnly) return new { status, sourceProcessId, song, sourceDevice, inputLevel, level = outputLevel, position, duration };
     return new {
       ready = true, running = engine != null && !starting, starting, source, settings, original, status,
-      sourceProcessId = PlayerSource ? activePid ?? app?.Pid : null,
-      song = DeviceSource ? inputDevice?.Name ?? "请选择可用的输入设备"
-        : source == "file" ? filePath == null ? "尚未选择本地歌曲" : Path.GetFileName(filePath)
-        : app == null ? "等待播放器播放歌曲" : $"{app.Name} · {app.Title}",
-      sourceDevice = DeviceSource ? "" : app?.Device ?? "", fileName = filePath == null ? "" : Path.GetFileName(filePath),
+      sourceProcessId, song, sourceDevice, fileName = filePath == null ? "" : Path.GetFileName(filePath),
       apps = apps.Select(a => new { id = $"pid:{a.Pid}", name = $"{a.Name} · {a.Title}" }).ToArray(),
       outputs = outputs.Select(d => new { id = d.Id, name = d.Name }).ToArray(),
       outputChoices = playbackOutputs.Select(d => new { id = d.Backend == "wasapi" && d.EndpointId.Length > 0 ? d.EndpointId : d.DeviceId, name = d.Name }).ToArray(),
       inputs = inputs.Select(d => new { id = d.Id, name = d.Name }).ToArray(),
-      inputDevice, inputError, inputLevel = engine?.Dsp.InputPeak ?? 0,
-      level = engine?.Dsp.OutputPeak ?? 0, position = engine?.PositionSeconds ?? 0,
-      duration = engine?.DurationSeconds ?? 0, pendingRecovery, recoveryDeferred,
+      inputDevice, inputError, inputLevel,
+      level = outputLevel, position, duration, pendingRecovery, recoveryDeferred,
     };
   }
 
@@ -67,7 +71,7 @@ internal sealed class AudioSession : IDisposable
   {
     names.Clear();
     outputs = AudioDevices.Outputs(names);
-    playbackOutputs = PlaybackOutputs.Enumerate(outputs);
+    playbackOutputs = PlaybackOutputs.Enumerate(outputs, settings.OutputId);
     inputs = AudioDevices.Inputs(names);
     apps = AudioDevices.Apps(names, PlaybackProcessId);
     RefreshInput();
@@ -260,6 +264,7 @@ internal sealed class AudioSession : IDisposable
     startup?.Cancel();
     var previous = engine;
     engine = null;
+    inputLevel = outputLevel = 0;
     activePid = null;
     song = null;
     var previousRoute = route;
@@ -301,7 +306,7 @@ internal sealed class AudioSession : IDisposable
     if (failed) { pendingRecovery = true; recoveryDeferred = false; }
   }
 
-  public async Task Tick()
+  public async Task Tick(Action? publishLevels = null)
   {
     ticks++;
     if (starting) return;
@@ -318,6 +323,8 @@ internal sealed class AudioSession : IDisposable
       }
       return;
     }
+    // Release finite ASIO playback on the control thread, outside the driver callback.
+    if (engine.AsioFileEnded) { Stop(); return; }
     bool refreshed = ticks % 8 == 0 && PlayerSource;
     if (route?.PlayerExited == true) { Stop(); return; }
     if (refreshed) apps = AudioDevices.Apps(names, PlaybackProcessId);
@@ -355,11 +362,13 @@ internal sealed class AudioSession : IDisposable
         }
       }
     }
-    status = DeviceSource ? engine.Dsp.InputPeak > 0.00001f ? original ? "正在试听原声" : "正在处理输入声音" : "正在等待输入声音"
+    (inputLevel, outputLevel) = engine.Dsp.TakePeaks();
+    status = DeviceSource ? inputLevel > 0.00001f ? original ? "正在试听原声" : "正在处理输入声音" : "正在等待输入声音"
       : source == "file" ? original ? "正在试听原声" : "正在处理本地歌曲"
-      : engine.Dsp.InputPeak > 0.00001f ? original ? "原声已隔离 · 原声对比" : "原声已隔离 · 正在输出处理后的音乐"
+      : inputLevel > 0.00001f ? original ? "原声已隔离 · 原声对比" : "原声已隔离 · 正在输出处理后的音乐"
       : "原声已隔离 · 等待播放器声音";
-    Changed?.Invoke();
+    if (publishLevels == null) Changed?.Invoke();
+    else publishLevels();
   }
 
   public void Dispose()

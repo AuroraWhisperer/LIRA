@@ -6,7 +6,7 @@ const { createDisplayDemand } = require('../../src/scenes/display-demand');
 
 test('display reads share one lease and release it after the last reader becomes idle', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'] });
-  const demand = createDisplayDemand();
+  const demand = createDisplayDemand({ now: Date.now });
   t.after(() => demand.dispose());
   const changes = [];
   const unsubscribe = demand.subscribe((active) => changes.push(active));

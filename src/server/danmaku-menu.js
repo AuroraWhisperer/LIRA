@@ -1,12 +1,13 @@
 'use strict';
 
+const { hasKeywordMenuCommand } = require('../shared/cloud-settings');
 const { parseCustomReplyRules } = require('../bilibili/custom-reply-service');
 
 function buildDesktopMenuCommands({ settings = {}, ai = {}, game = null, interaction = null } = {}) {
   if ((settings.danmakuMonitoringEnabled ?? settings.enableBilibili) !== 'true') return [];
   const commands = [];
   if (settings.paused !== 'true') commands.push('点歌 歌名', '随机点歌 [条件]');
-  if (settings.enableCustomReplyBot === 'true' && parseCustomReplyRules(settings.customReplyRules).some((rule) => rule.enabled)) {
+  if (hasKeywordMenuCommand(settings, parseCustomReplyRules)) {
     commands.push('关键词回复（发送已设置关键词）');
   }
   if (ai.ready === true && ai.trigger) commands.push(`${ai.trigger} 问题（AI 互动）`);

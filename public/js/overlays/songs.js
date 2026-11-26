@@ -55,7 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function updateComponentSongs() {
-  const next = componentCategory ? componentSongs.filter((song) => song.category_name === componentCategory) : componentSongs;
+  const category = componentCategory?.trim().toLowerCase();
+  const next = category ? componentSongs.filter(song => {
+    const name = (song.category_name || '').toLowerCase();
+    return name === category || name.split(/[/／;；,，、]/).some(part => part.trim() === category);
+  }) : componentSongs;
   setSongs(next);
   render();
 }

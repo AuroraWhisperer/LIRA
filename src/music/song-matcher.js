@@ -50,7 +50,9 @@ function scoreCandidate(request, candidate) {
   const trackVersions = findVersionRules(`${track.title} ${track.album}`);
   if (request.versions.some((version) => !trackVersions.includes(version))) return null;
 
-  const artistMatched = track.artists.some((artist) => normalizeComparableText(artist) === request.artist);
+  const artists = track.artists.map(normalizeComparableText);
+  const artistMatched = artists.includes(request.artist) || (request.artistParts.length > 1 &&
+    request.artistParts.every((name) => artists.includes(name)));
   const artistConflict = Boolean(request.artist && !artistMatched);
   const hasDurations = request.durationMs > 0 && track.durationMs > 0;
   const durationConflict = hasDurations && Math.abs(request.durationMs - track.durationMs) > 5000;
@@ -107,12 +109,14 @@ function scoreCandidate(request, candidate) {
 function normalizeRequest(request) {
   const input = request && typeof request === 'object' ? request : {};
   const songName = cleanText(input.songName || input.title);
+  const artist = normalizeComparableText(input.artist);
   return {
     songName,
     titleKey: normalizeSongKey(songName),
     cleanSongName: normalizeSongKey(stripVersionAnnotations(songName)),
     versions: findVersionRules(songName),
-    artist: normalizeComparableText(input.artist),
+    artist,
+    artistParts: artist.split(/\s*\/\s*/),
     durationMs: Math.max(0, Number(input.durationMs) || 0),
   };
 }

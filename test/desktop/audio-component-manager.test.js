@@ -60,6 +60,65 @@ async function fixture(t) {
     destination: path.join(root, manifest.id), requests: () => requests };
 }
 
+test('audio download measures idle time from the last written bytes', async t => {
+  const f = await fixture(t);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  // Put the platform's single-shot deadline on the same synthetic clock, too.
+  t.mock.method(AbortSignal, 'timeout', ms => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), ms);
+    return controller.signal;
+  });
+  const manager = f.manager({ fetch: async () => ({ ok: true, headers: new Headers(), body: (async function* () {
+    const half = Math.floor(f.archive.length / 2);
+    t.mock.timers.tick(200000); yield f.archive.subarray(0, half);
+    t.mock.timers.tick(200000); yield f.archive.subarray(half);
+  })() }) });
+  await manager.initialize();
+  assert.equal(manager.getState().status, 'ready');
+
+  const waiting = Promise.withResolvers();
+  // A fresh directory is needed because an intact component bypasses the network.
+  const stalled = (await fixture(t)).manager({ fetch: async (_url, { signal }) => {
+    waiting.resolve();
+    return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
+  } });
+  const failed = assert.rejects(stalled.initialize());
+  await waiting.promise;
+  t.mock.timers.tick(300001);
+  await failed;
+  assert.equal(stalled.getState().status, 'error');
+});
+
+test('a locked retired audio directory does not invalidate a verified repair', async t => {
+  const f = await fixture(t);
+  await f.populate(f.destination);
+  await fs.writeFile(path.join(f.destination, 'dependency.dll'), 'broken');
+  const rm = fs.rm;
+  let locked;
+  const busy = t.mock.method(fs, 'rm', async (filename, options) => {
+    if (filename.startsWith(`${f.destination}.replaced-`)) {
+      locked = filename;
+      throw Object.assign(new Error('fixture lock'), { code: 'EBUSY' });
+    }
+    return rm(filename, options);
+  });
+  const manager = f.manager();
+  const result = await manager.initialize().catch(error => error.code);
+  assert.ok(locked);
+  assert.equal(await verifyAudioDirectory(f.destination, f.manifest, new AbortController().signal), true);
+  const executable = await manager.getExecutable().catch(error => error.cause.code);
+  assert.deepEqual([result, executable], Array(2).fill(path.join(f.destination, f.manifest.entry)));
+  assert.equal(f.requests(), 1);
+  busy.mock.restore();
+  await fs.access(locked);
+  const old = new Date(Date.now() - 2 * 86400000);
+  for (const entry of await fs.readdir(locked, { recursive: true })) await fs.utimes(path.join(locked, entry), old, old);
+  await fs.utimes(locked, old, old);
+  assert.equal(await manager.getExecutable(), executable);
+  await assert.rejects(fs.access(locked), { code: 'ENOENT' });
+});
+
 test('one cold download serves concurrent consumers; subsequent starts and retries use verified local files offline', async t => {
   const f = await fixture(t);
   const manager = f.manager();

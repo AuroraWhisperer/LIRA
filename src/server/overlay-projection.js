@@ -89,6 +89,7 @@ const DANMAKU_ITEM = {
   ),
   emotes: [fields('text url kind width height')],
 };
+const DANMAKU_OVERLAY_ITEM = { ...DANMAKU_ITEM, roomGuardLevel: true, roomMedal: fields('name level') };
 const QUEUE_ITEM = fields(
   'song_name requester_name is_pinned is_live requester_guard_level requester_medal_level requester_medal_name',
 );
@@ -99,7 +100,7 @@ const OVERTIME = {
   rules: [{ ...fields('enabled giftId giftName imagePath mode displayText fixedSeconds'), fixedEffect: EFFECT }],
 };
 const LYRIC_STATE = {
-  ...fields('trackTitle lineText translation currentMs durationMs progress playing locked generation sequence status'),
+  ...fields('trackTitle lineText translation currentMs durationMs progress playing playbackRate locked generation sequence status'),
   artists: [true],
   words: [fields('text startMs endMs')],
 };
@@ -133,8 +134,8 @@ const STATE_SCHEMAS = {
   queue: { queue: { current: QUEUE_ITEM, waiting: [QUEUE_ITEM],
     requestResult: QUEUE_REQUEST_RESULT, requestResults: [QUEUE_REQUEST_RESULT] }, superChats: [fields('message price')] },
   songlist: {},
-  blindbox: {},
-  'gift-effects': {},
+  blindbox: fields('giftSourceEpoch'),
+  'gift-effects': fields('giftSourceEpoch'),
   'gift-feed': { gifts: fields('viewRevision') },
   'gift-wishes': { gifts: fields('viewRevision') },
   'heart-box-collection': { gifts: fields('viewRevision') },
@@ -142,7 +143,7 @@ const STATE_SCHEMAS = {
   overtime: { overtime: OVERTIME },
   lyrics: { lyricState: LYRIC_STATE, lyricTimeline: LYRIC_TIMELINE },
   'now-playing': { nowPlaying: NOW_PLAYING, nowPlayingConfig: NOW_PLAYING_CONFIG },
-  danmaku: { danmakuFeed: [DANMAKU_ITEM], liveStatus: fields('enabled roomId connected message') },
+  danmaku: { danmakuFeed: [DANMAKU_OVERLAY_ITEM], liveStatus: fields('enabled roomId connected message') },
   interactions: {},
   games: {},
   wheel: {},
@@ -231,7 +232,7 @@ const RESPONSE_SCHEMAS = {
 };
 const EVENT_SCHEMAS = {
   'interaction:update': { scope: 'interactions', schema: { state: INTERACTION } },
-  'danmaku:message': { scope: 'danmaku', schema: { item: DANMAKU_ITEM } },
+  'danmaku:message': { scope: 'danmaku', schema: { item: DANMAKU_OVERLAY_ITEM } },
   'danmaku:superchat-delete': { scope: 'danmaku', schema: { messageIds: [true] } },
   'gift-catalog:update': { scope: 'gift-feed', schema: {} },
   'gift:frame': {

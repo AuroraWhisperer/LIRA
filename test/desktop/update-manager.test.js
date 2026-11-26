@@ -50,6 +50,27 @@ test('packaged startup leaves the update feed to app-update.yml and enables auto
   assert.equal(updater.disableDifferentialDownload, false);
 });
 
+test('the delayed startup check preserves a package downloaded by an earlier manual check', async t => {
+  const { createDesktopUpdateController } = require('../../src/electron/desktop-update-controller');
+  const { manager, updater, app } = loadUpdateManager(t);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let checks = 0;
+  updater.checkForUpdates = async () => {
+    updater.emit('checking-for-update');
+    if (++checks > 1) throw new Error('offline');
+    updater.emit('update-downloaded', { version: '6.0.1' });
+  };
+  const controller = createDesktopUpdateController({ app, updateManager: manager, getAutoUpdateSetting: () => 'true' });
+  t.after(() => controller.dispose());
+  controller.scheduleStartupCheck();
+  await controller.checkForUpdates();
+  t.mock.timers.tick(1000);
+  await new Promise(setImmediate);
+  assert.equal(checks, 1);
+  assert.equal(controller.getState().status, 'downloaded');
+  assert.equal(controller.getState().canInstall, true);
+});
+
 for (const operation of ['checkForUpdates', 'downloadUpdate']) {
   test(`${operation} reports a missing CDN manifest as an error when the updater emits and rejects`, async (t) => {
     const { manager, updater, states, logs } = loadUpdateManager(t);
@@ -61,6 +82,7 @@ for (const operation of ['checkForUpdates', 'downloadUpdate']) {
     const state = await manager[operation]();
     assert.equal(state.status, 'error');
     assert.equal(states.at(-1).status, 'error');
+    assert.equal(states.filter(state => state.status === 'error').length, 1);
     assert.match(state.message, /清单.*HTTP 404/);
     assert.equal(state.canDownload, false);
     assert.equal(state.canInstall, false);
@@ -69,7 +91,7 @@ for (const operation of ['checkForUpdates', 'downloadUpdate']) {
   });
 
   test(`${operation} logs rejection-only failures on every retry`, async (t) => {
-    const { manager, updater, logs } = loadUpdateManager(t);
+    const { manager, updater, logs, states } = loadUpdateManager(t);
     const error = new Error('Cannot download "https://assets.lirahub.cn/downloads/lira-setup-5.7.7.exe", status 404');
     updater[operation] = async () => { throw error; };
     for (let attempt = 1; attempt <= 2; attempt += 1) {
@@ -77,6 +99,7 @@ for (const operation of ['checkForUpdates', 'downloadUpdate']) {
       assert.equal(state.status, 'error');
       assert.match(state.message, /更新包.*HTTP 404/);
       assert.equal(logs.length, attempt);
+      assert.equal(states.filter(state => state.status === 'error').length, attempt);
       assert.equal(logs.at(-1)[1], error);
     }
   });
@@ -99,7 +122,7 @@ test('download failure and retry discard the previous progress before accepting 
 });
 
 test('automatic download rejection is handled after the update check has returned', async t => {
-  const { manager, updater, logs } = loadUpdateManager(t);
+  const { manager, updater, logs, states } = loadUpdateManager(t);
   const download = Promise.withResolvers();
   const error = new Error('automatic download network timeout');
   updater.checkForUpdates = async () => {
@@ -112,6 +135,7 @@ test('automatic download rejection is handled after the update check has returne
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(manager.getUpdateState().status, 'error');
   const failures = logs.filter(([scope]) => scope === 'update-error');
+  assert.equal(states.filter(state => state.status === 'error').length, 1);
   assert.equal(failures.length, 1);
   assert.equal(failures[0][1], error);
 });

@@ -18,6 +18,8 @@ export function createInitializer(deps) {
     updatePlaybackMediaSession,
     playbackNext,
     seekPlayback,
+    applyRestoredTime,
+    notePlaybackProgress,
     handlePlaybackError,
     flushPlaybackStateOnUnload,
     flushPlaybackStateForShutdown,
@@ -70,6 +72,7 @@ export function createInitializer(deps) {
       syncPlaybackLyricWindow(true);
     });
     audio.addEventListener('loadedmetadata', () => {
+      applyRestoredTime();
       const track = playbackState.current;
       if (track && Number.isFinite(audio.duration)) {
         track.durationMs = Math.round(audio.duration * 1000);
@@ -80,6 +83,7 @@ export function createInitializer(deps) {
     });
 
     audio.addEventListener('timeupdate', () => {
+      notePlaybackProgress(audio);
       renderPlaybackProgress();
       savePlaybackState();
       syncPlaybackLyricWindow();

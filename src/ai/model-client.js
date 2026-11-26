@@ -105,10 +105,10 @@ function createModelClient(options = {}) {
       });
       throwIfAborted(signal);
       const result = normalize(payload);
+      if (result.finishReason === 'length' || result.finishReason === 'max_output_tokens') {
+        throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', '模型输出达到长度上限，未生成完整回复。');
+      }
       if (!result.text && !result.functionCalls.length) {
-        if (result.finishReason === 'length' || result.finishReason === 'max_output_tokens') {
-          throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', '模型输出达到长度上限，未生成完整回复。');
-        }
         throw createPublicError('DEEPSEEK_INVALID_RESPONSE', '模型服务返回了空响应。');
       }
       throwIfAborted(signal);

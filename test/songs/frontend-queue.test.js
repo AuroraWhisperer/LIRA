@@ -56,6 +56,11 @@ test('queue opacity percentages survive snapshot and preset refresh without chan
   controller.edit({ themeOpacity: 0 });
   assert.equal(document.getElementById('themeOpacityNumber').value, '0');
   assert.equal(controller.getState().draft.themeOpacity, 0);
+  const number = document.getElementById('themeOpacityNumber');
+  number.value = '29';
+  number.events.change();
+  assert.equal(document.getElementById('themeOpacity').value, '0.29');
+  assert.equal(number.value, '29', 'Committing a percentage keeps the number field on its integer step.');
 });
 
 test('queue theme controls retain legacy font and scroll units without rewriting the draft', async () => {

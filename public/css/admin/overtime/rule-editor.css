@@ -185,7 +185,7 @@
   height: 12px;
   border-radius: 50%;
   background: var(--color-range-thumb);
-  box-shadow: 0 1px 4px rgba(24, 24, 22, 0.25);
+  box-shadow: 0 1px 4px light-dark(rgba(24, 24, 22, 0.24), rgba(0, 0, 0, 0.5));
   content: '';
   transition: transform 160ms ease;
 }
@@ -346,7 +346,7 @@
   opacity: 0;
 }
 .overtime-operation-option > span {
-  font-family: Bahnschrift, sans-serif;
+  font-family: var(--client-font-family, Bahnschrift, sans-serif);
   font-size: var(--type-size-body);
   font-weight: var(--type-weight-bold);
   line-height: 1;
@@ -370,13 +370,13 @@
 .overtime-operation-option.is-multiply:has(input:checked) {
   border-color: var(--primary);
   background: var(--color-primary-light);
-  color: var(--primary-strong) !important;
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong))) !important;
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 .overtime-operation-option.is-divide:has(input:checked) {
   border-color: var(--primary);
   background: var(--color-primary-light);
-  color: var(--primary-strong) !important;
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong))) !important;
   box-shadow: inset 0 0 0 1px var(--primary);
 }
 .overtime-operation-option.is-clear:has(input:checked) {
@@ -406,9 +406,7 @@
   min-width: 0;
   padding-inline: 6px;
   text-align: center;
-  font:
-    700 14px/1 Bahnschrift,
-    sans-serif;
+  font: 700 14px/1 var(--client-font-family, Bahnschrift, sans-serif);
   font-variant-numeric: tabular-nums;
 }
 .overtime-factor-control {
@@ -467,8 +465,8 @@
   padding: 4px 8px;
   border-radius: 999px;
   background: var(--color-primary-light);
-  color: var(--primary-strong);
-  font-family: Bahnschrift, sans-serif;
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
+  font-family: var(--client-font-family, Bahnschrift, sans-serif);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-bold);
   line-height: 1.2;

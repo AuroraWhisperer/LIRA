@@ -64,6 +64,7 @@ function calendarIndex(events) {
 export function renderTodoCalendar(view) {
   const index = calendarIndex(view.planner.events);
   const today = toDateValue();
+  byId('plannerTodayLabel').textContent = formatDate(today, todayFormat);
   byId('plannerMonthLabel').textContent = formatDate(`${view.month}-01`, monthFormat);
   byId('plannerMonthCount').textContent =
     `本月 ${index.months.get(view.month) || 0} 项安排`;
@@ -201,7 +202,6 @@ export function renderTodoNotes(view) {
 
 export function renderTodo(view) {
   if (!byId('streamerPlanner')) return;
-  byId('plannerTodayLabel').textContent = formatDate(toDateValue(), todayFormat);
   const status = byId('plannerSaveState');
   const message = view.readFailed
     ? '本机记录读取失败，已暂停写入'

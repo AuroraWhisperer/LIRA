@@ -40,9 +40,13 @@ function maintainDesktopLogs(logDir, now = Date.now()) {
         const lines = content.split(/(?<=\n)/);
         const entries = [];
         const sourceIndexes = [];
+        const expiredInfo = [];
         for (const [index, line] of lines.entries()) {
-          if (!isAi && !LEGACY_TEXT_ERROR.test(line)) continue;
           const timestamp = logTimestamp(line, stat.mtimeMs);
+          if (!isAi && !LEGACY_TEXT_ERROR.test(line)) {
+            if (timestamp < now - NORMAL_LOG_AGE_MS) expiredInfo.push(index);
+            continue;
+          }
           if (timestamp < now - ERROR_LOG_AGE_MS) {
             lines[index] = '';
             continue;
@@ -60,17 +64,15 @@ function maintainDesktopLogs(logDir, now = Date.now()) {
         });
         for (let i = 0; i < count; i++) lines[sourceIndexes[i]] = '';
         pending ||= count < entries.length;
+        if (!pending) for (const index of expiredInfo) lines[index] = '';
         const kept = lines.join('');
-        if (!kept && isAi) fs.unlinkSync(file);
+        if (!kept) fs.unlinkSync(file);
         else if (kept !== content) fs.writeFileSync(file, kept, 'utf8');
       } catch (error) {
         if (error.code !== 'ENOENT') pending = true;
       }
     }
-    if (!isAi && !pending) {
-      const result = maintainBoundedFilesSync(source, { maxFileBytes: NORMAL_FILE_BYTES, maxAgeMs: NORMAL_LOG_AGE_MS, now });
-      if (result.written) markLogMaintenanceComplete(source, now);
-    }
+    if (!isAi && !pending) markLogMaintenanceComplete(source, now);
   }
 }
 

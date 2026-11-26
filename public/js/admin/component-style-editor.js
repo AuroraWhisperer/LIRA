@@ -50,8 +50,8 @@ export function mountMediaStyleFields(host, initial, change, type) {
     }
   }
   if (event) {
-    field('播放时长（毫秒）', 'durationMs', 'number', 250, 120000, 250, grid);
-    field('文字延迟（毫秒）', 'textDelayMs', 'number', 0, 60000, 100, grid);
+    field('播放时长（毫秒）', 'durationMs', 'number', 250, 120000, 'any', grid);
+    field('文字延迟（毫秒）', 'textDelayMs', 'number', 0, 60000, 'any', grid);
   }
   if (value.kind === 'video') field('音量（0 为静音）', 'volume', 'number', 0, 1, 0.05, grid);
   return {

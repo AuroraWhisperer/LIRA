@@ -64,6 +64,8 @@ function createStyleRenderer(options) {
     decorateSystemMessages: false,
     entranceDelay: (index) => Math.min(index, 8) * 24,
   });
+  if (options.style === 'ranked') return (item = {}, index) => render({ ...item,
+    guardLevel: item.roomGuardLevel, medalName: item.roomMedal?.name, medalLevel: item.roomMedal?.level }, index);
   if (seaBreeze) {
     const decorate = createSeaBreezeMessageRenderer(options, render);
     return options.fullscreen ? createRandomEntranceRenderer(options, decorate, DANMAKU_STYLE_OPTIONS[options.style]) : decorate;

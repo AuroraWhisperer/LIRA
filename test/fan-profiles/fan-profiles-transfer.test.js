@@ -77,6 +77,50 @@ test('replacing a complete backup restores swapped identities without depending 
   }
 });
 
+test('restoring a pre-merge backup keeps the local owner of a moved note or replaces it explicitly', t => {
+  const f = fanFixture(t);
+  const draft = f.create({ identity: null });
+  const bound = f.create();
+  const note = f.record(draft.id, 'note', { body: '合并前的手记' });
+  const backup = f.run('backup');
+  f.run('merge', { id: draft.id, revision: draft.revision, targetId: bound.id, targetRevision: bound.revision, prefer: 'target' });
+  f.record(bound.id, 'note', { body: '合并后的修订' }, { id: note.id, revision: note.revision });
+  const preview = f.run('preview-restore', { backup });
+  assert.deepEqual([preview.added, preview.updated], [1, 1]);
+  f.run('restore', { backup, ...preview, conflicts: 'keep' });
+  f.restart();
+  assert.equal(f.detail(draft.id).records.length, 0);
+  const [local] = f.detail(bound.id).records;
+  assert.equal(local.id, note.id);
+  assert.equal(local.data.body, '合并后的修订');
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  assert.equal(f.detail(bound.id).records.length, 0);
+  assert.equal(f.detail(draft.id).records[0].data.body, '合并前的手记');
+  assert.equal(f.detail(draft.id).records[0].id, note.id);
+});
+
+test('keep restores a draft without duplicating the handled anniversary of its moved record', t => {
+  const f = fanFixture(t);
+  const draft = f.create({ identity: null, birthday: { monthDay: '09-18' } });
+  const bound = f.create({ birthday: { monthDay: '09-18' } });
+  const anniversary = f.record(draft.id, 'anniversary', { name: '相识', date: '2025-09-18', annual: true });
+  const key = `anniversary:${anniversary.id}:2026`;
+  f.run('reminder-state', { profileId: draft.id, key, status: 'handled' });
+  f.run('reminder-state', { profileId: draft.id, key: 'birthday:2026', status: 'ignored' });
+  f.run('reminder-state', { profileId: bound.id, key: 'birthday:2026', status: 'handled' });
+  const backup = f.run('backup');
+  f.run('merge', { id: draft.id, revision: draft.revision, targetId: bound.id, targetRevision: bound.revision, prefer: 'target' });
+  for (const [choice, owner] of [['keep', bound.id], ['replace', draft.id]]) {
+    f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: choice });
+    f.restart();
+    assert.ok(f.detail(owner).records.some(record => record.id === anniversary.id));
+    const history = f.run('reminders').filter(item => item.group === 'history');
+    assert.deepEqual(history.filter(item => item.key === key).map(item => [item.profileId, item.status]), [[owner, 'handled']]);
+    assert.equal(history.find(item => item.profileId === draft.id && item.key === 'birthday:2026')?.status, 'ignored');
+    assert.equal(history.find(item => item.profileId === bound.id && item.key === 'birthday:2026')?.status, 'handled');
+  }
+});
+
 test('restore rejects a final identity collision with a retained profile before creating a recovery point', (t) => {
   const f = fanFixture(t);
   const a = f.create();
@@ -474,6 +518,18 @@ test('A16/A29: ordinary list export excludes sensitive fields by default and quo
   const selected = f.run('export-list', { fields: ['alias', 'notes'] });
   assert.ok(selected.includes('私密正文'));
   assert.throws(() => f.run('export-list', { fields: ['rawData'] }), /字段无效/);
+});
+
+test('CSV uid cells distinguish a UID from the same digits in an Open ID and an unbound draft', (t) => {
+  const f = fanFixture(t);
+  const { identity } = f.create({ alias: 'uid-row' });
+  f.create({ alias: 'open-row', identity: { ...identity, type: 'open_id' } });
+  f.create({ alias: 'draft-row', identity: null });
+  for (const input of [{}, { fields: ['alias', 'uid'] }]) {
+    const rows = f.run('export-list', input).split('\r\n').slice(1);
+    const cell = alias => rows.find(row => row.startsWith(`"${alias}",`)).split(',').at(-1);
+    assert.deepEqual(['uid-row', 'open-row', 'draft-row'].map(cell), [`"${identity.value}"`, '""', '""']);
+  }
 });
 
 test('A29: legacy date ranges use Shanghai business dates at both UTC midnight boundaries', (t) => {

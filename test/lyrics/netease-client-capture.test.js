@@ -65,6 +65,17 @@ test('NetEase preserves a continuous UIA clock across delayed integer-second obs
   assert.equal(capture.getStatus().currentMs, 16000, 'an actual backward seek still resets the clock');
 });
 
+test('a delayed UIA duration within the sampling window cannot replace the current recording', async (t) => {
+  let requests = 0;
+  const { capture, send, advance } = fixture(t, async () => { requests++; return LYRICS; });
+  const song = { sourceTrackId: '' };
+  send(song); send(song); await tick();
+  advance(500); send({ ...song, timelineUpdatedAt: 99500, durationMs: 241000 });
+  advance(500); send({ ...song, positionMs: 16000 }); await tick();
+  assert.equal(capture.getLyricState().lineText, 'Second');
+  assert.equal(requests, 1);
+});
+
 test('NetEase native clock follows fractional progress, pause and seek without UI controls', async (t) => {
   let requests = 0;
   const { capture, send, advance } = fixture(t, async () => { requests++; return LYRICS; });

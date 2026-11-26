@@ -55,9 +55,13 @@ export function initDanmakuPkReport({
     element('Count').textContent = supported() ? draft.messages.length + ' 条' : '未读取';
     element('SaveStatus').textContent = saving ? '正在同步服务器设置…' : draft.dirty ? '欢迎设置有未保存修改' :
       draft.addition ? '输入尚未添加，不会随设置保存' : supported() ? '欢迎设置已确认' : '欢迎设置尚未确认';
-    status.textContent = notice || (!settings ? available ? '连接 LIRA 账号后可设置 PK 播报与欢迎' : '请升级桌面客户端后设置 PK 播报与欢迎' :
-      !supported() ? 'PK 开始时播报对手信息' :
-      [settings.reportEnabled ? '对手信息播报' : '', settings.visitorWelcomeEnabled ? settings.visitorWelcomeDelaySeconds + ' 秒后欢迎串门观众' : ''].filter(Boolean).join(' · ') || '请在设置中开启播报或欢迎');
+    status.ariaBusy = String(pending && !settings);
+    status.textContent = notice || (!available ? '请升级桌面客户端后设置 PK 播报与欢迎' : !owner ? '连接 LIRA 账号后可设置 PK 播报与欢迎' : '');
+    const summary = element('Summary');
+    summary.textContent = supported()
+      ? [settings.reportEnabled ? '对手信息播报' : '', settings.visitorWelcomeEnabled ? settings.visitorWelcomeDelaySeconds + ' 秒后欢迎串门观众' : ''].filter(Boolean).join(' · ') || '请在设置中开启播报或欢迎'
+      : 'PK 开始时播报对手信息';
+    summary.title = summary.textContent;
   }
   function changed() {
     draft.dirty = true;

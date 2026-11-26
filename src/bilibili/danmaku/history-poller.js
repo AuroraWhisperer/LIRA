@@ -4,9 +4,85 @@
 
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
-const { isBilibiliCommandText } = require('./command-text');
-const { cleanText, normalizeTimestampMs } = require('../../shared/utils');
+const { isBilibiliCommandText, isSongCancelCommand, isSongRequestCommand } = require('./command-text');
+const { toSimplifiedChinese } = require('../../shared/chinese-text');
+const { cleanText, normalizeTimestampMs, timestampPrecisionMs } = require('../../shared/utils');
 const { logBilibiliDiagnostic } = require('../diagnostics');
+
+function orderHistoryList(items) {
+  if (!Array.isArray(items)) return [];
+  let dispatchAt = 0;
+  return items.map((item, index) => {
+    const time = normalizeTimestampMs(item.timeline);
+    // Keep a coarse event after its preceding list entry when both times overlap.
+    dispatchAt = Math.min(time + timestampPrecisionMs(item.timeline) - 1, Math.max(time, dispatchAt));
+    return { item, items, index, time, dispatchAt };
+  });
+}
+
+function sameSecondRequests({ item, items, index, time }) {
+  const second = Math.floor(time / 1000);
+  const uid = cleanText(item.uid);
+  const siblings = [];
+  for (const [position, entry] of items.entries()) {
+    if (position !== index && cleanText(entry.uid) === uid &&
+        Math.floor(normalizeTimestampMs(entry.timeline) / 1000) === second &&
+        isSongRequestCommand(toSimplifiedChinese(cleanText(entry.text)))) {
+      siblings.push({ message: cleanText(entry.text), timeline: entry.timeline, offset: position - index });
+    }
+  }
+  return siblings;
+}
+
+function listsOnceAfterCancel(requests, pending) {
+  const text = cleanText(pending.item.text);
+  const matches = requests.filter(request => request.message === text);
+  return matches.length === 1 && matches[0].offset > 0 &&
+    normalizeTimestampMs(matches[0].timeline) === pending.time &&
+    timestampPrecisionMs(matches[0].timeline) === timestampPrecisionMs(pending.item.timeline);
+}
+
+function cancellationOrder(entry, messages, position, deduplicator) {
+  const { item, items, time } = entry;
+  const uid = cleanText(item.uid);
+  const siblings = sameSecondRequests(entry);
+  const width = timestampPrecisionMs(item.timeline);
+  const second = Math.floor(time / 1000);
+  const cancellations = messages.filter(other => Math.floor(other.time / 1000) === second &&
+    cleanText(other.item.uid) === uid && cleanText(other.item.text) === cleanText(item.text));
+  const copies = cancellations.filter(other => other.time === time && timestampPrecisionMs(other.item.timeline) === width);
+  const conflicts = new Set();
+  let mirrorRequests = [];
+  if (copies.length === 2 && copies[0].items !== copies[1].items) {
+    const mirror = copies[0] === entry ? copies[1] : copies[0];
+    const otherOrder = sameSecondRequests(mirror);
+    // Let the copy with usable list order reach deduplication and queue delivery.
+    if (deduplicator && !siblings.length && otherOrder.length && copies[0] === entry) return null;
+    for (const request of siblings) {
+      if (otherOrder.some(other => other.message === request.message && other.offset * request.offset < 0)) {
+        conflicts.add(request.message);
+      }
+    }
+    if (cancellations.length === 2) mirrorRequests = otherOrder;
+  }
+  // A pending request can still be the target unless both lists independently
+  // place the same, unambiguous request after this cancellation.
+  const end = time + width - 1;
+  const pending = messages.slice(position + 1).filter(other => other.items !== items &&
+    cleanText(other.item.uid) === uid && other.time <= end && other.time + timestampPrecisionMs(other.item.timeline) > time &&
+    isSongRequestCommand(toSimplifiedChinese(cleanText(other.item.text))) &&
+    !deduplicator?.has?.(uid, other.item.text, other.time) &&
+    !(listsOnceAfterCancel(mirrorRequests, other) && listsOnceAfterCancel(siblings, other)));
+  const observed = deduplicator?.commandTimelines?.(uid, second);
+  const agreedSide = request => !conflicts.has(request.message);
+  return {
+    timeline: item.timeline,
+    siblings: siblings.filter(agreedSide),
+    mirrorSiblings: mirrorRequests.filter(agreedSide),
+    unorderedRequests: [...new Set([...conflicts, ...pending.map(other => cleanText(other.item.text))])],
+    observed,
+  };
+}
 
 class HistoryPoller {
   constructor(apiClient, onMessage, options = {}) {
@@ -65,29 +141,33 @@ class HistoryPoller {
     try {
       const data = await this.apiClient.fetchHistory(context.roomId);
       if (localGeneration !== this.localGeneration) return;
-      const messages = []
-        .concat(Array.isArray(data.admin) ? data.admin : [])
-        .concat(Array.isArray(data.room) ? data.room : []);
-      messages.sort((a, b) => normalizeTimestampMs(a.timeline) - normalizeTimestampMs(b.timeline));
+      const messages = [...orderHistoryList(data.admin), ...orderHistoryList(data.room)]
+        .sort((a, b) => a.dispatchAt - b.dispatchAt);
 
       let processed = 0;
       let stale = 0;
       let duplicates = 0;
-      for (const item of messages) {
+      for (const [position, entry] of messages.entries()) {
         if (localGeneration !== this.localGeneration) return;
+        const { item, time: timelineMs } = entry;
         const text = cleanText(item.text);
         if (!text) continue;
-        const timelineMs = normalizeTimestampMs(item.timeline);
         if (!this.isCommandText(text)) continue;
         if (!bilibiliHelpers.isCapturableBilibiliTimestamp(timelineMs, this.startedAtMs)) {
           stale += 1;
           continue;
+        }
+        let historyCancellation;
+        if (isSongCancelCommand(toSimplifiedChinese(text))) {
+          historyCancellation = cancellationOrder(entry, messages, position, this.deduplicator);
+          if (!historyCancellation) continue;
         }
         if (
           this.deduplicator &&
           !this.deduplicator.remember(item.uid, text, timelineMs, {
             userName: item.nickname || item.uname,
             source: 'history',
+            platformTimestamp: item.timeline,
           })
         ) {
           duplicates += 1;
@@ -119,6 +199,7 @@ class HistoryPoller {
           identitySource: 'history',
           source: 'history',
           messageTimestamp: timelineMs,
+          ...(historyCancellation && { historyCancellation }),
           identitySnapshot,
         });
       }

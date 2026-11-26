@@ -5,10 +5,37 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { createFixture, deferred } = require('../helpers/overtime-gift-picker-fixture');
+const { createFixture, deferred, flush } = require('../helpers/overtime-gift-picker-fixture');
 const { createFixture: createServiceFixture } = require('../helpers/overtime-service-fixture');
 
 const ROOT_DIR = path.join(__dirname, '../..');
+
+test('a later overview supersedes an earlier settlement list only when it succeeds', async () => {
+  const reads = [];
+  const { namespace: { eventBus, Events }, state } = await createFixture({
+    readOverview() {
+      const read = deferred();
+      reads.push(read);
+      return read.promise;
+    },
+  });
+  const update = revision => eventBus.emit(Events.OVERTIME_UPDATED, { state: { revision }, adjustment: {} });
+  const success = (...settlements) => ({ payload: { ok: true, data: { settlements } } });
+  update(1);
+  reads[1].resolve({ payload: { ok: false, error: 'offline' } });
+  await flush();
+  reads[0].resolve(success('甲'));
+  await flush();
+  assert.deepEqual(state.settlements, ['甲']);
+
+  update(2);
+  update(3);
+  reads[3].resolve(success('丙', '乙', '甲'));
+  await flush();
+  reads[2].resolve(success('乙', '甲'));
+  await flush();
+  assert.deepEqual(state.settlements, ['丙', '乙', '甲']);
+});
 
 test('unrelated snapshots keep the running clock anchored until an overtime update or connection baseline', async () => {
   const { clock, document, namespace: { eventBus, Events }, state } = await createFixture();

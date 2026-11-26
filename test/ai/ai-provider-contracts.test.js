@@ -76,7 +76,7 @@ test('DeepSeek reports an incomplete Responses API output precisely', async () =
         id: 'resp_incomplete',
         status: 'incomplete',
         incomplete_details: { reason: 'max_output_tokens' },
-        output: [],
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'The final stop is' }] }],
       }),
   });
 

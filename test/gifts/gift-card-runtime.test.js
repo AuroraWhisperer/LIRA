@@ -332,6 +332,7 @@ test('export keeps each settlement until merging and counts same-day and histori
       giftId: '1',
       giftName: '礼物',
       unitPrice: 20,
+      totalPrice: 12.34,
       num: 2,
       createdAt: new Date(time).toISOString(),
     },
@@ -343,7 +344,13 @@ test('export keeps each settlement until merging and counts same-day and histori
   const before = structuredClone(items);
   const runtime = createGiftExportRuntime({
     getServices: () => ({
-      gifts: { getSelection: () => ({ viewRevision: 'a', items }), getViewRevision: () => 'a' },
+      gifts: {
+        getSelection: ({ sortField, sortDirection }) => {
+          assert.deepEqual([sortField, sortDirection], ['created_at', 'desc']);
+          return { viewRevision: 'a', items };
+        },
+        getViewRevision: () => 'a',
+      },
       overtimeGiftCatalog: { getGlobalSnapshot: () => ({ gifts: [] }) },
     }),
     getSettingsStore: () => ({ getSettings: () => ({}) }),
@@ -353,7 +360,7 @@ test('export keeps each settlement until merging and counts same-day and histori
     assert.deepEqual(eventIds, ['older', 'one']);
     return { ok: true, groups: [['one', 'older']], partial: false };
   } });
-  const snapshot = await runtime.prepareGiftExport({});
+  const snapshot = await runtime.prepareGiftExport({ sortField: 'gift_name', sortDirection: 'asc' });
   const settlements = (rows) => rows.map(({ eventId, gift }) => [eventId, gift.num]);
   assert.deepEqual(settlements(snapshot.items), settlements(before));
   assert.equal(snapshot.items[1].gift.userName, '新名字');
@@ -362,6 +369,7 @@ test('export keeps each settlement until merging and counts same-day and histori
   assert.equal(grouped.selectedCount, 4);
   assert.deepEqual(settlements(grouped.items), [['older', 104], ['pillow', 2]]);
   assert.equal(grouped.items[0].cardTotalCents, '106000');
+  assert.equal(grouped.items[0].settledTotalCents, '3702');
   assert.deepEqual(settlements(snapshot.items), settlements(before));
   assert.deepEqual(items, before);
 });

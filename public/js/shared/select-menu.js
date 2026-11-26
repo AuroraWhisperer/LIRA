@@ -23,31 +23,14 @@ function getLabelText(select) {
   return clone.textContent.trim().replace(/\s+/g, ' ');
 }
 
-function getOptionNodes(select) {
-  const nodes = [];
-  for (const child of select.children) {
-    if (child.tagName === 'OPTGROUP') {
-      const group = document.createElement('div');
-      group.className = 'lira-select-group';
-      group.setAttribute('role', 'group');
-      group.setAttribute('aria-label', child.label || '选项');
-      if (child.label) group.dataset.label = child.label;
-      const groupOptions = [];
-      for (const option of child.children) {
-        if (option.tagName === 'OPTION') groupOptions.push(option);
-      }
-      groupOptions.forEach((option) =>
-        nodes.push({
-          option,
-          group,
-          disabled: child.disabled || option.disabled,
-        }),
-      );
-      continue;
-    }
-    if (child.tagName === 'OPTION') nodes.push({ option: child, group: null, disabled: child.disabled });
-  }
-  return nodes;
+function createOptionGroup(nativeGroup, variant) {
+  const group = document.createElement('div');
+  group.className = 'lira-select-group';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', nativeGroup.label || '选项');
+  if (nativeGroup.label) group.dataset.label = nativeGroup.label;
+  group.dataset.variant = variant;
+  return group;
 }
 
 function syncSelectedState(state) {
@@ -148,8 +131,10 @@ function closeOpenMenus(except) {
 }
 
 function selectOption(state, optionNode) {
-  if (state.select.disabled || !optionNode || optionNode.getAttribute('aria-disabled') === 'true') return;
+  if (state.select.disabled || optionNode?.getAttribute('role') !== 'option' || optionNode.hidden) return;
   const nextIndex = Number(optionNode.dataset.index);
+  const option = state.select.options[nextIndex];
+  if (!option || option.hidden || option.disabled || option.parentNode?.hidden || option.parentNode?.disabled) return;
   const changed = state.select.selectedIndex !== nextIndex;
   state.select.selectedIndex = nextIndex;
   syncSelectedState(state);
@@ -161,11 +146,15 @@ function buildOptions(state) {
   state.optionsRoot.replaceChildren();
   state.optionNodes = [];
   state.selectedOption = null;
-  let optionIndex = 0;
-  for (const { option, group, disabled } of getOptionNodes(state.select)) {
-    if (group && !group.parentNode) {
-      group.dataset.variant = state.variant;
+  const groups = new Map();
+  for (const [index, option] of Array.from(state.select.options).entries()) {
+    const parent = option.parentNode;
+    const nativeGroup = parent?.tagName === 'OPTGROUP' ? parent : null;
+    if (option.hidden || nativeGroup?.hidden) continue;
+    if (nativeGroup && !groups.has(nativeGroup)) {
+      const group = createOptionGroup(nativeGroup, state.variant);
       state.optionsRoot.append(group);
+      groups.set(nativeGroup, group);
     }
     const optionNode = document.createElement('button');
     optionNode.type = 'button';
@@ -173,19 +162,19 @@ function buildOptions(state) {
     optionNode.setAttribute('role', 'option');
     optionNode.setAttribute('aria-selected', 'false');
     optionNode.dataset.value = option.value;
-    optionNode.dataset.index = String(optionIndex);
+    optionNode.dataset.index = String(index);
     optionNode.textContent = option.textContent.trim();
     if (state.select.hasAttribute('data-select-font-preview')) {
       optionNode.style.fontFamily = option.dataset.fontFamily || (option.value.startsWith('"') ? option.value : '');
     }
+    const disabled = Boolean(option.disabled || nativeGroup?.disabled);
     optionNode.setAttribute('aria-disabled', String(disabled));
     optionNode.disabled = disabled;
-    (group || state.optionsRoot).append(optionNode);
-    state.optionNodes.push(optionNode);
+    (groups.get(nativeGroup) || state.optionsRoot).append(optionNode);
+    state.optionNodes[index] = optionNode;
     optionNode.addEventListener('click', () => selectOption(state, optionNode));
-    optionIndex += 1;
   }
-  if (!optionIndex && !state.search) {
+  if (!state.optionNodes.length && !state.search) {
     const empty = document.createElement('div');
     empty.className = 'lira-select-empty';
     empty.textContent = '暂无可选项';
@@ -237,7 +226,7 @@ function observeSelect(state) {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['disabled', 'label', 'selected', 'value', 'data-font-family', 'title'],
+    attributeFilter: ['disabled', 'hidden', 'label', 'selected', 'value', 'data-font-family', 'title'],
   });
   state.observing = true;
 }

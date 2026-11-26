@@ -147,6 +147,11 @@ test('superchat publication and retraction share the danmaku topic and reconnect
   transport.publishDanmaku({
     source: 'superchat', id: 'sc-1', userName: '晚风', message: '支持', price: 30,
   });
+  transport.publishDanmaku({
+    source: 'superchat', id: 'sc-1', userName: '晚风', message: '応援', price: 30, cmd: 'SUPER_CHAT_MESSAGE_JPN',
+  });
+  assert.equal(events.length, 1);
+  assert.equal(feed.getSnapshot().length, 1);
   assert.equal(events[0].payload.type, 'danmaku:message');
   assert.equal(events[0].payload.item.kind, 'superchat');
   assert.equal(events[0].payload.item.messageId, 'sc-1');

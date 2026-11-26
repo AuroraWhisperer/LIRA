@@ -14,6 +14,11 @@ test.before(async () => {
 });
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test('the export snapshot preserves a quoted system family containing a plus sign', () => {
+  for (const fontId of ['"M+ 1p"', '"Fixture Sans"'])
+    assert.equal(model.normalizeWeeklyScheduleTemplate({ fontId }).fontId, fontId);
+});
+
 test('week dates begin on Monday and preserve real dates across month and leap-year boundaries', () => {
   assert.deepEqual(plain(model.getWeekDates('2026-11-01')), [
     '2026-10-26', '2026-10-27', '2026-10-28', '2026-10-29', '2026-10-30', '2026-10-31', '2026-11-01',

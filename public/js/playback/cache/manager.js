@@ -5,6 +5,11 @@
 
 const CACHE_PREFIX = 'playbackCache:v2:';
 
+function persistentKey(key) {
+  // Older QQ favorites could have been resolved by playlist title.
+  return CACHE_PREFIX + (key === 'qq:liked' ? 'qq:liked:201' : key);
+}
+
 /** 缓存有效期（毫秒） */
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_MEMORY_ENTRIES = 64;
@@ -51,7 +56,8 @@ export class CacheManager {
 
     // 2) localStorage 缓存
     try {
-      const raw = localStorage.getItem(CACHE_PREFIX + key);
+      const storageKey = persistentKey(key);
+      const raw = localStorage.getItem(storageKey);
       if (!raw) return null;
       const entry = JSON.parse(raw);
       if (!entry || typeof entry.timestamp !== 'number') return null;
@@ -61,7 +67,7 @@ export class CacheManager {
         return entry.data;
       }
       // 过期则清理
-      localStorage.removeItem(CACHE_PREFIX + key);
+      localStorage.removeItem(storageKey);
     } catch (_) {
       return null;
     }
@@ -85,7 +91,7 @@ export class CacheManager {
         this.remove(key);
         return;
       }
-      const storageKey = CACHE_PREFIX + key;
+      const storageKey = persistentKey(key);
       const bytes = (storageKey.length + raw.length) * 2;
       if (bytes > MAX_PERSISTENT_BYTES) {
         localStorage.removeItem(storageKey);
@@ -167,7 +173,7 @@ export class CacheManager {
   remove(key) {
     this._mem.delete(key);
     try {
-      localStorage.removeItem(CACHE_PREFIX + key);
+      localStorage.removeItem(persistentKey(key));
     } catch (_) {
       /* ignore */
     }

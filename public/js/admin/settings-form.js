@@ -151,6 +151,7 @@ export function createSettingsForm({
         requestSaveButton.hidden = true;
       }
       renderSaveStatus(requestSaveState, 'saving');
+      const finishBlacklistSave = userBlacklistEditor?.beginSave();
       try {
         const result = await api('/api/settings', updates);
         for (const [key, savedValue] of Object.entries(updates)) {
@@ -170,6 +171,7 @@ export function createSettingsForm({
         renderSaveStatus(requestSaveState, 'error', '保存失败，修改已保留，请重试');
         if (requestSaveButton) requestSaveButton.hidden = false;
       } finally {
+        finishBlacklistSave?.();
         if (requestSaveButton) requestSaveButton.disabled = false;
       }
     }

@@ -6,7 +6,7 @@ const { BilibiliDanmakuClient } = require('../../src/bilibili/danmaku-client');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-async function fixture(t, { liveStatus = 1, hosts = ['synthetic.invalid'], autoAuthenticate = true } = {}) {
+async function fixture(t, { liveStatus = 1, hosts = ['synthetic.invalid'], autoAuthenticate = true, resolveRoomInfo } = {}) {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: Date.parse('2026-11-12T00:00:00Z') });
   const sockets = [];
   const control = { autoOpen: true };
@@ -71,7 +71,7 @@ async function fixture(t, { liveStatus = 1, hosts = ['synthetic.invalid'], autoA
     global.WebSocket = original;
   });
   for (const method of ['info', 'warn', 'log']) t.mock.method(console, method, () => {});
-  client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus });
+  client.apiClient.resolveRoomInfo = resolveRoomInfo || (async () => ({ roomId: 123, uid: 456, liveStatus }));
   client.apiClient.resolveDanmuInfo = async () => ({ token: 'synthetic', host_list: hosts.map((host) => ({ host })) });
   client.apiClient.fetchHistory = async () => ({ room: historyMessages, admin: [] });
   for (const poller of [client.onlineRankPoller, client.fansMedalPoller]) {
@@ -106,6 +106,31 @@ for (const [failure, fail] of [
     assert.equal(statuses.at(-1).connected, true);
   });
 }
+
+test('a retry that first identifies the live room starts history once while nodes are unavailable', async (t) => {
+  let lookups = 0;
+  const { client, statuses } = await fixture(t, { resolveRoomInfo: async () => {
+    if (++lookups === 1) throw new Error('room temporarily unavailable');
+    return { roomId: 123, uid: 456, liveStatus: 1 };
+  } });
+  assert.equal(client.historyPoller.timer, null);
+  const available = client.apiClient.resolveDanmuInfo;
+  client.apiClient.resolveDanmuInfo = async () => { throw new Error('nodes temporarily unavailable'); };
+  t.mock.timers.tick(1000);
+  await flush();
+  assert.ok(client.historyPoller.timer);
+  assert.equal(client.historyPoller.context, client.roomRunContext);
+  assert.equal(statuses.at(-1).connected, true);
+  const generation = client.historyPoller.localGeneration;
+  t.mock.timers.tick(2000);
+  await flush();
+  assert.equal(client.historyPoller.localGeneration, generation);
+  client.apiClient.resolveDanmuInfo = available;
+  t.mock.timers.tick(4000);
+  await flush();
+  assert.equal(client.historyPoller.timer, null);
+  assert.equal(statuses.at(-1).connected, true);
+});
 
 test('connection recovery tries the next available Bilibili host', async (t) => {
   const { client, sockets } = await fixture(t, { hosts: ['first.invalid', 'second.invalid'] });

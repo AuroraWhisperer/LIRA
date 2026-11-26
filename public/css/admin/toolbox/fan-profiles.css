@@ -150,8 +150,8 @@
   background: var(--client-main-nav-active-bg, var(--surface));
   box-shadow: var(
     --client-main-nav-active-shadow,
-    0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent)
+    0 1px 2px light-dark(color-mix(in srgb, var(--text) 10%, transparent), rgba(0, 0, 0, 0.35)),
+    0 0 0 1px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(255, 255, 255, 0.08))
   );
   color: var(--text);
   font-weight: var(--type-weight-semibold);
@@ -1000,7 +1000,7 @@
 .fan-profiles .fan-reminder-actions .fan-reminder-done {
   border-color: var(--border);
   background: var(--surface);
-  color: var(--color-control-accent);
+  color: var(--color-primary-text, var(--color-selection-text, var(--color-control-accent)));
 }
 .fan-profiles .fan-reminder-actions button:hover {
   border-color: var(--color-control-accent);

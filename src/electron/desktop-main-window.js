@@ -50,11 +50,15 @@ function createDesktopMainWindow({
     }
     const maximize = () => maximized(true);
     const unmaximize = () => maximized(false);
+    const syncMaximized = () => maximized(window.isMaximized());
+    const contents = window.webContents;
+    contents.on('did-finish-load', syncMaximized);
     window.once('ready-to-show', ready);
     window.on('close', close);
     window.on('maximize', maximize);
     window.on('unmaximize', unmaximize);
     window.once('closed', () => {
+      contents.removeListener('did-finish-load', syncMaximized);
       window.removeListener('ready-to-show', ready);
       window.removeListener('close', close);
       window.removeListener('maximize', maximize);

@@ -8,6 +8,7 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
   const resourceIntegrity = createResourceIntegrity({ toast, describeError: desktopActionErrorMessage });
   let desktopUpdateNoticeKey = '';
   let desktopUpdateAction = '';
+  let currentVersion = '';
   let initialized = false;
   function initDesktopShell() {
     const desktop = window.songAssistantDesktop;
@@ -58,24 +59,32 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
     const autoUpdateToggle = document.getElementById('autoUpdateToggle');
     const autoUpdateLabel = document.getElementById('autoUpdateLabel');
     if (autoUpdateToggle) {
+      let writer;
+      let edit = 0;
+      let pending = 0;
+      let lastSavedEdit = 0;
+      let confirmed;
       autoUpdateToggle.addEventListener('change', async () => {
         const enabled = autoUpdateToggle.checked;
+        // The first click toggled the rendered setting. Later clicks may toggle an unsaved choice.
+        if (!pending) confirmed = !enabled;
+        writer ??= crypto.randomUUID();
+        const currentEdit = ++edit;
+        pending++;
         try {
-          await api(
-            '/api/settings',
-            {
-              enableAutoUpdate: enabled ? 'true' : 'false',
-            },
-            { notifyError: false },
-          );
-          if (autoUpdateLabel) {
-            autoUpdateLabel.textContent = enabled ? '已开启' : '已关闭';
+          await api('/api/settings?return=minimal', { enableAutoUpdate: String(enabled) }, {
+            notifyError: false, keepalive: true, headers: { 'X-Lira-Update-Edit': `${writer}/${currentEdit}` },
+          });
+          if (currentEdit > lastSavedEdit) {
+            lastSavedEdit = currentEdit;
+            confirmed = enabled;
           }
         } catch (error) {
           toast('保存失败：' + (error.message || String(error)), { type: 'error' });
-          autoUpdateToggle.checked = !enabled;
-          if (autoUpdateLabel) {
-            autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
+        } finally {
+          if (--pending === 0) {
+            autoUpdateToggle.checked = confirmed;
+            if (autoUpdateLabel) autoUpdateLabel.textContent = confirmed ? '已开启' : '已关闭';
           }
         }
       });
@@ -93,6 +102,7 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
       }, { once: true });
       desktop.getInfo().then((info) => {
         if (!active) return;
+        currentVersion = info.version ? String(info.version) : '';
         const versionNode = document.getElementById('desktopVersionPill');
         if (versionNode) versionNode.textContent = info.version ? `v${info.version}` : '--';
         handleDesktopUpdateState(info.updateState);
@@ -109,14 +119,15 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
   function maybeShowDesktopUpdateNotice(state) {
     if (state?.status === 'available' || state?.status === 'downloading') desktopUpdateAction = 'download';
     if (state?.status === 'error' && desktopUpdateAction) {
-      const titles = { check: '暂时查不了新版本', download: '更新没下载成功', install: '更新没能安装' };
+      const titles = { check: '更新检查失败', download: '更新下载失败', install: '更新安装失败' };
       showStackedToast({
         key: `desktop-update:${state.updateVersion || state.version || 'current'}`,
         update: true,
         type: 'error',
         title: titles[desktopUpdateAction],
-        message: state.message ? desktopUpdateStatusText(state) : '请到更新页查看原因，再试一次。',
-        actionLabel: '打开更新页',
+        message: state.message ? desktopUpdateStatusText(state) : '请到更新页查看原因后再试。',
+        className: 'desktop-update-toast',
+        actionLabel: '查看详情',
         onClick: openUpdatePage,
       });
       desktopUpdateAction = '';
@@ -134,14 +145,15 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
 
   function showDesktopUpdateNotice(updateVersion, status) {
     const versionText = updateVersion ? ` v${updateVersion}` : '';
-    const title = status === 'downloaded' ? `更新${versionText}已下载` : `发现新版本${versionText}`;
-    const body =
-      status === 'downloaded' ? '退出程序时会安装；点击前往更新页，可在直播结束后重启。' : '即将自动下载；点击前往更新页查看进度。';
+    const downloaded = status === 'downloaded';
+    const title = downloaded ? `${updateVersion ? `v${updateVersion} ` : '新版本'}已就绪` : `发现新版本${versionText}`;
+    const body = downloaded ? '退出时自动安装，建议播后重启' : '即将自动下载，可随时查看进度';
 
     showStackedToast({
       key: `desktop-update:${updateVersion || 'current'}`,
       update: true,
-      actionLabel: '前往更新页面',
+      type: downloaded ? 'success' : 'info',
+      actionLabel: downloaded ? '去重启' : '查看进度',
       title,
       message: body,
       className: 'desktop-update-toast',
@@ -150,12 +162,16 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
     });
   }
 
-  function showDesktopNoUpdateNotice(message) {
+  function showDesktopNoUpdateNotice(state) {
+    const version = String(state?.version || currentVersion || '').replace(/^v/i, '');
     showStackedToast({
       key: 'desktop-update:not-available',
-      title: '已经是最新版本',
-      message: message || '当前版本不需要更新。',
+      update: true,
+      type: 'success',
+      title: '已是最新版本',
+      message: version ? `当前 v${version}，无需更新` : '当前版本无需更新',
       className: 'desktop-update-toast desktop-update-toast-good',
+      actionLabel: '更新页',
       duration: 4200,
       onClick: openUpdatePage,
     });
@@ -167,7 +183,7 @@ export function createDesktopShell({ toast, showStackedToast, showError, api, sh
       const state = await action();
       if (shouldRender) {
         handleDesktopUpdateState(state);
-        if (state && state.status === 'not-available') showDesktopNoUpdateNotice(desktopUpdateStatusText(state));
+        if (state && state.status === 'not-available') showDesktopNoUpdateNotice(state);
       }
     } catch (error) {
       if (shouldRender) {

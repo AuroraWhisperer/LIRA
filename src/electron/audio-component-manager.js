@@ -37,9 +37,12 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
       return path.join(bundledDirectory, manifest.entry);
     if (!canDownload()) throw new Error('AUDIO_AUTHORIZATION_REQUIRED');
     const staging = await fs.mkdtemp(path.join(root, '.prepare-'));
+    const stalled = new AbortController();
+    const startIdleTimer = () => setTimeout(() => stalled.abort(), 300000);
+    let idleTimer = startIdleTimer();
     try {
       publish({ status: 'downloading', totalBytes: manifest.archive.size, downloadedBytes: 0 });
-      const attempt = AbortSignal.any([signal, AbortSignal.timeout(300000)]);
+      const attempt = AbortSignal.any([signal, stalled.signal]);
       const response = await fetchImpl(`${origin}/${manifest.archive.path}`, {
         signal: attempt, credentials: 'omit', redirect: 'error',
       });
@@ -48,13 +51,19 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
         throw new Error('AUDIO_DOWNLOAD_FAILED');
       }
       let lastProgress = 0;
+      let lastSize = 0;
       const archive = await writeResource(manifest.archive, response.body, {
         directory: staging, signal: attempt, onProgress: downloadedBytes => {
+          if (downloadedBytes <= lastSize) return;
+          lastSize = downloadedBytes;
+          clearTimeout(idleTimer);
+          idleTimer = startIdleTimer();
           if (Date.now() - lastProgress < 200 && downloadedBytes !== manifest.archive.size) return;
           lastProgress = Date.now();
           publish({ downloadedBytes });
         },
       });
+      clearTimeout(idleTimer);
       publish({ status: 'installing', downloadedBytes: manifest.archive.size });
       const unpacked = path.join(staging, 'unpacked');
       await fs.mkdir(unpacked);
@@ -62,7 +71,10 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
       signal.throwIfAborted();
       await publishAudioDirectory(unpacked, directory);
       return path.join(directory, manifest.entry);
-    } finally { await fs.rm(staging, { recursive: true, force: true }); }
+    } finally {
+      clearTimeout(idleTimer);
+      await fs.rm(staging, { recursive: true, force: true }).catch(() => {});
+    }
   }
 
   function preparationErrorMessage(error) {

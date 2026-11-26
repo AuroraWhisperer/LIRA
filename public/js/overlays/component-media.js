@@ -55,10 +55,11 @@ export function createMediaDecoration() {
   let content;
   let loading;
   let playRevision = 0;
+  let playbackActive = true;
   function syncVideo() {
     const revision = ++playRevision;
     const video = art;
-    if (document.hidden) { video.pause(); return; }
+    if (!playbackActive || document.hidden) { video.pause(); return; }
     void video.play().catch(() => {
       if (revision !== playRevision) return;
       video.muted = true;
@@ -77,6 +78,10 @@ export function createMediaDecoration() {
     delete document.documentElement.dataset.mediaStyle;
   }
   return {
+    setPlaybackActive(active) {
+      playbackActive = active;
+      if (art?.tagName === 'VIDEO') syncVideo();
+    },
     update(config) {
       if (!target || !config?.mediaStyle) { if (art) clear(); return; }
       const style = normalizeMediaStyle(target[0], config.mediaStyle);

@@ -28,7 +28,9 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
   const listeners = new Set();
   let installed = readIndex();
   let scanId = 0;
+  let lastCompletedScan = 0;
   let pending = null;
+  let downloadingFiles = null;
   let controller = null;
   let checked = false;
   let closed = false;
@@ -86,14 +88,18 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     }
   }
 
+  function canStillPublish(key) {
+    // Different packages can publish the same immutable object.
+    return !downloadingFiles || downloadingFiles.has(key) || downloadingFiles.values().some(object => object === key);
+  }
+
   function markAvailable(file, filename) {
     available.set(file.path, { file, filename, scanId });
     wakeAsset(file.path);
     wakeAsset(objectName(file));
   }
 
-  async function scan(signal) {
-    let promotionError;
+  async function scan(signal, blocked) {
     for (const file of files) {
       signal.throwIfAborted();
       const cached = { ...file, ...installed[file.path] };
@@ -105,7 +111,8 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
           await fs.promises.rename(`${filename}.pending`, filename);
           valid = true;
         } catch (error) {
-          promotionError ||= error;
+          blocked.add(file.path);
+          reportFailure(error, 'publish', file.path);
           const previous = available.get(file.path);
           if (previous && await matches(previous.filename, previous.file)) markAvailable(previous.file, previous.filename);
           else available.delete(file.path);
@@ -125,7 +132,6 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
         }
       }
     }
-    return promotionError;
   }
 
   function commit(files, staged) {
@@ -178,6 +184,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     scanId++;
     controller = new AbortController();
     const signal = controller.signal;
+    const blocked = new Set();
     let phase = 'cache';
     pending = (async () => {
       publish({ status: 'checking', total: 0, completed: 0, failed: 0, currentFont: '',
@@ -186,19 +193,42 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
       pruneManagedFiles(dataDir, directory, { maxAgeMs: 86400000, keep, matches: name =>
         /^[a-f0-9]{64}\.(?:zip|[a-z0-9]+\.pending)$/.test(name) ||
         /^(?:index\.json|[a-f0-9]{64}\.[a-z0-9]+)\.[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.tmp$/.test(name) });
-      const promotionError = await scan(signal);
-      if (promotionError) { phase = 'publish'; throw promotionError; }
+      await scan(signal, blocked);
+      lastCompletedScan = scanId;
       phase = 'manifest';
       const manifest = await readManifest({ origin, fetch: fetchWithRateLimit, signal, timeoutMs: manifestTimeoutMs });
-      const { downloads } = validateManifest(manifest, sharedFiles);
+      const { files: published, downloads } = validateManifest(manifest, sharedFiles);
       phase = 'publish';
       const needsFile = file => {
         const ready = available.get(file.path)?.file;
         return !ready || ready.sha256 !== file.sha256 || ready.size !== file.size;
       };
+      // A verified public cache object can outlive its index. Bundled fallback paths cannot.
+      const unindexed = published.filter(file => !needsFile(file) && !installed[file.path]
+        && available.get(file.path).filename === path.join(directory, objectName(file)));
+      const retryIndex = new Set();
+      if (unindexed.length) {
+        try { await commit(unindexed); }
+        catch (error) {
+          reportFailure(error, 'publish');
+          for (const file of unindexed) retryIndex.add(file.path);
+        }
+      }
+      const missing = [];
+      let failedPackages = 0;
       for (const resource of downloads) {
+        if (resource.files.some(file => blocked.has(file.path))) {
+          failedPackages++;
+          continue;
+        }
         const changed = resource.files.filter(needsFile);
-        if (!changed.length) continue;
+        const repairs = resource.files.filter(file => retryIndex.has(file.path));
+        if (!changed.length) {
+          if (repairs.length) failedPackages++;
+          continue;
+        }
+        // A missing member still needs the ZIP. Retry its siblings' index entries with this package's commit.
+        const indexFiles = changed.concat(repairs);
         const staged = new Map();
         let complete = true;
         for (const file of changed) {
@@ -208,28 +238,39 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
           if (!await matches(candidate, file)) { complete = false; break; }
           staged.set(file.path, candidate);
         }
-        if (complete) await commit(changed, staged);
+        if (complete) {
+          try { await commit(indexFiles, staged); }
+          catch (error) {
+            reportFailure(error, 'publish', resource.id);
+            failedPackages++;
+          }
+        } else missing.push({ ...resource, files: changed, indexFiles });
       }
-      const missing = downloads.map(resource => ({ ...resource, files: resource.files.filter(needsFile) }))
-        .filter(resource => resource.files.length);
-      if (!missing.length) return publish({ status: 'ready' });
+      if (!missing.length) return publish(failedPackages
+        ? { status: 'error', total: failedPackages, completed: failedPackages, failed: failedPackages, completedAt: new Date().toISOString() }
+        : { status: 'ready' });
       await fs.promises.mkdir(directory, { recursive: true });
-      publish({ status: 'downloading', total: missing.length, totalBytes: missing.reduce((sum, file) => sum + file.size, 0) });
+      downloadingFiles = new Map(missing.flatMap(resource => resource.files.map(file => [file.path, objectName(file)])));
+      for (const key of assetWaiters.keys()) if (!canStillPublish(key)) wakeAsset(key);
+      publish({ status: 'downloading', total: missing.length + failedPackages, failed: failedPackages,
+        completed: failedPackages, totalBytes: missing.reduce((sum, file) => sum + file.size, 0) });
       let next = 0;
       let finishedBytes = 0;
       let lastProgressAt = 0;
-      const activeBytes = new Map();
-      const byteProgress = () => finishedBytes + [...activeBytes.values()].reduce((sum, bytes) => sum + bytes, 0);
+      const active = new Map();
+      const byteProgress = () => finishedBytes + [...active.values()].reduce((sum, task) => sum + task.bytes, 0);
       async function worker() {
         while (next < missing.length && !signal.aborted) {
           const file = missing[next++];
-          publish({ currentFont: file.label || path.posix.basename(file.path) });
+          const task = { label: file.label || path.posix.basename(file.path), bytes: 0 };
+          active.set(file.id, task);
+          publish({ currentFont: task.label });
           let failed = 0;
           let resourcePhase = 'download';
           try {
             const downloaded = await downloadResource(file, { origin, directory, fetch: fetchWithRateLimit, signal, timeoutMs,
               onProgress(bytes) {
-                activeBytes.set(file.id, bytes);
+                task.bytes = bytes;
                 if (Date.now() - lastProgressAt >= 100) {
                   lastProgressAt = Date.now();
                   publish({ downloadedBytes: byteProgress() });
@@ -243,7 +284,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
               else staged.set(file.files[0].path, downloaded);
               signal.throwIfAborted();
               resourcePhase = 'publish';
-              await commit(file.files, staged);
+              await commit(file.indexFiles, staged);
             } finally {
               for (const temporary of new Set([downloaded, ...staged.values()]))
                 await fs.promises.rm(temporary, { force: true });
@@ -253,15 +294,21 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
             failed = 1;
             if (!signal.aborted) reportFailure(error, resourcePhase, file.id);
           }
-          activeBytes.delete(file.id);
-          publish({ completed: state.completed + 1, failed: state.failed + failed, downloadedBytes: byteProgress() });
+          for (const member of file.files) {
+            downloadingFiles.delete(member.path);
+            wakeAsset(member.path);
+            wakeAsset(objectName(member));
+          }
+          active.delete(file.id);
+          publish({ completed: state.completed + 1, failed: state.failed + failed, downloadedBytes: byteProgress(),
+            currentFont: active.values().next().value?.label || '' });
         }
       }
       await Promise.all([worker(), worker()]);
       signal.throwIfAborted();
       return publish({ status: state.failed ? 'error' : 'ready', currentFont: '', completedAt: new Date().toISOString() });
     })().catch(error => {
-      const missing = sharedFiles.filter(file => !available.has(file.path)).length;
+      const missing = sharedFiles.filter(file => blocked.has(file.path) || !available.has(file.path)).length;
       const failed = missing || Number(phase === 'publish' && !signal.aborted);
       if (!signal.aborted && (failed || state.total)) reportFailure(error, phase);
       return publish({ status: closed ? 'idle' : failed || state.total ? 'error' : 'ready', currentFont: '',
@@ -269,6 +316,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
         completedAt: state.total || failed ? new Date().toISOString() : '' });
     }).finally(() => {
       pending = null;
+      downloadingFiles = null;
       controller = null;
       for (const name of assetWaiters.keys()) wakeAsset(name);
     });
@@ -292,10 +340,12 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     while (true) {
       const filename = resolveAsset(name, hash);
       const active = available.get(name);
+      const awaitingScan = current && pending === current && lastCompletedScan !== scanId && !active
+        && (installed[name] || allowed.get(name)).sha256 === hash;
       if (filename && (!hash || active?.file.sha256 === hash)) {
         if (active.scanId === scanId) return filename;
-      } else if (filename && !(current && pending === current && !active && (installed[name] || allowed.get(name)).sha256 === hash)) {
-        // Historical objects are outside the startup scan. Share the digest check across concurrent requests.
+      } else if (filename && !awaitingScan) {
+        // A sibling can publish the requested digest before this path is ready. Verify the public bytes.
         let check = versionChecks.get(filename);
         if (!check) {
           check = matches(filename, { sha256: hash }).finally(() => versionChecks.delete(filename));
@@ -305,7 +355,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
         const ready = available.get(name);
         if (ready?.file.sha256 === hash && ready.scanId === scanId) return ready.filename;
       }
-      if (!current || pending !== current) return null;
+      if (!current || pending !== current || !canStillPublish(key)) return null;
       // A cached version can become ready before the requested update commits.
       let waiter = assetWaiters.get(key);
       if (!waiter) {

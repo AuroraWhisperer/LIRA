@@ -175,17 +175,35 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       if (key && identityKeys.has(key)) throw createPublicError('恢复后的身份与保留档案冲突，请重新核对备份。');
       if (key) identityKeys.add(key);
     }
-    const snapshotId = store.snapshot(scope, backup(scope), now());
+    const before = backup(scope);
+    const retainedRecordIds = new Set();
+    const retainedSourceKeys = new Set();
+    if (input.conflicts === 'keep') {
+      for (const profile of before.profiles) {
+        for (const record of profile.records) {
+          retainedRecordIds.add(record.id);
+          if (record.sourceKey) retainedSourceKeys.add(record.sourceKey);
+        }
+      }
+    }
+    const snapshotId = store.snapshot(scope, before, now());
     store.removeMany(scope, [...replacedIds]);
     for (const profile of profiles) {
       const { records, reminders, ...data } = profile;
       const restored = store.restoreProfile(scope, data, identityKey(data.identity), now());
+      const retainedElsewhere = new Set();
       for (const record of records) {
+        if (retainedRecordIds.has(record.id) || retainedSourceKeys.has(record.sourceKey)) {
+          retainedElsewhere.add(record.id);
+          continue;
+        }
         store.records.insert(scope, restored.id, record, now());
         if (record.kind === 'song' && record.sourceKey?.startsWith('request:'))
           store.markSongRequest(scope, record.sourceKey.slice('request:'.length));
       }
       for (const state of reminders) {
+        const [kind, recordId] = state.key.split(':', 2);
+        if (['anniversary', 'followup', 'expiry'].includes(kind) && retainedElsewhere.has(recordId)) continue;
         store.saveState(scope, restored.id, state.key, state);
       }
     }
@@ -277,7 +295,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       .filter((p) => !p.archived)
       .map((p) => ({
         ...p,
-        uid: p.identity?.value || '',
+        uid: p.identity?.type === 'uid' ? p.identity.value : '',
         birthday: p.birthday?.monthDay || '',
       }));
     return '\uFEFF' + [fields.join(','), ...rows.map((p) => fields.map((f) => escape(p[f])).join(','))].join('\r\n');

@@ -55,6 +55,7 @@ function createDesktopUpdateController({
     if (disposed || startupTimer !== null || !app.isPackaged || !readAutoUpdateSetting()) return;
     startupTimer = timers.setTimeout(() => {
       startupTimer = null;
+      if (updateManager.getUpdateState().status !== 'idle') return;
       checkForUpdates().catch(error => { if (!disposed) setUpdateError(error); });
     }, 1000);
   }

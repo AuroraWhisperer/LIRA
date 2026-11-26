@@ -74,24 +74,21 @@ function createCloudSyncRuntime({
     return changed;
   }
 
-  function applyCloudSettingsSnapshot(input, accountKey) {
+  function applyCloudSettingsSnapshot(input, accountKey, blindBoxMapping) {
     const settingsStore = getSettingsStore();
     const bilibiliRuntime = getBilibiliRuntime();
     if (!settingsStore || !bilibiliRuntime) {
       throw new Error('Application runtime not ready.');
     }
     settingsStore.setSettings(normalizeCloudSettingsSnapshot(input), { syncPending: false, accountKey });
+    if (blindBoxMapping !== undefined) updateBlindBoxMappingState(blindBoxMapping);
     bilibiliRuntime.configure();
     broadcastSnapshot('cloud:settings');
     return getCloudSettingsSnapshot();
   }
 
-  function setBlindBoxMappingState(input) {
-    if (!input || typeof input !== 'object' || Array.isArray(input)) {
-      blindBoxMappingState = null;
-      return;
-    }
-    blindBoxMappingState = Object.freeze({
+  function updateBlindBoxMappingState(input) {
+    const next = input && typeof input === 'object' && !Array.isArray(input) ? Object.freeze({
       mode: input.mode === 'legacy' ? 'legacy' : 'v2',
       catalogVersion: String(input.catalogVersion || '') || null,
       settingsRevision: Math.max(0, Number(input.settingsRevision) || 0),
@@ -99,7 +96,14 @@ function createCloudSyncRuntime({
       takenOverCount: Math.max(0, Number(input.takenOverCount) || 0),
       migrationPendingCount: Math.max(0, Number(input.migrationPendingCount) || 0),
       applied: input.applied === true,
-    });
+    }) : null;
+    if (JSON.stringify(next) === JSON.stringify(blindBoxMappingState)) return false;
+    blindBoxMappingState = next;
+    return true;
+  }
+
+  function setBlindBoxMappingState(input) {
+    if (updateBlindBoxMappingState(input) && isActive()) broadcastSnapshot('cloud:settings');
   }
 
   function getOwnedSongLibrary(accountKey) {

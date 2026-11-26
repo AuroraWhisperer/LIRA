@@ -4,7 +4,7 @@ const { createPublicError } = require('../shared/public-error');
 
 const { randomUUID } = require('node:crypto');
 const { identity, identityKey, timestamp, text, recordData, recentNameHistory, entrySnapshot } = require('./validation');
-const { membershipConflicts, cycleForNewRecord } = require('./membership');
+const { membershipConflicts, cycleForNewRecord, updatesCurrentCycle } = require('./membership');
 const { normalizeGuardAccompany, newerGuardAccompany } = require('./guard-accompany');
 
 function createFanFactConsumer({ store, now, create }) {
@@ -151,7 +151,7 @@ function createFanFactConsumer({ store, now, create }) {
         data.conflicts = membershipConflicts(record, records);
         if (data.conflicts.length) data.decision = 'pending';
         store.records.insert(scope, profile.id, record);
-        if (data.decision === 'adopted' && data.cycleId !== profile.cycleId) {
+        if (data.decision === 'adopted' && data.cycleId !== profile.cycleId && updatesCurrentCycle(data, records)) {
           store.save(scope, { ...profile, cycleId: data.cycleId }, key, now());
         }
       }

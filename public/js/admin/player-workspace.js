@@ -90,6 +90,7 @@ export class PlayerWorkspace {
       ],
       backdrop: document.getElementById('queuePopupBackdrop'),
     });
+    fsEl.dispatchEvent(new Event('playback:fullscreen-open'));
   }
 
   /**

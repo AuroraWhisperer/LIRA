@@ -90,12 +90,16 @@ test('wish previews follow saved wishes across layers and cancel replies after l
   finish({ ok: true, json: async () => ({ ok: true, data: { items: [{ ...wish, textPendingColor: '#fedcba' }] } }) });
   await update;
   assert.equal(emitted.at(-1).previewData['gift-wishes'].items[0].textPendingColor, '#fedcba');
-  state.draft.document.items = [];
+  state.draft.document.items[0].visible = false;
+  listener(state);
+  assert.equal(reads.length, 2);
+  state.draft.document.items[1].visible = false;
   listener(state);
   assert.equal(timers.size, 0);
   assert.equal(emitted.at(-1).previewData['gift-wishes'], null);
-  state.draft.document.items = [{ type: 'gift-wishes' }];
+  state.draft.document.items[0].visible = true;
   listener(state);
+  assert.equal(reads.length, 3);
   stop();
   assert.equal(listener, null);
   assert.equal(reads.at(-1).options.signal.aborted, true);

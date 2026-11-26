@@ -10,7 +10,7 @@ const { extractBilibiliSuperChatDeleteIds } = require('../parsers/superchat-pars
 const { extractBilibiliLiveLotteryEvents } = require('../parsers/live-lottery-parser');
 const { isBilibiliCommandText } = require('./command-text');
 const { toSimplifiedChinese } = require('../../shared/chinese-text');
-const { readDanmakuOptions } = require('../parsers/danmaku-parser');
+const { readDanmakuOptions, readDanmakuTime } = require('../parsers/danmaku-parser');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 const { logBilibiliDiagnostic, logSongRequest } = require('../diagnostics');
 
@@ -107,7 +107,7 @@ class MessageHandlers {
     const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info, this.roomOwnerUid, options);
     const text = String(info[1] || '');
     const simplified = toSimplifiedChinese(text.trim());
-    const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
+    const { messageTimestamp, platformTimestamp } = readDanmakuTime(info);
     if (ingress) {
       const rawTime = Number(info[0]?.[4]);
       const platformTime = rawTime > 1e12 ? rawTime : rawTime > 1e9 ? rawTime * 1000 : null;
@@ -158,6 +158,7 @@ class MessageHandlers {
       !this.deduplicator.remember(userInfo[0], text, messageTimestamp, {
         userName: userInfo[1],
         source: 'danmaku',
+        platformTimestamp,
       })
     ) {
       return;
@@ -258,6 +259,7 @@ class MessageHandlers {
       !this.deduplicator.remember(superChat.uid || superChat.id, text, superChat.messageTimestamp, {
         userName: superChat.userName,
         source: 'superchat',
+        platformTimestamp: superChat.platformTimestamp,
       })
     ) {
       return;

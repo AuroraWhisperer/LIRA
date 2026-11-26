@@ -26,6 +26,30 @@ function response(body = weather(), headers = {}) {
   } });
 }
 
+test('the local half-hour zone cache expires at 09:00 after an 08:50 read', async t => {
+  const previousZone = process.env.TZ;
+  const originalZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  process.env.TZ = 'Asia/Kolkata';
+  t.after(() => {
+    process.env.TZ = previousZone ?? originalZone;
+    if (previousZone === undefined) delete process.env.TZ;
+  });
+  let time = Date.parse('2026-10-22T08:50:00+05:30');
+  let requests = 0;
+  const service = createWorldClockTemperature({ now: () => time, fetch: async () => {
+    const body = weather();
+    body.currentCondition.currentRaw.temp = ++requests === 1 ? 14 : 22;
+    return response(body);
+  } });
+  t.after(() => service.close());
+  assert.equal((await service.getTemperature(LOCATION)).temperature, 14);
+  time += 600000 - 1;
+  assert.equal((await service.getTemperature(LOCATION)).temperature, 14);
+  time++;
+  assert.equal((await service.getTemperature(LOCATION)).temperature, 22);
+  assert.equal(requests, 2);
+});
+
 test('temperature reads the requested MSN city and shares its response until the next whole hour', async t => {
   let time = START;
   const first = Promise.withResolvers();
@@ -51,7 +75,7 @@ test('temperature reads the requested MSN city and shares its response until the
   first.resolve(response());
   assert.equal((await pending).temperature, -1);
   assert.deepEqual(await duplicate, await pending);
-  time += 30 * 60000 - 1;
+  time = new Date(START).setMinutes(60, 0, 0) - 1;
   const cached = await service.getTemperature(LOCATION);
   assert.equal(cached.temperature, -1);
   assert.equal(cached.condition, '小雨');
@@ -79,7 +103,7 @@ test('missing or invalid weather descriptions preserve a valid temperature witho
 });
 
 test('a response crossing the hour does not keep the previous hour cached', async t => {
-  let time = START + 30 * 60000 - 1000;
+  let time = new Date(START).setMinutes(60, 0, 0) - 1000;
   let requests = 0;
   const first = Promise.withResolvers();
   const service = createWorldClockTemperature({ now: () => time, fetch: () => {

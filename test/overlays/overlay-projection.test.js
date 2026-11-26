@@ -40,6 +40,15 @@ test('lyrics project both visual layers without exposing saved libraries or unre
   const projected = projectOverlayState('lyrics', { settings: { ...settings, aiApiKey: 'private', advancedLyricSavedPresets: 'private library' } });
   assert.deepEqual(projected.settings, settings);
 });
+
+test('lyric overlay snapshots and ticks carry the playback rate between samples', () => {
+  const principal = { type: 'overlay', scope: 'lyrics' };
+  const lyricState = { currentMs: 11000, playing: true, playbackRate: 2 };
+  const snapshot = projectWebSocketPayload(principal, { type: 'snapshot', state: { lyricState } });
+  const tick = projectWebSocketPayload(principal, { type: 'lyric-state', state: lyricState });
+  assert.equal(snapshot.state.lyricState.playbackRate, 2);
+  assert.equal(tick.state.playbackRate, 2);
+});
 const secret = 'PRIVATE_SENTINEL';
 test('clock snapshot allows its scalar settings and style profiles without other domain state', () => {
   const clockKeys = ['clockStyle', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockLabel',
@@ -277,6 +286,24 @@ test('danmaku gift totals survive both live events and reconnect snapshots', () 
   assert.equal(live.price, 30);
   assert.equal(live.messageId, 'sc-1');
   assert.deepEqual(projectOverlayState('danmaku', state).danmakuFeed[0], live);
+});
+
+test('room identity reaches danmaku snapshots and messages only within the danmaku overlay scope', () => {
+  const message = { roomGuardLevel: 3, roomMedal: { name: '本房牌', level: 17, targetUid: secret } };
+  const live = projectWebSocketPayload({ type: 'overlay', scope: 'danmaku' }, { type: 'danmaku:message', item: message });
+  const snapshot = projectOverlayState('danmaku', { danmakuFeed: [message] });
+  for (const item of [snapshot.danmakuFeed[0], live.item]) {
+    assert.equal(item.roomGuardLevel, 3);
+    assert.deepEqual(item.roomMedal, { name: '本房牌', level: 17 });
+  }
+
+  const session = { game: 'draw-guess', danmaku: [message] };
+  const game = projectOverlayState('games', { games: session });
+  const patch = projectWebSocketPayload({ type: 'overlay', scope: 'games' }, { type: 'game:patch', item: message });
+  for (const item of [game.games.danmaku[0], patch.item]) {
+    assert.equal(item.roomGuardLevel, undefined);
+    assert.equal(item.roomMedal, undefined);
+  }
 });
 
 test('danmaku SC retractions stay scoped and contain only public platform IDs', () => {

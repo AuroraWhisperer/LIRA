@@ -113,8 +113,8 @@ UIAutomation 读取窗口的 Text 控件，补充 MSAA 缺失的进度并识别�
 
 ### 5.2 QRC 歌词加载(loadWeSingLyrics,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
-1. 日志命中 → 只读 `WeSingDL/Res/<mid>/<mid>.qrc`；缺失或无法解析则进入在线兜底，不再借用其他 mid 下的同名歌词。mid 标识当前伴奏版本。
-2. 仅在日志未命中时兜底扫描 `listRecentQrcFiles`([wesing-cache.js](../../../../src/music/wesing-cache.js))——`SAFE_SONG_MID` 子目录批量(每批 100)stat 各自的 `.qrc`(`0 < size ≤ 4MB`)，按 mtime 降序取最多 80 个。候选中只有一份标题匹配(`normalizeTitle` 相等)时才采用；多份同名缓存返回 null，交给在线匹配，不按文件新旧猜版本。仅凭唯一缓存标题仍无法保证实际伴奏版本一致，应优先配置实际写入日志与 QRC 的缓存目录。
+1. 日志命中 → 只读 `WeSingDL/Res/<mid>/<mid>.qrc`。mid 标识当前伴奏版本，因此可采用缺少 `[ti:...]` 的歌词。文件缺失或无法解析则进入在线兜底。
+2. 仅在日志未命中时兜底扫描 `listRecentQrcFiles`([wesing-cache.js](../../../../src/music/wesing-cache.js))——`SAFE_SONG_MID` 子目录批量(每批 100)stat 各自的 `.qrc`(`0 < size ≤ 4MB`)，按 mtime 降序取最多 80 个。当前标题与文件内 `[ti:...]` 均非空且 `normalizeTitle` 相等才算匹配。仅采用唯一匹配，无匹配或多份同名缓存均交给在线匹配。仅凭唯一缓存标题仍无法保证实际伴奏版本一致，应优先配置实际写入日志与 QRC 的缓存目录。
 
 resolver 优先使用引擎传入的 `logEntry`；未传入时通过引擎的缓存读取器取得，独立调用则默认读取最新歌曲日志。显式传入 null 表示没有匹配记录，不再次扫描日志。通过 `loadWeSingLyrics({cachePath, title, logEntry})` 将同一条记录用于本地定位和在线歌手匹配。QRC 缺少歌手元数据时采用该日志的歌手；记录的 mid 单独返回引擎作为版本标识，不与在线平台的 track id 混用。
 

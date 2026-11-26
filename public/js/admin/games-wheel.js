@@ -62,8 +62,9 @@ export function renderWheelState(state, options = {}) {
   const entries = wheelState.entries?.length ? wheelState.entries
     : Array.from({ length: wheelLimits?.minEntries || 0 }, () => ({ label: '', weight: wheelLimits.minWeight }));
   savedEntries = JSON.stringify(entries.map((entry) => ({ label: String(entry.label || '').trim(), weight: Number(entry.weight) })));
-  if (syncEntries) {
-    renderWheelEntries(entries);
+  if (syncEntries && wheelLimits) {
+    byId('wheelEntries').replaceChildren();
+    appendWheelEntries(entries);
   }
   updateWheelTotal();
   const spinning = Boolean(wheelState.spin);
@@ -119,21 +120,13 @@ function toggleWheelDetails() {
   }
 }
 
-function renderWheelEntries(entries) {
-  if (!wheelLimits) return;
+function appendWheelEntries(entries) {
   const root = byId('wheelEntries');
-  root.replaceChildren();
-  const values = entries.length
-    ? entries
-    : Array.from({ length: wheelLimits.minEntries }, () => ({
-        label: '',
-        weight: wheelLimits.minWeight,
-      }));
-  values.forEach((entry, index) => {
+  for (const entry of entries) {
     const row = document.createElement('div');
     row.className = 'wheel-entry-row';
     const label = document.createElement('label');
-    label.textContent = `内容 ${index + 1}`;
+    label.textContent = `内容 ${root.children.length + 1}`;
     const labelInput = document.createElement('input');
     labelInput.type = 'text';
     labelInput.maxLength = wheelLimits.maxLabelLength;
@@ -155,7 +148,6 @@ function renderWheelEntries(entries) {
     remove.type = 'button';
     remove.className = 'secondary wheel-remove-entry';
     remove.textContent = '删除';
-    remove.disabled = values.length <= wheelLimits.minEntries;
     remove.addEventListener('click', () => {
       row.remove();
       renumberWheelEntries();
@@ -165,17 +157,15 @@ function renderWheelEntries(entries) {
     weightInput.addEventListener('input', updateWheelTotal);
     row.append(label, weight, remove);
     root.append(row);
-  });
-  updateWheelTotal();
+  }
 }
 
 function addWheelEntry() {
   if (!wheelLimits || pending || wheelState?.spin) return;
   const rows = byId('wheelEntries').children;
   if (rows.length >= wheelLimits.maxEntries) return;
-  const entries = readWheelEntries();
-  entries.push({ label: '', weight: wheelLimits.minWeight });
-  renderWheelEntries(entries);
+  appendWheelEntries([{ label: '', weight: wheelLimits.minWeight }]);
+  updateWheelTotal();
 }
 
 function renumberWheelEntries() {

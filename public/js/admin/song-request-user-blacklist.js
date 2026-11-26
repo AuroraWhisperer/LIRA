@@ -21,6 +21,9 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
   const addButton = documentRef.getElementById('songRequestUserBlacklistAdd');
   let rows = [];
   let renderedValue;
+  let hasDraft = false;
+  let pendingSave;
+  const removedUids = new Set();
   let nextExpiryAt = Infinity;
   let expiryCheckedAt = -Infinity;
 
@@ -53,13 +56,17 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     updateExpiryLabels();
   }
 
-  function updateDraft(structureChanged = false) {
-    renderedValue = undefined;
-    field.value = JSON.stringify(rows.map((row) => ({
+  function draftValue() {
+    return JSON.stringify(rows.map((row) => ({
       uid: row.uid.value.trim(),
       name: row.name.value.trim(),
       expiresAt: readExpiry(row),
     })));
+  }
+
+  function updateDraft(structureChanged = false) {
+    hasDraft = true;
+    field.value = draftValue();
     field.dataset.preserveDirty = 'true';
     field.dataset.dirty = 'true';
     if (structureChanged) updateLabels();
@@ -67,7 +74,24 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     field.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
-  function appendUser(entry) {
+  function submissionFor(row) {
+    return pendingSave?.get(row) || row?.submittedReuse;
+  }
+
+  function beginSave() {
+    const submitted = new Map(rows.map(row => [row, { uid: row.uid.value.trim(), edits: new Set() }]));
+    pendingSave = submitted;
+    return () => {
+      if (pendingSave !== submitted) return;
+      // The snapshot acknowledging a reused UID can arrive after the save request finishes.
+      for (const [row, submission] of submitted) {
+        if (removedUids.has(submission.uid)) row.submittedReuse = submission;
+      }
+      pendingSave = null;
+    };
+  }
+
+  function appendUser(entry, saved = entry) {
     const item = documentRef.createElement('tr');
     const uid = documentRef.createElement('input');
     uid.type = 'text';
@@ -95,10 +119,16 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     remove.type = 'button';
     remove.className = 'secondary';
     remove.textContent = '删除';
-    const row = { uid, name, expiry, status, remove, savedExpiresAt: entry.expiresAt || 0, savedExpiryText: expiry.value };
-    for (const input of [uid, name, expiry]) input.addEventListener('input', () => updateDraft());
+    const row = { item, uid, name, expiry, status, remove, saved, savedExpiresAt: entry.expiresAt || 0, savedExpiryText: expiry.value };
+    for (const input of [uid, name, expiry]) input.addEventListener('input', () => {
+      submissionFor(row)?.edits.add(input);
+      updateDraft();
+    });
     remove.addEventListener('click', () => {
       const index = rows.indexOf(row);
+      if (row.saved) removedUids.add(row.saved.uid);
+      const submittedUid = submissionFor(row)?.uid;
+      if (submittedUid) removedUids.add(submittedUid);
       rows.splice(index, 1);
       item.remove();
       updateDraft(true);
@@ -111,40 +141,80 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     }
     list.append(item);
     rows.push(row);
-    return uid;
+    return row;
   }
 
   function render(rawValue = '[]') {
-    if (field.dataset.dirty === 'true' || rawValue === renderedValue) {
+    const dirty = field.dataset.dirty === 'true';
+    if (rawValue === renderedValue && (dirty || !hasDraft)) {
       const now = Date.now();
       if (now < expiryCheckedAt || now >= nextExpiryAt) updateExpiryLabels(now);
       return;
     }
     const entries = JSON.parse(rawValue || '[]');
-    const unchanged = entries.length === rows.length && entries.every((entry, index) => (
-      entry.uid === rows[index].uid.value && (entry.name || '') === rows[index].name.value
-      && (entry.expiresAt || 0) === readExpiry(rows[index])
-    ));
-    field.value = rawValue;
-    const editing = rows.some((row) => [row.uid, row.name, row.expiry].includes(documentRef.activeElement));
-    if (!unchanged && !editing) {
-      rows = [];
-      list.replaceChildren();
-      entries.forEach(appendUser);
+    if (!dirty) removedUids.clear();
+    const byUid = new Map(rows.filter(row => row.saved).map(row => [row.saved.uid, row]));
+    const incomingUids = new Set(entries.map(entry => entry.uid));
+    const byDraftUid = new Map();
+    for (const row of rows) {
+      if (incomingUids.has(row.saved?.uid)) continue;
+      const submittedUid = submissionFor(row)?.uid;
+      byDraftUid.set(incomingUids.has(submittedUid) ? submittedUid : row.uid.value.trim(), row);
     }
-    if (unchanged || !editing) renderedValue = rawValue;
+    const previousRows = rows;
+    rows = [];
+    for (const entry of entries) {
+      const row = byUid.get(entry.uid) || byDraftUid.get(entry.uid);
+      const submission = submissionFor(row);
+      if (removedUids.has(entry.uid)) {
+        if (submission?.uid !== entry.uid) continue;
+        removedUids.delete(entry.uid);
+      }
+      if (!row) { appendUser(entry); continue; }
+      const saved = row.saved;
+      const edits = submission?.edits;
+      if (!dirty || row.submittedReuse?.uid === entry.uid) delete row.submittedReuse;
+      const accept = (control, unchanged) => !dirty || (unchanged && !edits?.has(control));
+      if (row.uid.value !== entry.uid && accept(row.uid, row.uid.value === saved?.uid)) row.uid.value = entry.uid;
+      const name = entry.name || '';
+      if (row.name.value !== name && accept(row.name, row.name.value === (saved?.name || ''))) row.name.value = name;
+      if (accept(row.expiry, readExpiry(row) === (saved?.expiresAt || 0))) {
+        if (readExpiry(row) !== (entry.expiresAt || 0)) row.expiry.value = localDateTime(entry.expiresAt);
+        row.savedExpiresAt = entry.expiresAt || 0;
+        row.savedExpiryText = row.expiry.value;
+      }
+      row.saved = entry;
+      rows.push(row);
+    }
+    const retained = new Set(rows);
+    for (const row of previousRows) {
+      if (retained.has(row)) continue;
+      if (dirty && !row.saved) rows.push(row);
+      else row.item.remove();
+    }
+    for (const [index, row] of rows.entries()) {
+      if (list.children[index] === row.item) continue;
+      if (index) rows[index - 1].item.after(row.item);
+      else list.prepend(row.item);
+    }
+    renderedValue = rawValue;
+    hasDraft = dirty;
+    const nextValue = dirty ? draftValue() : rawValue;
+    const changedDraft = dirty && nextValue !== field.value;
+    field.value = nextValue;
     updateLabels();
+    if (changedDraft) field.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   function init() {
     addButton.addEventListener('click', () => {
-      const input = appendUser({ uid: '', name: '', expiresAt: 0 });
+      const row = appendUser({ uid: '', name: '', expiresAt: 0 }, null);
       updateDraft(true);
-      input.focus();
+      row.uid.focus();
     });
     eventBus.on(Events.STATE_LOADED, ({ state }) => render(state.settings?.songRequestUserBlacklist));
     render(getState()?.getAppState?.()?.settings?.songRequestUserBlacklist);
   }
 
-  return { init, render };
+  return { init, render, beginSave };
 }

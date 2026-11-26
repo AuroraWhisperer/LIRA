@@ -3,7 +3,7 @@
 'use strict';
 
 import { assertApiResponse } from '../../shared/json-response.js';
-import { isLocalTrack, hasUsableUrl, serializeTrackForProvider, getPlaybackLyricOffsetMs } from '../utils.js';
+import { isLocalTrack, hasUsableUrl, serializeTrackForProvider } from '../utils.js';
 
 /**
  * 流媒体服务类
@@ -104,13 +104,12 @@ export class StreamService {
   /**
    * 处理播放错误（带重试逻辑）
    * @param {Object} track - 当前曲目
-   * @param {HTMLAudioElement} audio - 音频元素
    * @param {Function} onRetrySuccess - 重试成功回调
    * @param {Function} onRetryFailed - 重试失败回调
    * @param {Function} isCurrent - 错误任务是否仍拥有当前音频的播放权
    * @returns {Promise<void>}
    */
-  async handlePlaybackError(track, audio, onRetrySuccess, onRetryFailed, isCurrent = () => true) {
+  async handlePlaybackError(track, onRetrySuccess, onRetryFailed, isCurrent = () => true) {
     if (!track || !isCurrent({ requirePlayIntent: true })) return;
 
     // 本地音频播放失败
@@ -129,9 +128,6 @@ export class StreamService {
 
     // 尝试刷新播放地址
     this.retryCount++;
-    const songPosition = (audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
-      getPlaybackLyricOffsetMs(track) / 1000;
-
     try {
       const newUrl = await this.getTrackUrl(track, {
         forceRefresh: true,
@@ -141,10 +137,7 @@ export class StreamService {
       if (!isCurrent()) return;
 
       if (newUrl) {
-        if (onRetrySuccess) {
-          const resumeAt = Math.max(0, songPosition - getPlaybackLyricOffsetMs(track) / 1000);
-          await onRetrySuccess(track, resumeAt);
-        }
+        if (onRetrySuccess) await onRetrySuccess(track);
       } else {
         throw new Error('无法获取新的播放地址');
       }

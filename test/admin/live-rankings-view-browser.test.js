@@ -33,3 +33,29 @@ test('ranking failures have one status owner while cached rows retain their rank
   }
   await page.evaluate(() => window.disposeRankings());
 });
+
+test('nearby mode marks the unranked room distance as delayed even with no visible neighbors', async t => {
+  const page = await fixture(t, 'rankings');
+  await page.evaluate(async () => {
+    const { createRankingsView } = await import('/js/shared/live-rankings-view.js');
+    const root = document.createElement('div');
+    document.body.replaceChildren(root);
+    let now = 10000;
+    const view = createRankingsView(root, { now: () => now });
+    const board = { id: 'hot', title: '热门', unit: '热度值', limit: 50, updatedAt: now,
+      current: { roomId: '2', rank: null, distance: 38 }, rows: [{ roomId: '1', rank: 1, score: 90 }] };
+    window.showBoard = (status, age) => {
+      now = board.updatedAt + age;
+      view.update({ status: 'ready', boards: [{ ...board, status }] }, { range: 'nearby' });
+    };
+    window.showBoard('ready', 0);
+  });
+  const delayed = page.locator('.ranking-freshness');
+  assert.equal(await page.locator('.ranking-list .ranking-row').count(), 0);
+  assert.match(await page.locator('.ranking-distance').innerText(), /38/);
+  assert.equal(await delayed.isVisible(), false);
+  for (const [status, age] of [['ready', 6000], ['stale', 500]]) {
+    await page.evaluate(([status, age]) => window.showBoard(status, age), [status, age]);
+    assert.equal(await delayed.isVisible(), true);
+  }
+});

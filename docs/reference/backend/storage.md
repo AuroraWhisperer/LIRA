@@ -206,12 +206,12 @@ data/
 | 表 | 职责与约束 |
 | --- | --- |
 | `fan_profiles` | UUID 主键；scope 为规范 Server origin + 已认证 `streamerId`；`scope + typed identity` 唯一；JSON 与乐观 `revision` |
-| `fan_records` | 档案外键级联；UUID、`scope + source_key` 唯一；歌曲仅保存汇总，其余类型保存原始事实、当前数据与修订 |
+| `fan_records` | 档案外键级联；UUID、`scope + source_key` 唯一；歌曲仅保存汇总，其余类型保存原始事实、当前数据与修订。只改会员依据说明时保留原采用决定。合并草稿时，与目标已采用依据冲突的移入记录标记为 `pending`，保留双方原始依据 |
 | `fan_roster_templates` | v14 新增；按 scope 隔离，未编辑的自动名单观察共享相同 `data`/`original`；时间与来源键仍逐条存于 `fan_records`，末引用移除后回收模板 |
 | `fan_reminder_states` | `scope + profile + item_key` 唯一；保存已处理、忽略、稍后与事项来源 |
-| `fan_scopes` | 自动设置、epoch/cursor（事实与游标同事务提交）；可选 `autoSyncGuardRoster`（默认 `false`）、`lastGuardRosterAutoUpdate: {date, roomId}` 同事务按归属/房间/北京时间日期去重；可选 `accompanyMilestones` 与 `showAccompanyInCalendar` |
+| `fan_scopes` | 自动设置、epoch/cursor（事实与游标同事务提交）；可选 `autoSyncGuardRoster`（默认 `false`）、`lastGuardRosterAutoUpdate` 与成功的自动名单导入同事务保存。`date` 为北京时间日期，`roomId` 为正式房号。配置短号与正式号不同时另存已核对的 `configuredRoomId`。同归属当天匹配其中任一房号即跳过自动同步，旧标记按正式房号匹配；可选 `accompanyMilestones` 与 `showAccompanyInCalendar` |
 | `fan_suppressions` | 当前 scope 黑名单的最小 typed identity 标记；屏蔽档案展示与写入 |
-| `fan_restore_snapshots` | scope 内恢复/合并前的完整快照，仅保留最新两份；恢复点操作校验归属 |
+| `fan_restore_snapshots` | scope 内恢复/合并前的完整快照，仅保留最新两份，恢复点操作校验归属。文件恢复与创建快照同事务。`keep` 根据快照中的记录 ID 或稳定来源键保留本机内容与归属，`replace` 按备份恢复冲突档案及其记录归属 |
 
 - **档案 JSON 扩展字段（无 SQL schema 变更）**：复用 `nameHistory` 并支持可选 `lastEntry: {name, observedAt}`、`preferredFormerName`、`excludedFormerNames`（最近进房名、默认展示与人工移除名单）；可选 `guardAccompany: {days, roomId, observedAt, source}` 平台陪伴观察（预计日历事项仅作内存投影，处理状态存 `fan_reminder_states`）；可选 `guardRoster: {roomId, ownerUid, observedAt, level}` 最近完整名单身份（`level` 为 1/2/3 或明确缺席时的 `null`，未知/跨房/迟到快照不覆盖较新已知身份）。均兼容 v1/v2 备份，详见 [粉丝档案规格](../../../specs/fan-profiles.md)。
 - **索引与投影查询**：songDb v15 新增 `idx_fan_records_profile_id` 与 `idx_fan_reminder_states_profile_id` 支撑外键级联删除。`fan-profile-store.list(scope)` 默认排除黑名单（完整备份显式传 `{includeSuppressed: true}`）。列表、提醒与日历经 `records.listProjectionInputs` 分批读取所需最小字段，在“提醒所需最早日期与有效名单快照时间”较早边界之前，同一档案与自动名单模板仅取最近一次标准 UTC 观测；详情、修改、合并与备份读取完整历史。非歌曲记录保存先核乐观 `revision`，无实质变更时不追加空修订或展开模板。
@@ -286,7 +286,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 | `lottery_events` | 当前活动事件及已清理活动的创建回执 | streamer 范围 `requestId` 唯一；`create-retired` 仅留请求 ID/摘要，不关联旧任务或轮次 |
 | `lottery_request_budget` | 本机/账号滚动请求预算与冷却 | `scope` PK；活动删除不重置 |
 
-抽奖库仅存最小业务证据，不存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 管理分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 复用三条预编译语句，在请求出站前同事务预留本机与账号预算。`dynamic-lottery-draw-store.js` 按当前 order ID 与 `order_json` 原文复用一份已解析的冻结顺序，核验阶段逐候选经 `recordCheck({includeOrder: false})` 原子推进授奖与游标。
+抽奖库仅存最小业务证据，不存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 管理分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 复用三条预编译语句，在请求出站前同事务预留本机与账号预算。`dynamic-lottery-draw-store.js` 读取完整冻结顺序时，按当前 order ID 与 `order_json` 原文复用解析结果。逐候选的 `recordCheck({includeOrder: false})` 在同一事务中从 SQLite 取游标处的 UID 和名单长度，核对后原子推进授奖与游标。读取进度和结果时，整份顺序留在 SQLite 内。
 
 抽奖私有 `streamer_id`、创建回执与账号预算 scope 使用主进程派生的服务器 origin + 账号编号 namespace（算法见 [auth.md §14](../desktop/auth.md#14-动态抽奖专用账号)），本机预算仍按整台安装共享；旧无 origin 数据保留，不自动映射。
 
@@ -304,7 +304,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 | --- | --- | --- | --- |
 | `songDb` | `song_db` | v1–v22 | v1 列补全（`tags`/`language`/`source_platform`/`original_group`、`pinned_at`、`requester_*`）；v2 `seedThemePresets`；v3 清理重复 `(name, artist)` 后建唯一索引；v4 补 `songs.request_price`；v5 补 `songs.song_clip`；v6 建六张粉丝档案表及 `requests` 稳定标识/归属列；v7 建 `idx_requests_queue_id`；v8 建 `component_scenes`；v9 建 `component_output_sizes`；v10 建 `component_canvas`；v11 加 `is_preset` 且 `active_scene_id` 可空；v12 建账号隔离 `song_cooldowns`；v13 汇总粉丝歌曲与恢复点、加 `requests.fan_recorded` 与 `random_request_history` 并清旧终态队列/流水；v14 建 `fan_roster_templates` 无损去重自动名单；v15 建粉丝记录/提醒 `profile_id` 索引；v16 加 `queue.is_live` 及单 LIVE 部分唯一索引；v17 建 `danmaku_appearances`；v18 修正 F–L 拼音界标重算 `name_pinyin`/`name_initial`（不触发云同步）；v19 建 `song_request_daily_counts`。v20 为点歌汇总和两张 AI 过期表添加清理索引。v21 为 `component_scenes.published_json` 和 `danmaku_appearances.config_json` 增加行级 `body_token`。SQLite 触发器在插入、重插和正文改写时更新标识，迁移给已有行补齐标识。v22 校正旧 H 拼音界标下被分入 G 的歌曲，保留业务字段与修改时间 |
 | `superChatDb` | `super_chat_db` | v1–v3 | v1 基线；v2 建最小防重 ID 表 `super_chat_receipts`，转换旧 `deleted` 行并覆盖后续删除路径。v3 给有效记录的 `platform_id` 添加查重索引 |
-| `giftDb` | `gift_db` | v1–v25 | v1 `ensureGiftColumns`；v2 `platform_id` 索引；v3 `collapseDuplicateGiftIdentities` + 唯一索引 `(platform_id, uid)`；v4 **检测账本升级**（`ensureGiftDetectionColumns`）；v5 插加班机单例行（`id=1`）；v6 扩加班机时长上限；v7 放开 `display` 规则模式；v8 增来源分区、同步状态与远程约束索引；v9 补可空 `gift_events.blind_box_id`；v10 **礼物身份升级**（[ADR-0014](../../architecture/adr/0014-gift-identity-bound-overtime.md)：`gift_events` 增可空 `gift_variant_id`/`blind_box_variant_id`，`overtime_gift_rules` 增 `gift_identity_key`/`gift_identity_json` 并将主键升级为 `(gift_id, gift_identity_key)`，旧无身份规则保留等待重选，`settlements` 不迁移不回放，图片索引升级 schema 2 按 `variantId` 回退）；v11 补可空 `avatar_url`/`guard_level`（0–3）；v12 建 `source_recent` 与 `source_time_asc` 索引；v13 建 `gift_wishes`/`gift_wish_sessions`；v14–v16 补许愿样式、文字模板、图片位置/格式与颜色；v17 建礼物保留快照/日汇总/去重键/本机归档/冲刺结转（见 §9）；v18 建保留快照双状态时间索引；v19 补许愿 `text_runs`；v20 建 `gift_wish_contributions`；v21 补本机盲盒归档可空 `occurred_at` 及索引；v22 建立一年礼物保留分层并执行一次性旧投影重置（见 §9）；v23 建 `heart_box_collection_adjustments`；v24 建远端最近记录 `idx_gift_events_remote_recent` 表达式部分索引（仅加索引，不改写数据）。v25 为当前轮次的终态加班礼物及仍含原始 JSON 的记录添加部分索引 |
+| `giftDb` | `gift_db` | v1–v26 | v1 `ensureGiftColumns`；v2 `platform_id` 索引；v3 `collapseDuplicateGiftIdentities` + 唯一索引 `(platform_id, uid)`；v4 **检测账本升级**（`ensureGiftDetectionColumns`）；v5 插加班机单例行（`id=1`）；v6 扩加班机时长上限；v7 放开 `display` 规则模式；v8 增来源分区、同步状态与远程约束索引；v9 补可空 `gift_events.blind_box_id`；v10 **礼物身份升级**（[ADR-0014](../../architecture/adr/0014-gift-identity-bound-overtime.md)：`gift_events` 增可空 `gift_variant_id`/`blind_box_variant_id`，`overtime_gift_rules` 增 `gift_identity_key`/`gift_identity_json` 并将主键升级为 `(gift_id, gift_identity_key)`，旧无身份规则保留等待重选，`settlements` 不迁移不回放，图片索引升级 schema 2 按 `variantId` 回退）；v11 补可空 `avatar_url`/`guard_level`（0–3）；v12 建 `source_recent` 与 `source_time_asc` 索引；v13 建 `gift_wishes`/`gift_wish_sessions`；v14–v16 补许愿样式、文字模板、图片位置/格式与颜色；v17 建礼物保留快照/日汇总/去重键/本机归档/冲刺结转（见 §9）；v18 建保留快照双状态时间索引；v19 补许愿 `text_runs`；v20 建 `gift_wish_contributions`；v21 补本机盲盒归档可空 `occurred_at` 及索引；v22 建立一年礼物保留分层并执行一次性旧投影重置（见 §9）；v23 建 `heart_box_collection_adjustments`；v24 建远端最近记录 `idx_gift_events_remote_recent` 表达式部分索引（仅加索引，不改写数据）。v25 为当前轮次的终态加班礼物及仍含原始 JSON 的记录添加部分索引。v26 在迁移事务中重建 `idx_gift_events_source_recent` 和 `idx_gift_events_remote_recent`，按 UTC 毫秒排序 |
 | `musicDb` | `music_db` | v1 | 基线 |
 | `checkinDb` | `checkin_db` | v1 | 基线 |
 | `lotteryDb` | `lottery_db` | v1–v2 | v1 建九张抽奖业务表与唯一/查询索引；v2 为 `lottery_evidence` 增可空 `display_name TEXT`（独立失败边界，不加入原五库事务） |
@@ -472,7 +472,7 @@ Phase 1 失败且全部事务回滚成功时，仅解除本次请求取得的暂
 ### 7.2 defaults 外的领域设置与公开投影
 
 - `giftDisplayConfig` 由 [display-settings.js](../../../src/bilibili/gift/display-settings.js) 管理（JSON 文本，经专属礼物展示接口读写，不同步云端，旧 `intervalSeconds`/`paused`/`lowPower` 兼容为 `scrollSpeed=1`，完整字段见 [api.md §10](api.md#10-礼物域gifts)）。
-- 礼物图片导出四个设置键同样不在 `DEFAULT_SETTINGS`：`giftExportMode`（默认 `combined`，另可 `separate`）、`giftExportBackground`（默认 `transparent`，另可 `white`）、`giftExportMergeAcrossDates`（默认 `'false'`）、`giftExportDirectory`（空串使用系统图片目录下 `LIRA/礼物导出`，仅允许经原生对话框或系统默认取得，不同步云端）。由 Electron 控制器经 `giftExport` IPC 写入（见 [preload.md](../desktop/preload.md)）。
+- 礼物图片导出的本地设置由 Electron 控制器经 `giftExport` IPC 写入，控制器提供缺省值。`giftExportMode` 默认 `combined`，另可 `separate`。`giftExportBackground` 默认 `transparent`，另可 `white`。`giftExportSortBy` 默认 `time`，另可 `amount`。`giftExportRowGap` 存储双条合图间距的整数像素字符串，范围 `'0'` 至 `'32'`，默认 `'16'`。`giftExportMergeAcrossDates` 默认 `'false'`。`giftExportDirectory` 只接受原生对话框或系统默认目录，空串使用系统图片目录下 `LIRA/礼物导出`。见[礼物导出接口](../desktop/preload.md#6-礼物导出任务与取消)。
 - 以上领域键仍由 `getSettings()` 返回并可进入管理 HTTP/WS；overlay 设置由 [overlay-projection.js](../../../src/server/overlay-projection.js) 按 scope 白名单筛选。真正隐藏的私有键（`cloudRoomAccountKey`、`cloudSongSyncPending` 等）见 §8。
 
 ### 7.3 启动迁移、清理与导入导出
@@ -523,11 +523,12 @@ Phase 1 失败且全部事务回滚成功时，仅解除本次请求取得的暂
 - **许愿边界结转与查询**：giftDb v20（[gift-wish-migration.js](../../../src/storage/gift-wish-migration.js)）建 `gift_wish_contributions`（v22 重置后不再写入）；[gift-wish-retention.js](../../../src/storage/gift-wish-retention.js) 在删除事务内将长期许愿创建日与已确定本场起始日的部分窗口合并至 `gift_wish_boundary_totals`（本场可变尾日保留原行，完整自然日走服务器汇总不重复相加；同 epoch 重建保留结转，换 epoch/清来源重置，删许愿级联清除）。`gift-wish-store.countMany` 一次读取活动 retention 快照并在同来源内分别单次查询聚合明细、完整日与非整日贡献（各条件保留自身精确起止时间与礼物身份）。
 - **原子切换与分批回收**：[gift-retention-store.js](../../../src/storage/gift-retention-store.js) 同事务提交页与检查点，校验固定 epoch、revision、coverage、令牌与 `projection_generation`，下载完成后原子切换活动快照（实时行自动入活动成员，历史暂存行取得同 source/epoch 已发布成员证明后可见；`gift_local_detail_coverage` 存已验证明细区间）。[gift-local-retention.js](../../../src/storage/gift-local-retention.js) 以已激活 `summarized_before` 减 365 天为截止点（默认每批 25 条、硬上限 500 条），先结转后删除，保护 `pending` 加班与未完成统计消费；[gift-retention-cleanup.js](../../../src/storage/gift-retention-cleanup.js) 每批扫 ≤ 100 条清理废弃快照与日版本。检查点与删除同事务提交，SQLite 复用空闲页不在线 VACUUM；远程礼物仅由此专用路径回收，详见 [礼物保留规格](../../../specs/gift-retention.md)。
 
-## 查询优化：song v7 / gift v12、v18、v24
+## 查询优化：song v7 / gift v12、v18、v24、v26
 
 - **时间与最近记录索引**：
-  - giftDb v12：`idx_gift_events_source_recent` 按 `(source_id, datetime(created_at) DESC, id DESC)` 索引 `active`、付费、`final` 且统计合格记录（供本地最近列表）；`idx_gift_events_source_time_asc` 补齐升序。时间游标先取同时间较小 ID 再取严格早/晚记录，共用短读事务。
-  - giftDb v24：`idx_gift_events_remote_recent` 按 `(source_id, datetime(created_at) DESC, id DESC)` 索引 `source_id IS NOT NULL`、`total_price > 0`、`final` 的远端记录（不限 `status` 且不要求统计合格），使普通 `active` 与已发布快照 `active`/`retention-staged` 读取沿同一时间序取数而无需临时排序（仅加索引，不改写数据）。
+  - giftDb v12 建立本地最近记录索引 `idx_gift_events_source_recent`，覆盖 `active`、付费、`final` 且统计合格记录（供本地最近列表）；`idx_gift_events_source_time_asc` 补齐升序。时间游标先取同时间较小 ID 再取严格早/晚记录，共用短读事务。
+  - giftDb v24 建立远端最近记录索引 `idx_gift_events_remote_recent`，覆盖 `source_id IS NOT NULL`、`total_price > 0`、`final` 的远端记录（不限 `status` 且不要求统计合格），使普通 `active` 与已发布快照 `active`/`retention-staged` 读取沿同一时间序取数而无需临时排序（仅加索引，不改写数据）。
+  - giftDb v26 在同一迁移事务中重建上述两个最近记录索引，排序键均为 `(source_id, datetime(created_at, 'subsec') DESC, id DESC)`。本地索引沿用 `status='active'`、`total_price>0`、`detection_status='final'` 和 `gift_stats_eligible=1`。远端索引沿用 `source_id IS NOT NULL`、`total_price>0` 和 `detection_status='final'`。同一来源按 UTC 毫秒从新到旧，同一毫秒再按本机行 ID 倒序。旧账本、保留成员与游标按原值保存。
   - giftDb v18：`idx_gift_events_retained_time` / `idx_gift_events_retained_time_asc` 索引 `final`、`status IN ('active','retention-staged')`、`total_price > 0`、`num >= 1` 的记录，结合成员证明与 365 天边界实现连续时间序扫描。
 - **分页计数与统计预汇总**：`gift-query-store.js` 的 `readHistoryPage` 同事务读取总数与分页并按连接缓存最多 64 个筛选计数（以 `total_changes()`、`data_version`、`schema_version` 失效）。`readStatistics` 同读事务按原始礼物 ID、名称、北京时间桶与盲盒成本状态预汇总明细，并与活动 retention 日汇总合并供总计、身份排行与时间序列复用，不新增持久表或跨请求缓存。
 - **冲刺与盲盒连接级聚合追踪（`gift-aggregate-changes.js`）**：

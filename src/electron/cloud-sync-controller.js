@@ -36,6 +36,7 @@ function createCloudSyncController(options = {}) {
     shouldApply,
     seedScope,
     getDirtyGeneration: () => dirtyGenerations.settings,
+    getRevision: () => revisions.settings,
     recordRevision: (revision) => { revisions.settings = revision; },
     confirmState: (values) => giftInteraction.confirmState(values),
   });
@@ -330,9 +331,8 @@ function createCloudSyncController(options = {}) {
     if (!isCurrent(work)) return false;
     if (scope === 'settings' && result?.values) giftInteraction.confirmState(result.values);
     if (scope === 'settings') {
-      const applied = await settingsSync.acceptUpload(result, pendingSettings, dirtyGeneration, work);
+      await settingsSync.acceptUpload(result, pendingSettings, dirtyGeneration, work);
       if (!isCurrent(work)) return false;
-      if (applied) runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
     }
     if (scope === 'songs' && Number.isSafeInteger(result?.revision) && result.revision >= 0) {
       recordSongSnapshot(result);
@@ -394,6 +394,8 @@ function createCloudSyncController(options = {}) {
     if (scope === 'songs' && songSync.hasPending(work.accountKey)) return false;
     if (scope === 'bilibili' && bilibiliSync.getPendingLogout(work.accountKey)) return false;
     const current = revisions[scope];
+    // Settings also carry a read-only mapping summary which can be refreshed at the same revision.
+    if (scope === 'settings') return current === null || cloudRevision >= current;
     if (scope === 'songs') {
       // A restored library can have an older revision or a different timestamp, including null for legacy databases.
       const hasUpdatedAt = updatedAt === null || typeof updatedAt === 'string';
@@ -566,10 +568,10 @@ function createCloudSyncController(options = {}) {
   async function logoutBilibili() {
     const work = prepareBilibiliWork();
     // Commit intent before clearing the only local Cookie/snapshot copy.
-    runtime.capturePendingCloudBilibiliLogout(work.accountKey);
+    const pending = runtime.capturePendingCloudBilibiliLogout(work.accountKey);
     markScopeDirty('bilibili');
     try {
-      return await bilibiliAuth.logout({ signal: work.signal });
+      return await bilibiliSync.clearLocalLogout(work, pending);
     } finally {
       if (isAuthorized()) start().catch((error) => { void error; });
     }

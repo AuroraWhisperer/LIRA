@@ -178,6 +178,7 @@ function createInteractionSessionService(options = {}) {
     if (!counter.accept(uid, text.text)) return false;
     if (event.eventId) eventIds.add(event.eventId);
     if (Number.isFinite(event.platformTime)) timestamps.set(uid, event.platformTime);
+    else timestamps.delete(uid);
     if (session.kind === 'poll') publish(false);
     return true;
   }

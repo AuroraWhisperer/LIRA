@@ -134,7 +134,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | D3 | [查看原图](../images/usage-guide/D/gift-danmaku-query.webp) | 演示/可合并 | 与 D2 范围高度重复，主要增加标注；明确礼物页入口。 |
 | D4 | [查看原图](../../public/img/usage-guide/D/gift-recent-and-all.webp) | 补上下文 | 最近礼物和查看全部完整；说明来自礼物页。 |
 | D5 | [查看原图](../../public/img/usage-guide/D/gift-history-drawer.webp) | 补选中态 | 筛选和列表齐全，但选中 0 条、导出按钮未启用；最好展示选中后的下一步。 |
-| D6 | [查看原图](../../public/img/usage-guide/D/gift-export-workspace.webp) | 未完成成功验收 | 仅预览与保存设置；没有真实保存/打开文件夹结果，原文已披露运行错误。 |
+| D6 | [查看原图](../images/usage-guide/D/gift-export-workspace.webp) | 未完成成功验收 | 仅预览与保存设置；没有真实保存/打开文件夹结果，原文已披露运行错误。 |
 | D7 | [查看原图](../images/usage-guide/D/gift-wishes.webp) | 需配 D7b | 周期、样式、进度可见，底部复制地址未入镜；完整流程需搭配 D7b。 |
 | D7b | [查看原图](../images/usage-guide/D/gift-wishes-text.webp) | 补上下文 | 动态占位符、文字预览及底部地址可见；注明百宝箱→礼物姬→礼物许愿。 |
 | D8 | [查看原图](../../public/img/usage-guide/D/gift-blindbox-analysis.webp) | 需补视图 | 只展示按观众看；按盲盒看、开盒记录及有效分页未覆盖。 |

@@ -11,7 +11,7 @@ const aiResponse = (data) => ({
   json: async () => ({ ok: true, data }),
 });
 
-async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request, confirm = async () => true, visible = true } = {}) {
+async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request, confirm = async () => true, visible = true, aiTabHidden = false } = {}) {
   const publicConfig = {
     enabled: false,
     autoReplyProbabilityPercent: 100,
@@ -125,12 +125,14 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
   const windowEvents = new Map();
   const documentEvents = new Map();
   const observers = new Set();
-  const visibility = { pageActive: true, panelHidden: !visible, documentHidden: false };
+  const visibility = { pageActive: true, panelHidden: !visible, aiTabHidden, documentHidden: false };
   const page = { classList: { contains: (name) => name === 'active' && visibility.pageActive } };
   const panel = { get hidden() { return visibility.panelHidden; } };
   elements.set('otherAssistantPage', page);
   elements.set('otherDanmakuFeature', panel);
-  elements.get('xiaomiAiForm').closest = (selector) => selector === '[hidden]' && panel.hidden ? panel : null;
+  const aiTab = { get hidden() { return visibility.aiTabHidden; } };
+  elements.set('danmakuAiPanel', aiTab);
+  elements.get('xiaomiAiForm').closest = (selector) => selector === '[hidden]' && (aiTab.hidden || panel.hidden) ? (aiTab.hidden ? aiTab : panel) : null;
   const window = {
     innerWidth: 1440,
     innerHeight: 900,
@@ -161,6 +163,10 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
         const override = request?.(url, options);
         if (override !== undefined) return override;
         if (url === '/api/ai/config' && !options.method) return initialConfig;
+        if (url === '/api/ai/config' && options.method === 'PUT') {
+          const { model = publicConfig.model } = JSON.parse(options.body);
+          return aiResponse({ ...publicConfig, model });
+        }
         if (url === '/api/ai/models')
           return aiResponse({
             models: ['deepseek-v4-flash', 'deepseek-v4-pro'],
@@ -202,6 +208,8 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
         mutations.push({ target: page, attributeName: 'class' });
       if (changes.panelHidden !== undefined && changes.panelHidden !== visibility.panelHidden)
         mutations.push({ target: panel, attributeName: 'hidden' });
+      if (changes.aiTabHidden !== undefined && changes.aiTabHidden !== visibility.aiTabHidden)
+        mutations.push({ target: aiTab, attributeName: 'hidden' });
       const documentChanged = changes.documentHidden !== undefined && changes.documentHidden !== visibility.documentHidden;
       Object.assign(visibility, changes);
       documentRef.hidden = visibility.documentHidden;

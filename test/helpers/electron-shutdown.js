@@ -116,7 +116,7 @@ function createShutdownHarness(options = {}) {
       this.webContents = new EventEmitter();
       this.webContents.setWindowOpenHandler = () => {};
       this.webContents.isDestroyed = () => this.destroyed;
-      this.webContents.mainFrame = { url: 'http://127.0.0.1:3000/license' };
+      this.webContents.mainFrame = { url: 'http://127.0.0.1:3000' + (options.renderedPath || '/license') };
       this.webContents.send = (channel) => calls.push('ipc:' + channel);
     }
     loadURL() {
@@ -198,7 +198,8 @@ function createShutdownHarness(options = {}) {
     },
     'node:fs': {
       mkdirSync() {},
-      existsSync: (value) => Boolean(options.recoveryDataDir && value === options.recoveryDataDir),
+      existsSync: (value) => Boolean((options.recoveryDataDir && value === options.recoveryDataDir)
+        || (options.existingData && value === app.getPath())),
     },
     'node:path': path,
     'node:crypto': { randomUUID: () => 'shutdown-test' },
@@ -263,6 +264,7 @@ function createShutdownHarness(options = {}) {
       }),
     },
     './ipc/audio-assistant-ipc': {
+      createAudioStateSender: require('../../src/electron/ipc/audio-assistant-ipc').createAudioStateSender,
       registerAudioAssistantIpc: () => () => calls.push('audio-assistant:remove-ipc'),
     },
     './playback-output': {

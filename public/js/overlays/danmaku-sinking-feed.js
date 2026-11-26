@@ -276,6 +276,7 @@ export function createSinkingDanmakuFeed(root, options = {}) {
     append: item => appendBatch([item]),
     appendBatch,
     render(items) { clear(); appendBatch((Array.isArray(items) ? items : []).slice(-maxItems), false); },
+    getRenderedItems: () => entries.map(entry => entry.item),
     remove(ids) {
       const removed = new Set(ids);
       for (const entry of [...entries]) if (removed.has(entry.item.id) || removed.has(entry.item.messageId)) removeEntry(entry);

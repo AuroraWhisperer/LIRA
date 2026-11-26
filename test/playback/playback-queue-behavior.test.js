@@ -12,10 +12,12 @@ test('clearing a partially published import preserves handled requests across re
   const release = Promise.withResolvers();
   t.after(() => release.resolve());
   const secondStarted = Promise.withResolvers();
+  let matchCount = 0;
   let delaySecond = true;
   const services = {
     songQueue: { waiting },
     async matchTrack(input) {
+      matchCount++;
       if (input.songName === 'request-2' && delaySecond) {
         secondStarted.resolve();
         await release.promise;
@@ -29,11 +31,15 @@ test('clearing a partially published import preserves handled requests across re
   const importing = app.emit('playbackImportSongQueue', 'click');
   await secondStarted.promise;
   await app.emit('playbackClearQueue', 'click');
+  const countAtClear = matchCount;
+  assert.equal(app.element('playbackImportSongQueue').disabled, false);
+  assert.equal(app.element('songQueueImportPlayback').disabled, false);
   assert.equal(app.savedState().pendingRequests.length, 0);
   assert.equal(app.savedState().importedSongRequestKeys.length, 1);
   delaySecond = false;
   release.resolve();
   await importing;
+  assert.equal(matchCount, countAtClear);
   assert.equal(app.savedState().pendingRequests.length, 0);
   const restored = await createPlaybackApp(app.savedState(), services);
   await restored.init();
@@ -421,7 +427,7 @@ test('clicking a drawer track replaces the queue with its visible list and prese
   const persisted = app.savedState();
   assert.equal(persisted.current.id, 'daily-2');
   assert.equal(persisted.queueType, 'playlist');
-  assert.equal(persisted.queueSourceKey, 'qq:daily');
+  assert.equal(persisted.queueSourceKey, 'qq:daily:["daily-1","daily-2","daily-3"]');
   assert.equal(persisted.playlistIndex, 1);
   assert.deepEqual(
     persisted.normalQueueTracks.map((item) => item.id),
@@ -562,6 +568,52 @@ test('reselecting a direct search play from recent history keeps imported songs 
   assert.deepEqual(saved.pendingRequests.map(item => item.songName), ['P']);
 });
 
+test('recent replay in a normal queue preserves imported requests and their handled keys', async () => {
+  const waiting = ['accepted', 'candidate'].map((song_name, i) => ({ id: i + 1, song_name }));
+  const app = await createPlaybackApp({ selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+    displayHistory: [track('older', 'older')] }, {
+    homeAction: 'recent', songQueue: { waiting },
+    matchTrack: async ({ songName }) => ({ track: track(songName, songName), autoAccept: songName === 'accepted' }),
+  });
+  await app.init();
+  await flushAsyncWork();
+  app.element('playbackSearchKeyword').value = 'searched';
+  await app.emit('playbackSearchBtn', 'click');
+  await app.emit('playbackSearchResults', 'click', { target: closestTarget({
+    playbackSearchAction: 'play', playbackSearchIndex: '0',
+  }, 'playback-search-action') });
+  await flushAsyncWork();
+  await app.emit('playbackImportSongQueue', 'click');
+  const before = app.savedState();
+  assert.equal(before.queueType, 'queue');
+  assert.deepEqual(before.normalQueue.map(item => item.id), ['accepted']);
+  assert.deepEqual(before.pendingRequests.map(item => item.songName), ['candidate']);
+  assert.equal(before.importedSongRequestKeys.length, 2);
+  const plays = app.audioPlayCalls();
+  await app.emitHomeAction();
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
+  });
+  await flushAsyncWork();
+  await app.emit('playbackImportSongQueue', 'click');
+  const after = app.savedState();
+  assert.deepEqual(after.normalQueue, before.normalQueue);
+  assert.deepEqual(after.pendingRequests, before.pendingRequests);
+  assert.deepEqual(after.importedSongRequestKeys, before.importedSongRequestKeys);
+  assert.equal(after.current.id, before.current.id);
+  assert.equal(after.queueType, 'queue');
+  assert.equal(app.audioPlayCalls(), plays + 1);
+
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '1' }, 'playback-home-track-row-index'),
+  });
+  await flushAsyncWork();
+  const switched = app.savedState();
+  assert.equal(switched.current.id, 'older');
+  assert.equal(switched.queueSourceKey, 'local:recent');
+  assert.equal(switched.pendingRequests.length, 0);
+});
+
 test('an unavailable playlist jump preserves the current song and remaining queue', async () => {
   const tracks = ['first', 'next', 'unavailable', 'last'].map(id => track(id, id));
   const app = await createPlaybackApp({ current: tracks[0], currentOrigin: 'normal',
@@ -587,6 +639,208 @@ test('an unavailable playlist jump preserves the current song and remaining queu
   await app.emit('playbackNext', 'click');
   await flushAsyncWork();
   assert.equal(app.savedState().current.id, 'next');
+});
+
+test('a restored history playlist can replay across tabs with its audience requests intact', async () => {
+  const [a, b, q] = ['A', 'B', 'Q'].map(id => track(id, id));
+  q.songRequestKey = 'accepted';
+  const app = await createPlaybackApp({
+    selectedSource: 'netease', mode: 'sequence', volume: 0.75, current: a, playlistIndex: 0, queueType: 'playlist',
+    queueSourceKey: 'qq:recent', displayHistory: [a, b], normalQueueTracks: [a, q, b], normalQueue: [q, b],
+    pendingRequests: [{ songName: 'P', songRequestKey: 'pending', track: b }], importedSongRequestKeys: ['accepted', 'pending'],
+  }, { homeAction: 'recent' });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
+  });
+  await flushAsyncWork();
+  const saved = app.savedState();
+  assert.equal(app.element('music-player').dataset.trackId, 'A');
+  assert.deepEqual(saved.normalQueue.map(row => row.id), ['Q', 'B']);
+  assert.deepEqual(saved.pendingRequests.map(row => row.songName), ['P']);
+});
+
+test('a restored shuffled legacy daily keeps both audience requests when selecting a duplicate', async () => {
+  const source = ['A', 'B', 'A', 'C', 'D'].map((id, i) => ({ ...track(id, id), playlistOccurrence: i === 2 ? 1 : 0 }));
+  const q = { ...track('A', '观众点的 A'), songRequestKey: 'Q', requestedBy: '观众', playlistOccurrence: -1 };
+  const shuffled = [source[3], q, source[2], source[4], source[0], source[1]];
+  const initial = { selectedSource: 'qq', mode: 'shuffle', volume: 0.75, current: shuffled[0], currentOrigin: 'normal',
+    queueType: 'playlist', queueSourceKey: 'qq:daily', playlistIndex: 0,
+    normalQueueTracks: shuffled, normalQueue: [{ ...q, playNext: true }, ...shuffled.slice(2)],
+    pendingRequests: [{ songName: 'P', songRequestKey: 'P', track: source[0] }], importedSongRequestKeys: ['Q', 'P'] };
+  let visible = source;
+  let streamAvailable = false;
+  const app = await createPlaybackApp(initial, { homeAction: 'daily', authState: { platform: 'qq', loggedIn: true },
+    loadHome: () => ({ tracks: visible }), resolveStream: () => ({ url: streamAvailable ? 'https://example.test/A.mp3' : '' }) });
+  await app.init();
+  await flushAsyncWork();
+  const selectSecond = async () => {
+    await app.emitHomeAction();
+    await flushAsyncWork();
+    await app.emit('playbackDrawerBody', 'click', {
+      target: closestTarget({ playbackHomeTrackRowIndex: '2' }, 'playback-home-track-row-index'),
+    });
+    await flushAsyncWork();
+    return app.savedState();
+  };
+  const failed = await selectSecond();
+  assert.equal(failed.queueSourceKey, 'qq:daily');
+  assert.equal(failed.playlistIndex, 0);
+  assert.equal(failed.normalQueue[0].songRequestKey, 'Q');
+  streamAvailable = true;
+  const restored = await selectSecond();
+  assert.deepEqual(restored.pendingRequests.map(item => item.songRequestKey), ['P']);
+  assert.equal(restored.normalQueueTracks[restored.playlistIndex].playlistOccurrence, 1);
+  assert.equal(restored.normalQueueTracks[0].id, 'C');
+  assert.equal(restored.current.playlistOccurrence, 1);
+  assert.equal(restored.normalQueue[0].songRequestKey, 'Q');
+  assert.deepEqual(restored.importedSongRequestKeys, ['Q', 'P']);
+  assert.equal(restored.queueSourceKey, 'qq:daily:["A","B","A","C","D"]');
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.songRequestKey, 'Q');
+
+  visible = [source[1], source[0], source[2], source[3], source[4]];
+  const changed = await selectSecond();
+  assert.equal(changed.queueSourceKey, 'qq:daily:["B","A","A","C","D"]');
+  assert.deepEqual(changed.normalQueueTracks.map(item => item.id), ['B', 'A', 'A', 'C', 'D']);
+});
+
+test('a legacy daily starts the visible batch when source songs or their counts differ', async () => {
+  const old = ['D', 'A', 'B', 'A', 'C'].map(id => track(id, id));
+  for (const ids of [['A', 'B', 'B', 'C', 'D'], ['A', 'B', 'A', 'C', 'E']]) {
+    const app = await createPlaybackApp({ selectedSource: 'qq', mode: 'shuffle', volume: 0.75, current: old[0],
+      queueType: 'playlist', queueSourceKey: 'qq:daily', playlistIndex: 0, normalQueueTracks: old, normalQueue: old.slice(1),
+    }, { homeAction: 'daily', authState: { platform: 'qq', loggedIn: true }, homeTracks: ids.map(id => track(id, id)) });
+    await app.init();
+    await flushAsyncWork();
+    await app.emitHomeAction();
+    await flushAsyncWork();
+    await app.emit('playbackDrawerBody', 'click', {
+      target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
+    });
+    await flushAsyncWork();
+    assert.deepEqual(app.savedState().normalQueueTracks.map(item => item.id), ids);
+    assert.equal(app.savedState().playlistIndex, 0);
+  }
+});
+
+test('a shared daily row replaces the reordered batch and audience queue only after its stream resolves', async () => {
+  let order = ['A', 'B', 'C'];
+  let stream;
+  const app = await createPlaybackApp({ selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+    homeAction: 'daily', authState: { platform: 'qq', loggedIn: true }, loadHome: () => ({ tracks: order.map(id => track(id, id)) }),
+    songQueue: { waiting: [{ id: 1, song_name: 'Q' }, { id: 2, song_name: 'P' }] },
+    matchTrack: async ({ songName }) => ({ track: track(songName, songName), autoAccept: songName === 'Q' }),
+    resolveStream: () => stream?.promise || { url: 'https://example.test/a.mp3', expireAt: 1 },
+  });
+  await app.init();
+  await flushAsyncWork();
+  const playFirst = async () => {
+    await app.emitHomeAction();
+    await flushAsyncWork();
+    await app.emit('playbackDrawerBody', 'click', {
+      target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
+    });
+    await flushAsyncWork();
+  };
+  await playFirst();
+  await app.emit('playbackImportSongQueue', 'click');
+  const audio = app.element('music-player');
+  audio.currentTime = 12;
+  await app.emit('music-player', 'timeupdate');
+  const old = app.savedState();
+  assert.deepEqual(old.normalQueue.map(t => t.id), ['Q', 'B', 'C']);
+  assert.deepEqual(old.pendingRequests.map(p => p.songName), ['P']);
+  const assertOldPlayback = () => {
+    const saved = app.savedState();
+    assert.equal(saved.queueSourceKey, old.queueSourceKey);
+    assert.equal(saved.playlistIndex, old.playlistIndex);
+    assert.equal(saved.current.id, 'A');
+    assert.deepEqual(saved.normalQueue, old.normalQueue);
+    assert.deepEqual(saved.pendingRequests, old.pendingRequests);
+    assert.deepEqual(saved.importedSongRequestKeys, old.importedSongRequestKeys);
+    assert.equal(audio.src, 'https://example.test/a.mp3');
+    assert.equal(audio.paused, false);
+    assert.equal(audio.currentTime, 12);
+  };
+  order = ['A', 'C', 'B'];
+  stream = Promise.withResolvers();
+  await playFirst();
+  assertOldPlayback();
+  stream.resolve({});
+  await flushAsyncWork();
+  assertOldPlayback();
+  stream = null;
+  await playFirst();
+  assert.equal(app.savedState().pendingRequests.length, 0);
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.element('music-player').dataset.trackId, 'C');
+});
+
+test('daily drawer jumps retain mixed manual and audience insertions in playback order', async () => {
+  const app = await createPlaybackApp({ selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+    homeAction: 'daily', homeTracks: ['A', 'B'].map(id => track(id, id)), authState: { platform: 'qq', loggedIn: true },
+    songQueue: { waiting: [{ id: 1, song_name: 'Q' }] },
+    matchTrack: async () => ({ track: track('Q', 'Q'), autoAccept: true, score: 100 }),
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+  const clickRow = async (index, action) => {
+    const target = action
+      ? closestTarget({ playbackHomeTrackAction: action, playbackHomeTrackIndex: String(index) }, 'playback-home-track-action')
+      : closestTarget({ playbackHomeTrackRowIndex: String(index) }, 'playback-home-track-row-index');
+    await app.emit('playbackDrawerBody', 'click', { target });
+    await flushAsyncWork();
+  };
+  const entry = item => [item.id, item.playlistOccurrence];
+  const remaining = () => app.savedState().normalQueue.map(entry);
+  await clickRow(0);
+  await app.emit('playbackImportSongQueue', 'click');
+  await flushAsyncWork();
+  await clickRow(1, 'requested');
+  const expected = [['B', -2], ['Q', -1], ['B', 0]];
+  assert.deepEqual(remaining(), expected);
+  await clickRow(0);
+  assert.deepEqual(remaining(), expected);
+
+  await clickRow(1, 'normal');
+  await clickRow(0);
+  const tail = ['B', -3];
+  assert.deepEqual(remaining(), [...expected, tail]);
+  await clickRow(1);
+  assert.deepEqual(entry(app.savedState().current), ['B', 0]);
+  const afterJump = [expected[0], expected[1], tail];
+  assert.deepEqual(remaining(), afterJump);
+  for (const next of afterJump) {
+    await app.emit('playbackNext', 'click');
+    await flushAsyncWork();
+    assert.deepEqual(entry(app.savedState().current), next);
+  }
+  await clickRow(0);
+  assert.deepEqual(remaining(), [['B', 0]]);
+});
+
+test('a shuffled daily jump carries an older unmarked manual copy ahead of its pending request', async () => {
+  const { QueueManager } = await loadModuleExports(path.join(__dirname, '../../public/js/playback/queue/manager.js'));
+  const a = { id: 'A', playlistOccurrence: 0 };
+  const b = { id: 'B', playlistOccurrence: 0 };
+  const c = { id: 'C', playlistOccurrence: 0 };
+  const manual = { id: 'B', playlistOccurrence: -2 };
+  const q = { id: 'Q', songRequestKey: 'Q', playlistOccurrence: -1 };
+  const tail = { id: 'B', playlistOccurrence: -3 };
+  const state = { current: a, queueType: 'playlist', mode: 'shuffle', playlistIndex: 0,
+    normalQueueTracks: [a, manual, q, b, c, tail], normalQueue: [manual, { ...q, playNext: true }, b, c, tail] };
+  const manager = new QueueManager({ state });
+  manager.jumpToPlaylistTrack(3, 'qq:daily:["A","B","C"]');
+  assert.deepEqual(Array.from(state.normalQueue, item => item.playlistOccurrence), [-2, -1, 0, -3]);
+  assert.equal(manager.takeNext().track.playlistOccurrence, -2);
+  assert.equal(manager.takeNext().track.songRequestKey, 'Q');
 });
 
 test('only the accepted playlist jump commits its cursor and remaining queue', async (t) => {

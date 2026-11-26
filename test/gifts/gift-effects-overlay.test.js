@@ -132,6 +132,40 @@ test('toolbox gift effect controls copy the source URL and open its preview', as
   assert.deepEqual(opened, [['http://127.0.0.1:3000/gift-effects?preview=1', 'liraGiftEffectPreview']]);
 });
 
+test('clearing or replacing the gift effect lookup ignores late successes and errors', async () => {
+  const document = require('../helpers/parameter-dom').createParameterDocument();
+  const field = id => document.getElementById(id);
+  const requests = [];
+  const { giftEffects } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gift-effects.js'), {
+    document, location: { protocol: 'http:', port: '3000' }, window: { addEventListener() {} },
+    fetch: () => { const gate = Promise.withResolvers(); requests.push(gate); return gate.promise; },
+  });
+  giftEffects.init();
+  const input = field('giftEffectGiftId');
+  const state = field('giftEffectLookupState');
+  const summary = field('giftEffectMatchSummary');
+  const submit = () => field('giftEffectLookupForm').listeners.submit({ preventDefault() {} });
+  const edit = text => { input.value = text; input.listeners.input(); };
+  const success = { ok: true, text: async () => JSON.stringify({ ok: true, data: { effect: { effectId: 7 } } }) };
+  edit('101');
+  const first = submit();
+  edit('');
+  assert.equal(state.dataset.state, 'idle');
+  requests[0].resolve(success);
+  await first;
+  assert.deepEqual([state.textContent, summary.textContent], ['待播放', '']);
+  edit('101');
+  const second = submit();
+  edit('202');
+  const third = submit();
+  requests[2].resolve(success);
+  await third;
+  requests[1].reject(new Error('older failure'));
+  await second;
+  assert.equal(state.dataset.state, 'success');
+  assert.match(summary.textContent, /202 → 特效 7/);
+});
+
 test('standalone motion links filter other gift effects while the combined source keeps all effects', async () => {
   for (const style of ['gift-drop', 'gift-swing', '']) {
     const played = [];
@@ -148,7 +182,7 @@ test('standalone motion links filter other gift effects while the combined sourc
         if (!['gift-drop', 'gift-swing'].includes(event.themeId)) return false;
         played.push(event.eventId); return true;
       } }) },
-      'socket-client.js': { createOverlaySocket: options => {
+      'socket-client.js': { ...require('../../public/js/overlays/socket-client.js'), createOverlaySocket: options => {
         receive = options.onMessage; return { start() {} };
       } },
     }).map(([file, exports]) => [path.join(ROOT_DIR, 'public/js/overlays', file), exports]));

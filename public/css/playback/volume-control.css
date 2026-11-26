@@ -82,7 +82,7 @@
   border: none;
   box-shadow:
     0 0 0 2px var(--primary),
-    0 1px 3px rgba(24, 24, 22, 0.25);
+    0 1px 3px light-dark(rgba(24, 24, 22, 0.24), rgba(0, 0, 0, 0.5));
   cursor: pointer;
 }
 
@@ -92,7 +92,7 @@
   border-radius: 50%;
   background: var(--volume-thumb);
   border: 2px solid var(--primary);
-  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.25);
+  box-shadow: 0 1px 3px light-dark(rgba(24, 24, 22, 0.24), rgba(0, 0, 0, 0.5));
   cursor: pointer;
   box-sizing: border-box;
 }

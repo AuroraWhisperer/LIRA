@@ -7,6 +7,7 @@ const test = require('node:test');
 const { loadModuleExports, response } = require('../helpers/frontend-modules');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { createMusicCatalogService } = require('../../src/music/music-catalog-service');
+const { NeteaseMusicProvider } = require('../../src/music/providers/netease-provider');
 const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-cache');
 const { createDom, createClock } = require('../helpers/toast-dom');
 const { createPlaybackApp, flushAsyncWork, closestTarget } = require('../helpers/playback-app');
@@ -145,6 +146,37 @@ test('an unavailable local history file uses file recovery without online resolu
   assert.equal(reselections, 1);
   assert.equal(app.audioPlayCalls(), 0);
   assert.equal(app.resolveStreamRequestCount(), 0);
+});
+
+test('a failed local URL can be cancelled and reselected after a move in the same session', async () => {
+  const local = { id: 'local:A', source: 'local', title: 'A', filePath: 'fixture/A.wav' };
+  let moved = false;
+  let picks = 0;
+  const app = await createPlaybackApp({ current: local, selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+    async resolveLocalMediaUrls([path]) {
+      const ok = path === local.filePath ? !moved : path === 'fixture/B.wav';
+      return { results: { [path]: { ok, url: ok ? `local-media://media/${path}` : '' } } };
+    },
+    async selectLocalFiles() {
+      if (++picks === 1) return { canceled: true };
+      return { ok: true, files: [{ path: 'fixture/B.wav', name: 'B.wav' }] };
+    },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  const audio = app.element('music-player');
+  assert.equal(audio.src, 'local-media://media/fixture/A.wav');
+  moved = true;
+  audio.paused = true;
+  await app.emit('music-player', 'error');
+  assert.equal(picks, 0);
+  await app.emit('playbackPlayPause', 'click');
+  assert.equal(audio.paused, true);
+  await app.emit('playbackPlayPause', 'click');
+  assert.equal(picks, 2);
+  assert.equal(audio.src, 'local-media://media/fixture/B.wav');
+  assert.equal(app.savedState().current.filePath, 'fixture/B.wav');
 });
 
 test('track menus release their outside listener on button, keyboard and drawer closure', async () => {
@@ -450,6 +482,33 @@ for (const fromLiked of [true, false]) {
     }
   });
 }
+
+test('NetEase personalized refresh shows the whole stable recommendation pool before repeating', async () => {
+  const playlists = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, name: `歌单${i + 1}` }));
+  const provider = new NeteaseMusicProvider();
+  provider.requestJson = async (_path, { limit }) => ({ result: playlists.slice(0, Number(limit)) });
+  const service = createMusicCatalogService();
+  const batches = [];
+  const app = await createPlaybackApp({ current: null, selectedSource: 'netease', mode: 'sequence', volume: 0.75 }, {
+    homeAction: 'personalized', authState: { platform: 'netease', loggedIn: true },
+    async loadHome(request) {
+      assert.equal(request.platform, 'netease');
+      const data = await service.getMusicHomeContent({ get: () => provider }, request);
+      batches.push(data.playlists.map(playlist => playlist.id));
+      return data;
+    },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+  for (let i = 0; i < 3; i++) {
+    await app.emit('playbackDrawerRefresh', 'click');
+    await flushAsyncWork();
+  }
+  const ids = playlists.map(playlist => String(playlist.id));
+  assert.deepEqual(batches, [ids.slice(0, 12), ids.slice(12, 24), ids.slice(24), ids.slice(0, 12)]);
+});
 
 test('personalized backend cache follows authorization across account changes and service restarts', async (t) => {
   const apiCacheDir = createScratchDirectory('personalized-account-cache-', t);

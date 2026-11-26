@@ -1,6 +1,6 @@
 import { ADVANCED_LYRIC_FIELDS, parseAdvancedLyricPresets } from '../shared/advanced-lyric-appearance.js';
 import { ADVANCED_LYRIC_CATALOG } from '../shared/advanced-lyric-catalog.js';
-import { ensureSavedFontOption, populateSystemFontOptions, registerFontSelect } from '../shared/font-library.js';
+import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { dangerConfirm, toast } from '../shared/utils.js';
@@ -166,16 +166,14 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
     let numberInput;
     if (key === 'advancedLyricFontFamily' || field.type === 'select') {
       input = element('select');
-      const options = field.options || { [field.default]: field.default };
-      for (const [value, label] of Object.entries(options)) {
-        const option = element('option', '', label);
-        option.value = value;
-        input.append(option);
-      }
       if (key === 'advancedLyricFontFamily') {
-        populateSystemFontOptions(input);
-        ensureSavedFontOption(input, values[key]);
-        cleanups.push(registerFontSelect(input));
+        cleanups.push(registerFontSelect(input, { maxLength: field.maxLength }));
+      } else {
+        for (const [value, label] of Object.entries(field.options)) {
+          const option = element('option', '', label);
+          option.value = value;
+          input.append(option);
+        }
       }
       row.append(input);
     } else if (field.type === 'checkbox') {

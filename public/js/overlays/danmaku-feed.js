@@ -593,6 +593,7 @@ export function createDanmakuFeed(root, options = {}) {
     render,
     append,
     remove,
+    getRenderedItems: () => renderedEntries.map(entry => entry.item),
     invalidateFit: fitViewport || fullscreen ? invalidateFit : undefined,
     setRandomPlacement(value) {
       randomPlacement = { centerBias: value.centerBias, dispersion: value.dispersion, clearCenter: value.clearCenter };

@@ -3,7 +3,7 @@ import { html, attr } from './view.js';
 import { bilibiliAvatarSource } from '../../shared/bilibili-avatar.js';
 
 function field(name, label, value = '', type = 'text', extra = '') {
-  return `<label class="fan-field">${label}<input name="${name}" type="${type}" value="${attr(value ?? '')}" ${extra} /></label>`;
+  return `<label class="fan-field">${label}<input name="${name}" type="${type}" value="${attr(String(value ?? ''))}" ${extra} /></label>`;
 }
 function area(name, label, value = '', rows = 3) {
   return `<label class="fan-field fan-field-wide">${label}<textarea name="${name}" rows="${rows}">${html(value || '')}</textarea></label>`;
@@ -14,11 +14,11 @@ function choice(name, label, options, selected) {
 function check(name, label, checked = false) {
   return `<label class="fan-check"><input name="${name}" type="checkbox" ${checked ? 'checked' : ''} />${label}</label>`;
 }
-function localTime(value) {
-  return new Date(Date.parse(value || new Date().toISOString()) + 8 * 3600000).toISOString().slice(0, 16);
+function localTime(value, exact = false) {
+  return new Date(Date.parse(value || new Date().toISOString()) + 8 * 3600000).toISOString().slice(0, exact ? 23 : 16);
 }
 function isoTime(value) {
-  return new Date(`${value}:00+08:00`).toISOString();
+  return new Date(`${value}+08:00`).toISOString();
 }
 function day() {
   return localTime().slice(0, 10);
@@ -328,6 +328,12 @@ export function profileForm(profile = {}, { previewIdentity, lookupFormerNames, 
 
 function membershipFields(data) {
   const type = data.type || 'interval';
+  const intervalFields = data.precision === 'instant'
+    ? field('startAt', '开始时刻（北京时间）', localTime(data.startAt, true), 'datetime-local', 'step="0.001"') +
+      field('endAt', '到期时刻（不含，北京时间）', localTime(data.endAt, true), 'datetime-local', 'step="0.001"')
+    : field('start', '开始日期', data.start || (data.startAt ? localTime(data.startAt).slice(0, 10) : ''), 'date') +
+      field('end', '有效至（包含当天）',
+        data.end || (data.endAt ? localTime(new Date(Date.parse(data.endAt) - 1).toISOString()).slice(0, 10) : ''), 'date');
   return (
     choice(
       'type',
@@ -342,13 +348,7 @@ function membershipFields(data) {
     ) +
     '<p class="fan-muted fan-field-wide">填你知道的信息即可。与之前记录不一致时，会请你核对后再采用。</p>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="interval" ${type === 'interval' ? '' : 'hidden'}>` +
-    field('start', '开始日期', data.start || (data.startAt ? localTime(data.startAt).slice(0, 10) : ''), 'date') +
-    field(
-      'end',
-      '有效至（包含当天）',
-      data.end || (data.endAt ? localTime(new Date(Date.parse(data.endAt) - 1).toISOString()).slice(0, 10) : ''),
-      'date',
-    ) +
+    intervalFields +
     '</div>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="baseline" ${type === 'baseline' ? '' : 'hidden'}>` +
     field('totalDays', '累计天数（留空为未知）', data.totalDays, 'number', 'min="0" step="1"') +
@@ -356,7 +356,7 @@ function membershipFields(data) {
     field('asOf', '天数截至日期（含当日）', data.asOf || day(), 'date') +
     '</div>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="observation" ${type === 'observation' ? '' : 'hidden'}>` +
-    field('observedAt', '查看时间（北京时间）', localTime(data.observedAt), 'datetime-local') +
+    field('observedAt', '查看时间（北京时间）', localTime(data.observedAt, Boolean(data.observedAt)), 'datetime-local', 'step="0.001"') +
     choice(
       'status',
       '当时的状态',
@@ -434,7 +434,9 @@ export function recordForm(kind, record) {
         : '') +
       (kind === 'followup' ? check('completed', '已经完成', data.completed) : '') +
       check('pinned', '置顶', data.pinned);
-  fields += field('occurredAt', '发生时间（北京时间）', localTime(record?.occurredAt), 'datetime-local', 'required');
+  const exactTime = kind === 'membership' && !!record;
+  fields += field('occurredAt', '发生时间（北京时间）', localTime(record?.occurredAt, exactTime), 'datetime-local',
+    exactTime ? 'required step="0.001"' : 'required');
   if (record && !['song', 'membership'].includes(kind))
     fields += check('archived', '收起这条记录（仍可找回）', data.archived);
   return {
@@ -449,6 +451,11 @@ export function recordForm(kind, record) {
       for (const key of ['level', 'advanceDays', 'totalDays', 'continuousDays']) {
         if (key in values) result[key] = values[key] === '' ? null : Number(values[key]);
       }
+      if (values.type === 'interval' && data.precision === 'instant') {
+        result.precision = 'instant';
+        if (values.startAt) result.startAt = isoTime(values.startAt);
+        if (values.endAt) result.endAt = isoTime(values.endAt);
+      }
       if (values.observedAt) result.observedAt = isoTime(values.observedAt);
       return {
         id: record?.id,
@@ -459,10 +466,15 @@ export function recordForm(kind, record) {
       };
     },
     bind(form) {
-      form.elements.type?.addEventListener('change', () => {
-        for (const panel of form.querySelectorAll('[data-membership-type]'))
+      if (kind !== 'membership') return;
+      const selectType = () => {
+        for (const panel of form.querySelectorAll('[data-membership-type]')) {
           panel.hidden = panel.dataset.membershipType !== form.elements.type.value;
-      });
+          for (const input of panel.querySelectorAll('input, select')) input.disabled = panel.hidden;
+        }
+      };
+      form.elements.type.addEventListener('change', selectType);
+      selectType();
     },
   };
 }

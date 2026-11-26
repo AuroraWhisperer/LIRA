@@ -1,7 +1,7 @@
 /* 参数调节滑块：只对显式标记为 parameter-range 的控件生效。 */
 :root {
   --parameter-range-accent: var(--color-control-accent);
-  --parameter-range-accent-hover: color-mix(in srgb, var(--color-control-accent) 82%, #000);
+  --parameter-range-accent-hover: color-mix(in srgb, var(--color-control-accent) 82%, light-dark(#000000, #ffffff));
   --parameter-range-track: var(--color-range-track, var(--color-control-border, var(--color-border-strong, #cbc8c1)));
 }
 
@@ -72,7 +72,7 @@ input.parameter-range[type='range']::-webkit-slider-thumb {
   background: var(--parameter-range-accent);
   border: 2px solid var(--surface, #ffffff);
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.22);
+  box-shadow: 0 1px 3px light-dark(rgba(24, 24, 22, 0.22), rgba(0, 0, 0, 0.48));
   transition: background-color 120ms ease;
 }
 
@@ -83,7 +83,7 @@ input.parameter-range[type='range']::-moz-range-thumb {
   background: var(--parameter-range-accent);
   border: 2px solid var(--surface, #ffffff);
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.22);
+  box-shadow: 0 1px 3px light-dark(rgba(24, 24, 22, 0.22), rgba(0, 0, 0, 0.48));
   transition: background-color 120ms ease;
 }
 
@@ -142,8 +142,8 @@ input.parameter-range[type='range']:disabled::-moz-range-thumb {
 
 :where(html.desktop-shell, html[data-client-theme]) input.parameter-range[type='range']:disabled {
   --parameter-range-accent: var(--color-disabled-text);
-  --parameter-range-track: var(--color-disabled-bg);
-  opacity: 1;
+  --parameter-range-track: var(--color-border-default);
+  opacity: 0.72;
 }
 
 @media (prefers-reduced-motion: reduce) {

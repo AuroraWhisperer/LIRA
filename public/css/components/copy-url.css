@@ -45,7 +45,8 @@ button.copy-url:focus-visible {
 }
 
 button.copy-url:disabled {
-  color: var(--muted);
+  background: var(--color-disabled-bg, var(--color-bg-tertiary));
+  color: var(--color-disabled-text, var(--color-text-muted));
 }
 
 button.copy-url[hidden] {

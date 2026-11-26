@@ -219,7 +219,7 @@ function createDomainServices(options) {
       getSettings: () => settingsStore.getSettings(),
       getDefaultSettings: () => settingsStore.getDefaultSettings(),
       userRequestCooldown,
-      addQueueItem: input => queue.add(input),
+      addQueueItem: (input, resolvedSong) => queueService.addQueueItem(queueContext, input, resolvedSong),
       cancelQueueItem: input => queue.cancel(input),
       resolveSongRequest: name => songs.findUniqueNameMatch(name),
       pickRandomSong: songs.pickRandom,

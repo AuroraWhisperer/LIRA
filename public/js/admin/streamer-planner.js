@@ -47,11 +47,9 @@ export const todo = (() => {
   const byId = (id) => document.getElementById(id);
   const editedEvents = new WeakSet();
   let fanCalendar;
+  let viewCache;
+  let eventsRevision = 0;
   const reminderLimitHint = '待提醒日程最多 1000 条。请取消部分日程的提醒并保存，当前仍按上次同步的日程提醒。';
-
-  function storeState() {
-    if (storage.write(moduleState.planner)) void reminders.sync(moduleState.planner.events, editedEvents);
-  }
 
   function handleReminderStatus(status, previousStatus) {
     if (status === 'limit' && previousStatus !== 'limit') {
@@ -64,9 +62,20 @@ export const todo = (() => {
     updateReminderFields();
   }
 
-  function commit() {
-    storeState();
+  function commit(collection, planner = moduleState.planner, selectedDate) {
+    viewCache = null;
+    const saved = storage.write(planner);
+    if (saved) {
+      moduleState.planner = planner;
+      if (selectedDate) {
+        moduleState.selectedDate = selectedDate;
+        moduleState.month = selectedDate.slice(0, 7);
+      }
+      if (collection === 'events') eventsRevision++;
+      void reminders.sync(planner.events, editedEvents, eventsRevision);
+    }
     render();
+    return saved;
   }
 
   function getState() {
@@ -125,8 +134,9 @@ export const todo = (() => {
     const items = moduleState.planner[collection];
     const index = items.findIndex((item) => item.id === id);
     if (index < 0) return false;
+    if (collection === 'events') return commit(collection, { ...moduleState.planner, events: items.toSpliced(index, 1) });
     items.splice(index, 1);
-    commit();
+    commit(collection);
     return true;
   }
 
@@ -186,39 +196,34 @@ export const todo = (() => {
     return { ...task };
   }
 
-  function addEvent(input = {}) {
-    const event = normalizeEvent({ ...input, id: createItemId('event') });
-    if (!event) return null;
-    moduleState.planner.events.push(event);
-    moduleState.selectedDate = event.date;
-    moduleState.month = event.date.slice(0, 7);
-    commit();
-    return { ...event };
+  function saveEvent(input, index) {
+    const planner = moduleState.planner;
+    const original = planner.events[index];
+    const event = normalizeEvent(original
+      ? { ...original, ...input, id: original.id, createdAt: original.createdAt }
+      : { ...input, id: createItemId('event') });
+    if (!event) return { error: '请填写日程名称和有效的日期、时间。' };
+    if (original) editedEvents.add(event);
+    const events = original ? planner.events.with(index, event) : [...planner.events, event];
+    if (!commit('events', { ...planner, events }, event.date)) return { error: '日程未能保存到本机，请重试。' };
+    return { event: { ...event } };
   }
 
-  function updateEvent(eventId, patch = {}) {
-    const index = moduleState.planner.events.findIndex((event) => event.id === eventId);
-    if (index < 0) return null;
-    const original = moduleState.planner.events[index];
-    const event = normalizeEvent({
-      ...original,
-      ...patch,
-      id: original.id,
-      createdAt: original.createdAt,
-    });
-    if (!event) return null;
-    moduleState.planner.events[index] = event;
-    editedEvents.add(event);
-    moduleState.selectedDate = event.date;
-    moduleState.month = event.date.slice(0, 7);
-    commit();
-    return { ...event };
+  function saveEditedEvent(id, input) {
+    const index = moduleState.planner.events.findIndex(event => event.id === id);
+    return index < 0 ? { error: '找不到要修改的日程。' } : saveEvent(input, index);
   }
 
   function viewSnapshot() {
-    const planner = getState();
+    const published = fanCalendar?.getEvents();
+    const fanEvents = published?.length ? published : null;
+    if (!viewCache || viewCache.fanEvents !== fanEvents) {
+      const planner = getState();
+      if (fanEvents) planner.events = planner.events.concat(fanEvents);
+      viewCache = { planner, fanEvents };
+    }
     return {
-      planner: { ...planner, events: [...planner.events, ...(fanCalendar?.getEvents() || [])] },
+      planner: viewCache.planner,
       month: moduleState.month,
       selectedDate: moduleState.selectedDate,
       taskFilter: moduleState.taskFilter,
@@ -312,7 +317,7 @@ export const todo = (() => {
   async function confirmNoteEdit(noteId) {
     const body = byId('plannerNoteBody').value.trim();
     const previous = moduleState.planner.notes.find((note) => note.id === moduleState.editingNoteId);
-    if (body && body !== previous?.body) {
+    if (body !== (previous?.body || '') || byId('plannerNoteType').value !== (previous?.type || 'idea')) {
       const confirmed = await showConfirmationDialog({
         variant: 'caution',
         title: '放弃修改？',
@@ -409,11 +414,10 @@ export const todo = (() => {
       type: byId('plannerEventForm').querySelector('[name="plannerEventType"]:checked').value,
       detail: byId('plannerEventDetail').value,
     };
-    const saved = moduleState.editingEventId ? updateEvent(moduleState.editingEventId, input) : addEvent(input);
-    if (saved && !storage.getStatus().saveFailed) byId('plannerEventDialog').close();
+    const result = moduleState.editingEventId ? saveEditedEvent(moduleState.editingEventId, input) : saveEvent(input);
+    if (result.event) byId('plannerEventDialog').close();
     else {
-      if (saved) moduleState.editingEventId = saved.id;
-      byId('plannerEventError').textContent = saved ? '日程未能保存到本机，请重试。' : '请填写日程名称和有效的日期、时间。';
+      byId('plannerEventError').textContent = result.error;
       byId('plannerEventError').hidden = false;
     }
   }
@@ -462,8 +466,7 @@ export const todo = (() => {
       date.setDate(date.getDate() + offsets[event.key]);
       selectDate(toDateValue(date), true);
     });
-    storeState();
-    render();
+    commit();
     if (storage.getStatus().readFailed)
       root.querySelectorAll('button, input, select, textarea').forEach((control) => {
         control.disabled = true;
@@ -493,8 +496,8 @@ export const todo = (() => {
     updateNote,
     removeNote,
     promoteNote,
-    addEvent,
-    updateEvent,
+    addEvent: input => saveEvent(input).event ?? null,
+    updateEvent: (id, input) => saveEditedEvent(id, input).event ?? null,
     removeEvent,
     getState,
   };

@@ -9,9 +9,11 @@ const settingsMigrations = require('./settings-migrations');
 const { CLOUD_SONG_ACCOUNT_KEY, CLOUD_SONG_SYNC_PENDING_PREFIX, createCloudSongSyncStore } = require('./cloud-song-sync-store');
 const { CLOUD_SETTINGS_ACCOUNT_KEY, CLOUD_SETTINGS_SYNC_PENDING_PREFIX, createCloudSettingsSyncStore } = require('./cloud-settings-sync-store');
 const { CLOUD_BILIBILI_LOGOUT_PENDING_PREFIX, createCloudBilibiliSyncStore } = require('./cloud-bilibili-sync-store');
-const { CLOUD_SYNC_KEYS, hasCloudSettingChanges } = require('../shared/cloud-settings');
+const { CLOUD_SYNC_KEYS, isKeywordMenuSetting, hasKeywordMenuCommand, hasCloudSettingChanges } = require('../shared/cloud-settings');
+const { parseCustomReplyRules } = require('../bilibili/custom-reply-service');
 const CLOUD_ROOM_ACCOUNT_KEY = 'cloudRoomAccountKey';
 const MONITORING_KEYS = ['danmakuMonitoringEnabled', 'giftMonitoringEnabled'];
+const showsKeywordCommand = settings => hasKeywordMenuCommand(settings, parseCustomReplyRules);
 
 function reconcileMonitoringSettings(values, previous) {
   const hasChannels = MONITORING_KEYS.some((key) => Object.hasOwn(values, key));
@@ -119,7 +121,7 @@ function createSettingsStore(db) {
       : { ...cache };
   }
 
-  function setSettings(values, { syncPending = true, accountKey } = {}) {
+  function setSettings(values, { syncPending = true, accountKey, onCloudChange } = {}) {
     const previous = getSettings();
     const owner = accountKey && readSetting.get(CLOUD_SETTINGS_ACCOUNT_KEY)?.value;
     if (accountKey && owner !== undefined && owner !== accountKey) {
@@ -131,11 +133,15 @@ function createSettingsStore(db) {
     const changes = Object.entries(reconcileMonitoringSettings(values, previous))
       .filter(([key, value]) => previous[key] !== value);
     if (changes.length === 0 && !accountKey) return [];
+    const changedKeys = changes.map(([key]) => key);
+    const cloudChanged = syncPending && (hasCloudSettingChanges(changedKeys) || (
+      changedKeys.some(isKeywordMenuSetting) && showsKeywordCommand(previous) !== showsKeywordCommand({ ...previous, ...values })
+    ));
     db.exec('BEGIN IMMEDIATE');
     try {
       for (const [key, value] of changes) writeSetting.run(key, value, now());
       if (accountKey) cloudSync.acceptAccount(accountKey);
-      if (syncPending && hasCloudSettingChanges(changes.map(([key]) => key))) {
+      if (cloudChanged) {
         cloudSync.capturePending({ ...previous, ...Object.fromEntries(changes) });
       }
       db.exec('COMMIT');
@@ -144,8 +150,9 @@ function createSettingsStore(db) {
       throw error;
     }
     cache = null;
-    if (changes.some(([key]) => key === 'roomId')) roomRevision += 1;
-    return changes.map(([key]) => key);
+    if (changedKeys.includes('roomId')) roomRevision += 1;
+    if (cloudChanged) onCloudChange?.();
+    return changedKeys;
   }
 
   return {
@@ -192,7 +199,7 @@ function createSettingsStore(db) {
     },
 
     setSetting(key, value) {
-      if (hasCloudSettingChanges([key])) {
+      if (CLOUD_SYNC_KEYS.includes(key) || isKeywordMenuSetting(key)) {
         setSettings({ [key]: value });
         return;
       }

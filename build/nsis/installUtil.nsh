@@ -37,10 +37,13 @@
 !macroend
 
 !macro copyFile FROM TO
-  ${StdUtils.GetParentPath} $R5 `${TO}`
-  CreateDirectory `$R5`
-  ClearErrors
-  CopyFiles /SILENT `${FROM}` `${TO}`
+  ; Embedded NSIS asks for an AppData baseline. customInstall seeds it directly on the installation drive.
+  !if `${TO}` != `$LOCALAPPDATA\${APP_INSTALLER_STORE_FILE}`
+    ${StdUtils.GetParentPath} $R5 `${TO}`
+    CreateDirectory `$R5`
+    ClearErrors
+    CopyFiles /SILENT `${FROM}` `${TO}`
+  !endif
 !macroend
 
 Function GetInQuotes

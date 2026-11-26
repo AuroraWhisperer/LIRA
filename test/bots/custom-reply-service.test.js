@@ -213,7 +213,7 @@ test('domain services attach a custom reply after built-in commands decline', as
       aiAssistant: { handleDanmaku: () => deliveries.push('ai') },
       danmakuSender: { send: async (reply) => { replies.push(reply); deliveries.push('keyword'); } },
       broadcastSnapshot() {}, updateLiveStatus() {},
-      bilibiliDiagnostics: {}, bilibiliAuthCache: { cookieHeader: '', uid: 0 },
+      bilibiliDiagnostics: {}, bilibiliAuthCache: { cookieHeader: '', uid: 111 },
     });
     try {
       client.handlers.onLiveStatus(true);
@@ -240,6 +240,15 @@ test('domain services attach a custom reply after built-in commands decline', as
       client.handlers.onMessage({ message: '随机点歌 不存在的分类', uid: '789', userName: 'Alice' });
       await new Promise(setImmediate);
       assert.equal(replies.length, 2, 'both local fixed replies are silent while offline');
+      settingsStore.setSetting('customReplyRules', JSON.stringify([{ keyword: '晚安', reply: '晚安，好梦', enabled: true }]));
+      client.handlers.onLiveStatus(true);
+      client.handlers.onMessage({ message: '晚安', uid: '456', userName: 'Bob' });
+      await new Promise(setImmediate);
+      assert.equal(replies.at(-1).message, '晚安，好梦');
+      client.handlers.onMessage({ message: replies.at(-1).message, uid: '111', userName: 'Bot' });
+      client.handlers.onMessage({ message: '晚安，好梦', uid: '789', userName: 'Alice' });
+      await new Promise(setImmediate);
+      assert.deepEqual(replies.slice(2).map(reply => reply.mentionTarget.uid), ['456', '789']);
     } finally {
       client.stop();
     }

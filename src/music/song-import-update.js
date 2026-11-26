@@ -1,7 +1,7 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
-const { SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('./song-import-schema');
+const { SONG_IMPORT_ALIASES, firstValue, normalizeImportedSongRow } = require('./song-import-schema');
 const { cleanText } = require('../shared/utils');
 
 const STORED_FIELDS = {
@@ -64,8 +64,8 @@ function buildImportPlan(currentSongs, input, currentCategories) {
       if (song.requestPrice.length > 1000) throw new Error('点歌价格超过 1000 长度限制');
       const blank = new Set(
         present.filter(
-          (field) =>
-            !SONG_IMPORT_ALIASES[field].some((key) => Object.hasOwn(raw, key) && String(raw[key] ?? '').trim() !== ''),
+          (field) => field === 'requestPrice' && Array.isArray(raw.requestPriceColumns) ? !song.requestPrice
+            : !SONG_IMPORT_ALIASES[field].some((key) => Object.hasOwn(raw, key) && String(raw[key] ?? '').trim() !== ''),
         ),
       );
       if (present.includes('isEnabled') && !blank.has('isEnabled')) {
@@ -97,7 +97,7 @@ function buildImportPlan(currentSongs, input, currentCategories) {
       });
       entry.status = 'unchanged';
     } catch (error) {
-      entry.name = cleanText(raw?.name ?? raw?.['歌曲名字']);
+      entry.name = cleanText(firstValue(raw ?? {}, SONG_IMPORT_ALIASES.name));
       entry.reason = error.message;
       if (String(error.message).includes('价格别名冲突')) entry.status = 'conflict';
     }

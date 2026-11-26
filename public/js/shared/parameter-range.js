@@ -16,6 +16,31 @@ function isParameterRange(input) {
   return Boolean(input?.matches?.(PARAMETER_RANGE_SELECTOR));
 }
 
+export function formatRangeNumber(value, displayScale = 1) {
+  return String(Number((Number(value) * displayScale).toFixed(6)));
+}
+
+// Commit through the native range so its min, max and step also govern typed input.
+export function bindRangeNumber(range, number, displayScale = 1) {
+  const showRange = () => {
+    const value = formatRangeNumber(range.value, displayScale);
+    if (number.value !== value) number.value = value;
+  };
+  const readNumber = () => { range.value = String(Number(number.value) / displayScale); };
+  const onInput = () => {
+    if (number.value !== '' && number.checkValidity()) readNumber();
+  };
+  const onChange = () => { readNumber(); showRange(); };
+  range.addEventListener('input', showRange);
+  number.addEventListener('input', onInput);
+  number.addEventListener('change', onChange);
+  return () => {
+    range.removeEventListener('input', showRange);
+    number.removeEventListener('input', onInput);
+    number.removeEventListener('change', onChange);
+  };
+}
+
 function getFiniteNumber(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;

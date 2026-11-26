@@ -16,7 +16,7 @@
 }
 .wheel-editor-heading span {
   color: var(--muted);
-  font-family: Consolas, monospace;
+  font-family: var(--client-font-family, Consolas, monospace);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-bold);
 }

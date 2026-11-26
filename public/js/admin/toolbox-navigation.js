@@ -2,10 +2,13 @@
 // 功能工作区共用导航行为，每个页面独立保存选中项。
 'use strict';
 
+import { createSelectionMotion } from './toolbox-selection-motion.js';
+
 export function createFeatureNavigation({ pageId, storagePrefix }) {
   const SIDEBAR_COLLAPSED_KEY = `${storagePrefix}SidebarCollapsed`;
   const COLLAPSED_FEATURE_GROUPS_KEY = `${storagePrefix}CollapsedFeatureGroups`;
   const SELECTED_FEATURE_KEY = `${storagePrefix}SelectedFeature`;
+  const selectionMotion = createSelectionMotion();
   const moduleState = {
     initialized: false,
     onFeatureSelected: null,
@@ -257,38 +260,6 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     }
   }
 
-  function slideSelectionIndicator(root, targetButton) {
-    if (!moduleState.initialized || targetButton.getAttribute('aria-selected') === 'true') return;
-    const indicator = root.querySelector('.other-feature-indicator');
-    if (!indicator) return;
-    const running = indicator.getAnimations();
-    const from = indicator.getBoundingClientRect();
-    if (!from.height || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      running.forEach((animation) => animation.cancel());
-      return;
-    }
-
-    const targetTop = targetButton.getBoundingClientRect().top;
-    let startTop = from.top;
-    if (running.length) {
-      const previousTop = root.querySelector('.other-feature-button.active').getBoundingClientRect().top;
-      // Keep the current velocity when extending the path. A closer target or a
-      // reversal starts at the painted position so the old glide cannot overshoot it.
-      const extendsGlide = (from.top < previousTop && previousTop < targetTop)
-        || (from.top > previousTop && previousTop > targetTop);
-      if (extendsGlide) startTop = previousTop;
-      else running.forEach((animation) => animation.cancel());
-    }
-
-    const offset = startTop - targetTop;
-    if (!offset) return;
-    indicator.animate([{ transform: `translateY(${offset}px)` }, { transform: 'translateY(0)' }], {
-      composite: 'add',
-      duration: Math.min(340, 200 + Math.abs(offset) * 0.25),
-      easing: 'cubic-bezier(0.35, 0, 0.25, 1)',
-    });
-  }
-
   /**
    * 根据按钮声明的面板 ID 切换内容，不依赖任何具体功能模块。
    */
@@ -313,14 +284,20 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
 
     if (!selectedButton) return false;
 
-    slideSelectionIndicator(root, selectedButton);
     const selectedId = selectedButton.dataset.otherFeature;
-    buttons.forEach((button) => {
-      const isActive = button === selectedButton;
-      button.classList.toggle('active', isActive);
-      button.setAttribute('aria-selected', String(isActive));
-      button.tabIndex = isActive ? 0 : -1;
-    });
+    selectionMotion.transition(
+      root,
+      selectedButton,
+      () => {
+        buttons.forEach((button) => {
+          const isActive = button === selectedButton;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-selected', String(isActive));
+          button.tabIndex = isActive ? 0 : -1;
+        });
+      },
+      { animate: moduleState.initialized },
+    );
     panels.forEach((panel) => {
       const isActive = panel.id === selectedId;
       panel.classList.toggle('active', isActive);
@@ -365,6 +342,82 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     nextButton.focus();
   }
 
+  function bindSidebarToggleCraft(toggle) {
+    if (!toggle || typeof toggle.addEventListener !== 'function') return;
+
+    const SETTLE_RELEASE_MS = 360;
+    const SETTLE_RELEASE_DISTANCE = 4;
+    let settledAt = 0;
+    let settledX = 0;
+    let settledY = 0;
+
+    function prefersReducedMotion() {
+      try {
+        return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+      } catch {
+        return false;
+      }
+    }
+
+    function clearMagnetic() {
+      toggle.classList?.remove?.('is-magnetic');
+      toggle.style?.setProperty('--toggle-tx', '0px');
+      toggle.style?.setProperty('--toggle-ty', '0px');
+      toggle.style?.setProperty('--toggle-itx', '0px');
+      toggle.style?.setProperty('--toggle-ity', '0px');
+      toggle.style?.setProperty('--toggle-mx', '50%');
+      toggle.style?.setProperty('--toggle-my', '50%');
+    }
+
+    function clearSettled() {
+      if (toggle.dataset) delete toggle.dataset.toggleSettled;
+    }
+
+    function markSettled(event) {
+      if (toggle.dataset) toggle.dataset.toggleSettled = 'true';
+      settledAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      settledX = typeof event?.clientX === 'number' ? event.clientX : 0;
+      settledY = typeof event?.clientY === 'number' ? event.clientY : 0;
+    }
+
+    toggle.addEventListener('pointermove', (event) => {
+      if (event?.pointerType === 'touch') return;
+      if (toggle.dataset?.toggleSettled === 'true') {
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        const moved = Math.hypot((event.clientX || 0) - settledX, (event.clientY || 0) - settledY);
+        if (now - settledAt >= SETTLE_RELEASE_MS && moved >= SETTLE_RELEASE_DISTANCE) {
+          clearSettled();
+        }
+      }
+      if (prefersReducedMotion() || typeof toggle.getBoundingClientRect !== 'function' || !toggle.style) return;
+      const rect = toggle.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      const nx = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+      const ny = Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height));
+      const dx = (nx - 0.5) * 2;
+      const dy = (ny - 0.5) * 2;
+      toggle.classList?.add?.('is-magnetic');
+      toggle.style.setProperty('--toggle-mx', `${(nx * 100).toFixed(1)}%`);
+      toggle.style.setProperty('--toggle-my', `${(ny * 100).toFixed(1)}%`);
+      toggle.style.setProperty('--toggle-tx', `${(dx * 1.6).toFixed(2)}px`);
+      toggle.style.setProperty('--toggle-ty', `${(dy * 1.6).toFixed(2)}px`);
+      toggle.style.setProperty('--toggle-itx', `${(dx * 1.25).toFixed(2)}px`);
+      toggle.style.setProperty('--toggle-ity', `${(dy * 1.25).toFixed(2)}px`);
+    });
+
+    toggle.addEventListener('pointerleave', () => {
+      clearMagnetic();
+      clearSettled();
+    });
+    toggle.addEventListener('pointercancel', () => {
+      clearMagnetic();
+      clearSettled();
+    });
+    toggle.addEventListener('blur', clearSettled);
+
+    return { markSettled };
+  }
+
   function initOtherPage(options = {}) {
     const root = document.getElementById(pageId);
     if (!root || moduleState.initialized) return;
@@ -391,7 +444,9 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     const syncMobileGroupAvailability = () => syncFeatureGroupAvailability(root);
     if (mobileLayout?.addEventListener) mobileLayout.addEventListener('change', syncMobileGroupAvailability);
     else mobileLayout?.addListener?.(syncMobileGroupAvailability);
-    sidebarToggle?.addEventListener('click', () => {
+    const sidebarToggleCraft = bindSidebarToggleCraft(sidebarToggle);
+    sidebarToggle?.addEventListener('click', (event) => {
+      sidebarToggleCraft?.markSettled(event);
       const apply = () => {
         const collapsed = !root.classList.contains('sidebar-collapsed');
         setSidebarCollapsed(root, collapsed);

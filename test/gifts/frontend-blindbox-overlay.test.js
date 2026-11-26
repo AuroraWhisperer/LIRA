@@ -174,6 +174,75 @@ test('a reconnect and its first snapshot fetch the blind box stats once', async 
   assert.equal(reads, 1);
 });
 
+test('a coalesced gift database clear removes the old leader and reads the cleared ledger once', async () => {
+  const { invokeBodyRoute } = require('../helpers/route-invoke');
+  const { routes } = require('../../src/server/routes/data-routes');
+  const { sandbox, api, elements } = await createOverlay();
+  let receive;
+  sandbox.WebSocket = class {
+    addEventListener(type, listener) {
+      if (type === 'message') receive = payload => listener({ data: JSON.stringify(payload) });
+    }
+  };
+  let reads = 0;
+  let perUser = [{ userName: 'Old leader', totalProfit: 9 }];
+  const clearedRead = Promise.withResolvers();
+  sandbox.fetch = async () => {
+    if (++reads === 2) await clearedRead.promise;
+    return { json: async () => ({ ok: true, data: { summary: {}, perUser } }) };
+  };
+  api.connectSocket();
+  await api.loadStats();
+  assert.match(elements.blindboxLeaderboard.innerHTML, /Old leader/);
+  const result = await invokeBodyRoute(routes['POST /api/database/clear-gifts'], {
+    giftSync: { clearRemote: async () => ({ deletedCounts: { gifts: 1 } }), rebuild() {} },
+    data: { clearGifts() { perUser = []; return { gifts: 1 }; } },
+    broadcastSnapshot(reason) { receive({ type: 'snapshot', reason: 'lyrics', reasons: [reason, 'lyrics'], state: { settings: {} } }); },
+  }, { confirm: true });
+  assert.equal(result.status, 200);
+  assert.doesNotMatch(elements.blindboxLeaderboard.innerHTML, /Old leader/);
+  clearedRead.resolve();
+  await new Promise(setImmediate);
+  assert.equal(reads, 2);
+  assert.doesNotMatch(elements.blindboxLeaderboard.innerHTML, /Old leader/);
+});
+
+test('retention keeps the leader until refreshed and a source switch rejects that pending result', async () => {
+  const { sandbox, api, elements } = await createOverlay();
+  let message;
+  sandbox.WebSocket = class {
+    addEventListener(type, listener) { if (type === 'message') message = listener; }
+  };
+  const reads = [];
+  sandbox.fetch = () => {
+    const read = Promise.withResolvers();
+    reads.push(name => read.resolve({ json: async () => ({ ok: true, data: {
+      summary: {}, perUser: [{ userName: name, totalProfit: 1 }],
+    } }) }));
+    return read.promise;
+  };
+  function snapshot(reason, giftSourceEpoch) {
+    message({ data: JSON.stringify({ type: 'snapshot', reason, state: { giftSourceEpoch, settings: {} } }) });
+  }
+  const leaderboard = elements.blindboxLeaderboard;
+  api.connectSocket();
+  snapshot('connect', 'source-A');
+  reads[0]('First leader'); await new Promise(setImmediate);
+  snapshot('gift:source', 'source-A');
+  assert.match(leaderboard.innerHTML, /First leader/);
+  reads[1]('Updated leader'); await new Promise(setImmediate);
+  assert.match(leaderboard.innerHTML, /Updated leader/);
+
+  snapshot('gift:source', 'source-A');
+  snapshot('connect', 'source-B');
+  assert.doesNotMatch(leaderboard.innerHTML, /Updated leader/);
+  reads[2]('Late from A'); await new Promise(setImmediate);
+  assert.doesNotMatch(leaderboard.innerHTML, /Late from A/);
+  reads[3]('Leader B'); await new Promise(setImmediate);
+  assert.match(leaderboard.innerHTML, /Leader B/);
+  assert.equal(reads.length, 4);
+});
+
 test('blindbox refreshes share one pending request and read the last dirty update', async () => {
   const { sandbox, api, elements } = await createOverlay();
   const pending = [];

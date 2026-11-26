@@ -195,6 +195,73 @@ test('inline CSS, unquoted HTML attributes, srcset and linked HTML cannot hide m
   });
 });
 
+test('a single HTML file can use resource attribute selectors without loading those paths', async t => {
+  const f = await fixture(t);
+  const result = await f.add([['index.html', `<title>时钟</title><style>img[src="placeholder.png"] { display: none }</style>
+    <script>const image = new Image(); const example = "image.src = 'example.png'";
+    image.src = 'label.png' + document.body.dataset.variant;
+    const style = { src: '' }; style.src = 'preview.png';</script>`]]);
+  assert.equal(result.status, 200, result.error);
+});
+
+test('a literal Image source is checked relative to the HTML document base', async t => {
+  const f = await fixture(t);
+  const html = ['index.html', `<base href="art/"><script>
+    const cover = new Image(); cover.src = 'cover%20one.png'; document.body.append(cover);
+    const badge = document.createElement('img'); badge.src = 'badge.png'; document.body.append(badge);
+    </script>`];
+  const missing = await f.add([html]);
+  assert.equal(missing.status, 400);
+  assert.match(missing.error, /art\/cover one\.png/);
+  assertEmptyLibrary(f.dataDir);
+  const coverFile = ['art/cover one.png', image];
+  const missingBadge = await f.add([html, coverFile]);
+  assert.equal(missingBadge.status, 400);
+  assert.match(missingBadge.error, /art\/badge\.png/);
+  const complete = await f.add([html, coverFile, ['art/badge.png', image]]);
+  assert.equal(complete.status, 200, complete.error);
+});
+
+test('image variables in different functions keep their own src assignments', async t => {
+  const f = await fixture(t);
+  const files = [['index.html', '<script src="js/clock.js"></script>'], ['js/clock.js', `
+    function cover() { const card = new Image(); card.src = 'cover.png'; return card; }
+    function caption() { const card = {}; card.src = 'label.png'; return card.src; }
+    document.body.append(cover()); document.title = caption();`]];
+  const missing = await f.add(files);
+  assert.equal(missing.status, 400);
+  assert.match(missing.error, /cover\.png/);
+  const complete = await f.add([...files, ['cover.png', image]]);
+  assert.equal(complete.status, 200, complete.error);
+});
+
+test('a text replacement regexp preserves the following literal fetch dependency', async t => {
+  const f = await fixture(t);
+  const files = [['index.html', `<script>
+    const tidy = text => text.replace(/["']/g, '');
+    fetch('palette.json').then(response => response.json()).then(palette => { document.title = tidy(palette.title); });
+    </script>`]];
+  const missing = await f.add(files);
+  assert.equal(missing.status, 400);
+  assert.match(missing.error, /palette\.json/);
+  const complete = await f.add([...files, ['palette.json', '{"title":"Clock"}']]);
+  assert.equal(complete.status, 200, complete.error);
+});
+
+test('iframe srcdoc checks the child resources and uses the child base for linked scripts', async t => {
+  const f = await fixture(t);
+  const html = ['index.html', `<base href="skin/"><iframe src="fallback.html" srcdoc="
+    &lt;base href='art/'&gt;&lt;style&gt;img[src='example.png'] {opacity:.8}&lt;/style&gt;
+    &lt;img src=&quot;cover.png&quot;&gt;&lt;script src='js/main.js'&gt;&lt;/script&gt;"></iframe>`];
+  const files = [html, ['skin/art/js/main.js', 'fetch("palette.json")']];
+  const missing = await f.add(files);
+  assert.equal(missing.status, 400);
+  assert.match(missing.error, /skin\/art\/cover\.png/);
+  assertEmptyLibrary(f.dataDir);
+  const complete = await f.add([...files, ['skin/art/cover.png', image], ['skin/art/palette.json', '{}']]);
+  assert.equal(complete.status, 200, complete.error);
+});
+
 test('complete HTML dependencies import with comments, remote URLs and quoted CSS filenames', async t => {
   const f = await fixture(t);
   const result = await f.add([

@@ -152,6 +152,17 @@ test('cancelling the save dialog does not render or write a PNG', async t => {
   assert.equal(fs.existsSync(f.target), false);
 });
 
+test('a file blocking the default directory still permits a different PNG destination', async t => {
+  const f = fixture(t);
+  fs.writeFileSync(path.join(f.root, '周表'), 'existing file');
+  const result = await f.controller.exportPng(template());
+  assert.equal(result.filePath, f.target);
+  assert.equal(fs.readFileSync(f.target).readUInt32BE(16), 1920);
+  assert.ok(!path.isAbsolute(f.dialog.settings.defaultPath));
+  assert.equal(path.extname(f.dialog.settings.defaultPath), '.png');
+  assert.equal(fs.readFileSync(path.join(f.root, '周表'), 'utf8'), 'existing file');
+});
+
 test('a transient offscreen compositor failure retries one fresh capture', async t => {
   const f = fixture(t, { captureVizFailures: 1 });
   assert.equal((await f.controller.exportPng(template())).saved, true);

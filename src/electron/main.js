@@ -51,7 +51,7 @@ const { registerClientAppearanceIpc } = require('./ipc/client-appearance-ipc');
 const { registerScreenColorPicker } = require('./screen-color-picker');
 const { createAudioAssistant } = require('./audio-assistant');
 const { createAudioComponentManager } = require('./audio-component-manager');
-const { registerAudioAssistantIpc } = require('./ipc/audio-assistant-ipc');
+const { createAudioStateSender, registerAudioAssistantIpc } = require('./ipc/audio-assistant-ipc');
 const { createPlaybackOutput } = require('./playback-output');
 const { registerPlaybackOutputIpc } = require('./ipc/playback-output-ipc');
 const { migrateLegacyUserData, migrateLegacyPartitions, resolveDesktopUserDataPaths } = require('./desktop-user-data');
@@ -255,6 +255,10 @@ const userDataMigrationState = { migration: null, error: null };
 var gotInstanceLock = false;
 try {
   if (desktopUserDataPaths.recoveryDataDir && fs.existsSync(desktopUserDataPaths.recoveryDataDir)) {
+    const existing = [desktopUserDataPaths.dataDir, desktopUserDataPaths.legacyDataDir].find(dir => dir && fs.existsSync(dir));
+    if (existing) {
+      throw new Error(`同时发现原数据和安装备份。请保留两个目录，联系提供安装包的人协助恢复。\n原数据：${existing}\n备份：${desktopUserDataPaths.recoveryDataDir}`);
+    }
     throw new Error('上次安装的数据尚未恢复，请重新运行安装包。数据保留在：' + desktopUserDataPaths.recoveryDataDir);
   }
   userDataMigrationState.migration = migrateLegacyUserData({
@@ -392,12 +396,10 @@ async function startDesktopApp() {
   audioAssistant = createAudioAssistant({
     getExecutable: audioComponent.getExecutable,
     dataDir: paths.dataDir,
+    canStart: () => licenseManager?.isAuthorized() === true,
     getProcessIds: () => [process.pid, playbackOutput?.getProcessId(), ...app.getAppMetrics().map((item) => item.pid)],
     getPlaybackProcessId: () => playbackOutput?.getCaptureProcessId(),
-    onState: (state) => {
-      const window = desktopWindow.getWindow();
-      if (window && !window.isDestroyed()) window.webContents.send('audio-assistant:state', state);
-    },
+    onState: createAudioStateSender(() => desktopWindow.getWindow()),
   });
   disposeAudioAssistantIpc = registerAudioAssistantIpc({ ipcMain, assistant: audioAssistant, component: audioComponent,
     getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
@@ -563,6 +565,7 @@ async function startDesktopApp() {
     nativeMusicCapture: true,
     pickComponentWebFile: createComponentWebPicker({ dialog, getWindow: () => desktopWindow.getWindow() }),
     getClientTheme: clientAppearance.getThemeId,
+    getClientFont: clientAppearance.getFontId,
     safeStorage,
     doubaoSession,
     openAiLoginBrowser: (url) => shell.openExternal(url),
@@ -775,6 +778,7 @@ async function startDesktopApp() {
   readinessController = createDesktopReadinessController({
     licenseManager,
     audioComponent,
+    audioAssistant,
     runtime,
     remoteGiftController,
     cloudSyncController,
@@ -845,7 +849,10 @@ function logStartupPhase(phase, startedAt, extra = {}) {
 }
 
 async function requestPlaybackFlush() {
-  var result = await playbackFlush.requestPlaybackFlush(desktopWindow.getWindow());
+  const window = desktopWindow.getWindow();
+  const onLicensePage = window && !window.isDestroyed()
+    && window.webContents.mainFrame?.url === desktopWindow.getBaseUrl() + '/license';
+  var result = await playbackFlush.requestPlaybackFlush(onLicensePage ? null : window);
   writeLog('playback-flush', result);
   return result;
 }

@@ -15,12 +15,14 @@ const routes = {
       broadcastSnapshot: context.broadcastSnapshot,
       cloudSync: context.cloudSync,
       authorize: request.authorize,
+      updateEdit: request.req?.headers?.['x-lira-update-edit'],
     }, await request.body());
     if (result.error) {
       sendJson(res, 400, { ok: false, error: result.error });
       return;
     }
-    sendJson(res, 200, { ok: true, data: context.system.getState() });
+    const minimal = request.query?.get('return') === 'minimal';
+    sendJson(res, 200, minimal ? { ok: true } : { ok: true, data: context.system.getState() });
   },
 };
 

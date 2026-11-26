@@ -211,7 +211,7 @@
 .gift-wish-styles input:checked + span {
   border-color: var(--primary);
   background: var(--color-primary-light);
-  color: var(--primary-strong);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
   font-weight: 600;
 }
 .gift-wish-styles input:focus-visible + span {
@@ -243,7 +243,7 @@
 .gift-wish-styles .component-style-select[aria-pressed='true'] {
   border-color: var(--primary);
   background: var(--color-primary-light);
-  color: var(--primary-strong);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
   font-weight: 600;
 }
 .gift-wish-styles .component-style-card:has(.component-style-delete) .component-style-select {

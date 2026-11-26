@@ -68,7 +68,7 @@ test('player appearance preview follows playback while respecting rotation and c
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.evaluate(async () => {
-    document.getElementById('playerAppearance').hidden = false;
+    document.getElementById('playerAppearance').inert = false;
     const { FullscreenPlayer } = await import('/js/playback/ui/fullscreen.js');
     window.appearancePlayer = new FullscreenPlayer();
     window.appearancePlayer.init();

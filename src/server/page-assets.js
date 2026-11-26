@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { normalizeClientThemeId } = require('../shared/client-theme');
+const { DEFAULT_CLIENT_FONT_ID, isClientFontId } = require('../../public/js/shared/client-font-theme.js');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 const { composeComponentPreviewHtml } = require('./component-preview-page');
 const { OVERLAY_PAGES, getOverlayScope, createOverlayToken } = require('./access-policy');
@@ -28,7 +29,7 @@ const STATIC_ROUTES = new Map([
   ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
 ]);
 
-function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession, getClientTheme, fontLibraryEnabled = false) {
+function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession, getClientTheme, fontLibraryEnabled = false, getClientFont) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, {
       ok: false,
@@ -82,8 +83,11 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     }
     if (isAdminPage || relativePath === 'pages/component-preview.html' || relativePath === 'pages/gift-audit.html') {
       const themeId = normalizeClientThemeId(getClientTheme?.());
+      const saved = getClientFont?.();
+      const fontId = isClientFontId(saved) ? saved : DEFAULT_CLIENT_FONT_ID;
       body = Buffer.from(body.toString('utf8').replace(/<html\b([^>]*)>/i, (_tag, attributes) =>
-        `<html${attributes.replace(/\sdata-client-theme\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')} data-client-theme="${themeId}">`));
+        `<html${attributes.replace(/\sdata-client-theme\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')} data-client-theme="${themeId}" data-client-font="${fontId}">`)
+        .replace('</head>', '<script type="module" src="/js/shared/client-font-runtime.js"></script>\n</head>'));
     }
     if (isAdminPage && req.method === 'GET' && beginPlaybackSnapshotSession) {
       const writer = beginPlaybackSnapshotSession();

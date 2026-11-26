@@ -101,6 +101,49 @@ test('portable backup restores current parameters, media, local HTML and text im
   assert.equal(final.store.list().flatMap(pack => pack.styles).find(style => style.type === 'gift-wishes').config.limit, 4);
 });
 
+test('saved and published gift motion layers remain portable alongside an incoming backup', async t => {
+  const source = await fixture(t, false);
+  const other = await fixture(t, false);
+  other.server.service.create({ title: '已有有效备份', canvas: { width: 640, height: 480 } });
+  const incoming = await bytes(other.transfer.backup(allow));
+  const local = source.server.service;
+  const created = local.create({ title: '内置动效', canvas: { width: 1280, height: 720 } });
+  const configs = [{}, { style: 'follow' }, { style: 'gift-drop' }, { style: 'gift-swing' }];
+  const saved = local.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: configs.map(config => item('gift-frame', config)) } });
+  local.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const inspection = await source.transfer.inspect(Readable.from([incoming]), allow);
+  assert.equal((await source.transfer.restore(inspection.id, allow)).created, 1);
+  const exported = await bytes(source.transfer.backup(allow));
+  const preview = await other.transfer.inspect(Readable.from([exported]), allow);
+  assert.equal((await other.transfer.restore(preview.id, allow)).created, 3);
+  const copies = other.server.service.list().filter(record => record.document.items.length);
+  assert.equal(copies.length, 2);
+  for (const { document } of copies) assert.deepEqual(document.items.map(i => i.appearance.config), configs);
+  assert.equal(local.get(saved.document.id).publishedVersion, 1);
+});
+
+test('backup enforces the restore document limit before streaming and still accepts a valid incoming backup', async t => {
+  const { server, transfer } = await fixture(t, false);
+  const create = () => server.service.create({ title: '边界布局', canvas: { width: 640, height: 480 } });
+  const first = create();
+  const incoming = await bytes(transfer.backup(allow));
+  for (let i = 1; i < 1000; i++) create();
+  const atLimit = await bytes(transfer.backup(allow));
+  const destination = await fixture(t, false);
+  const preview = await destination.transfer.inspect(Readable.from([atLimit]), allow);
+  assert.equal(preview.scenes, 1000);
+  assert.equal((await destination.transfer.restore(preview.id, allow)).created, 1000);
+  server.service.publish({ id: first.document.id, expectedRevision: first.revision });
+  const response = await fetch(`${server.origin}/api/component-styles/backup`, { method: 'POST',
+    headers: { Authorization: `Bearer ${server.token}`, 'Content-Type': 'application/json' }, body: '{}' });
+  assert.equal(response.status, 400);
+  assert.match((await response.json()).error, /1000/);
+  const valid = await transfer.inspect(Readable.from([incoming]), allow);
+  assert.equal((await transfer.restore(valid.id, allow)).created, 1);
+  assert.equal(server.service.get(first.document.id).publishedVersion, 1);
+});
+
 test('switched web styles survive backup after the previous package is reclaimed', async t => {
   const source = await fixture(t, false);
   const web = createComponentWebLibrary(source.dataDir);

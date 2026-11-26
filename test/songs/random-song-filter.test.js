@@ -14,6 +14,14 @@ const { isBilibiliCommandText } = require('../../src/bilibili/danmaku/command-te
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 
+test('random category matching accepts every separator offered by the library', () => {
+  for (const separator of ['/', '／', ';', '；', ',', '，', '、']) {
+    const song = { name: '夜行', category_name: `舞曲${separator}流行` };
+    assert.deepEqual(filterRandomSongCandidates([song], '舞曲+流行'), [song], separator);
+    assert.deepEqual(filterRandomSongCandidates([{ ...song, category_is_enabled: 0 }], '流行'), []);
+  }
+});
+
 const SONGS = [
   {
     name: '晴天',

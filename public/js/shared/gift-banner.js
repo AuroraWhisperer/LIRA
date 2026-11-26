@@ -6,9 +6,7 @@ import { fitTextToWidth } from './fit-text-to-width.js';
 import { bindGuardImage, getGuardAvatarFrame, getGuardIcon } from './bilibili-guard-icons.js';
 import { DEFAULT_GIFT_BANNER_APPEARANCE } from './gift-banner-styles.js';
 
-export const BANNER_WIDTH = 428;
-export const BANNER_HEIGHT = 72;
-export const BANNER_GAP = 8;
+export { BANNER_WIDTH, BANNER_HEIGHT, BANNER_GAP } from './gift-banner-layout.js';
 export const GIFT_PALETTE = [
   ['#38B6FF', '#65C8FF'],
   ['#8F58EDF2', '#776CE9E6'],

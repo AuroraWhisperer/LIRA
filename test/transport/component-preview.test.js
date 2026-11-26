@@ -783,8 +783,13 @@ test('only canvas capabilities can queue bound publication and source operations
     assert.throws(() => sessions.browser({ id: clock.id, action }, clock.token), { statusCode: 400 });
     assert.ok(sessions.browser({ id: canvas.id, action }, canvas.token).sequence > 0);
   }
-  assert.deepEqual(sessions.exchange({ id: canvas.id, state: state({ document: {} }), ack: 0 })
-    .commands.map(command => command.action), ['publish', 'source']);
+  const itemId = randomUUID();
+  const source = change => sessions.browser({ id: canvas.id, action: 'source', change }, canvas.token);
+  assert.throws(() => source({ itemId, type: 'clock' }), { statusCode: 400 });
+  source({ itemId });
+  const { commands } = sessions.exchange({ id: canvas.id, state: state({ document: {} }), ack: 0 });
+  assert.deepEqual(commands.map(command => command.action), ['publish', 'source', 'source']);
+  assert.equal(commands.at(-1).change.itemId, itemId);
   assert.throws(() => sessions.browser({ id: canvas.id, action: 'edit', change: { title: 'wrong field' } }, canvas.token), { statusCode: 400 });
 });
 

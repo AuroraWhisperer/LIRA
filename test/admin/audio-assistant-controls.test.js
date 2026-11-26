@@ -6,7 +6,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = path.resolve('public/js/admin/audio-assistant-controls.js');
 
-async function createControlsFixture({ enabled = false, selected = false, visible = false, outputSwitch = null } = {}) {
+async function createControlsFixture({ enabled = false, selected = false, visible = false, outputSwitch = null, configure } = {}) {
   const nodes = new Map();
   function getElementById(id) {
     if (!nodes.has(id)) nodes.set(id, Object.assign(new EventTarget(), {
@@ -34,18 +34,19 @@ async function createControlsFixture({ enabled = false, selected = false, visibl
     document: Object.assign(new EventTarget(), { getElementById }),
     ...(outputSwitch ? { navigator: { mediaDevices: { async enumerateDevices() { return []; } } } } : {}),
     Option: function (name, id) { this.textContent = name; this.value = id; },
-    clearTimeout,
+    setTimeout, clearTimeout,
     MutationObserver: class {
       constructor(callback) { notify = callback; }
       observe(target, options) { observed.set(target, options.attributeFilter); }
       disconnect() { observed.clear(); }
     },
-  });
+  }, { moduleFixtures: new Map([[path.resolve('public/js/shared/toast.js'), { toast() {} }]]) });
   const controls = initAudioAssistantControls({ enabled: () => enabled, signal: new AbortController().signal,
     bridge: {
       onState(listener) { receiveState = listener; subscriptions++; return () => subscriptions--; },
-      async invoke({ op }) {
+      async invoke({ op, value }) {
         calls.push(op);
+        if (op === 'configure' && configure) return { ok: await configure(value) };
         return { ok: true, state: { ready: true, status: '音乐来源和设备已刷新。' } };
       },
     },
@@ -237,4 +238,85 @@ test('audio parameter queue reports failed changes before a caller starts playba
   success = true;
   queue.change('volume', 0);
   assert.equal(await queue.flush(), true);
+});
+
+test('a saved ASIO channel on an unprobed driver is pending, while a missing driver or known missing channel is unavailable', async t => {
+  const f = await createControlsFixture({ selected: true, visible: true });
+  t.after(() => f.controls.dispose());
+  for (const [choices, disabled] of [
+    [[{ id: 'asio:Studio', name: 'ASIO：Studio（驱动，连接待检查）' },
+      { id: 'asio:Studio|2', name: 'ASIO：Studio · 声道 3 / 4（连接待检查）' }], false],
+    [[{ id: 'asio:Studio', name: 'ASIO：Studio · Left / Right' }], true],
+    [[], true],
+  ]) {
+    f.receive({ ready: true, settings: { outputId: 'asio:Studio|2' }, outputChoices: choices });
+    const selected = f.node('audioAssistantOutput').children.find(item => item.value === 'asio:Studio|2');
+    assert.match(selected.textContent, disabled ? /已断开/ : /3.*4.*待检查/);
+    assert.equal(selected.disabled, disabled);
+  }
+});
+
+test('starting during a volume acknowledgement waits for that single write and its result', async () => {
+  const { createAudioParameterQueue } = await loadModuleExports(entry);
+  for (const ok of [true, false]) {
+    const receipt = Promise.withResolvers();
+    const sent = [];
+    const queue = createAudioParameterQueue(patch => { sent.push(patch.volume); return receipt.promise; }, () => {});
+    queue.change('volume', 85);
+    const first = queue.flush();
+    await new Promise(resolve => setImmediate(resolve));
+    const beforeStart = queue.flush();
+    receipt.resolve(ok);
+    assert.deepEqual(await Promise.all([first, beforeStart]), [ok, ok]);
+    assert.deepEqual(sent, [85]);
+  }
+});
+
+test('start waits for every outstanding configuration even when the final edit succeeds', async () => {
+  const { createAudioParameterQueue } = await loadModuleExports(entry);
+  const volume = Promise.withResolvers();
+  const sent = [];
+  const queue = createAudioParameterQueue(patch => {
+    sent.push(Object.keys(patch));
+    return 'volume' in patch ? volume.promise : true;
+  }, () => {});
+  queue.change('volume', 85);
+  const first = queue.flush();
+  await new Promise(resolve => setImmediate(resolve));
+  queue.change('semitones', 2);
+  const beforeStart = queue.flush();
+  volume.resolve(false);
+  assert.equal(await first, false);
+  assert.equal(await beforeStart, false);
+  assert.deepEqual(sent, [['volume'], ['semitones']]);
+  queue.change('semitones', 3);
+  assert.equal(await queue.flush(), true);
+});
+
+test('stopping still reaches the running assistant when an outstanding volume save fails', async t => {
+  const sent = Promise.withResolvers();
+  const receipt = Promise.withResolvers();
+  const volumes = [];
+  const fixture = await createControlsFixture({ enabled: true, configure({ volume }) {
+    volumes.push(volume);
+    if (volumes.length > 1) return true;
+    sent.resolve();
+    return receipt.promise;
+  } });
+  t.after(() => fixture.controls.dispose());
+  fixture.receive({ ready: true, running: true });
+  const editVolume = value => {
+    const input = { tagName: 'INPUT', type: 'range', dataset: { audioSetting: 'volume' }, validity: { valid: true }, value };
+    const event = new Event('input');
+    Object.defineProperty(event, 'target', { value: { closest: () => input } });
+    fixture.node('otherAudioAssistantFeature').dispatchEvent(event);
+  };
+  editVolume('85');
+  await sent.promise;
+  editVolume('90');
+  fixture.setActive(false);
+  receipt.resolve(false);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(volumes, [85, 90]);
+  assert.equal(fixture.calls.at(-1), 'stop');
 });

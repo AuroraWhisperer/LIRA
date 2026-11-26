@@ -5,6 +5,48 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+test('a restored track accepts a seek before metadata and saves the latest position across reopen', async () => {
+  const state = { current: track('song', 'Song'), currentTime: 37, selectedSource: 'qq', mode: 'sequence', volume: 0.75 };
+  const open = async (snapshot, options) => {
+    const app = await createPlaybackApp(snapshot, options);
+    const audio = app.element('music-player');
+    Object.assign(audio, { readyState: 0, duration: NaN });
+    await app.init();
+    await flushAsyncWork();
+    const slider = app.element('playbackSeek');
+    return { app, audio, slider, seek(value) {
+      slider.value = String(value);
+      return app.emit('playbackSeek', 'input', { target: slider });
+    } };
+  };
+  const first = await open(state);
+  assert.deepEqual([first.slider.max, first.slider.value], ['180', '37']);
+  await first.seek(250);
+  assert.equal(first.app.savedState().currentTime, 180);
+  await first.seek(81);
+  assert.equal(first.app.element('playbackCurrentTime').textContent, '01:21');
+  const saved = first.app.savedState();
+  assert.equal(saved.currentTime, 81);
+  assert.equal(first.app.audioPlayCalls(), 0);
+  const stream = Promise.withResolvers();
+  const { app, audio, slider, seek } = await open(saved, { resolveStream: () => stream.promise });
+  assert.equal(slider.value, '81');
+  const playing = app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  await seek(88);
+  stream.resolve({ url: 'https://example.test/song.mp3' });
+  await playing;
+  assert.equal(app.savedState().currentTime, 88);
+  await seek(95);
+  Object.assign(audio, { readyState: 1, duration: 94 });
+  await app.emit('music-player', 'loadedmetadata');
+  assert.equal(audio.currentTime, 93, 'pending seek uses the actual media duration at startup');
+  await seek(42);
+  assert.equal(audio.currentTime, 42);
+  assert.equal(app.savedState().currentTime, 42);
+  assert.equal(app.audioPlayCalls(), 1);
+});
+
 for (const autoAccept of [true, false]) {
   test(`clearing during an ${autoAccept ? 'accepted' : 'pending'} import prevents stale queue writes`, async () => {
     const match = Promise.withResolvers();
@@ -324,9 +366,9 @@ test('pagehide preserves personal playlist caches for the next desktop start', a
   await flushAsyncWork();
   await app.emitHomeAction();
   await flushAsyncWork();
-  assert.equal(app.hasStorageKey('playbackCache:v2:qq:liked'), true);
+  assert.equal(app.hasStorageKey('playbackCache:v2:qq:liked:201'), true);
 
   await app.emitWindow('pagehide');
 
-  assert.equal(app.hasStorageKey('playbackCache:v2:qq:liked'), true);
+  assert.equal(app.hasStorageKey('playbackCache:v2:qq:liked:201'), true);
 });

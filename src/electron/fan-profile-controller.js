@@ -229,7 +229,8 @@ function createFanProfileController({
     if (!same(captured)) throw createPublicError('登录状态已变化，请重新打开粉丝档案。');
     if (String(getRoomId() || '') !== roomId)
       return response(captured, { state: 'sourceChanged', observedAt: null, badges: [] });
-    const { profiles } = service.execute(captured.scope, 'list', payload);
+    // Archived rows keep their guard identity but never display expiry days. The header still needs the source status.
+    const profiles = payload.archived === true ? [] : service.execute(captured.scope, 'list', payload).profiles;
     return response(captured, projectGuardExpiry(snapshot, profiles, roomId, now()));
   }
 
@@ -270,7 +271,7 @@ function createFanProfileController({
         }
       }
       if (!canImport()) return null;
-      return response(captured, service.importGuardRoster(captured.scope, snapshot, automaticDate, refresh));
+      return response(captured, service.importGuardRoster(captured.scope, snapshot, automaticDate, refresh, roomId));
     } catch (error) {
       if (typeof error.publicMessage === 'string' && error.publicMessage) throw error;
       throw createPublicError('大航海名单读取失败，本次没有导入，请检查网络后重试。');
@@ -300,7 +301,8 @@ function createFanProfileController({
     settings ??= service.execute(captured.scope, 'settings');
     if (!settings.autoSyncGuardRoster) return;
     captured.automaticAttempt = key;
-    if (settings.lastGuardRosterAutoUpdate?.date === date && settings.lastGuardRosterAutoUpdate.roomId === roomId) return;
+    const previous = settings.lastGuardRosterAutoUpdate;
+    if (previous?.date === date && (previous.roomId === roomId || previous.configuredRoomId === roomId)) return;
     const reason = startedAt >= scheduledAt ? 'startup' : 'scheduled';
     try {
       rosterOperation = syncGuardRoster(captured, service, date);

@@ -8,7 +8,7 @@ const { createGameSessionService } = require('../../src/games/game-session-servi
 const { chooseGameWord } = require('../helpers/draw-guess');
 const { routes } = require('../../src/server/routes/game-routes');
 
-async function createDrawingFixture(t) {
+async function createDrawingFixture(t, confirmClear) {
   const broadcasts = [];
   const requests = [];
   const responses = [];
@@ -144,6 +144,9 @@ async function createDrawingFixture(t) {
           return { json: async () => payload };
         },
       },
+      confirmClear ? { moduleFixtures: new Map([
+        [path.resolve(__dirname, '../../public/js/shared/confirmation-dialog.js'), { showConfirmationDialog: confirmClear }],
+      ]) } : undefined,
     );
     const loadSnapshot = t.mock.fn(() => {
       session = structuredClone(games.getSession());
@@ -171,6 +174,7 @@ async function createDrawingFixture(t) {
       restore: (value) => {
         session = structuredClone(value);
         controller.redrawCanvas(session.state.canvas);
+        controller.setToolsEnabled(session.state.phase === 'drawing');
       },
       undo: () => byId('drawUndoBtn').listeners.get('click')(),
       key: (key, extra = {}) => {
@@ -186,14 +190,15 @@ async function createDrawingFixture(t) {
         keyboard.get('keydown')({ key: 'z', [modifier]: true, preventDefault });
         assert.equal(preventDefault.mock.callCount(), 1);
       },
-      pointer: (type, x) =>
-        byId('drawCanvas').listeners.get(type)({
+      pointer: (type, x, options = {}) =>
+        byId('drawCanvas').listeners.get(type)?.({
           pointerType: 'mouse',
           button: 0,
           pointerId: 1,
           clientX: x,
           clientY: 20,
           preventDefault() {},
+          ...options,
         }),
     };
   }
@@ -223,6 +228,86 @@ async function createDrawingFixture(t) {
       }
     },
   };
+}
+
+for (const change of ['none', 'round', 'session']) {
+  test(`clear confirmation targets its original drawing after ${change} change`, async t => {
+    const dialog = Promise.withResolvers();
+    const f = await createDrawingFixture(t, () => dialog.promise);
+    const clearing = f.host.byId('drawClearBtn').listeners.get('click')();
+    if (change === 'round') {
+      for (const action of ['finish-round', 'reveal-answer', 'next-round']) {
+        assert.equal(f.games.move({ value: { action } }).accepted, true);
+      }
+    } else if (change === 'session') {
+      f.games.stop();
+      f.games.start({ game: 'draw-guess' });
+    }
+    if (change !== 'none') {
+      chooseGameWord(f.games);
+      assert.equal(f.games.draw({ action: 'append', strokeId: 'new-picture', clientId: 'other',
+        color: '#ef476f', width: 4, points: [{ x: 0.1, y: 0.2 }] }).accepted, true);
+    }
+    f.host.restore(f.games.getSession());
+    dialog.resolve(true);
+    await clearing;
+    await f.flushRequests();
+    const expected = change === 'none' ? [] : ['new-picture'];
+    assert.deepEqual(f.games.getSession().state.canvas.strokes.map(stroke => stroke.id), expected);
+    assert.deepEqual(f.host.canvas().strokes.map(stroke => stroke.id), expected);
+    assert.equal(f.requests.length, change === 'none' ? 1 : 0);
+  });
+}
+
+test('a second touch cannot take over an unflushed stroke', async t => {
+  const f = await createDrawingFixture(t);
+  const first = { pointerType: 'touch', pointerId: 1 };
+  const second = { pointerType: 'touch', pointerId: 2 };
+  f.host.pointer('pointerdown', 10, first);
+  f.host.pointer('pointerdown', 80, second);
+  f.host.pointer('pointermove', 90, second);
+  f.host.pointer('pointermove', 30, first);
+  f.host.pointer('pointerup', 30, first);
+  f.host.pointer('pointerup', 90, second);
+  await f.flushRequests();
+  assert.deepEqual(f.requests.flatMap(op => op.points.map(point => point.x)), [0.1, 0.3]);
+  for (const op of f.broadcasts) f.deliver(op);
+  assert.deepEqual(f.observer.canvas(), f.games.getSession().state.canvas);
+  f.host.pointer('pointerdown', 80, second);
+  f.host.pointer('pointerup', 80, second);
+  await f.flushRequests();
+  assert.equal(f.requests.at(-1).points[0].x, 0.8);
+});
+
+test('losing pointer capture finishes the owned stroke and allows a new pointer to draw', async t => {
+  const f = await createDrawingFixture(t);
+  f.host.pointer('pointerdown', 10);
+  f.host.pointer('lostpointercapture', 10);
+  f.host.pointer('pointerdown', 80, { pointerId: 2 });
+  f.host.pointer('pointerup', 20);
+  f.host.pointer('pointerup', 80, { pointerId: 2 });
+  await f.flushRequests();
+  assert.deepEqual(f.requests.map(op => op.points.map(point => point.x)), [[0.1], [0.8]]);
+});
+
+for (const change of ['round', 'session']) {
+  test(`a drawing snapshot after a ${change} change releases the previous pointer`, async t => {
+    const f = await createDrawingFixture(t);
+    f.host.pointer('pointerdown', 10);
+    if (change === 'round') {
+      for (const action of ['finish-round', 'reveal-answer', 'next-round']) f.games.move({ value: { action } });
+    } else {
+      f.games.stop();
+      f.games.start({ game: 'draw-guess' });
+    }
+    chooseGameWord(f.games);
+    f.host.restore(f.games.getSession());
+    f.host.pointer('pointerdown', 80, { pointerId: 2 });
+    f.host.pointer('pointerup', 20);
+    f.host.pointer('pointerup', 80, { pointerId: 2 });
+    await f.flushRequests();
+    assert.deepEqual(f.games.getSession().state.canvas.strokes.map(stroke => stroke.points.map(p => p.x)), [[0.8]]);
+  });
 }
 
 test('draw undo confirmation redraws the initiating canvas and other subscribers', async (t) => {

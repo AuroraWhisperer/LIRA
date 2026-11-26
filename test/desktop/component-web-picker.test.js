@@ -94,6 +94,21 @@ test('references outside the selected file directory require an explicit materia
   ]);
 });
 
+test('a script shared by srcdoc frames can require a companion from a different material directory', async t => {
+  const root = fixture(t, [
+    ['widget/index.html', `<iframe srcdoc="<base href='../art/'><script src='../widget/main.js'></script>"></iframe>
+      <iframe srcdoc="<base href='tiles/'><script src='../main.js'></script>"></iframe>`],
+    ['widget/main.js', 'const cover = new Image(); cover.src = "cover.svg";'],
+    ['widget/tiles/cover.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'],
+    ['art/cover.svg', '<svg xmlns="http://www.w3.org/2000/svg"/>'],
+  ]);
+  const entry = path.join(root, 'widget/index.html');
+  assert.equal(await pickerFor(entry)('html'), null);
+  const selected = await pickerFor(entry, root)('html');
+  assert.equal(selected.entry, 'widget/index.html');
+  assert.ok((await collect(selected.files)).has('art/cover.svg'));
+});
+
 test('automatic selection returns only the selected media or archive and delays opening until authorized', async t => {
   const bytes = Buffer.from([0, 255, 10, 23]);
   const root = fixture(t, [['图片.webp', bytes], ['样式.zip', bytes], ['private.json', '{}']]);

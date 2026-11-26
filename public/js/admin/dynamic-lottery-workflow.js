@@ -70,6 +70,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
   const status = find('task-status');
   const message = find('message');
   const winners = find('winners');
+  const resultPanel = find('result-panel');
   const resultNote = find('result-note');
   const taskInfo = find('task-info');
   const listeners = [];
@@ -78,7 +79,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
   let selectedId = '';
   let hydratedId = '';
   let creating = false;
-  let requestId = null;
+  let submission = null;
   let busy = false;
   let disposed = false;
   let timer = null;
@@ -86,17 +87,30 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
   let generation = 0;
   let resultPage = 0;
   let resultRoundId = null;
+  let visibleWinners = [];
   let scanViewKey = '';
   let lastNotice = '';
 
-  function notifyOutcome(previous, initiated) {
+  function notifyOutcome(previous, request, accepted) {
     const taskId = data.task?.id || data.job?.taskId || '';
     const phase = data.result?.status || data.task?.status;
-    const watching = initiated || (previous.working && (!previous.taskId || previous.taskId === taskId));
+    const watching = request || (previous.working && (!previous.taskId || previous.taskId === taskId));
     if (!watching) return;
     let text = '';
     let type = 'success';
-    if (data.error) {
+    const pauseCode = ['LOTTERY_OPERATION_PAUSED', 'LOTTERY_COLLECTION_PAUSED'].includes(data.error);
+    const pauseAccepted = accepted && request?.action === 'pause' && (!data.error || pauseCode) &&
+      (data.job ? (data.job.taskId || '') === (request.taskId || '') : phase === 'paused');
+    if (accepted && data.job && !pauseAccepted && (!data.error || pauseCode)) {
+      if (!previous.working) lastNotice = '';
+      return;
+    }
+    const paused = pauseAccepted || pauseCode || (!data.error && phase === 'paused');
+    const noticeTaskId = pauseCode && previous.working ? previous.taskId : taskId;
+    if (paused) {
+      text = noticeTaskId ? '抽奖已暂停，进度还在。请回到动态抽奖查看后继续。' : '已暂停获取抽奖名单。';
+      type = 'warning';
+    } else if (data.error) {
       text = data.error === 'LOTTERY_OPERATION_FAILED'
         ? '暂时读不到抽奖结果，请刷新状态确认。' : '抽奖操作没完成，请回到动态抽奖查看原因。';
       type = 'error';
@@ -108,17 +122,16 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
       text = shortage ? `抽奖已结束，找到 ${count} 位符合条件的观众，还差 ${shortage} 位。`
         : `抽奖已完成，共 ${count} 位观众中奖。`;
       if (shortage) type = 'warning';
-    } else if (phase === 'paused' || phase === 'failed') {
-      text = phase === 'failed' ? '抽奖名单没取到，请回到动态抽奖查看原因。'
-        : '抽奖已暂停，进度还在。请回到动态抽奖查看后继续。';
-      type = phase === 'failed' ? 'error' : 'warning';
+    } else if (phase === 'failed') {
+      text = '抽奖名单没取到，请回到动态抽奖查看原因。';
+      type = 'error';
     } else {
       lastNotice = '';
     }
-    const signature = `${taskId}:${data.result?.roundId || ''}:${phase}:${data.error || ''}`;
+    const signature = paused ? `${noticeTaskId}:paused` : `${taskId}:${data.result?.roundId || ''}:${phase}:${data.error || ''}`;
     if (text && signature !== lastNotice) {
       lastNotice = signature;
-      notify(text, { key: `dynamic-lottery:${taskId || 'current'}`, update: true, type });
+      notify(text, { key: `dynamic-lottery:${noticeTaskId || 'current'}`, update: true, type });
     }
   }
 
@@ -137,18 +150,19 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     form.elements.requireFollow.checked = task.rules.requireFollow === true;
   }
 
-  function render() {
+  function renderControls(loadingHistory = false) {
     const task = data.task;
     const result = data.result;
     const working = Boolean(data.job);
     const hasTask = Boolean(task && !creating);
     const legacy = hasTask && task.rules.version !== 2;
-    const canAct = auth.available && auth.loggedIn && !auth.busy && !busy;
+    const canRead = auth.available && !auth.busy;
+    const canAct = canRead && auth.loggedIn && !busy;
     fields.disabled = busy || working || hasTask;
     find('create').disabled = !canAct || fields.disabled;
     find('new').disabled = busy || working;
     find('new').hidden = !hasTask;
-    find('state-refresh').disabled = !auth.available || auth.busy || busy;
+    find('state-refresh').disabled = !canRead || busy;
     find('pause').disabled = !canAct || !working;
     find('pause').hidden = !working;
     find('pause').textContent = result ? '暂停核验' : '暂停获取';
@@ -160,10 +174,16 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     find('draw').hidden = working || !canDraw;
     find('task-actions').hidden = !working && !canResume && !canDraw;
     find('resume').textContent = result ? '继续原顺序核验' : '继续获取';
-    find('setup').hidden = hasTask;
-    find('activity').hidden = !hasTask && !working && !data.error;
+    find('setup').hidden = loadingHistory || hasTask;
+    find('activity').hidden = loadingHistory || (!hasTask && !working && !data.error);
     find('task-details').hidden = !hasTask;
-    history.disabled = busy || working || data.tasks.length === 0;
+    if (loadingHistory) resultPanel.hidden = true;
+    history.disabled = !canRead || working || data.tasks.length === 0 || (busy && !loadingHistory);
+    return { task, result, working, hasTask, legacy };
+  }
+
+  function render() {
+    const { task, result, working, hasTask, legacy } = renderControls();
     history.hidden = data.tasks.length === 0;
     find('history-empty').hidden = data.tasks.length > 0;
     const options = data.tasks.map((entry) => {
@@ -229,22 +249,30 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
   }
 
   function renderResult(result) {
-    if (resultRoundId !== result?.roundId) resultPage = 0;
-    resultRoundId = result?.roundId;
+    if (resultRoundId !== result?.roundId) {
+      resultRoundId = result?.roundId;
+      resultPage = 0;
+      visibleWinners = [];
+      winners.replaceChildren();
+    }
     const entries = result?.winners || [];
     find('copy-winners').disabled = entries.length === 0;
     const pageCount = Math.max(1, Math.ceil(entries.length / WINNERS_PER_PAGE));
     resultPage = Math.min(resultPage, pageCount - 1);
-    find('result-panel').hidden = !result;
+    resultPanel.hidden = !result;
     find('result-status').textContent = result ? STATUSES[result.status] || '' : '';
     find('result-empty').hidden = entries.length > 0;
     find('pager').hidden = pageCount === 1;
     find('previous').disabled = resultPage === 0;
     find('next').disabled = resultPage >= pageCount - 1;
     find('page-info').textContent = `${resultPage + 1} / ${pageCount} 页 · 共 ${entries.length} 人`;
-    winners.replaceChildren();
     const start = resultPage * WINNERS_PER_PAGE;
-    for (const winner of entries.slice(start, start + WINNERS_PER_PAGE)) {
+    const pageWinners = entries.slice(start, start + WINNERS_PER_PAGE);
+    for (const [index, winner] of pageWinners.entries()) {
+      const previous = visibleWinners[index];
+      if (previous && previous.uid === winner.uid && previous.position === winner.position &&
+          previous.displayName === winner.displayName && previous.commentText === winner.commentText &&
+          previous.verification.reason === winner.verification.reason) continue;
       const item = document.createElement('li');
       const rank = document.createElement('span');
       rank.className = 'dynamic-lottery-rank';
@@ -279,8 +307,11 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
       comment.append(label, text);
       content.append(person, comment);
       item.append(rank, content);
-      winners.append(item);
+      if (previous) winners.replaceChild(item, winners.children[index]);
+      else winners.append(item);
     }
+    while (winners.children.length > pageWinners.length) winners.removeChild(winners.lastElementChild);
+    visibleWinners = pageWinners;
     resultNote.textContent = result
       ? `已确认 ${entries.length} / ${result.requestedCount} 人 · 已核验 ${result.checkedCount} 人 · 不符合 ${result.excludedCount} 人${result.shortage ? ` · 缺额 ${result.shortage} 人` : ''}`
       : '';
@@ -297,21 +328,23 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     timer = null;
   }
 
-  async function load(path = '/state', body) {
+  async function load({ path = '/state', body, historyId } = {}) {
     if (disposed || !auth.available || auth.busy) return;
     const previous = { taskId: data.task?.id || data.job?.taskId || '',
       working: Boolean(data.job) || ['collecting', 'drawing'].includes(data.task?.status) };
-    if (body) lastNotice = '';
+    if (body && body.action !== 'pause') lastNotice = '';
     cancelRequest();
     const current = generation;
+    let accepted = false;
     controller = new AbortController();
     busy = true;
-    render();
+    renderControls(Boolean(historyId));
     try {
       const headers = {};
       if (window.__API_TOKEN__) headers.Authorization = `Bearer ${window.__API_TOKEN__}`;
       if (body) headers['Content-Type'] = 'application/json';
-      const query = path === '/state' && selectedId ? `?taskId=${encodeURIComponent(selectedId)}` : '';
+      const taskId = historyId || selectedId;
+      const query = path === '/state' && taskId ? `?taskId=${encodeURIComponent(taskId)}` : '';
       const response = await fetch(`${BASE}${path}${query}`, {
         method: body ? 'POST' : 'GET',
         headers,
@@ -324,9 +357,10 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
       if (!payload.ok) {
         data.error = payload.error;
       } else {
+        accepted = true;
         data = payload.data;
         selectedId = data.task?.id || '';
-        if (path === '/tasks') creating = false;
+        if (historyId || path === '/tasks') creating = false;
         if (!data.task && !data.job) creating = true;
       }
     } catch (error) {
@@ -335,7 +369,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     } finally {
       if (!disposed && current === generation) {
         busy = false;
-        notifyOutcome(previous, Boolean(body));
+        notifyOutcome(previous, body, accepted);
         render();
         if (data.job)
           timer = setTimeout(() => {
@@ -347,7 +381,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
 
   listen(find('copy-winners'), 'click', async () => {
     const entries = data.result?.winners || [];
-    if (!entries.length) return;
+    if (resultPanel.hidden || !entries.length) return;
     const lines = entries.map((winner) =>
       `${winner.position}. ${winner.displayName || '未提供昵称'} · UID ${winner.uid} · https://space.bilibili.com/${winner.uid}`);
     try {
@@ -361,34 +395,40 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
   listen(form, 'submit', (event) => {
     event.preventDefault();
     if (find('create').disabled || !form.reportValidity()) return;
-    requestId ||= crypto.randomUUID();
+    submission ||= { requestId: crypto.randomUUID(), submittedAtMs: Date.now() };
     selectedId = '';
-    void load('/tasks', {
-      url: form.elements.url.value.trim(),
-      winnerCount: Number(form.elements.winnerCount.value),
-      requireLike: form.elements.requireLike.checked,
-      requireRepost: form.elements.requireRepost.checked,
-      requireFollow: form.elements.requireFollow.checked,
-      requestId,
+    void load({
+      path: '/tasks',
+      body: {
+        url: form.elements.url.value.trim(),
+        winnerCount: Number(form.elements.winnerCount.value),
+        requireLike: form.elements.requireLike.checked,
+        requireRepost: form.elements.requireRepost.checked,
+        requireFollow: form.elements.requireFollow.checked,
+        ...submission,
+      },
     });
   });
   listen(form, 'input', () => {
-    requestId = null;
+    submission = null;
   });
   for (const action of ['pause', 'resume', 'draw']) {
     listen(find(action), 'click', () => {
       if (find(action).disabled) return;
-      void load('/tasks/action', {
-        taskId: action === 'pause' ? data.job?.taskId : data.task?.id,
-        revision: data.task?.revision,
-        action,
+      void load({
+        path: '/tasks/action',
+        body: {
+          taskId: action === 'pause' ? data.job?.taskId : data.task?.id,
+          revision: data.task?.revision,
+          action,
+        },
       });
     });
   }
   listen(find('new'), 'click', () => {
     cancelRequest();
     creating = true;
-    requestId = null;
+    submission = null;
     selectedId = '';
     hydratedId = '';
     data = { ...data, task: null, result: null, job: null, error: '' };
@@ -400,9 +440,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     void load();
   });
   listen(history, 'change', () => {
-    selectedId = history.value;
-    creating = false;
-    void load();
+    void load({ historyId: history.value });
   });
   listen(find('history-toggle'), 'click', () => {
     const panel = find('history-panel');
@@ -414,7 +452,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     ['next', 1],
   ]) {
     listen(find(action), 'click', () => {
-      if (find(action).disabled) return;
+      if (resultPanel.hidden || find(action).disabled) return;
       resultPage += change;
       renderResult(data.result);
     });
@@ -427,7 +465,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     busy = false;
     selectedId = '';
     hydratedId = '';
-    requestId = null;
+    submission = null;
     creating = false;
     form.reset();
     render();

@@ -119,7 +119,7 @@ function songMatchesTerm(song, term) {
 }
 
 function splitSongCategories(value) {
-  return splitSongValues(value, /\s*\/\s*/);
+  return splitSongValues(value, /[\/／;；,，、]+/);
 }
 
 function splitSongValues(value, separator) {

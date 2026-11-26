@@ -83,6 +83,37 @@ async function changeNumber(page, name, value) {
   await input.press('Tab');
 }
 
+test('an imported queue CSS retries after a title edit and renders the same border in the published source', async t => {
+  const { page, fixture, context, listStyles } = await setup(t);
+  const { picker, dialog } = await openImport(page, 'queue');
+  const chooser = page.waitForEvent('filechooser');
+  await dialog.getByRole('button', { name: '选择文件', exact: true }).click();
+  await (await chooser).setFiles({ name: 'queue.css', mimeType: 'text/css',
+    buffer: Buffer.from('#queueContent { border-top: 13px solid rgb(9, 78, 101) !important; }') });
+  await saveStyle(dialog, '测试点歌板');
+  const [style] = await listStyles();
+  let requests = 0;
+  await page.route(`${fixture.origin}${style.config.cssStyle.src}`, route => ++requests === 1
+    ? route.fulfill({ status: 503, headers: { 'access-control-allow-origin': '*', 'cache-control': 'no-store' } })
+    : route.continue());
+  await picker.getByRole('button', { name: '添加到画布：测试点歌板', exact: true }).click();
+  const status = page.locator('.scene-editor-item .component-preview-load-state');
+  await status.filter({ hasText: 'CSS 无法加载' }).waitFor();
+  const frame = await (await page.locator('.scene-editor-item iframe').elementHandle()).contentFrame();
+  await page.locator('.scene-editor-parameters [data-preview-field="overlayTitle"]').fill('恢复后的点歌板');
+  await status.waitFor({ state: 'hidden' });
+  assert.equal(requests, 2);
+  const border = async frame => {
+    await frame.locator('link[data-component-css]').waitFor({ state: 'attached' });
+    return frame.locator('#queueContent').evaluate(node => getComputedStyle(node).borderTop);
+  };
+  const expected = '13px solid rgb(9, 78, 101)';
+  assert.equal(await border(frame), expected);
+  await publish(page);
+  const output = await openOutput(context, fixture);
+  assert.equal(await border(output.frameLocator('.scene-version:not(.is-staging) iframe')), expected);
+});
+
 test('file CSS and bundled HTML import, replace in place and survive publication and reload', { timeout: 60000 }, async t => {
   const { dataDir, fixture, context, desktop, page, errors, listStyles, readItems } = await setup(t);
   const { picker, dialog } = await openImport(page, 'clock');

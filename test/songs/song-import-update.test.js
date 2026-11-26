@@ -437,15 +437,19 @@ test('write failure rolls back updates, inserted categories, rows and import bat
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM import_batches').get().count, 0);
 });
 
-for (const format of ['CSV', 'XLSX']) {
-  test(`${format} replacement keeps the first headerless song when its enabled value is 可点`, (t) => {
-    const { store, preview, apply } = fixture(t);
-    const songs = [{ name: '甲', is_enabled: true }, { name: '乙', is_enabled: false }];
+for (const format of ['CSV', 'TSV', 'XLSX']) {
+  test(`${format} replacement keeps a headerless song with 可点 and a note called 歌名`, (t) => {
+    const { store, save, preview, apply } = fixture(t);
+    const original = save({ name: '甲', requestPrice: '旧价' });
+    const songs = [
+      { name: '甲', is_enabled: true, request_price: '舰长', note: '歌名' },
+      { name: '乙', is_enabled: false, note: '待核对' },
+    ];
     const options = { preserveMissing: true };
     let rows;
-    if (format === 'CSV') {
+    if (format !== 'XLSX') {
       const csv = buildSongsCsv(songs).split('\n').slice(1).join('\n').replace(',是,', ',可点,');
-      rows = textParser()(csv, options);
+      rows = textParser()(format === 'TSV' ? csv.replaceAll(',', '\t') : csv, options);
     } else {
       const files = readZipFiles(buildSongsWorkbook(songs));
       const sheet = 'xl/worksheets/sheet1.xml';
@@ -454,11 +458,32 @@ for (const format of ['CSV', 'XLSX']) {
     }
     const input = { rows, replaceAll: true };
     const plan = preview(input);
-    assert.deepEqual([plan.counts.inserted, plan.counts.invalid, plan.canApply], [2, 0, true]);
+    assert.deepEqual([plan.counts.updated, plan.counts.inserted, plan.counts.invalid, plan.canApply], [1, 1, 0, true]);
     apply(input, plan);
-    assert.deepEqual(store.listRows().map(({ name, is_enabled }) => [name, Boolean(is_enabled)]), [['甲', true], ['乙', false]]);
+    const [first, second] = store.listRows();
+    assert.deepEqual([first.id, first.name, first.is_enabled, first.request_price, first.note], [original.id, '甲', 1, '舰长', '歌名']);
+    assert.deepEqual([second.name, second.is_enabled], ['乙', 0]);
   });
 }
+
+test('replacement blocks a misleading name heading when the first song is invalid or ambiguous', (t) => {
+  const { preview } = fixture(t);
+  const parseTable = textParser();
+  const second = '海风,周青,流行,,是,国语,,,,待核对';
+  const rows = parseTable(`海风,林舟,流行,,未知,国语,,,,歌名\n${second}`, { preserveMissing: true });
+  const plan = preview({ rows, replaceAll: true });
+  assert.equal(plan.counts.invalid, 1);
+  assert.equal(plan.canApply, false);
+  const flagHeading = parseTable(`海风,林舟,流行,,是否可点,国语,,,,歌名\n${second}`, { preserveMissing: true });
+  assert.equal(preview({ rows: flagHeading, replaceAll: true }).canApply, false);
+  const missingName = parseTable(`,,,,可点,,,,,歌名\n${second}`, { preserveMissing: true });
+  assert.equal(preview({ rows: missingName, replaceAll: true }).canApply, false);
+  assert.throws(() => parseTable(`歌手,林舟,曲风,,可点,国语,,,,歌名\n${second}`, { preserveMissing: true }), /表头/);
+  assert.throws(() => parseTable(`歌手,,,,可点,,,,,歌名\n${second}`, { preserveMissing: true }), /表头/);
+  const external = '外部编号,唱片编号,版本号,分组,,年份,版权方,片号,柜号,歌名';
+  const body = 'E-1,LP-1,录音版,甲,是,2026,乙,1,2,晚航';
+  assert.throws(() => parseTable(`${external}\n${body}`, { preserveMissing: true }), /表头/);
+});
 
 test('update parsing preserves missing columns and empty-name data rows across text and XLSX', (t) => {
   const { preview } = fixture(t);
@@ -487,6 +512,66 @@ test('update parsing preserves missing columns and empty-name data rows across t
   assert.equal(rows.length, 2);
   assert.equal(Object.hasOwn(rows[0], '是否可点'), false);
   assert.equal(preview({ rows }).counts.invalid, 1);
+});
+
+test('repeated price headings retain every source cell until preview validates the row', (t) => {
+  const { save, store, preview, apply } = fixture(t);
+  save({ name: '旧曲', requestPrice: '原价' });
+  save({ name: '只填一格', requestPrice: '原价' });
+  const csv = '歌名,点歌价格,点歌价格\n旧曲,Free,Members\n同值,Free,Free\n只填一格,Free,';
+  const files = readZipFiles(buildSongsWorkbook([
+    { name: '旧曲', request_price: 'Free', note: 'Members' },
+    { name: '同值', request_price: 'Free', note: 'Free' },
+    { name: '只填一格', request_price: 'Free' },
+  ]));
+  const sheet = 'xl/worksheets/sheet1.xml';
+  files.set(sheet, files.get(sheet).replace('<t>核对备注</t>', '<t>点歌价格</t>'));
+
+  for (const rows of [textParser()(csv, { preserveMissing: true }), parseSongsFromXlsx(createZip([...files]))]) {
+    const input = { rows, replaceAll: true };
+    const plan = preview(input);
+    assert.equal(plan.counts.conflict, 1);
+    assert.equal(plan.rows[0].name, '旧曲');
+    assert.equal(plan.canApply, false);
+    assert.throws(() => apply(input, plan), { code: 'SONG_IMPORT_PREVIEW_INVALID' });
+    assert.equal(store.listRows().find((song) => song.name === '旧曲').request_price, '原价');
+    // Partial updates also retain the sole non-empty value before a blank duplicate.
+    const valid = preview({ rows: rows.slice(1) });
+    assert.deepEqual(Array.from(valid.rows, (row) => row.differences.find((d) => d.field === 'requestPrice')?.after), ['Free', 'Free']);
+  }
+});
+
+test('a song workbook with pronunciation guides updates the original song ID and visible price', (t) => {
+  const { save, store, preview, apply } = fixture(t);
+  const original = save({ name: '東京', requestPrice: '原价' });
+  const files = readZipFiles(buildSongsWorkbook([{ name: '東京', request_price: '舰长', is_enabled: true }]));
+  const sheet = 'xl/worksheets/sheet1.xml';
+  files.set(sheet, files.get(sheet)
+    .replace('<c r="A2" t="inlineStr"><is><t>東京</t></is></c>', '<c r="A2" t="s"><v>0</v></c>')
+    .replace('<t>舰长</t>', '<t>舰长</t><rPh sb="0" eb="2"><t>jiàn zhǎng</t></rPh>'));
+  files.set('xl/sharedStrings.xml', '<x:sst xmlns:x="urn:test"><x:si><x:r><x:t>東</x:t></x:r><x:r><x:t>京</x:t></x:r><x:rPh sb="0" eb="2"><x:t>トウキョウ</x:t></x:rPh></x:si></x:sst>');
+  const input = { replaceAll: true, rows: parseSongsFromXlsx(createZip([...files]), { preserveMissing: true }) };
+  const plan = preview(input);
+  assert.deepEqual([plan.counts.inserted, plan.counts.deleted, plan.counts.updated], [0, 0, 1]);
+  apply(input, plan);
+  const [song] = store.listRows();
+  assert.deepEqual([song.id, song.name, song.request_price], [original.id, '東京', '舰长']);
+});
+
+test('a missing shared string reference cannot clear an existing price on replacement', (t) => {
+  const { save, store, preview, apply } = fixture(t);
+  const original = save({ name: '東京', requestPrice: '原价' });
+  const files = readZipFiles(buildSongsWorkbook([{ name: '東京', request_price: '舰长', is_enabled: true }]));
+  const sheet = 'xl/worksheets/sheet1.xml';
+  files.set(sheet, files.get(sheet).replace('<c r="G2" t="inlineStr"><is><t>舰长</t></is></c>', '<c r="G2" t="s"><v>1</v></c>'));
+  files.set('xl/sharedStrings.xml', '<sst><si><t>舰长</t></si></sst>');
+  assert.throws(() => {
+    const rows = parseSongsFromXlsx(createZip([...files]), { preserveMissing: true });
+    const input = { rows, replaceAll: true };
+    apply(input, preview(input));
+  }, /Excel/);
+  const [song] = store.listRows();
+  assert.deepEqual([song.id, song.request_price], [original.id, '原价']);
 });
 
 test('platform export preserves stored values with CSV formula protection and XLSX text cells', () => {

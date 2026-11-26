@@ -6,6 +6,58 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const test = require('node:test');
 const { giftVariantId } = require('../../src/shared/gift-identity');
 
+test('a provisional room gift and its official identity count as one historical artwork candidate', async () => {
+  const gift = { id: '101', name: '花', priceRaw: 1000, coinType: 'gold', bagGift: false, imagePath: '' };
+  const formal = { ...gift, variantId: giftVariantId(gift), imagePath: '/overtime-gift-images/flower.webp' };
+  const withArt = { ...gift, id: '103', imagePath: '/overtime-gift-images/already-visible.webp' };
+  const officialWithArt = { ...withArt, variantId: giftVariantId(withArt) };
+  const gate = Promise.withResolvers();
+  const [artwork, { eventBus, Events }] = await loadModuleExports([
+    path.join(__dirname, '../../public/js/admin/gifts/artwork-catalog.js'),
+    path.join(__dirname, '../../public/js/shared/event-bus.js'),
+  ], { AbortController, window: { fetch: () => gate.promise } });
+  const dispose = artwork.initGiftArtworkCatalog();
+  const room = item => eventBus.emit(Events.GIFT_CATALOG_UPDATED, { snapshot: { roomId: '111', gifts: [item] } });
+  room(gift);
+  room(withArt);
+  assert.equal(artwork.findGiftArtwork(withArt.id, withArt.name), withArt.imagePath);
+  gate.resolve({ ok: true, json: async () => ({ data: { gifts: [formal, officialWithArt] } }) });
+  await artwork.loadGiftArtworkCatalog();
+  assert.equal(artwork.findGiftArtwork(withArt.id, withArt.name), withArt.imagePath);
+  assert.equal(artwork.findGiftArtwork(gift.id, gift.name, formal.variantId), formal.imagePath);
+  assert.equal(artwork.findGiftArtwork(gift.id, gift.name), formal.imagePath);
+  room(gift);
+  assert.equal(artwork.findGiftArtwork(gift.id, gift.name), formal.imagePath);
+  room({ ...gift, priceRaw: 2000 });
+  assert.equal(artwork.findGiftArtwork(gift.id, gift.name), '');
+  assert.equal(artwork.findGiftArtwork(gift.id, gift.name, formal.variantId), formal.imagePath);
+  const incomplete = { ...gift, id: '102', bagGift: null };
+  room(incomplete);
+  const complete = { ...gift, id: '102' };
+  room({ ...complete, variantId: giftVariantId(complete), imagePath: formal.imagePath });
+  assert.equal(artwork.findGiftArtwork('102', gift.name), '');
+  dispose();
+});
+
+test('ordinary gifts containing a guard title keep their artwork and canonical guard IDs take priority', async () => {
+  const { resolveGuardTier } = require('../../src/bilibili/gift/guard-thanks-config');
+  const list = { classList: { toggle() {} }, querySelectorAll: () => [] };
+  const [{ giftRecent }, artwork] = await loadModuleExports([
+    path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
+    path.join(__dirname, '../../public/js/admin/gifts/artwork-catalog.js'),
+  ], { document: { getElementById: () => list }, window: { getComputedStyle: () => ({ gridTemplateColumns: '1fr' }) } });
+  const ordinary = { gift_id: '31036', gift_name: '舰长的祝福', coin_type: 'gold' };
+  assert.equal(resolveGuardTier(ordinary), null);
+  assert.equal(artwork.getGuardBadge(ordinary), null);
+  assert.equal(artwork.getGuardBadge({ gift_id: 'guard-3', gift_name: '总督' }).level, 3);
+  assert.equal(artwork.getGuardBadge({ gift_id: '34637', gift_name: '舰长一号' }).level, 3);
+  assert.equal(artwork.getGuardBadge({ gift_id: 'guard-unknown', gift_name: '提督' }).level, 2);
+  assert.equal(artwork.getGuardBadge({ gift_name: 'Prefect' }).level, 2);
+  giftRecent.renderGiftRecentList([{ ...ordinary, unit_price: 1200, total_price: 1200, num: 1 }]);
+  assert.match(list.innerHTML, /gift-high-value-icon/);
+  assert.doesNotMatch(list.innerHTML, /guard-card|gift-guard-icon/);
+});
+
 test('recent gifts and source-box icons keep reused IDs and repriced identities separate', async () => {
   const makeGift = (name, priceRaw, image) => {
     const gift = {

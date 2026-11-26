@@ -3,9 +3,13 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const { buildDesktopMenuCommands } = require('../../src/server/danmaku-menu');
 const { createCloudSyncRuntime } = require('../../src/server/cloud-sync-runtime');
+const { applySettingsPatch } = require('../../src/server/settings-service');
+const { createSettingsStore } = require('../../src/storage/settings-store');
+const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
 const { createServerRuntime } = require('../../src/server');
 const { CLOUD_SYNC_KEYS, hasCloudSettingChanges } = require('../../src/shared/cloud-settings');
 const drawGuess = require('../../src/games/draw-guess');
@@ -33,8 +37,7 @@ test('keyword menu describes enabled rules without uploading their private repli
   assert.doesNotMatch(commands[0], /xx|private reply/);
   assert.deepEqual(buildDesktopMenuCommands({ settings: { ...value, enableCustomReplyBot: 'false' } }), []);
   assert.deepEqual(buildDesktopMenuCommands({ settings: { ...value, customReplyRules: '[{"keyword":"xx","reply":"text","enabled":false}]' } }), []);
-  assert.equal(hasCloudSettingChanges(['customReplyRules']), true);
-  assert.equal(hasCloudSettingChanges(['enableCustomReplyBot']), true);
+  assert.equal(hasCloudSettingChanges(['customReplyRules', 'enableCustomReplyBot']), false);
   assert.equal(CLOUD_SYNC_KEYS.includes('customReplyRules'), false);
 });
 
@@ -47,6 +50,103 @@ test('menu includes only accepting interaction and game sessions', () => {
   assert.deepEqual(current({ game: { game: 'gomoku', state: { turn: 'host', winner: '' } } }), []);
   assert.equal(current({ game: { game: 'draw-guess', state: { phase: 'drawing' } } }).length, 1);
   assert.deepEqual(current({ game: { game: 'draw-guess', state: { phase: 'round-result' } } }), []);
+});
+
+test('keyword saves request and upload exactly when the projected menu changes', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
+  const store = createSettingsStore(db);
+  const bilibili = { configure() {} };
+  const runtime = createCloudSyncRuntime({
+    getSettingsStore: () => store, getBilibiliRuntime: () => bilibili, getAiConfig: () => ({}),
+    getGameSession: () => null, getInteractionSession: () => null, broadcastSnapshot() {},
+  });
+  const account = JSON.stringify(['https://api.example.test', 'fixture', 1]);
+  const uploads = [], requests = [];
+  let remote = { initialized: true, revision: 1, values: runtime.getCloudSettingsSnapshot() };
+  const { controller } = createFixture({
+    licenseManager: {
+      getCloudState: async () => ({ settings: remote, songs: { initialized: true, revision: 1 }, bilibili: { initialized: true, revision: 1 } }),
+      async updateCloudSettings(values) {
+        uploads.push(values);
+        remote = { initialized: true, revision: remote.revision + 1, values };
+        return remote;
+      },
+    },
+    runtime: {
+      prepareCloudRoomAccount: runtime.prepareCloudRoomAccount,
+      getCloudSettingsSnapshot: runtime.getCloudSettingsSnapshot, getPendingCloudSettings: runtime.getPendingCloudSettings,
+      applyCloudSettingsSnapshot: runtime.applyCloudSettingsSnapshot, acknowledgePendingCloudSettings: runtime.acknowledgePendingCloudSettings,
+      onCloudSyncRequested: runtime.onCloudSyncRequested,
+    },
+  });
+  t.after(() => controller.dispose());
+  runtime.onCloudSyncRequested(scope => requests.push(scope));
+  await controller.start();
+  assert.deepEqual(uploads, []);
+  const key = { keyword: 'key', reply: 'old' };
+  const edited = { ...key, reply: 'new' };
+  const disabled = { keyword: 'other', reply: 'local', enabled: false };
+  async function save(values, expected) {
+    const before = uploads.length, prevRequests = requests.length;
+    const result = await applySettingsPatch({
+      settings: { defaults: store.getDefaultSettings(), get: store.getSettings, setMany: store.setSettings },
+      bilibili, broadcastSnapshot() {}, cloudSync: { request: runtime.requestCloudSync },
+    }, values);
+    assert.ok(result.changedKeys.length);
+    await controller.whenIdle();
+    assert.deepEqual(requests.slice(prevRequests), expected ? ['settings'] : []);
+    assert.equal(uploads.length - before, expected);
+  }
+
+  await save({ customReplyRules: [key] }, 1);
+  const projected = uploads.at(-1);
+  assert.ok(projected.menuCommands.some(command => command.includes('关键词')));
+  assert.doesNotMatch(JSON.stringify(projected.menuCommands), /key|old/);
+  await save({ customReplyRules: [edited] }, 0);
+  assert.equal(JSON.parse(store.getSettings().customReplyRules)[0].reply, 'new');
+  assert.deepEqual(runtime.getCloudSettingsSnapshot(account), projected);
+  assert.equal(store.getPendingCloudSettings(account), null);
+  await save({ customReplyRules: [{ ...disabled, enabled: true }, edited] }, 0);
+  await save({ customReplyRules: [disabled, edited] }, 0);
+  await save({ customReplyRules: [disabled] }, 1);
+  assert.ok(!uploads.at(-1).menuCommands.some(command => command.includes('关键词')));
+  await save({ enableCustomReplyBot: false, customReplyRules: [key] }, 0);
+  await save({ enableCustomReplyBot: true }, 1);
+  await save({ danmakuMonitoringEnabled: false }, 1);
+  await save({ customReplyRules: [] }, 0);
+  await save({ enableCustomReplyBot: false }, 0);
+  await save({ queueLimit: 28, customReplyRules: [key] }, 1);
+
+  store.setSetting('queueLimit', '29');
+  const pending = store.getPendingCloudSettings(account);
+  await save({ customReplyRules: [edited] }, 0);
+  assert.deepEqual(store.getPendingCloudSettings(account), pending);
+  await controller.syncNow();
+  assert.equal(uploads.at(-1).queueLimit, 29);
+  assert.equal(store.getPendingCloudSettings(account), null);
+});
+
+test('single-key persistence tracks keyword menu transitions without replacing unrelated pending edits', (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
+  const store = createSettingsStore(db);
+  const account = 'menu-single-key';
+  store.prepareCloudRoomAccount(account);
+  const pending = () => store.getPendingCloudSettings(account);
+  store.setSetting('customReplyRules', '[{"keyword":"k","reply":"old"}]');
+  const first = pending();
+  assert.ok(first);
+  store.setSetting('customReplyRules', '[{"keyword":"k","reply":"new"}]');
+  assert.deepEqual(pending(), first);
+  store.setSetting('enableCustomReplyBot', 'false');
+  assert.notEqual(pending().mutationId, first.mutationId);
+  store.acknowledgePendingCloudSettings(account, pending().mutationId);
+  store.setSetting('customReplyRules', '[]');
+  store.setSetting('enableCustomReplyBot', 'true');
+  assert.equal(pending(), null);
 });
 
 test('menu sync coalesces current session changes and discards queued work after shutdown', async () => {

@@ -12,7 +12,7 @@ export function isSceneComponent() {
   return isComponentPreview() && new URLSearchParams(location.search).get('sceneComponent') === '1';
 }
 
-export function createComponentPreviewClient({ onConfig, onData, onScroll, onDispose }) {
+export function createComponentPreviewClient({ onConfig, onData, onScroll, onDispose, onPlaybackActive }) {
   const decoration = createMediaDecoration();
   const resources = createComponentResources();
   const css = createComponentCss();
@@ -22,6 +22,13 @@ export function createComponentPreviewClient({ onConfig, onData, onScroll, onDis
   const sceneMode = isSceneComponent();
   let disposed = false;
   let configuration = 0;
+  let playbackActive = true;
+  function setPlaybackActive(active) {
+    if (active === playbackActive) return;
+    playbackActive = active;
+    decoration.setPlaybackActive(active);
+    onPlaybackActive?.(active);
+  }
   function send(type, values = {}) {
     if (!disposed) window.parent.postMessage({ type: `component-preview:${type}`, ...values }, sceneMode ? '*' : parentOrigin);
   }
@@ -42,6 +49,7 @@ export function createComponentPreviewClient({ onConfig, onData, onScroll, onDis
     if (['component-preview:init', 'component-preview:config'].includes(message?.type)) {
       const current = ++configuration;
       try {
+        setPlaybackActive(!sceneMode || !message.deferPlayback);
         effects?.update(effectType, {});
         const resourceReady = resources.update(message.config);
         if (resourceReady) await resourceReady;
@@ -60,6 +68,8 @@ export function createComponentPreviewClient({ onConfig, onData, onScroll, onDis
         if (current === configuration) send('status', { configuration: message.configuration, message: message.config?.cssStyle ? 'CSS 无法加载或内容无效，请检查配套资源后重新导入。' : message.config?.resourceStyle
           ? '样式素材加载失败，请重新导入素材包并更换此组件的样式。' : '组件外观准备失败。' });
       }
+    } else if (sceneMode && message?.type === 'component-preview:activate') {
+      setPlaybackActive(true);
     } else if (message?.type === 'component-preview:room-guard') {
       applyRoomGuardState(message.roomGuard);
     } else if (message?.type === 'component-preview:data') {

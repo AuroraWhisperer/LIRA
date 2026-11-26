@@ -142,6 +142,28 @@ test('first launch after 00:10 catches up once and a restart preserves the daily
   assert.equal(reopened.calls.roster.length, 0);
 });
 
+test('a short room ID and its canonical ID share the daily success marker after database restart', async t => {
+  const { fanFixture } = require('../helpers/fan-profile-fixture');
+  const local = fanFixture(t);
+  local.run('configure', { autoUpdate: true, autoCreate: true, autoSyncGuardRoster: true });
+  const options = {
+    now: () => Date.parse('2026-09-20T00:15:00+08:00'),
+    roster: async () => ({ roomId: '1234', ownerUid: '101', observedAt: '2026-09-19T16:15:00Z', members: [], skipped: 0 }),
+  };
+  async function launch(roomId) {
+    const f = fixture(t, { ...options, state: { windowOpen: true, roomId }, service: local.service });
+    const result = await f.invoke({ action: 'auto-update-status' });
+    assert.ok(result.ok);
+    f.controller.dispose();
+    return f.calls.roster.length;
+  }
+  assert.equal(await launch('42'), 1);
+  local.restart();
+  assert.equal(await launch('42'), 0);
+  assert.equal(await launch('1234'), 0);
+  assert.equal(await launch('77'), 1);
+});
+
 test('automatic roster requires its opt-in setting, an open window and a configured room', async (t) => {
   for (const options of [
     { state: { windowOpen: true } },

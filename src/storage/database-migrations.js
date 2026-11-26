@@ -421,6 +421,18 @@ function getMigrationPlan(options = {}) {
           WHERE overtime_epoch > 0 AND detection_status = 'final';
         CREATE INDEX IF NOT EXISTS idx_gift_events_raw_age ON gift_events(created_at) WHERE raw_json != '';
       `),
+      // v26: index recent gifts by UTC instant, preserving milliseconds across timestamp formats.
+      (db) => db.exec(`
+        DROP INDEX idx_gift_events_source_recent;
+        CREATE INDEX idx_gift_events_source_recent
+          ON gift_events(source_id, datetime(created_at, 'subsec') DESC, id DESC)
+          WHERE status = 'active' AND total_price > 0
+            AND detection_status = 'final' AND gift_stats_eligible = 1;
+        DROP INDEX idx_gift_events_remote_recent;
+        CREATE INDEX idx_gift_events_remote_recent
+          ON gift_events(source_id, datetime(created_at, 'subsec') DESC, id DESC)
+          WHERE source_id IS NOT NULL AND total_price > 0 AND detection_status = 'final';
+      `),
     ] },
 
     { name: 'musicDb', key: 'music_db', steps: [

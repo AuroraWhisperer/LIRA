@@ -149,57 +149,171 @@ function summarizeMembership(records, atValue = Date.now()) {
   return prepareMembership(records)(atValue);
 }
 
-function membershipConflicts(candidate, records, excludeId) {
-  const adopted = records.filter((r) => r.kind === 'membership' && r.id !== excludeId && r.data.decision === 'adopted');
-  const data = candidate.data;
+function inactiveDuringInterval(observation, interval) {
+  return observation.type === 'observation' && observation.status === 'inactive' && interval.type === 'interval' &&
+    interval.startAt <= observation.observedAt && observation.observedAt < interval.endAt;
+}
+
+function exclusiveDaysThrough(intervals, cutoff) {
+  const changes = intervals.flatMap(item => [
+    { day: dayIndex(item.start), item, starts: true },
+    { day: dayIndex(Math.min(item.end, cutoff) - 1) + 1, item, starts: false },
+  ]).sort((a, b) => a.day - b.day);
+  const active = new Set();
+  const exclusive = new Map();
+  let previousDay = changes[0].day;
+  for (const { day, item, starts } of changes) {
+    if (day > previousDay && active.size === 1) {
+      const [only] = active;
+      exclusive.set(only, (exclusive.get(only) || 0) + day - previousDay);
+    }
+    if (starts) active.add(item);
+    else active.delete(item);
+    previousDay = day;
+  }
+  return exclusive;
+}
+
+function finishedTotalConflicts(intervals, cutoff, limit) {
+  let ongoing;
+  const byDays = new Map();
+  for (const item of intervals.toSorted((a, b) => a.start - b.start || b.end - a.end)) {
+    if (item.end > cutoff) {
+      // All continuing spans cover the cutoff. The earliest covers all their elapsed days.
+      ongoing ??= item;
+    } else {
+      const key = `${dayIndex(item.start)}:${dayIndex(item.end - 1)}`;
+      if (!byDays.has(key)) byDays.set(key, { start: item.start, end: item.end, items: [] });
+      byDays.get(key).items.push(item);
+    }
+  }
+  const history = [...byDays.values()];
+  const days = items => countCoveredDays(prepareIntervals(items), cutoff - 1);
+  const conflicts = new Set();
+  function review(items, anchor) {
+    const reference = anchor ? [anchor] : [];
+    if (days([...reference, ...items]) <= limit) return;
+    for (const item of items) {
+      const group = [...reference, item];
+      const excess = days(group) - limit;
+      if (excess <= 0) {
+        reference.push(item);
+        continue;
+      }
+      conflicts.add(item);
+      if (anchor && days([anchor, item]) > limit) continue;
+      // Include contradictory pairs as well as periods jointly needed to exceed the limit.
+      const exclusive = exclusiveDaysThrough(group, cutoff);
+      for (const prior of reference) {
+        if (prior === anchor || conflicts.has(prior)) continue;
+        const pair = anchor ? [anchor, prior, item] : [prior, item];
+        if ((exclusive.get(prior) || 0) >= excess || days(pair) > limit) conflicts.add(prior);
+      }
+    }
+  }
+  review(history);
+  if (ongoing) review(history.filter(item => !conflicts.has(item)), ongoing);
+  return new Set([...conflicts].flatMap(period => period.items));
+}
+
+function intervalsExceedingBaseline(baseline, intervals, incoming) {
+  const cutoff = dayStart(baseline.asOf) + DAY_MS;
+  const at = cutoff - 1;
+  const earliestStart = baseline.continuousDays == null ? -Infinity : cutoff - baseline.continuousDays * DAY_MS;
+  const exceedsStreak = item => item.start < earliestStart && item.end >= cutoff;
   const conflicts = [];
+  let remaining = [];
+  for (const record of intervals) {
+    const start = Date.parse(record.data.startAt);
+    if (start > at) continue;
+    const end = Date.parse(record.data.endAt);
+    const elapsedDays = dayIndex(Math.min(at, end - 1)) - dayIndex(start) + 1;
+    const item = { start, end, record };
+    if ((baseline.totalDays != null && elapsedDays > baseline.totalDays) || exceedsStreak(item)) conflicts.push(record);
+    else remaining.push(item);
+  }
+  if (baseline.totalDays != null) {
+    const covered = countCoveredDays(prepareIntervals(remaining), at);
+    if (covered > baseline.totalDays) {
+      if (incoming) {
+        const previous = remaining.filter(item => item.record !== incoming);
+        if (covered > countCoveredDays(prepareIntervals(previous), at)) conflicts.push(incoming);
+      } else {
+        const finished = finishedTotalConflicts(remaining, cutoff, baseline.totalDays);
+        for (const item of finished) conflicts.push(item.record);
+        remaining = remaining.filter(item => !finished.has(item));
+      }
+    }
+  }
+  if (baseline.continuousDays == null) return conflicts;
+
+  const streak = unionIntervals(remaining).find(exceedsStreak);
+  if (!streak) return conflicts;
+
+  // A split history may prove the whole streak without a later expiry.
+  const finished = remaining.filter(item => item.end <= cutoff);
+  const history = unionIntervals(finished).find(exceedsStreak);
+  const evidence = history ? finished : remaining;
+  const start = (history ?? streak).start;
+  return conflicts.concat(evidence.filter(item => item.end > start).map(item => item.record));
+}
+
+function conflictingBaselines(a, b) {
+  if (a.type !== 'baseline' || b.type !== 'baseline' || a.asOf !== b.asOf) return false;
+  return ['totalDays', 'continuousDays'].some(key => a[key] != null && b[key] != null && a[key] !== b[key]) ||
+    (a.totalDays != null && b.continuousDays != null && a.totalDays < b.continuousDays) ||
+    (b.totalDays != null && a.continuousDays != null && b.totalDays < a.continuousDays);
+}
+
+function membershipConflicts(candidate, records, excludeId, { independentBaselines = false } = {}) {
+  const data = candidate.data;
+  if (data.type === 'first' || (data.type === 'observation' && data.status !== 'inactive')) return [];
+  const adopted = records.filter((r) => r.kind === 'membership' && r.id !== excludeId && r.data.decision === 'adopted' && !r.data.excluded);
+  const intervals = adopted.filter(r => r.data.type === 'interval');
+  const conflicts = data.type === 'baseline' ? intervalsExceedingBaseline(data, intervals).map(r => r.id) : [];
   for (const record of adopted) {
     const other = record.data;
+    if (independentBaselines && conflictingBaselines(data, other)) conflicts.push(record.id);
     if (data.type === 'interval' && other.type === 'interval' && candidate.original.source !== record.original.source) {
       const overlaps = data.startAt < other.endAt && other.startAt < data.endAt;
       if (overlaps && (data.startAt !== other.startAt || data.endAt !== other.endAt || data.level !== other.level))
         conflicts.push(record.id);
     }
-    if (data.type === 'baseline' && other.type === 'interval') {
-      const summary = summarizeMembership([record], data.asOf);
-      if (
-        (data.totalDays !== null && summary.totalDays > data.totalDays) ||
-        (data.continuousDays !== null && summary.continuousDays > data.continuousDays)
-      )
-        conflicts.push(record.id);
-    }
     if (
       data.type === 'interval' &&
       other.type === 'baseline' &&
-      candidate.original.source === 'platform' &&
-      dayOf(data.startAt) <= other.asOf
+      dayOf(data.startAt) <= other.asOf &&
+      (candidate.original.source === 'platform' || intervalsExceedingBaseline(other, [...intervals, candidate], candidate).includes(candidate))
     )
       conflicts.push(record.id);
-    if (
-      data.type === 'observation' &&
-      other.type === 'interval' &&
-      data.status === 'inactive' &&
-      other.startAt <= data.observedAt &&
-      data.observedAt < other.endAt
-    )
-      conflicts.push(record.id);
+    if (inactiveDuringInterval(data, other) || inactiveDuringInterval(other, data)) conflicts.push(record.id);
   }
   return [...new Set(conflicts)];
 }
 
 function cycleForNewRecord(profile, records, candidate) {
   if (candidate.type !== 'interval') return profile.cycleId;
-  const earlier = records
-    .filter(
-      (r) =>
-        r.kind === 'membership' &&
-        r.data.type === 'interval' &&
-        r.data.decision === 'adopted' &&
-        r.data.startAt < candidate.startAt,
-    )
-    .sort((a, b) => b.data.endAt.localeCompare(a.data.endAt))[0];
-  if (earlier && earlier.data.endAt < candidate.startAt) return null;
-  return profile.cycleId;
+  const intervals = records.filter(isAdoptedInterval);
+  if (!intervals.length) return candidate.cycleId || profile.cycleId;
+  // Touching half-open intervals still form one continuous period.
+  const connected = intervals.filter(({ data }) => data.startAt <= candidate.endAt && candidate.startAt <= data.endAt);
+  const latest = connected.sort((a, b) => b.data.endAt.localeCompare(a.data.endAt))[0];
+  if (latest) return latest.data.cycleId;
+  // A pending interval can retain its own cycle unless another segment has since claimed it.
+  return intervals.some(r => r.data.cycleId === candidate.cycleId) ? null : candidate.cycleId || null;
+}
+
+function isAdoptedInterval(record) {
+  return record.kind === 'membership' && record.data.type === 'interval' && record.data.decision === 'adopted' && !record.data.excluded;
+}
+
+function intervalCycleOnDate(records, asOf) {
+  return summarizeMembership(records.filter(isAdoptedInterval), asOf).cycleId;
+}
+
+function updatesCurrentCycle(data, records) {
+  if (data.type === 'baseline') return !records.some(isAdoptedInterval);
+  return data.type !== 'interval' || !records.some(record => isAdoptedInterval(record) && record.data.endAt > data.endAt);
 }
 
 module.exports = {
@@ -207,5 +321,7 @@ module.exports = {
   prepareMembership,
   membershipConflicts,
   cycleForNewRecord,
+  intervalCycleOnDate,
+  updatesCurrentCycle,
   unionIntervals,
 };

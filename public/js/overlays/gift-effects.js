@@ -6,7 +6,8 @@ import { createGiftFrameQueue } from './gift-frame-queue.js';
 import { createGiftEffectPlayer } from './gift-effect-player.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
 import { mountGiftEffectComponent } from './gift-effects-component.js';
-import { createOverlaySocket } from './socket-client.js';
+import { createOverlaySocket, snapshotReasons } from './socket-client.js';
+import { createGiftSourceTracker } from './gift-source.js';
 import { createGiftMotionPlayer } from './gift-motion-player.js';
 import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
 
@@ -36,6 +37,7 @@ import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
   });
   let socketController = null;
   const motionPlayer = createGiftMotionPlayer({ root: document.getElementById('giftMotionRoot') });
+  const giftSourceChanged = createGiftSourceTracker();
   let disposed = false;
 
   if (DEBUG) document.body.classList.add('is-debug');
@@ -76,6 +78,7 @@ import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
       reconnectExponentMax: 5,
       onMessage: (payload) => {
         if (payload.type === 'snapshot') {
+          if (giftSourceChanged(payload.state, snapshotReasons(payload))) motionPlayer.clear();
           effectPlayer.setEnabled(payload.state?.settings?.giftEffectDanmakuEnabled === 'true');
           return;
         }

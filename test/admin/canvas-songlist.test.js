@@ -8,6 +8,8 @@ const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canv
 test('song board parameters reach the canvas renderer and persist into the live source', { timeout: 30000 }, async t => {
   const songs = [
     { id: 1, name: '真实歌曲', artist: '真实歌手', category_name: '流行', name_initial: 'Z', language: '国语' },
+    { id: 2, name: '跨曲风歌曲', artist: '歌手', category_name: '摇滚 / 流行', name_initial: 'K', language: '国语' },
+    { id: 3, name: '其他曲风', artist: '歌手', category_name: '爵士', name_initial: 'Q', language: '国语' },
   ];
   const fixture = await startCanvasOutputFixture({ extraContext: { songs: { list: () => songs } } });
   const browser = await chromium.launch({ headless: true });
@@ -84,6 +86,8 @@ test('song board parameters reach the canvas renderer and persist into the live 
   const rendered = output.frameLocator('.scene-version:not(.is-staging) iframe');
   await rendered.getByText('我的展示板', { exact: true }).waitFor();
   await rendered.getByText('真实歌曲', { exact: true }).waitFor();
+  await rendered.getByText('跨曲风歌曲', { exact: true }).waitFor();
+  assert.equal(await rendered.getByText('其他曲风', { exact: true }).count(), 0);
   // Resolve and read in one browser task; font relayout can replace the title node.
   assert.deepEqual(await rendered.locator('.song-card strong').evaluateAll(([node]) => {
     const style = getComputedStyle(node);

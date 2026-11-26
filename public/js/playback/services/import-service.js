@@ -12,6 +12,7 @@ export class ImportService {
   constructor(options = {}) {
     this.matchService = options.matchService || null;
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
+    this.retryKeys = new Set();
   }
 
   /**
@@ -25,9 +26,10 @@ export class ImportService {
     const isCurrent = options.isCurrent || (() => true);
 
     // 获取点歌队列
-    const queueData = await this.fetchSongQueue();
+    const queueData = await this.fetchSongQueue(options.signal);
     if (!isCurrent()) return null;
     if (!queueData || !queueData.items || queueData.items.length === 0) {
+      this.retryKeys.clear();
       return {
         empty: true,
         imported: 0,
@@ -50,38 +52,47 @@ export class ImportService {
     ];
     const importedRequestKeys = new Set(knownKeys.filter((key) => activeKeys.has(key)));
     const seenKeys = new Set(importedRequestKeys);
-    const items = queueData.items.filter((item) => {
+    const items = [];
+    const retries = new Map();
+    for (const item of queueData.items) {
       const key = getSongRequestKey(item);
       if (key && seenKeys.has(key)) {
         skipped++;
-        return false;
+        continue;
       }
       if (key) seenKeys.add(key);
-      return true;
-    }).slice(0, maxItems);
+      if (this.retryKeys.has(key)) retries.set(key, item);
+      else if (items.length < maxItems) items.push(item);
+    }
+    // 未尝试的条目优先，空位留给等待最久的失败项。
+    for (const key of this.retryKeys) {
+      if (!retries.has(key)) this.retryKeys.delete(key);
+      else if (items.length < maxItems) items.push(retries.get(key));
+    }
 
     for (const item of items) {
+      const key = getSongRequestKey(item);
+      if (!isCurrent()) return null;
+      let result;
       try {
-        if (!isCurrent()) return null;
-        const result = await this.processQueueItem(item, platforms, isCurrent);
-        if (!isCurrent()) return null;
-
-        if (result.type === 'imported') {
-          importedTracks.push(result.track);
-          imported++;
-        } else if (result.type === 'pending') {
-          pending++;
-        } else {
-          skipped++;
-        }
-        if (result.type === 'imported' || result.type === 'pending') {
-          const key = getSongRequestKey(item);
-          if (key) importedRequestKeys.add(key);
-        }
+        result = await this.processQueueItem(item, platforms, isCurrent, options.signal);
       } catch (error) {
+        if (!isCurrent()) return null;
         console.warn('[ImportService] process item failed:', error.message || error);
-        skipped++;
       }
+      if (!isCurrent()) return null;
+      this.retryKeys.delete(key);
+      if (result?.type === 'imported') {
+        importedTracks.push(result.track);
+        imported++;
+      } else if (result?.type === 'pending') {
+        pending++;
+      } else {
+        if (key) this.retryKeys.add(key);
+        skipped++;
+        continue;
+      }
+      if (key) importedRequestKeys.add(key);
     }
 
     return {
@@ -98,8 +109,10 @@ export class ImportService {
    * @private
    * @returns {Promise<Object>} {items: Array}
    */
-  async fetchSongQueue() {
-    const response = await fetch('/api/state', { signal: AbortSignal.timeout(10000) });
+  async fetchSongQueue(cancelSignal) {
+    const timeout = AbortSignal.timeout(10000);
+    const signal = cancelSignal ? AbortSignal.any([cancelSignal, timeout]) : timeout;
+    const response = await fetch('/api/state', { signal });
     const payload = await this.readJsonResponse(response, '读取点歌队列失败');
 
     assertApiResponse(response, payload, '读取点歌队列失败');
@@ -118,12 +131,12 @@ export class ImportService {
    * @param {Function} isCurrent - 当前导入是否仍有效
    * @returns {Promise<Object>} {type: 'imported'|'pending'|'skipped', track?: Object}
    */
-  async processQueueItem(item, platforms, isCurrent = () => true) {
+  async processQueueItem(item, platforms, isCurrent = () => true, signal) {
     if (!this.matchService) {
       throw new Error('MatchService not initialized');
     }
 
-    const matched = await this.matchService.matchQueueItem(item, platforms);
+    const matched = await this.matchService.matchQueueItem(item, platforms, undefined, { isCurrent, signal });
 
     if (!isCurrent() || !matched) {
       return { type: 'skipped' };

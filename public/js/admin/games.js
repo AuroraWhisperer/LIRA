@@ -221,6 +221,7 @@ async function stopGame() {
 }
 
 function renderSession(session) {
+  if (session && session.sessionId === activeGameSession?.sessionId && session.eventRevision < activeGameSession.eventRevision) return;
   activeGameSession = session || null;
   const stop = byId('gamesStopBtn');
   stop.disabled = !session;
@@ -240,6 +241,10 @@ function sessionStatusText(session) {
   const gameName = session.game === 'gomoku' ? '五子棋' : session.game === 'draw-guess' ? '你画我猜' : '数字炸弹';
   const opponent = session.mode === 'multi' ? '不限观众' : session.targetName || '指定观众';
   if (session.game === 'draw-guess' && session.state.phase === 'choosing') return '你画我猜 · 等待主播挑选题词';
+  if (session.state.winner) {
+    const result = session.state.winner === 'draw' ? '和棋' : session.state.winner === 'host' ? '主播获胜' : '观众获胜';
+    return `${gameName} · ${result} · ${opponent}`;
+  }
   return `${gameName}进行中 · ${opponent}`;
 }
 

@@ -84,6 +84,16 @@ test('expiry IPC discards account/room changes and aborts readers on disposal', 
   }
 });
 
+test('archive expiry checks keep the cloud status without projecting a second profile list', async t => {
+  const f = fixture(t, { now: () => NOW, expiry: async () => ({ state: 'ownerMismatch' }) });
+  const { contextId } = f.invoke({ action: 'open', payload: { archived: true } });
+  const reads = t.mock.method(f.service, 'execute');
+  const result = await f.invoke({ action: 'guard-expiry', contextId, payload: { archived: true } });
+  assert.equal(result.data.state, 'ownerMismatch');
+  assert.deepEqual(result.data.badges, []);
+  assert.equal(reads.mock.calls.filter(call => call.arguments[1] === 'list').length, 0);
+});
+
 test('expiry IPC explains old servers without blocking local profiles and requires page context', async (t) => {
   const f = fixture(t, { expiry: async () => { throw Object.assign(new Error('secret'), { code: 'GUARD_EXPIRY_UNSUPPORTED' }); } });
   assert.equal(f.invoke({ action: 'guard-expiry' }).ok, false);

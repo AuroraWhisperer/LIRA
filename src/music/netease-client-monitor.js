@@ -326,8 +326,9 @@ while ($true) {
           $media = Wait-MediaResult ($session.TryGetMediaPropertiesAsync()) $propertiesType
           $timeline = $session.GetTimelineProperties()
           if ($media.Title -and $timeline.EndTime.TotalMilliseconds -gt 0) {
+            $playback = $session.GetPlaybackInfo()
             $sample = @{ detected = $true; appId = $session.SourceAppUserModelId; title = $media.Title; artist = $media.Artist;
-              playbackStatus = $session.GetPlaybackInfo().PlaybackStatus.ToString(); clockSource = 'smtc';
+              playbackStatus = $playback.PlaybackStatus.ToString(); playbackRate = $playback.PlaybackRate; clockSource = 'smtc';
               positionMs = $timeline.Position.TotalMilliseconds; durationMs = $timeline.EndTime.TotalMilliseconds;
               timelineUpdatedAt = $timeline.LastUpdatedTime.ToUnixTimeMilliseconds() }
           }

@@ -77,7 +77,8 @@ const routes = {
     try {
       const query = request.query;
       const stats = context.gifts.getBlindBoxStats({ boxName: query.get('boxName') || '',
-        top: query.get('top') ?? -1, hideLoss: query.get('hideLoss') ?? false });
+        top: query.get('top') ?? -1, hideLoss: query.get('hideLoss') ?? false,
+        includeRecords: query.get('includeRecords') ?? true });
       sendJson(res, 200, { ok: true, data: stats });
     } catch (error) {
       if (error.code !== 'INVALID_GIFT_STATS_OPTIONS') throw error;

@@ -5,6 +5,8 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
+const { randomUUID } = require('node:crypto');
+const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const entry = (name) => path.join(__dirname, '../../public/js', name);
 const plain = (value) => JSON.parse(JSON.stringify(value));
 
@@ -45,6 +47,32 @@ test('settings refill projects component drafts while preserving other domain fi
   assert.equal(sync.projectComponentDrafts({ size: 0 }).size, 28);
   stop();
   assert.equal(sync.projectComponentDrafts({ size: 0 }).size, 0);
+});
+
+test('shared queue publication confirms current request colors and rejects a stale confirmation', async t => {
+  const fixture = await startCanvasOutputFixture();
+  t.after(() => fixture.close());
+  const { service, runtime } = fixture;
+  const { queueConfigFromSettings } = await loadModuleExports(entry('admin/queue-theme-config.js'));
+  const { createQueuePreview } = await loadModuleExports(entry('admin/queue-preview.js'), { URL, location: new URL(fixture.origin) });
+  const { projectConfig } = createQueuePreview({ source: null });
+  const created = service.create({ title: '共享点歌板', canvas: { width: 1280, height: 720 } });
+  const saved = service.save({ id: created.document.id, expectedRevision: created.revision, document: { ...created.document,
+    items: [{ id: randomUUID(), name: '点歌板', type: 'queue', visible: true, locked: false,
+      x: 240, y: 0, width: 480, height: 600, appearance: { mode: 'shared' } }] } });
+  const confirm = () => plain(projectConfig(queueConfigFromSettings(runtime.settings)));
+  const publish = queue => service.publishCanvas({ id: saved.document.id, expectedRevision: saved.revision,
+    expectedPublishedVersion: 0, expectedDefaults: { queue } });
+  const stale = confirm();
+  Object.assign(runtime.settings, { queueRequestSongColor: '#2c8e70', queueRequestRequesterColor: '#cc9900' });
+  assert.throws(() => publish(stale), { code: 'SCENE_DEFAULT_CHANGED' });
+  assert.equal(publish(confirm()).publishedVersion, 1);
+  const { id, token } = service.getSource(saved.document.id);
+  const live = await service.getOutput({ id, token });
+  const item = live.document.items[0];
+  assert.equal(item.x, 240);
+  assert.equal(item.appearance.config.queueRequestSongColor, '#2c8e70');
+  assert.equal(item.appearance.config.queueRequestRequesterColor, '#cc9900');
 });
 
 test('preview client accepts only its exact parent and origin and releases listeners', async () => {

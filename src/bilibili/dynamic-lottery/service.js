@@ -5,7 +5,7 @@ const { normalizeDynamicLink } = require('./link');
 const { createLotteryProvider } = require('./provider');
 const { createCollectionService } = require('./collection-service');
 const { createDrawService } = require('./draw-service');
-const { lotteryError, publicCode, normalizeRules, buildCandidatePool, assertSameContext } = require('./rules');
+const { lotteryError, publicCode, normalizeRules, countCandidates, assertSameContext } = require('./rules');
 
 function createDynamicLotteryService({
   store,
@@ -89,7 +89,7 @@ function createDynamicLotteryService({
       .then(() => operation(job))
       .catch((error) => {
         const code = publicCode(error, job.signal);
-        lastError = { identity: scope, code };
+        lastError = { identity: scope, taskId: job.taskId, code };
         if (['LOTTERY_BILIBILI_CHALLENGE', 'LOTTERY_BILIBILI_RATE_LIMITED'].includes(error?.code))
           pauseRequests(scope.streamerId, error.code);
         if (job.taskId && drawStore.getRound(job.taskId)) {
@@ -101,7 +101,7 @@ function createDynamicLotteryService({
       });
     // The job is drained by dispose; terminal errors are exposed through getState.
     job.promise = job.promise.catch(() => {
-      lastError = { identity: scope, code: 'LOTTERY_STORAGE_FAILED' };
+      lastError = { identity: scope, taskId: job.taskId, code: 'LOTTERY_STORAGE_FAILED' };
     });
   }
 
@@ -123,7 +123,7 @@ function createDynamicLotteryService({
       scope.streamerId, scope.authorizationEpoch, task.id, task.revision, scan.id, changeToken,
     ]);
     if (changeToken !== null && candidateCountCache?.key === key) return candidateCountCache.count;
-    const count = buildCandidatePool({ task, scan, evidence: store.getEvidence(scan.id, { includeContent: false }) }).length;
+    const count = countCandidates({ task, scan, evidence: store.getEvidence(scan.id, { includeContent: false }) });
     candidateCountCache = changeToken === null ? null : { key, count };
     return count;
   }
@@ -168,7 +168,8 @@ function createDynamicLotteryService({
         : null,
       result,
       job: ownJob ? { kind: ownJob.kind, taskId: ownJob.taskId } : null,
-      error: lastError && sameIdentity(lastError.identity, scope) ? lastError.code : '',
+      error: lastError && sameIdentity(lastError.identity, scope)
+        && (lastError.taskId ? lastError.taskId === selectedId : !taskId) ? lastError.code : '',
     };
   }
 
@@ -185,6 +186,7 @@ function createDynamicLotteryService({
           winnerCount: rules.winnerCount,
           requiredActions: rules.requiredActions,
           requireFollow: rules.requireFollow,
+          submittedAtMs: input.submittedAtMs,
         }),
       )
       .digest('hex');

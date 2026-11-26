@@ -294,7 +294,7 @@
 
 .audio-assistant-presets button[aria-pressed='true'],
 .audio-assistant-presets button:hover:not(:disabled) {
-  color: var(--primary);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary)));
   background: var(--color-primary-light);
 }
 
@@ -376,7 +376,7 @@
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  color: var(--primary);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary)));
   background: var(--surface);
   touch-action: none;
   user-select: none;

@@ -5,13 +5,21 @@ function valueInCents(item) {
     : BigInt(Math.round(item.gift.unitPrice * 100)) * BigInt(item.gift.num);
 }
 
+export function giftCardSettledCents(item) {
+  if (item.settledTotalCents !== undefined) return BigInt(item.settledTotalCents);
+  if (item.gift.totalPrice !== undefined) return BigInt(Math.round(item.gift.totalPrice * 100));
+  return valueInCents(item);
+}
+
 export function addGiftCardTotals(card, item) {
   card.cardTotalCents = (valueInCents(card) + valueInCents(item)).toString();
   const quantity = BigInt(card.gift.num) + BigInt(item.gift.num);
   card.gift.num = quantity <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(quantity) : quantity.toString();
 }
 
-export function buildGiftCards(items, { day = shanghaiToday(), profiles = [], mergeToday = true, keepSourceEventId = false } = {}) {
+export function buildGiftCards(items, {
+  day = shanghaiToday(), profiles = [], mergeToday = true, keepSourceEventId = false, addTotals = addGiftCardTotals,
+} = {}) {
   const senders = new Map();
   const identities = new Map();
   for (const evidence of [...profiles].sort((a, b) => a.createdAt.localeCompare(b.createdAt))) {
@@ -46,7 +54,7 @@ export function buildGiftCards(items, { day = shanghaiToday(), profiles = [], me
       cards.push(card);
       if (key) groups.set(key, card);
     } else {
-      addGiftCardTotals(card, item);
+      addTotals(card, item);
     }
   }
   return cards;

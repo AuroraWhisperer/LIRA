@@ -14,12 +14,15 @@ class OnlineRankPoller {
     this.sink = sink;
     this.timer = null;
     this.pollInFlight = null;
+    this.activeContext = null;
     this.localGeneration = 0;
   }
 
   start(context) {
+    if (context && context === this.activeContext) return;
     this.stop();
     if (!context || !context.roomId || !context.ownerUid) return;
+    this.activeContext = context;
     const localGeneration = ++this.localGeneration;
 
     this.pollOnlineRank(context, localGeneration).catch((error) => {
@@ -35,6 +38,7 @@ class OnlineRankPoller {
   stop() {
     clearInterval(this.timer);
     this.timer = null;
+    this.activeContext = null;
     this.localGeneration += 1;
     this.pollInFlight = null;
   }

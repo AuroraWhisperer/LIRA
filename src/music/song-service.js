@@ -92,10 +92,7 @@ function findSong(store, songName, artist) {
   const cleanName = cleanText(songName);
   const cleanArtist = cleanText(artist);
   if (!cleanName) return null;
-  if (cleanArtist || artist === '') {
-    const exact = store.findByNameArtist(cleanName, cleanArtist);
-    if (exact) return exact;
-  }
+  if (cleanArtist || artist === '') return store.findByNameArtist(cleanName, cleanArtist);
   return store.findByName(cleanName);
 }
 

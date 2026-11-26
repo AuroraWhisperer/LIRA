@@ -12,6 +12,7 @@ export function initBlindBoxStats() {
   let blindBoxStatsController = null;
   let blindBoxStatsDisposed = false;
   let timer = null;
+  let midnightTimer = null;
 
   function isBlindBoxStatsVisible() {
     const page = document.getElementById('giftAssistantPage');
@@ -25,12 +26,27 @@ export function initBlindBoxStats() {
     if (!isBlindBoxStatsVisible()) {
       if (timer !== null) clearTimeout(timer);
       timer = null;
+      clearTimeout(midnightTimer);
+      midnightTimer = null;
       blindBoxStatsDirty = true;
       blindBoxStatsController?.abort();
       blindBoxStatsController = null;
       return;
     }
+    scheduleMidnight();
     void refreshBlindBoxStats();
+  }
+
+  function scheduleMidnight() {
+    if (midnightTimer !== null) return;
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
+    midnightTimer = setTimeout(() => {
+      midnightTimer = null;
+      if (!isBlindBoxStatsVisible()) return;
+      loadBlindBoxStats({ reason: 'midnight' });
+      scheduleMidnight();
+    }, midnight.getTime() - Date.now());
   }
 
   /**
@@ -47,7 +63,7 @@ export function initBlindBoxStats() {
     }
     clearTimeout(timer);
     timer = null;
-    if (reason === 'gift:source' || reason === 'connect') {
+    if (reason === 'gift:source' || reason === 'connect' || reason === 'midnight') {
       blindBoxStatsController?.abort();
       blindBoxStatsController = null;
       if (section) section.dataset.state = 'loading';
@@ -65,7 +81,7 @@ export function initBlindBoxStats() {
     const controller = new AbortController();
     blindBoxStatsController = controller;
     try {
-      const response = await fetch('/api/gifts/blind-box-stats?top=10', { signal: controller.signal });
+      const response = await fetch('/api/gifts/blind-box-stats?top=10&includeRecords=0', { signal: controller.signal });
       const payload = await readJsonResponse(response, '盲盒统计加载失败');
       if (controller !== blindBoxStatsController) return;
       if (!isBlindBoxStatsVisible()) { blindBoxStatsDirty = true; return; }
@@ -235,6 +251,7 @@ export function initBlindBoxStats() {
     if (blindBoxStatsDisposed) return;
     blindBoxStatsDisposed = true;
     clearTimeout(timer);
+    clearTimeout(midnightTimer);
     unsubscribe();
     observer.disconnect();
     document.removeEventListener('visibilitychange', syncBlindBoxStatsVisibility);

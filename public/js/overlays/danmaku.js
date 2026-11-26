@@ -73,8 +73,10 @@ function configureEffects(config) {
 }
 
 function configureLiveFeed(config) {
+  const retained = currentOverlayStyle === 'stargazer' && config.style === 'stargazer'
+    ? [...feed.getRenderedItems(), ...pendingItems] : [];
   applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions);
-  if (feedNeedsRender) applyItems([]);
+  if (feedNeedsRender) applyItems(retained);
   configureEffects(config);
 }
 
@@ -285,11 +287,10 @@ function removeSuperChats(messageIds) {
   if (!Array.isArray(messageIds)) return;
   const deleted = new Set(messageIds);
   const matches = (item) => item.kind === 'superchat' && deleted.has(item.messageId);
-  const removedIds = items.filter(matches).map((item) => item.id);
-  if (!removedIds.length) return;
+  const visibleIds = feed?.getRenderedItems?.().filter(matches).map(item => item.id);
   items = items.filter((item) => !matches(item));
   pendingItems = pendingItems.filter((item) => !matches(item));
-  feed.remove(removedIds);
+  if (visibleIds?.length) feed.remove(visibleIds);
   renderMessageCount();
 }
 

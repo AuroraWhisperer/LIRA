@@ -481,3 +481,81 @@ test('sender state exposes only the stable UI contract', async () => {
     createdAt: '',
   });
 });
+
+test('sender state resolves and caches account and room avatars and ignores mismatched live room data', async () => {
+  let profileReads = 0;
+  let roomReads = 0;
+  let roomId = '123';
+  let liveStatus = { roomId: '999', ownerName: '旧直播间', ownerAvatarUrl: 'https://i0.hdslb.com/bfs/face/old.jpg', connected: false, message: '' };
+  const service = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'cookie' }),
+    getRoom: async () => ({ roomId }),
+    getLiveStatus: () => liveStatus,
+    getMentionTarget: async () => null,
+    createClient: () => ({
+      fetchCurrentUserProfile: async () => {
+        profileReads += 1;
+        return { name: '极光bb_', avatarUrl: 'https://i0.hdslb.com/bfs/face/account.jpg' };
+      },
+      resolveRoomInfo: async () => {
+        roomReads += 1;
+        return { roomId: 123, ownerName: '米粒bb_', ownerAvatarUrl: 'https://i0.hdslb.com/bfs/face/room.jpg' };
+      },
+    }),
+  });
+
+  const first = await service.getState();
+  assert.equal(first.accountName, '极光bb_');
+  assert.equal(first.accountAvatarUrl, 'https://i0.hdslb.com/bfs/face/account.jpg');
+  assert.equal(first.roomName, '米粒bb_');
+  assert.equal(first.roomAvatarUrl, 'https://i0.hdslb.com/bfs/face/room.jpg');
+
+  const second = await service.getState();
+  assert.equal(second.accountAvatarUrl, 'https://i0.hdslb.com/bfs/face/account.jpg');
+  assert.equal(second.roomAvatarUrl, 'https://i0.hdslb.com/bfs/face/room.jpg');
+  assert.equal(profileReads, 1);
+  assert.equal(roomReads, 1);
+
+  roomId = '456';
+  liveStatus = { roomId: '456', ownerName: '新直播间', ownerAvatarUrl: 'https://i0.hdslb.com/bfs/face/live.jpg', connected: true, message: '已开播' };
+  const third = await service.getState();
+  assert.equal(third.roomName, '新直播间');
+  assert.equal(third.roomAvatarUrl, 'https://i0.hdslb.com/bfs/face/live.jpg');
+  assert.equal(roomReads, 1);
+});
+
+test('a single live room field preserves the lookup deadline for the other field', async (t) => {
+  let minute = 0;
+  t.mock.method(Date, 'now', () => minute * 60_000);
+  const lookupMinutes = [];
+  let liveOwner = { ownerAvatarUrl: 'https://i0.hdslb.com/bfs/face/first.jpg' };
+  let roomInfo = {};
+  const service = createDanmakuSenderService({
+    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'synthetic-cookie' }),
+    getRoom: async () => ({ roomId: '123' }),
+    getLiveStatus: () => ({ roomId: '123', ...liveOwner }),
+    getMentionTarget: async () => null,
+    createClient: () => ({
+      resolveRoomInfo: async () => {
+        lookupMinutes.push(minute);
+        return roomInfo;
+      },
+    }),
+  });
+  function readAt(atMinute) {
+    minute = atMinute;
+    return service.getState();
+  }
+
+  const cold = await readAt(0);
+  assert.equal(cold.roomAvatarUrl, liveOwner.ownerAvatarUrl);
+  roomInfo = { ownerName: '补齐的房主' };
+  assert.equal((await readAt(9)).roomName, '');
+  assert.equal((await readAt(10)).roomName, roomInfo.ownerName);
+
+  liveOwner = { ownerName: roomInfo.ownerName };
+  roomInfo = { ownerAvatarUrl: 'https://i0.hdslb.com/bfs/face/updated.jpg' };
+  assert.equal((await readAt(19)).roomAvatarUrl, cold.roomAvatarUrl);
+  assert.equal((await readAt(20)).roomAvatarUrl, roomInfo.ownerAvatarUrl);
+  assert.deepEqual(lookupMinutes, [0, 10, 20]);
+});

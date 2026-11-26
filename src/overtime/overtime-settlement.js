@@ -16,7 +16,7 @@ function resolveGiftSettlement({ giftEventId, gift, rule, currentState, updatedA
   const appliedDeltaSeconds = Math.trunc((afterMs - beforeMs) / 1000);
   const nextState = { ...currentState, remainingMs: afterMs };
 
-  if (afterMs === 0) nextState.status = 'finished';
+  if (afterMs === 0 && (beforeMs > 0 || currentState.status === 'running')) nextState.status = 'finished';
   else if (afterMs > beforeMs && currentState.status === 'finished') nextState.status = 'running';
   nextState.revision += 1;
   nextState.updatedAt = updatedAt;

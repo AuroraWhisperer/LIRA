@@ -127,6 +127,50 @@ test('scene output becomes ready when hidden child animation frames are paused',
   assert.deepEqual(errors, []);
 });
 
+test('staged media can prepare without playing until the whole new scene is visible', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture({ notifications: true });
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  page.setDefaultTimeout(5000);
+  const url = publishLayer(fixture, 'background', { style: 'none' });
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const active = page.locator('.scene-version:not(.is-staging)');
+  await active.waitFor();
+  const { promise, resolve } = Promise.withResolvers();
+  t.after(resolve);
+  await page.route('**/clock?componentPreview=1&sceneComponent=1', async route => {
+    await promise;
+    await route.continue();
+  });
+  const src = `/component-media/${randomUUID()}/${'a'.repeat(64)}.webm`;
+  await page.route(`**${src}`, route => route.fulfill({ contentType: 'video/webm',
+    path: path.resolve(__dirname, '../fixtures/gift-effect-alpha.webm'), headers: { 'Access-Control-Allow-Origin': '*' } }));
+  await page.evaluate(() => window.addEventListener('message', event => {
+    if (event.data?.type === 'component-preview:prepared'
+      && event.source === document.querySelector('.is-staging iframe[data-component="background"]')?.contentWindow) window.backgroundReady = true;
+  }));
+  const saved = fixture.service.list()[0];
+  const background = saved.document.items[0];
+  background.appearance.config = { style: 'none', volume: 0.5,
+    mediaStyle: { id: randomUUID(), kind: 'video', width: 640, height: 480, src, volume: 0.5 } };
+  const clock = { ...background, id: randomUUID(), type: 'clock', appearance: { mode: 'shared' } };
+  const revision = fixture.service.save({ id: saved.document.id, expectedRevision: saved.revision,
+    document: { ...saved.document, items: [background, clock] } }).revision;
+  fixture.service.publish({ id: saved.document.id, expectedRevision: revision });
+  try {
+    await page.waitForFunction(() => window.backgroundReady);
+    const video = page.frameLocator('.is-staging iframe[data-component=background]').locator('video.component-media-art');
+    assert.deepEqual(await video.evaluate(node => [node.paused, node.currentTime]), [true, 0]);
+    assert.equal(await active.locator('iframe').count(), 1);
+  } finally { resolve(); }
+  const video = await active.frameLocator('iframe[data-component=background]').locator('video.component-media-art').elementHandle();
+  const frame = await video.ownerFrame();
+  await frame.waitForFunction(node => !node.paused && node.currentTime > 0, video);
+  assert.equal(await video.evaluate(node => node.volume), 0.5);
+});
+
 test('published layers are clipped at all four canvas edges in a letterboxed source', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = openBrowserSession();

@@ -254,6 +254,26 @@
                     </label>
                   </div>
                 </div>
+                <div class="gift-export-setting-row">
+                  <span id="giftExportSortLabel" class="gift-export-row-label">排序方式</span>
+                  <div id="giftExportSort" class="gift-export-segmented" role="radiogroup" aria-labelledby="giftExportSortLabel">
+                    <label class="gift-export-segment" title="从新到旧">
+                      <input type="radio" name="giftExportSort" value="time" checked />
+                      <span class="gift-export-segment-face">按时间</span>
+                    </label>
+                    <label class="gift-export-segment" title="总金额从高到低">
+                      <input type="radio" name="giftExportSort" value="amount" />
+                      <span class="gift-export-segment-face">按金额</span>
+                    </label>
+                  </div>
+                </div>
+                <div class="gift-export-setting-row" title="当前长图恰好有两张卡片时可调整间距">
+                  <label for="giftExportRowGap" class="gift-export-row-label">词条间距</label>
+                  <div class="gift-export-spacing">
+                    <input id="giftExportRowGap" class="parameter-range" type="range" min="0" max="32" value="16" disabled />
+                    <output id="giftExportRowGapValue" for="giftExportRowGap">16 px</output>
+                  </div>
+                </div>
                 <label class="switch-control gift-export-merge">
                   <span class="gift-export-merge-text">
                     <span id="giftExportMergeLabel" class="gift-export-row-label">合并同种礼物</span>

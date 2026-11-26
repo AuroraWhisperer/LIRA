@@ -30,7 +30,7 @@ AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫�
 
 ## 2. 弹幕准入链（`handleDanmaku`）
 
-`handleDanmaku`（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)）先同步有效配置，在就绪检查后归一化 UID（无 UID 时使用 `name:<userName>`），排除近期自身回复，再进行分流。命中关键词的消息只走下表的定向问答，即使被黑名单、冷却或限额拒绝也不回退到自动接话；点名到达会中断尚未提交的自动候选。未命中且开启 `autoReplyEnabled` 时才进入 §3.4。现有关键词采用包含匹配，未实现基于平台提及目标 UID 的独立呼叫识别。
+`handleDanmaku`（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)）先同步有效配置，在就绪检查后归一化 UID，排除近期自身回复，再进行分流。命中关键词的消息只走下表的定向问答，即使被黑名单、冷却或限额拒绝也不回退到自动接话；点名需要可提及的 B 站 UID。缺少 UID 时在消耗房间名额前返回 `missing_uid`。有效点名会中断尚未提交的自动候选。未命中且开启 `autoReplyEnabled` 时才进入 §3.4。现有关键词采用包含匹配，未实现基于平台提及目标 UID 的独立呼叫识别。
 
 | 检查 | 语义 | 出处 |
 | --- | --- | --- |
@@ -52,12 +52,14 @@ AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫�
 
 管理页总开关单独按操作顺序保存，其他字段草稿无效时仍可关闭；普通表单保存不携带 `enabled`，避免旧配置响应将其重新开启。总开关或自动接话开关保存失败时，界面保留错误与重试入口直至保存成功。相关测试见 [ai-assistant-lifecycle.test.js](../../../test/ai/ai-assistant-lifecycle.test.js)、[ai-routes.test.js](../../../test/ai/ai-routes.test.js)、[frontend-admin-ai-settings.test.js](../../../test/ai/frontend-admin-ai-settings.test.js)。
 
+思考设置按用户编辑保存。已选强度仍在排队保存时关闭思考，会一并保存关闭状态和所选档位。仅编辑冷却时间等无关字段时，保留原思考偏好（包括 `auto`），正在生成的回复继续处理。
+
 ### 3.1 定向问答生成管线（`generateReply`）
 
 [生成回合](../../../src/ai/ai-reply-generator.js) 按序执行：
 
 1. **本地拒绝短路**：`item.localRefusal` 直接返回，`category: 'safety'`，不消耗模型配额。
-2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v10`，远程审核策略更新后不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 仅保存 SHA-256 摘要。首次未交付的随机 `sessionId` 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 `sessionId` 并绕过缓存，失败或拒绝不写记忆、不续期。
+2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v11`，只复用能识别上游长度截断的新缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 仅保存 SHA-256 摘要。首次未交付的随机 `sessionId` 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 `sessionId` 并绕过缓存，失败或拒绝不写记忆、不续期。
 3. **输入安全审核**：先用 `buildConversationInput` 生成本次问题与短期上下文的 JSON。`modelProvider` 为 `deepseek` 或 `doubao` 时保留本地检查、跳过远程输入审核（见 §6）；其余 API 与 ChatGPT 订阅模式经 `buildInputReviewPrompt` 审核（任务放在 `instructions`，待审 JSON 放在 `input`），未通过时返回固定 `SAFE_REFUSAL`。
 4. **观众上下文**：输入 JSON 为 `{question, previousExchange}`；两轮及以上增加按时间排列的 `earlierExchanges`，裁剪后标记 `historyTruncated: true`。历史为同一观众当前会话的已交付问答，用于延续聊天、接龙、猜谜及省略，不具有覆盖公共规则的权限。执行远程输入审核时，审核与生成收到同一份历史（详见 §3.3）。
 5. **主生成**：`deepseek.createResponse` 的 `instructions` 先放公共事实/安全规则，再以单行 `JSON.stringify({ persona })` 传入角色风格资料，避免角色中的换行或标签拼接为额外指令段；已保存角色文本不变。实际可用工具、北京时间与发送预算由程序提供，多轮上下文用于理解当前活动与问题（见 [buildReplyInstructions](../../../src/ai/ai-assistant-helpers.js)），不强制猫语、颜文字、固定推荐数量或非思考模式。
@@ -77,7 +79,7 @@ API 模式主生成与工具后续请求的输出 token 上限按思考模式切
 
 | 事实 | 值 | 出处 |
 | --- | --- | --- |
-| 生成并发 | 由 `generationConcurrency`（默认 3，范围 1–5）控制同时生成的回复数 | [async-coordinator.js:29-44](../../../src/ai/async-coordinator.js#L29-L44) |
+| 生成并发 | 由 `generationConcurrency`（默认 3，范围 1–5）控制同时生成的回复数，回显超时后的重新生成共用该上限 | [async-coordinator.js:29-44](../../../src/ai/async-coordinator.js#L29-L44) |
 | 投递顺序 | 按入队序号 `nextSequence` / `nextDelivery` 串行投递，前一条完成后再投下一条（同观众多段回复不插队） | [async-coordinator.js:46-64](../../../src/ai/async-coordinator.js#L46-L64) |
 | 失败隔离 | 生成或投递抛错 → `onError`（记 `delivery` / `generation` 失败日志），不阻断后续序号 | [async-coordinator.js:53-58](../../../src/ai/async-coordinator.js#L53-L58) |
 | 停止 | `stop()` 清空 `waiting`/`completed`，停止后 `enqueue` 返回 `false`，并返回等待活跃生成与当前投递结束的 drain Promise；进行中结果不再进入 `completed` | [async-coordinator.js](../../../src/ai/async-coordinator.js) |
@@ -205,6 +207,8 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 
 ### 4.5 ChatGPT 订阅与 Kimi API
 
+管理页的全量刷新和订阅轮询按请求发起顺序识别新旧。较新的账号状态一经显示，较早的回执无法回填账号或清空新账号的模型列表。同一账号的授权等待状态也遵循该顺序。主动切换账号后以该操作的回执为准。
+
 [chatgpt-oauth.js](../../../src/ai/chatgpt-oauth.js) 实现官方 OAuth/OIDC 授权流程：基于固定 issuer `https://auth.openai.com` 的 discovery 端点进行动态本地客户端注册，采用 S256 PKCE、`state`、`nonce` 与 `127.0.0.1` 临时端口回调（5 分钟超时）。首次收到 `client_id` 先保存注册记录再换取凭据，复登沿用注册并核对账号；经 `jose` 校验签名、`issuer`、`audience`、`exp`、`iat`、`sub`、`nonce`，不读取其他客户端登录文件，也不接受前端 URL 或 token。
 
 [chatgpt-session.js](../../../src/ai/chatgpt-session.js) 负责多账号管理、授权范围校验、串行刷新、退出与会话代次。它复用 `ai_configuration` 表：`chatgptHostId` 存稳定本机标识，`chatgptAccounts` 存经 `safeStorage` codec 加密的账号/注册/令牌记录（`is_secret = 1`），两者均不在公开配置白名单内。缺少可用加密或桌面打开浏览器能力时拒绝登录，不支持明文降级。仅获得 `chatgpt.tokens.use.direct` 授权方可推理；过期前串行刷新并替换凭据。退出时先删除当前账号令牌、取消在途请求，再请求官方撤销（撤销未确认时提示用户，保留注册映射供复登，不影响其他账号与 API Key）；切换与退出均使旧请求失效，迟到刷新无法恢复已退出凭据（停服回收见 §10）。
@@ -223,13 +227,13 @@ Kimi 官方预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来
 
 | 工具名 | 提供者 | 上游接口/行为 | 出处 |
 | --- | --- | --- | --- |
-| `get_weather` | 和风天气 qweather | 地点先走 `/geo/v2/city/lookup`（取前 5，重名跨省返回 `ambiguous` 候选）；`date` 非 `today`/`now` 时走 `/v7/weather/3d` 预报，否则 `/v7/weather/now`；`air` / `warning` 分别走 `/v7/air/now`、`/v7/warning/now` | [qweather-tool.js:10-63](../../../src/ai/tools/qweather-tool.js#L10-L63) |
+| `get_weather` | 和风天气 qweather | `air` 仅支持当前观测。`today`、「今日」「当前」等当前时间表达，以及北京时间当天的 `YYYY-MM-DD`、`YYYY年M月D日` 或 `M月D日` 均可查询。其他日期在查询地点前返回 `air_forecast_unavailable`。支持的查询先走 `/geo/v2/city/lookup`（取前 5，重名跨省返回候选）。普通天气按日期走 `/v7/weather/now` 或 `/v7/weather/3d`，当前空气质量和预警分别走 `/v7/air/now`、`/v7/warning/now` | [qweather-tool.js](../../../src/ai/tools/qweather-tool.js) |
 | `search_places` | 高德 amap | `/v3/place/text`（`city`/`district`/`location` 可选，`offset=5`，`extensions=base`），取前 5 POI | [amap-tool.js:37-49](../../../src/ai/tools/amap-tool.js#L37-L49) |
 | `resolve_location` | 高德 amap | `/v3/geocode/geo` 解析地址 → `{formattedAddress, province, city, district, adcode, location}`；多结果标记 `ambiguous` | [amap-tool.js:27-35](../../../src/ai/tools/amap-tool.js#L27-L35) |
 | `get_route` | 高德 amap | 起终点经 `ensureCoordinate` 统一为坐标；`transit` 走 `/v3/direction/transit/integrated`，其余走 `/v3/direction/<mode>`；取第一条 `paths[0]` / `transits[0]` 的距离与时长 | [amap-tool.js:51-62](../../../src/ai/tools/amap-tool.js#L51-L62)、[104-113](../../../src/ai/tools/amap-tool.js#L104-L113) |
 | `web_search` | Bing RSS | `https://www.bing.com/search?format=rss&q=…`（查询 ≤ 200 字符），解析 `<item>` 前 5 条为 `{title, snippet, url}`；空结果 → `WEB_SEARCH_EMPTY` | [web-search-tool.js:5-41](../../../src/ai/tools/web-search-tool.js#L5-L41) |
 
-**工具调用回路**：执行前同时核对请求配置快照与最新已保存配置，未启用、缺凭据或被撤销的函数返回 `tool_unavailable`（不发外部请求并从后续轮次排除）。允许的调用按名称分派并以 `function_call_output` 回填。月度配额触顶时将该工具加入 `excludedToolNames` 并返回 `monthly_api_quota_reached`（仅当搜索可用时建议改用 `web_search`，否则说明无法核实并提供一般建议）；生成前亦按 `quotaStore.getExcludedToolNames()` 裁剪工具列表（见 [ai-reply-generator.js](../../../src/ai/ai-reply-generator.js)）。
+**工具调用回路**：执行前同时核对请求配置快照与最新已保存配置，未启用、缺凭据或被撤销的函数返回 `tool_unavailable`（不发外部请求并从后续轮次排除）。允许的调用按名称分派并以 `function_call_output` 回填。查询成功用完该类别的月度额度时，模型仍收到查询结果。只有额度预留被拒才返回 `monthly_api_quota_reached`，此时有可用搜索就建议改用 `web_search`，否则说明无法核实并提供一般建议。首次生成及续问只检查候选工具涉及的额度类别。续问只保留首轮已提供、当前仍启用且额度可用的工具。Chat 同步更新系统消息与工具列表，保留原问题、工具调用及结果（见 [ai-reply-generator.js](../../../src/ai/ai-reply-generator.js)）。
 
 当前时间由 [current-time-tool.js](../../../src/ai/tools/current-time-tool.js) 的本地格式化函数直接注入指令，不向模型注册时间工具。
 
@@ -319,7 +323,7 @@ Kimi 官方预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来
 
 各平台的人格选择由 `config-store.js` 在同一配置事务内记录到 `ai_configuration` 的 `providerPersonaIds` JSON 行（键为 `modelProvider`，值为人格 ID），经公开配置只读返回，不接受客户端直接覆盖。切回平台时优先恢复上次选择，无记录则沿用当前兼容人格（小猫/鲸鱼娘不适用于目标平台时改选 `general`）；删除角色时同步将引用该角色的平台记录改为 `general`。
 
-上下文以“可信房间 + 观众 UID + 角色 ID / 替换触发词后的人设正文”作为作用域；换房间、换角色、编辑人设或修改触发词均不会串读另一身份的记忆。缺少房间或 UID 时不读写持久记忆，昵称仅用于提及和限流。存储方式见 [storage.md](storage.md) §3.1。
+上下文以“可信房间 + 观众 UID + 角色 ID / 替换触发词后的人设正文”作为作用域。原文没有 `{{name}}` 时在作用域中单列触发词，旧的无名作用域到期回收；换房间、换角色、编辑人设或修改触发词均不会串读另一身份的记忆。缺少房间或 UID 时不读写持久记忆，昵称仅用于展示和提及。存储方式见 [storage.md](storage.md) §3.1。
 
 ## 8. 月度配额与审计日志
 
@@ -400,8 +404,8 @@ Kimi 官方预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来
 | 故障 | 行为 |
 | --- | --- |
 | 上游超时/不可用 | `fetchJson` 归一化为 `UPSTREAM_TIMEOUT` / `UPSTREAM_UNAVAILABLE`，回复文案见 §9.3，失败入日志 |
-| 第三方配额触顶 | 工具调用失败 → 该工具当次会话停用，按实际可用能力建议搜索或说明无法核实（§5）；配额按月自动重置 |
-| 模型空回复/截断 | `DEEPSEEK_OUTPUT_TRUNCATED` / `DEEPSEEK_INVALID_RESPONSE` 按失败文案回复 |
+| 第三方配额触顶 | 本次回答的后续工具清单移除该额度类别下的工具。查询结果与回退行为见 §5，配额按月自动重置 |
+| 模型空回复/截断 | API 在 `length` / `max_output_tokens` 时返回 `DEEPSEEK_OUTPUT_TRUNCATED`，即使正文非空或工具参数可解析。空结果返回 `DEEPSEEK_INVALID_RESPONSE`。失败按既有规则处理 |
 | 弹幕未完整送达 | 送达验证 10 秒超时 → 按原问题生成单条精简回复后重发，最多 3 次（含首次）；仍失败记 `delivery` 失败 |
 | 密钥缺失/不可加密 | 独立模式写入密钥抛错（§7.2）；未配置时 `handleDanmaku` 直接返回 `disabled_or_unconfigured` |
 | 服务关闭 | `aiRuntime.shutdown()` 请求合并（并发复用）：同步清理上下文定时清理器，停止准入并触发 `AI_SHUTDOWN`，丢弃未开始任务；并行等待助手活跃生成/当前投递/直连 provider 操作与 ChatGPT 会话及 OAuth 回调关闭（取消后不再发送、重试或写上下文/缓存/审计）；最后释放 `danmakuDeliveryVerifier` 并 `flush()` 请求日志（目录见 §8.2）。已发出的上游弹幕仅等待完成、无法撤回。见 [server-core.md](server-core.md) §6.2 |

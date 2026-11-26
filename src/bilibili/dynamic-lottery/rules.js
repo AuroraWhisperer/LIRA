@@ -13,11 +13,12 @@ function normalizeRules(input, endsAtMs) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw lotteryError('LOTTERY_RULES_INVALID');
   }
-  const { winnerCount, requireLike, requireRepost, requireFollow } = input;
+  const { winnerCount, requireLike, requireRepost, requireFollow, submittedAtMs } = input;
   if (
     !Number.isSafeInteger(winnerCount) ||
     winnerCount < 1 ||
     winnerCount > 100 ||
+    (submittedAtMs !== undefined && (!Number.isSafeInteger(submittedAtMs) || submittedAtMs <= 0)) ||
     [requireLike, requireRepost, requireFollow].some((value) => typeof value !== 'boolean')
   )
     throw lotteryError('LOTTERY_RULES_INVALID');
@@ -27,13 +28,13 @@ function normalizeRules(input, endsAtMs) {
     requiredActions: [requireLike && 'like', requireRepost && 'repost'].filter(Boolean),
     requireFollow,
     winnerCount,
-    endsAtMs,
+    endsAtMs: Math.min(submittedAtMs ?? endsAtMs, endsAtMs),
     interactionTimePolicy: 'observed-during-collection',
     commentScope: 'top-level',
   };
 }
 
-function buildCandidatePool({ task, scan, evidence }) {
+function collectCandidates({ task, scan, evidence }) {
   const sources = ['comment', ...task.rules.requiredActions];
   if (scan?.status !== 'completed' || sources.some((source) => scan.sources[source]?.coverage !== 'exhausted'))
     throw lotteryError('LOTTERY_COLLECTION_INCOMPLETE');
@@ -56,9 +57,16 @@ function buildCandidatePool({ task, scan, evidence }) {
       required.get(record.source)?.add(record.uid);
     }
   }
-  return [...comments.values()]
-    .filter(({ uid }) => [...required.values()].every((members) => members.has(uid)))
-    .sort((left, right) => left.uid.length - right.uid.length || left.uid.localeCompare(right.uid, 'en'));
+  return [...comments.values()].filter(({ uid }) => [...required.values()].every((members) => members.has(uid)));
+}
+
+function countCandidates(input) {
+  return collectCandidates(input).length;
+}
+
+function buildCandidatePool(input) {
+  return collectCandidates(input).sort((left, right) =>
+    left.uid.length - right.uid.length || left.uid.localeCompare(right.uid, 'en'));
 }
 
 function assertSameContext(before, after) {
@@ -77,6 +85,7 @@ module.exports = {
   lotteryError,
   publicCode,
   normalizeRules,
+  countCandidates,
   buildCandidatePool,
   assertSameContext,
 };

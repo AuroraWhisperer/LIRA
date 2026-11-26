@@ -25,7 +25,6 @@ export function initDanmakuDailyBots({
   toast = () => {},
 } = {}) {
   const refreshButton = documentRef.getElementById('dailyBotRefresh');
-  const overall = documentRef.getElementById('dailyBotStatus');
   const fortuneMode = documentRef.getElementById('dailyBotFortuneDrawMode');
   const fortuneModeHint = documentRef.getElementById('dailyBotFortuneDrawModeHint');
   const toggles = Object.fromEntries(
@@ -34,8 +33,9 @@ export function initDanmakuDailyBots({
       documentRef.getElementById(kind === 'checkin' ? 'danmakuCheckinToggle' : 'danmakuFortuneToggle'),
     ]),
   );
-  if (!refreshButton || !overall || Object.values(toggles).some((element) => !element)) return;
-  let owner = '',
+  if (!refreshButton || Object.values(toggles).some((element) => !element)) return;
+  let owner = null,
+    notice = '',
     generation = 0,
     contextId = null,
     saved = null,
@@ -45,15 +45,20 @@ export function initDanmakuDailyBots({
   const libraries = createDailyLibraryEditor({ documentRef, windowRef, request: invoke });
   function render() {
     libraries?.availability({ enabled: Boolean(owner && contextId && bridge && !stale), busy });
+    let sharedStatus = notice;
+    if (!sharedStatus) {
+      if (!bridge) sharedStatus = '请升级桌面客户端后设置。';
+      else if (owner === null) sharedStatus = '正在读取账号信息…';
+      else if (!owner) sharedStatus = '请先连接 LIRA 账号，再刷新云端状态。';
+      else if (!saved) sharedStatus = busy ? '正在读取云端设置…' : '尚未确认云端状态，请刷新核对。';
+      else if (stale) sharedStatus = '云端状态待刷新';
+    }
     for (const kind of ['checkin', 'fortune']) {
       toggles[kind].checked = saved?.[kind].enabled === true;
       toggles[kind].disabled = !owner || !bridge || busy || stale || !saved || saved.takeover.state === 'importing';
       const status = documentRef.getElementById(`dailyBot${kind}Status`);
-      status.textContent = saved
-        ? stale
-          ? '云端状态待刷新'
-          : REASONS[saved[kind].reason]
-        : '尚未确认云端状态';
+      status.ariaBusy = String(Boolean(bridge && !notice && (owner === null || (busy && !saved))));
+      status.textContent = sharedStatus || REASONS[saved[kind].reason];
     }
     if (fortuneMode) {
       const supported = ['daily', 'random'].includes(saved?.fortune.drawMode);
@@ -81,7 +86,7 @@ export function initDanmakuDailyBots({
         saved = response.data;
         stale = false;
       }
-      overall.textContent = '';
+      notice = '';
       return response;
     } catch (error) {
       if (disposed || generation !== requested) return;
@@ -90,7 +95,7 @@ export function initDanmakuDailyBots({
           contextId = null;
           stale = true;
           libraries?.reset();
-          overall.textContent = '账号授权已变化，请刷新云端状态后重新打开词库。';
+          notice = '账号授权已变化，请刷新云端状态后重新打开词库。';
         }
         return { ok: false, error: error.code };
       }
@@ -101,8 +106,8 @@ export function initDanmakuDailyBots({
           : action === 'update' && payload.enabled === false
           ? '关闭尚未同步，机器人可能还在回复。请刷新确认。'
           : ERRORS[error.code] || '状态读取或保存失败，请检查连接并重试。';
+      notice = message;
       if (action === 'update') toast(message, { type: 'error' });
-      else overall.textContent = message;
       reload = error.code === 'DAILY_BOT_REVISION_CONFLICT';
     } finally {
       if (!disposed && generation === requested) {
@@ -133,6 +138,7 @@ export function initDanmakuDailyBots({
         : '';
     if (next === owner || disposed) return;
     owner = next;
+    notice = '';
     generation++;
     contextId = null;
     saved = null;
@@ -140,13 +146,12 @@ export function initDanmakuDailyBots({
     busy = false;
     stale = true;
     render();
-    overall.textContent = !bridge ? '请升级桌面客户端' : owner ? '' : '连接 LIRA 账号后可设置';
     if (owner) void refresh();
   }
   refreshButton.addEventListener('click', refresh);
   const offline = () => {
     stale = true;
-    overall.textContent = '连接中断，暂时无法确认云端状态。机器人可能还在回复，请在恢复连接后刷新。';
+    notice = '连接中断，暂时无法确认云端状态。机器人可能还在回复，请在恢复连接后刷新。';
     render();
   };
   windowRef.addEventListener('offline', offline);
@@ -158,7 +163,10 @@ export function initDanmakuDailyBots({
       if (initial === generation) account(snapshot);
     })
     .catch(() => {
-      if (initial === generation) overall.textContent = '账号信息读取失败，请重新连接后刷新。';
+      if (!disposed && initial === generation) {
+        notice = '账号信息读取失败，请重新连接后刷新。';
+        render();
+      }
     });
   windowRef.addEventListener(
     'pagehide',

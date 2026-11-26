@@ -3,9 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 test(
   'real Electron releases overlay connections, media and WebContents across reconnects and destruction',
@@ -14,8 +14,7 @@ test(
     timeout: 90000,
   },
   async (t) => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-resource-lifecycle-'));
-    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    const directory = createScratchDirectory('lira-resource-lifecycle-');
     const env = { ...process.env };
     delete env.ELECTRON_RUN_AS_NODE;
     delete env.NODE_TEST_CONTEXT;
@@ -28,20 +27,23 @@ test(
         stdio: ['ignore', 'ignore', 'pipe'],
       },
     );
+    const closed = new Promise(resolve => child.once('close', resolve));
+    let spawnError;
+    child.once('error', error => { spawnError = error; });
     let diagnostics = '';
     child.stderr.on('data', (chunk) => {
       diagnostics = (diagnostics + chunk).slice(-4000);
     });
     const deadline = setTimeout(() => child.kill(), 80000);
-    t.after(() => {
+    t.after(async () => {
       clearTimeout(deadline);
-      if (child.exitCode === null) child.kill();
+      if (child.exitCode === null && child.signalCode === null) child.kill();
+      await closed;
+      await fs.promises.rm(directory, { recursive: true, force: true, maxRetries: 3 });
     });
-    const exitCode = await new Promise((resolve, reject) => {
-      child.once('error', reject);
-      child.once('exit', resolve);
-    });
+    const exitCode = await closed;
     clearTimeout(deadline);
+    if (spawnError) throw spawnError;
     const file = path.join(directory, 'result.json');
     assert.equal(fs.existsSync(file), true, `No result after exit ${exitCode}: ${diagnostics}`);
     const result = JSON.parse(fs.readFileSync(file, 'utf8'));

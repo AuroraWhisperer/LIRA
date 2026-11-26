@@ -193,10 +193,12 @@ function applyGameDelta(payload, replaying) {
 }
 
 function renderGame(nextSession, redraw = true) {
+  const wasDrawingGame = session?.game === 'draw-guess';
   session = nextSession || null;
   const game = nextSession?.game || '';
   document.body.dataset.game = game;
   if (game !== 'draw-guess') {
+    if (wasDrawingGame || !session) drawController?.setToolsEnabled(false);
     scheduledDrawChat = null;
     drawController?.resetDanmakuRenderScheduler();
     countdown?.sync();
@@ -206,7 +208,6 @@ function renderGame(nextSession, redraw = true) {
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
   byId('drawGuessView').hidden = game !== 'draw-guess' || !session;
   if (!session) {
-    drawController?.setToolsEnabled(false);
     byId('gameTurn').textContent = '等待开局';
     gameResult.hide();
     return;
@@ -304,7 +305,8 @@ function renderDrawGuess(state, redraw = true) {
     state.phase === 'choosing' ? '等待主播选词'
       : state.phase === 'drawing' ? `${state.wordLength} 个字` : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
   byId('drawWordWaiting').hidden = state.phase !== 'choosing';
-  byId('drawClueHint').textContent = state.phase === 'choosing' ? '主播选定后开始计时' : '输入答案即可抢答';
+  byId('drawClueHint').textContent = state.phase === 'choosing' ? '主播选定后开始计时'
+    : state.phase === 'drawing' ? '输入答案即可抢答' : '本局抢答已结束';
   byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
   renderDrawScoreboard(state.scores || []);
   renderDrawCorrectFeed(state.correct || []);

@@ -115,7 +115,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
 
   function readRoomSnapshot() {
     const custom = getCustomBlindBoxes();
-    const key = [local.getRevision?.(), remoteCatalog.getRevision?.(), JSON.stringify(custom)];
+    const key = [local.getRoomId?.(), local.getRevision?.(), remoteCatalog.getRevision?.(), JSON.stringify(custom)];
     const cacheable = local.getRevision && remoteCatalog.getRevision;
     if (!cacheable || !roomCache || !key.every((value, index) => value === roomCache.key[index])) {
       roomSnapshot = local.getSnapshot();
@@ -215,7 +215,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
 
   function getArtworkResolver() {
     const custom = getCustomBlindBoxes();
-    const key = [local.getRevision?.(), remoteCatalog.getRevision?.(), JSON.stringify(custom)];
+    const key = [local.getRoomId?.(), local.getRevision?.(), remoteCatalog.getRevision?.(), JSON.stringify(custom)];
     if (!local.getRevision || !remoteCatalog.getRevision || !artworkCatalog ||
       !key.every((value, index) => value === artworkCatalog.key[index])) {
       const global = remoteCatalog.getSnapshot();

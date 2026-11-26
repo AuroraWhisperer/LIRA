@@ -136,22 +136,25 @@ export function createAudioParameterQueue(send, onChange) {
   const pending = {};
   const edits = new Map();
   let revision = 0;
+  let queuedRevision = 0;
   let writing = Promise.resolve(true);
   let activeWrites = 0;
   return {
     pending,
     change(key, value) { pending[key] = value; edits.set(key, ++revision); },
     flush() {
-      const patch = { ...pending };
-      const versions = new Map(edits);
-      if (!Object.keys(patch).length) return activeWrites ? writing : Promise.resolve(true);
+      if (revision === queuedRevision) return activeWrites ? writing : Promise.resolve(true);
+      const versions = new Map([...edits].filter(([, version]) => version > queuedRevision));
+      const patch = Object.fromEntries([...versions.keys()].map(key => [key, pending[key]]));
+      queuedRevision = revision;
+      const previous = activeWrites ? writing : Promise.resolve(true);
       activeWrites++;
-      writing = writing.then(async () => {
+      writing = previous.then(async previousOk => {
         const ok = await send(patch);
         for (const key of Object.keys(patch)) if (edits.get(key) === versions.get(key)) delete pending[key];
         activeWrites--;
         onChange();
-        return ok;
+        return previousOk && ok;
       });
       return writing;
     },
@@ -185,7 +188,7 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
     const fullPage = pageVisible();
     const quickPanel = panelVisible();
     if (!fullPage && !quickPanel) return;
-    // Native IPC includes the inventories in level/position samples as well as configuration changes.
+    // Public state callbacks include inventories even for level/position samples.
     const { revision, inputLevel, level, position, duration, ...config } = state;
     const signature = JSON.stringify(config);
     if (fullPage) renderMeters();
@@ -375,8 +378,8 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       if (input.matches('[data-audio-active]')) {
         const active = input.checked;
         if (refreshing) await refreshing;
-        if (!await flush()) { render(); return; }
-        if (active && !enabled()) { render(); return; }
+        const saved = await flush();
+        if (active && (!saved || !enabled())) { render(); return; }
         await invoke(active ? 'start' : 'stop');
         render();
       } else if (input.matches('select[data-audio-setting], input[type="checkbox"][data-audio-setting]')) {

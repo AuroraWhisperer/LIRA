@@ -40,6 +40,7 @@ export function initDanmakuCloudReplies({
 
   function controls() {
     const unavailable = !owner || !available || !saved;
+    exactState.ariaBusy = String(Boolean(owner && available && pending && !saved));
     exactToggle.checked = saved?.customExactReplyEnabled === true;
     scheduledToggle.checked = saved?.scheduledDanmakuEnabled === true;
     for (const toggle of [exactToggle, scheduledToggle]) {
@@ -220,7 +221,8 @@ export function initDanmakuCloudReplies({
     max.setCustomValidity('');
     renderSaveStatus(saveState, 'idle', '');
     get('danmakuScheduledSummary').textContent = '直播中按间隔发送词库';
-    exactState.textContent = scheduledState.textContent = available ? '连接 LIRA 账号后可设置' : '请升级桌面客户端后设置';
+    exactState.textContent = scheduledState.textContent = !available ? '请升级桌面客户端后设置' :
+      owner ? '正在读取云端设置…' : '连接 LIRA 账号后可设置';
     timingFields();
     controls();
     void sync();

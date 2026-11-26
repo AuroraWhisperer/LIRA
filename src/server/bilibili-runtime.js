@@ -409,6 +409,10 @@ function createBilibiliRuntime(options) {
 
   function updateStatus(nextStatus) {
     if (stopped) return;
+    if (Object.hasOwn(nextStatus, 'roomId') && String(nextStatus.roomId) !== String(liveStatus.roomId)) {
+      liveStatus.ownerName = '';
+      liveStatus.ownerAvatarUrl = '';
+    }
     Object.assign(liveStatus, {
       ...nextStatus,
       updatedAt: sharedUtils.now(),
@@ -444,14 +448,16 @@ function createBilibiliRuntime(options) {
 
   function getRealtimeState() {
     const state = client?.getRealtimeState?.();
+    const accountUid = String(authCache.uid || '');
+    const ready = Boolean(accountUid && state?.ready && state.accountUid === accountUid);
     if (client && !lastRealtimeInput) lastRealtimeInput = client.roomId;
     if (state?.roomId) lastRealtimeRoom = state.roomId;
     return {
-      ready: false,
       roomId: lastRealtimeRoom,
-      reason: '实时弹幕尚未就绪',
       ...state,
-      accountUid: String(authCache.uid || ''),
+      ready,
+      reason: ready ? '' : state?.reason || '实时弹幕尚未就绪',
+      accountUid,
       configuredRoomChanged: Boolean(lastRealtimeInput && lastRealtimeInput !== getConfiguredRoomId()),
     };
   }

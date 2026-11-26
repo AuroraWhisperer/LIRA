@@ -11,6 +11,11 @@ const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'tmp/audio-assistant-native-checks');
 const scratch = path.join(root, 'tmp/audio-assistant-native-build');
 const project = path.join(root, 'test/desktop/audio-assistant-native/NativeChecks.csproj');
+const checkArgs = process.argv.slice(2);
+if (checkArgs.length && !(checkArgs[0] === '--synthetic-streams' && checkArgs.length === 1)
+  && !(checkArgs[0] === '--state-frames' && checkArgs.length <= 2)) {
+  throw new Error('Expected --synthetic-streams or --state-frames [trace path].');
+}
 const restore = spawnSync('dotnet', ['restore', project, '-r', 'win-x64', '--locked-mode',
   `-p:BaseIntermediateOutputPath=${path.join(scratch, 'obj')}${path.sep}`,
   `-p:BaseOutputPath=${path.join(scratch, 'bin')}${path.sep}`], { stdio: 'inherit', windowsHide: true });
@@ -23,7 +28,7 @@ const published = spawnSync('dotnet', ['publish', project,
 if (published.error) throw published.error;
 if (published.status !== 0) process.exit(published.status || 1);
 const checked = spawnSync(path.join(output, 'NativeChecks.exe'),
-  [path.join(root, 'build/audio-assistant/LiraAudioAssistant.exe'), path.join(root, 'tmp')],
+  checkArgs.length ? checkArgs : [path.join(root, 'build/audio-assistant/LiraAudioAssistant.exe'), path.join(root, 'tmp')],
   { stdio: 'inherit', windowsHide: true });
 if (checked.error) throw checked.error;
 if (checked.status !== 0) process.exit(checked.status || 1);
@@ -72,4 +77,6 @@ async function checkBridge() {
   } finally { await assistant.dispose(); }
 }
 
-checkBridge().then(() => checkNativePlayback(root)).catch((error) => { console.error(error); process.exitCode = 1; });
+if (!checkArgs.length) {
+  checkBridge().then(() => checkNativePlayback(root)).catch((error) => { console.error(error); process.exitCode = 1; });
+}

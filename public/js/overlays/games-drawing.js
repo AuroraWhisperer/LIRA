@@ -26,12 +26,13 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   let drawClock = null;
 
   function setToolsEnabled(enabled) {
-    if (!enabled) {
-      const hadActiveStroke = Boolean(activeStroke);
+    const session = getSession();
+    const sameCanvas = activeStroke && activeStroke.sessionId === session?.sessionId && activeStroke.round === session?.state?.round;
+    if (activeStroke && (!enabled || !sameCanvas)) {
       clearTimeout(drawFlushTimer);
       drawFlushTimer = null;
       activeStroke = null;
-      if (hadActiveStroke) redrawCanvas(getSession()?.state?.canvas);
+      if (sameCanvas) redrawCanvas(session.state.canvas);
     }
     byId('drawCanvas').classList.toggle('is-disabled', !enabled);
     document
@@ -79,6 +80,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     canvas.addEventListener('pointermove', continueDrawing);
     canvas.addEventListener('pointerup', stopDrawing);
     canvas.addEventListener('pointercancel', stopDrawing);
+    canvas.addEventListener('lostpointercapture', stopDrawing);
   }
 
   function scheduleDrawDanmakuRender(items) {
@@ -216,7 +218,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   }
 
   function startDrawing(event) {
-    if (!canDraw() || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (activeStroke || !canDraw() || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
     if (drawTool === 'picker') {
       pickDrawColor(event);
@@ -225,7 +227,10 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     const canvas = byId('drawCanvas');
     canvas.setPointerCapture(event.pointerId);
     const point = drawPointFromEvent(event);
+    const { sessionId, state } = getSession();
     activeStroke = {
+      sessionId,
+      round: state.round,
       pointerId: event.pointerId,
       tool: drawTool,
       strokeId: `stroke-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`,
@@ -344,7 +349,9 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   async function clearDrawCanvas() {
     if (!canDraw()) return;
     finalizeActiveStroke();
-    if (!getSession().state.canvas.strokes.length) return;
+    const { sessionId, state } = getSession();
+    const round = state.round;
+    if (!state.canvas.strokes.length) return;
     const confirmed = await showConfirmationDialog({
       variant: 'caution',
       title: '清空当前画布？',
@@ -352,7 +359,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
       confirmLabel: '清空画布',
       cancelLabel: '取消',
     });
-    if (!confirmed || !canDraw()) return;
+    if (!confirmed || !canDraw() || getSession().sessionId !== sessionId || getSession().state.round !== round) return;
     const operation = { action: 'clear', clientId: drawClientId };
     mergeDrawOperation(operation, true);
     queueDrawOperation(operation);

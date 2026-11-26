@@ -39,12 +39,12 @@
   height: 16px;
   border-radius: 50%;
   background: var(--color-range-thumb, var(--color-bg-primary));
-  box-shadow: 0 1px 2px rgba(24, 24, 22, 0.24);
+  box-shadow: 0 1px 2px light-dark(rgba(24, 24, 22, 0.24), rgba(0, 0, 0, 0.5));
   transition: transform 160ms ease;
 }
 
 .switch-control:hover input:not(:checked, :disabled) + .switch-track {
-  background: var(--color-control-border-hover, color-mix(in srgb, var(--color-border-strong) 82%, var(--text)));
+  background: color-mix(in srgb, var(--color-range-track, var(--color-control-border)) 82%, light-dark(#000000, #ffffff));
 }
 
 .switch-control input:checked + .switch-track {
@@ -70,6 +70,16 @@
 
 :where(html.desktop-shell, html[data-client-theme]) .switch-control input:disabled:checked:where(:not([data-switch-pending='true'])) + .switch-track {
   background: var(--color-disabled-text);
+}
+
+:where(html.desktop-shell, html[data-client-theme]) .switch-control input:disabled:where(:not([data-switch-pending='true'])) + .switch-track::after {
+  background: var(--color-disabled-text);
+  box-shadow: none;
+}
+
+:where(html.desktop-shell, html[data-client-theme]) .switch-control input:disabled:checked:where(:not([data-switch-pending='true'])) + .switch-track::after {
+  background: var(--color-disabled-bg);
+  box-shadow: none;
 }
 
 :where(html.desktop-shell, html[data-client-theme]) .switch-control:has(input:disabled:where(:not([data-switch-pending='true']))) {

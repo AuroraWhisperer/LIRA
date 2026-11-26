@@ -20,7 +20,7 @@
 .lyric-editor-modes button[aria-selected='true'] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
 
 /* Editor hierarchy: sticky category bar > section cards > control rows. */
-#advancedLyricEditor, .advanced-lyric-editor { --advanced-lyric-card-head: color-mix(in srgb, var(--color-selection-marker) 10%, var(--surface)); display: grid; gap: 14px; min-width: 0; container: lyric-editor / inline-size; }
+#advancedLyricEditor, .advanced-lyric-editor { --advanced-lyric-card-head: color-mix(in srgb, var(--primary) 10%, var(--surface)); display: grid; gap: 14px; min-width: 0; container: lyric-editor / inline-size; }
 .advanced-lyric-categories { position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 8px 14px -12px rgb(40 30 20 / 45%); }
 /* The lyric page scroller has 12px top padding; pin the bar flush to its edge so cards never show above it. */
 #desktopLyricPage .advanced-lyric-categories { top: -12px; }
@@ -28,7 +28,7 @@
 .advanced-lyric-category-title { font-size: var(--type-size-card-title); font-weight: var(--type-weight-semibold); line-height: 1.3; }
 .advanced-lyric-category-caption { max-width: 100%; overflow: hidden; color: var(--muted); font-size: var(--type-size-micro); font-weight: var(--type-weight-regular); line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
 .advanced-lyric-categories button:hover { background: var(--surface-2); }
-.advanced-lyric-categories button[aria-selected='true'] { border-color: color-mix(in srgb, var(--primary) 45%, transparent); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); color: var(--primary); }
+.advanced-lyric-categories button[aria-selected='true'] { border-color: color-mix(in srgb, var(--primary) 45%, transparent); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); color: var(--color-selection-text, var(--color-primary-text, var(--primary))); }
 .advanced-lyric-categories button[aria-selected='true'] .advanced-lyric-category-title { font-weight: var(--type-weight-bold); }
 .advanced-lyric-categories button:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .advanced-lyric-editor-body, .advanced-lyric-group { display: grid; gap: 12px; min-width: 0; }
@@ -38,7 +38,7 @@
 .advanced-lyric-section { min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
 .advanced-lyric-section > summary { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 14px; border-radius: calc(var(--radius-lg) - 1px); background: var(--advanced-lyric-card-head); cursor: pointer; list-style: none; user-select: none; }
 .advanced-lyric-section > summary::-webkit-details-marker { display: none; }
-.advanced-lyric-section > summary:hover { background: color-mix(in srgb, var(--color-selection-marker) 16%, var(--surface)); }
+.advanced-lyric-section > summary:hover { background: color-mix(in srgb, var(--primary) 16%, var(--surface)); }
 .advanced-lyric-section > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
 .advanced-lyric-section[open] > summary { border-bottom: 1px solid var(--border); border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0; }
 .advanced-lyric-section-title { flex: 1 0 auto; color: var(--text); font-family: var(--font-display); font-size: 16px; font-weight: var(--type-weight-bold); line-height: var(--type-leading-card-title); }
@@ -79,7 +79,7 @@
 .advanced-lyric-choice:has(> .advanced-lyric-add-sequence) .advanced-lyric-style-card > strong::after { display: none; }
 .advanced-lyric-add-sequence { position: absolute; right: 7px; bottom: 6px; min-width: 0; min-height: 0; height: 22px; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: var(--type-size-micro); font-weight: var(--type-weight-medium); line-height: 20px; white-space: nowrap; }
 .advanced-lyric-add-sequence:hover { border-color: var(--primary); color: var(--primary); }
-.advanced-lyric-add-sequence[aria-pressed='true'] { border-color: var(--primary); background: var(--primary); color: #fff; }
+.advanced-lyric-add-sequence[aria-pressed='true'] { border-color: var(--primary); background: var(--primary); color: var(--color-on-control-accent, var(--color-on-primary)); }
 
 .advanced-lyric-rotation { display: grid; gap: 4px; padding: 2px 12px 10px; border: 1px dashed color-mix(in srgb, var(--primary) 30%, var(--border)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--surface-2) 70%, var(--surface)); }
 #advancedLyricEditor .advanced-lyric-rotation > .advanced-lyric-control, .advanced-lyric-editor .advanced-lyric-rotation > .advanced-lyric-control { min-height: 42px; }

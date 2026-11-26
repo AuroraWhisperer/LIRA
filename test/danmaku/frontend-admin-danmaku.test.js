@@ -339,3 +339,63 @@ test('opening a disconnected danmaku panel reconnects once and refreshes the sta
   });
   assert.equal(await page.evaluate(() => window.reconnects), 1);
 });
+
+test('connection bridge renders real Bilibili avatars and falls back to person and Bilibili icons', async (t) => {
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0sQAAAAASUVORK5CYII=',
+    'base64',
+  );
+  const page = await createDanmakuPage(t, {
+    accountName: '极光bb_',
+    roomName: '米粒bb_',
+    accountAvatarUrl: '',
+    roomAvatarUrl: '',
+  });
+
+  await page.route('**/api/bilibili/avatar**', async (route) => {
+    const url = new URL(route.request().url()).searchParams.get('url') || '';
+    if (url.includes('broken')) {
+      await route.fulfill({ status: 502, contentType: 'application/json', body: '{"ok":false}' });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: 'image/png', body: png });
+  });
+
+  assert.equal(await page.locator('#danmakuAccountAvatar').isHidden(), true);
+  assert.equal(await page.locator('#danmakuAccountFallback').evaluate((el) => el.hasAttribute('hidden')), false);
+  assert.equal(await page.locator('#danmakuRoomAvatar').isHidden(), true);
+  assert.equal(await page.locator('#danmakuRoomFallback').evaluate((el) => el.hasAttribute('hidden')), false);
+
+  await page.evaluate(async () => {
+    window.danmakuState.accountAvatarUrl = 'https://i0.hdslb.com/bfs/face/account.png';
+    window.danmakuState.roomAvatarUrl = 'https://i0.hdslb.com/bfs/face/room.png';
+    await window.danmakuTool.refresh();
+  });
+  await page.waitForFunction(
+    () =>
+      document.getElementById('danmakuAccountAvatar').dataset.loaded === 'true' &&
+      document.getElementById('danmakuRoomAvatar').dataset.loaded === 'true',
+    null,
+    { timeout: 2000 },
+  );
+  assert.match(await page.locator('#danmakuAccountAvatar').getAttribute('src'), /^\/api\/bilibili\/avatar\?/);
+  assert.match(await page.locator('#danmakuRoomAvatar').getAttribute('src'), /^\/api\/bilibili\/avatar\?/);
+  assert.equal(await page.locator('#danmakuAccountFallback').evaluate((el) => el.hasAttribute('hidden')), true);
+  assert.equal(await page.locator('#danmakuRoomFallback').evaluate((el) => el.hasAttribute('hidden')), true);
+
+  await page.evaluate(async () => {
+    window.danmakuState.accountAvatarUrl = 'https://i0.hdslb.com/bfs/face/broken.png';
+    window.danmakuState.roomId = '';
+    window.danmakuState.roomName = '';
+    await window.danmakuTool.refresh();
+  });
+  await page.waitForFunction(
+    () =>
+      document.getElementById('danmakuAccountAvatar').hidden &&
+      !document.getElementById('danmakuAccountFallback').hasAttribute('hidden') &&
+      document.getElementById('danmakuRoomAvatar').hidden &&
+      !document.getElementById('danmakuRoomFallback').hasAttribute('hidden'),
+    null,
+    { timeout: 2000 },
+  );
+});

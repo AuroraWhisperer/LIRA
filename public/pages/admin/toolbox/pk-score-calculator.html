@@ -54,11 +54,34 @@
         <div class="pk-score-results" aria-live="polite" aria-atomic="true">
           <dl class="pk-score-primary">
             <dt id="pkScorePrimaryLabel">所需金额</dt>
-            <dd><span id="pkScorePrimary">—</span><small id="pkScorePrimaryUnit" hidden>元</small></dd>
+            <dd>
+              <span id="pkScorePrimary"></span><small id="pkScorePrimaryUnit" hidden>元</small>
+              <svg class="pk-score-placeholder" viewBox="0 0 24 24" role="img" aria-label="待换算">
+                <use class="pk-score-target-glyph" href="/img/admin/workbench-icons.svg#coin-yuan"></use>
+                <use class="pk-score-budget-glyph" href="/img/admin/workbench-icons.svg#score-trend"></use>
+              </svg>
+            </dd>
           </dl>
           <dl class="pk-score-totals">
-            <div><dt id="pkScoreBatteriesLabel">所需电池</dt><dd id="pkScoreBatteries">—</dd></div>
-            <div><dt id="pkScoreDetailLabel">实际可得加分</dt><dd id="pkScoreDetail">—</dd></div>
+            <div>
+              <dt id="pkScoreBatteriesLabel">所需电池</dt>
+              <dd>
+                <span id="pkScoreBatteries"></span>
+                <svg class="pk-score-placeholder" viewBox="0 0 24 24" role="img" aria-label="待换算">
+                  <use href="/img/admin/workbench-icons.svg#battery-charge"></use>
+                </svg>
+              </dd>
+            </div>
+            <div>
+              <dt id="pkScoreDetailLabel">实际可得加分</dt>
+              <dd>
+                <span id="pkScoreDetail"></span>
+                <svg class="pk-score-placeholder" viewBox="0 0 24 24" role="img" aria-label="待换算">
+                  <use class="pk-score-target-glyph" href="/img/admin/workbench-icons.svg#score-trend"></use>
+                  <use class="pk-score-budget-glyph" href="/img/admin/workbench-icons.svg#score-bars"></use>
+                </svg>
+              </dd>
+            </div>
           </dl>
         </div>
       </div>

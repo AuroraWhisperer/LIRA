@@ -363,22 +363,31 @@ function findEndOfCentralDirectory(buffer) {
 
 // These spreadsheet elements cannot contain another element of the same kind.
 // Advance over tags once instead of retrying an unbounded body match at each opener.
-function* xmlElements(xml, tag) {
-  const regex = new RegExp(`<(/?)(?:[\\w.-]+:)?${tag}\\b([^<>]*?)(/?)>`, 'g');
+function* xmlElements(xml, tag, skipTag) {
+  const names = skipTag ? `${tag}|${skipTag}` : tag;
+  const regex = new RegExp(`<(/?)(?:[\\w.-]+:)?(${names})\\b([^<>]*?)(/?)>`, 'g');
   let open = null;
+  let skipping = false;
   let match;
   while ((match = regex.exec(xml))) {
-    if (match[1]) {
+    const [, closing, name, attrs, selfClosing] = match;
+    if (name === skipTag) {
+      if (Boolean(closing) !== skipping || open) throw new Error('Excel 文件 XML 元素嵌套无效。');
+      skipping = !closing && !selfClosing;
+      continue;
+    }
+    if (skipping) continue;
+    if (closing) {
       if (!open) throw new Error('Excel 文件 XML 元素未正确闭合。');
       yield { attrs: open.attrs, body: xml.slice(open.start, match.index) };
       open = null;
     } else {
       if (open) throw new Error('Excel 文件 XML 元素存在异常嵌套。');
-      if (match[3]) yield { attrs: match[2], body: '' };
-      else open = { attrs: match[2], start: regex.lastIndex };
+      if (selfClosing) yield { attrs, body: '' };
+      else open = { attrs, start: regex.lastIndex };
     }
   }
-  if (open) throw new Error('Excel 文件 XML 元素未正确闭合。');
+  if (open || skipping) throw new Error('Excel 文件 XML 元素未正确闭合。');
 }
 
 function checkXmlBudget(xml, limits) {
@@ -399,7 +408,8 @@ function parseSharedStrings(xml, limits = {}) {
 
 function extractXmlTexts(xml, maxChars) {
   let value = '';
-  for (const element of xmlElements(xml, 't')) {
+  // Phonetic runs annotate the visible characters in both shared and inline strings.
+  for (const element of xmlElements(xml, 't', 'rPh')) {
     const text = unescapeXml(element.body);
     checkBudget(value.length + text.length, maxChars, 'cell text');
     value += text;
@@ -461,7 +471,14 @@ function readWorksheetCell(attrs, body, sharedStrings, maxTextChars) {
     checkBudget(value.length, maxTextChars, 'cell value');
     break;
   }
-  if (type === 's') return sharedStrings[Number(value)] || '';
+  if (type === 's') {
+    const index = value.trim();
+    if (!index) return '';
+    if (!/^\d+$/.test(index) || Number(index) >= sharedStrings.length) {
+      throw new Error('Excel 单元格的共享字符串引用无效。');
+    }
+    return sharedStrings[Number(index)];
+  }
   if (type === 'b') return value === '1' ? '是' : '否';
   return value;
 }

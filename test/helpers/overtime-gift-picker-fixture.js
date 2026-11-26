@@ -18,6 +18,7 @@ async function createFixture({
     data: { gifts: globalGifts },
   },
   fetchImpl = null,
+  readOverview = null,
   initialState = {},
   confirmImpl = async () => true,
   parsedDuration = 0,
@@ -34,6 +35,7 @@ async function createFixture({
     confirmImpl,
     parsedDuration,
     apiImpl,
+    readOverview,
     ruleRenders: 0,
     timerClears: 0,
     fetchImpl: fetchImpl || (() => Promise.resolve({ ok: true, payload: fetchPayload })),
@@ -96,7 +98,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts, clock })
           },
         });
       if (url === '/api/overtime')
-        return Promise.resolve({
+        return state.readOverview ? state.readOverview() : Promise.resolve({
           ok: true,
           payload: { ok: true, data: { settlements: [] } },
         });
@@ -171,8 +173,8 @@ async function loadOvertimeModule({ document, window, state, saleGifts, clock })
       },
     }),
     './overtime-time-view.js': stub({
-      createOvertimeTimeView: () => ({
-        renderSettlements() {},
+      createOvertimeTimeView: ({ getSettlements }) => ({
+        renderSettlements() { state.settlements = Array.from(getSettlements()); },
         markDurationDirty() {},
         acceptInitialDuration() {},
         readInitialDuration: () => state.parsedDuration,

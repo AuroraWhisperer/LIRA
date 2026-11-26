@@ -7,6 +7,36 @@ const { startComponentPreviewServer } = require('../helpers/component-preview-se
 
 const openBrowserSession = useSharedBrowser();
 
+test('hidden native choices stay out of search and keyboard selection while their saved value is retained', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <select id="style" aria-label="Style" data-select-search>
+      <option value="old" selected hidden>Old style</option>
+      <optgroup label="Imported"><option value="extra">Imported style</option></optgroup>
+      <option value="basic">Basic style</option>
+    </select>
+    <script type="module">import { enhanceSelects } from '/js/shared/select-menu.js'; enhanceSelects();</script>` });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage();
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const trigger = page.getByRole('button', { name: 'Style', exact: true });
+  await trigger.click();
+  assert.equal(await trigger.textContent(), 'Old style');
+  await page.locator('#style optgroup').evaluate(group => { group.hidden = true; });
+  await page.getByRole('searchbox').fill('style');
+  assert.deepEqual(await page.getByRole('option').allTextContents(), ['Basic style']);
+  assert.equal(await page.locator('#style').inputValue(), 'old');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#style').inputValue(), 'basic');
+  await page.locator('#style optgroup').evaluate(group => { group.hidden = false; });
+  await trigger.click();
+  await page.getByRole('option', { name: 'Imported style' }).click();
+  assert.equal(await page.locator('#style').inputValue(), 'extra');
+});
+
 test('select options remain reachable across clipping, stacking contexts and dialog edges', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/components/select-menu.css">

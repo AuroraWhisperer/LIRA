@@ -89,9 +89,7 @@ function expandBlindBoxSaleIds(panelSaleIds, configById, rawConfig) {
     if (!panelGiftNames.has(box.name)) continue;
     for (const output of box.outputs) {
       const candidates = giftsByName.get(output.name) || [];
-      const priceMatches =
-        output.rmb === null ? candidates : candidates.filter((gift) => Math.abs(gift.rmb - output.rmb) < 0.001);
-      const gift = priceMatches[0] || candidates[0];
+      const gift = output.rmb === null ? candidates[0] : candidates.find((item) => item.rmb === output.rmb);
       if (gift && !isExcludedGiftId(gift.id)) saleIds.add(gift.id);
     }
   }

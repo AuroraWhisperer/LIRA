@@ -345,7 +345,8 @@ test('runtime state selection skips unrelated domains and preserves the complete
     './server/domain-services': { createDomainServices(options) {
       const services = f.createWith(options);
       for (const [domain, method] of [['queue', 'getSnapshot'], ['superChats', 'getSnapshot'],
-        ['gifts', 'getSnapshot'], ['gifts', 'getSprintSnapshot'], ['songs', 'getMetadata']]) {
+        ['gifts', 'getSnapshot'], ['gifts', 'getDisplaySourceEpoch'], ['gifts', 'getSprintSnapshot'],
+        ['songs', 'getMetadata']]) {
         const original = services[domain][method];
         t.mock.method(services[domain], method, (...args) => {
           reads.push(`${domain}.${method}`);
@@ -370,11 +371,11 @@ test('runtime state selection skips unrelated domains and preserves the complete
     assert.deepEqual(reads.toSorted(), ['queue.getSnapshot', 'superChats.getSnapshot']);
     reads.length = 0;
     const state = getState();
-    assert.deepEqual(Object.keys(state).sort(), ['queue', 'superChats', 'gifts', 'giftSprint', 'giftDetection',
+    assert.deepEqual(Object.keys(state).sort(), ['queue', 'superChats', 'gifts', 'giftSourceEpoch', 'giftSprint', 'giftDetection',
       'blindBoxMapping', 'overtime', 'settings', 'categories', 'tags', 'songCount', 'liveStatus', 'roomGuard',
       'bilibiliDiagnostics', 'lyricState', 'lyricTimeline', 'nowPlaying', 'nowPlayingConfig', 'lyricSource', 'weSing', 'danmakuFeed'].sort());
-    assert.deepEqual(reads.toSorted(), ['gifts.getSnapshot', 'gifts.getSprintSnapshot', 'queue.getSnapshot',
-      'songs.getMetadata', 'superChats.getSnapshot']);
+    assert.deepEqual(reads.toSorted(), ['gifts.getDisplaySourceEpoch', 'gifts.getSnapshot', 'gifts.getSprintSnapshot',
+      'queue.getSnapshot', 'songs.getMetadata', 'superChats.getSnapshot']);
     assert.deepEqual(state.lyricState, lyrics.lyricState);
   } finally {
     await runtime.stop();

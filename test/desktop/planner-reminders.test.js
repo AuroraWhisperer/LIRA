@@ -99,6 +99,24 @@ test('rescheduling replaces the old deadline; removing or disabling cancels pend
   f.controller.dispose();
 });
 
+test('disabling reminders withdraws timed-out Windows banners and releases old history handles', t => {
+  const f = fixture();
+  t.after(() => f.controller.dispose());
+  f.controller.sync(Array.from({ length: 1000 }, (_, i) => f.reminder({ id: `first-${i}` })));
+  f.advance(60000);
+  for (const notification of f.notifications) notification.emit('close', { reason: 'timedOut' });
+  assert.equal(f.notifications.length, 1000);
+  assert.ok(!f.notifications[0].closed);
+  f.controller.sync([f.reminder({ id: 'next' }), f.reminder({ id: 'dismissed' })]);
+  f.advance(60000);
+  f.notifications[1000].emit('close', { reason: 'timedOut' });
+  f.notifications[1001].emit('close', { reason: 'userCanceled' });
+  assert.equal(f.notifications[0].closed, true);
+  f.controller.setEnabled(false);
+  assert.ok(f.notifications.slice(0, 1001).every(notification => notification.closed));
+  assert.ok(!f.notifications[1001].closed, 'a user-dismissed notification needs no programmatic withdrawal');
+});
+
 test('startup skips past schedules but resume delivers already scheduled reminders once', () => {
   const f = fixture();
   const pending = f.reminder();

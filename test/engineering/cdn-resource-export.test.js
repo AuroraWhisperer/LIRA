@@ -39,6 +39,24 @@ test('an export fails when a declared shared resource is absent', async t => {
   assert.throws(() => collectCdnResources(publicDir), { code: 'ENOENT' });
 });
 
+test('an image edited during export has the same bytes in the manifest and its package', async t => {
+  const { directory, publicDir } = await resourceFixture(t);
+  const fsSync = require('node:fs');
+  const { validateManifest } = require('../../src/resources/resource-download');
+  const image = path.join(publicDir, 'img/admin/world-clock/earth-day-8k.png');
+  const read = fsSync.readFileSync;
+  let imageReads = 0;
+  t.mock.method(fsSync, 'readFileSync', (filename, ...args) => {
+    const bytes = read(filename, ...args);
+    if (filename === image && ++imageReads === 1) fsSync.writeFileSync(image, 'next image revision');
+    return bytes;
+  });
+  const result = exportCdnResources({ rootDir: directory });
+  const manifest = JSON.parse(await fs.readFile(result.manifestPath, 'utf8'));
+  validateManifest(manifest, require('../../src/resources/catalog.json').files);
+  assert.equal(imageReads, 1);
+});
+
 test('the baseline inventory includes complete fonts and large images while tiny title subsets stay bundled', () => {
   const actual = collectCdnResources(path.resolve(__dirname, '../../public'));
   assert.deepEqual(actual, require('../../src/resources/catalog.json').files);

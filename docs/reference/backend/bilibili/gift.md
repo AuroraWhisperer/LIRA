@@ -45,6 +45,8 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 管理页本场页签和独立源的本场预览始终读取直播窗口，空列表也能显示开播状态。管理页的长效、本日页签、场景输出、画布预览、独立浏览器源及其他周期预览按卡片需要取数。当前授权来源只要有一条本场心愿，所有这些视图仍使用真实窗口和历史流水。其他情况下，纯卡片请求跳过房间查询，返回 `session: null`。
 
+换房期间只允许当前房间的有效请求写入该来源的最近窗口和内存缓存。晚返回的旧请求提示刷新。当前房间随后查不到直播状态时，沿用它上次确认的起止和检查时间统计本场数量。
+
 - **统计周期**：长效自服务端创建时间起算；本日自北京时间当日 00:00 起算（含当日创建前流水）；本场自确认的开播时间起算，重连与重启不重置，下一场开始自动切换窗口。确认离线时本场归零并等待开播，不把重新打开页面的时刻当作下播时间；上游不可用时暂停本场计数并冻结至最后确认开播时刻，恢复后按窗口重算（直播状态最多延迟 1 个 30 秒缓存周期）。
 - **目标与计数**：目标须为正整数，实际数量只累计正整数 `num`（可超过目标，进度条封顶 100%）。修改目标或文案不重置创建时间，删除只删许愿定义；计数反映当前账本，用户主动清空流水会同步影响进度。
 - **今日已收（`todayCount`）**：按北京时间当日 00:00 至快照时刻的同来源、同身份最终 `active` 流水统计（含创建前当日礼物，独立于长效/本场目标进度；本日条目直接复用 `count`）。文字版在 `todayCount > 0` 时切换为已收颜色，次日按新日窗口恢复未收颜色（未达目标也会变色）；两色支持逐条自定义（默认与预览规则见 [前端页面](../../frontend/pages.md)）；卡片与徽章沿用目标完成状态。
@@ -98,6 +100,10 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 盲盒盈亏汇总、排行与分析读取 `final + is_blind_box=1 + blind_profit 非空` 的当前来源有效记录，包含离线或安装前由服务器记录、随后同步的历史明细，不受本机实时消费者的 `gift_stats_eligible` 限制。存在保留快照时沿用活动快照成员筛选，分批下载的历史在快照激活后才参与；无来源的旧本地记录仍要求原统计资格。统计按送礼时间归入本机当日，分析支持显式日期范围，由 [blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js) 的 `prepareBlindBoxQuery` 校验日期并计算本机日界（HTTP 参数与返回字段见 [api.md §10](../api.md#10-礼物域gifts)）。
 
+礼物首页展开「今日盲盒盈亏」时按本机午夜刷新，使用 `top=10&includeRecords=0` 读取汇总和观众前十名。查询服务在复制响应前省去 `records`，共用同一份当日统计缓存。管理接口省略 `includeRecords` 或传 `1` 时仍可取得最多 500 条逐笔明细。
+
+设备授权中断会清除只读盲盒映射摘要。同账号恢复后，云同步可用同一设置版本重新发布已确认的摘要。旧版本、待上传的本地编辑及账号切换沿用各自的同步校验。[云设置同步控制器](../../../../src/electron/cloud-settings-sync-controller.js)
+
 当天统计在查询服务内按来源、本机当日始末时间戳及盲盒输入变更标记缓存，最多保留 2 个最近使用的盒名结果（使管理页全部盲盒与心动盲盒交替读取时互不驱逐）。同连接的普通礼物、同步校验时间和投递标记不触发重算；盲盒历史导入、活动快照切换、查询输入修订、归档变化、清理、其他连接提交、来源或连接替换、跨日或时区变化均使缓存失效；事务内读取不入缓存，对外返回独立结果。分析入口另为每个查询上下文缓存最近一份分页响应（不缓存完整历史行），返回副本。内部 `getBlindBoxChangeToken` 复用上述来源、账本和日界标记并由门面绑定来源切换代次，供场景适配器做条件投影校验（事务内或来源切换中返回 `null` 回退完整读取）。底层数据库变更追踪见 [查询优化](../storage.md#查询优化song-v7--gift-v12)。
 
 `boxName=心动盲盒` 的统计另返回 `heartBoxProgress.openedSinceCastle`：按 `created_at`（含毫秒）及行 ID 顺序，累计今天最近一次开出浪漫城堡之后的心动盲盒数量（出堡行归零，当日未出堡则为今日累计）。仅接受心动盲盒 ID `32251`（旧行缺 ID 时回退精确盒名），浪漫城堡按产物 ID `32132` 识别；直送礼物及其他盒型/日期/来源不参与。进度包含盈亏未知但已确认的有效开盒记录（盈亏汇总仍排除这些行），直接从账本恢复；其他 `boxName` 查询返回 `null`。
@@ -118,6 +124,8 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 最近礼物从当前来源的已发布明细读取（含云端恢复的历史记录），沿用明细成员证明与本机保留期限，不以 `gift_stats_eligible` 作为展示条件；暂存历史在原子激活前不可见。恢复从 `BOOTSTRAPPING` 进入 `CATCHING_UP` 时，由现有 `gift:source` 快照刷新首页；前端通知跳过 `gift_stats_eligible=0` 的记录，历史资格不触发冲刺或加班消费者。旧本地来源保留原统计资格筛选。
 
+首页按礼物发生时刻倒序取前 30 条。本地与远端来源的时间先统一到 UTC 毫秒，相同时刻按本机行 ID 倒序。服务器留存分页允许较晚发生的礼物先传到桌面，恢复后沿用上述排序。
+
 ### 流水筛选、选择快照与展示资料
 
 `history-filters.js` 负责北京时间日期边界、独立用户/礼物名称过滤与来源版本。`getGiftHistory` 在完整有效流水上先筛选再分页，支持 `today` 和起止日期；游标绑定筛选、排序、`asOf` 与 `viewRevision`（包含 `source`、持久化投影代次及进程内来源切换代次）。排序保留勾选，筛选、清库/重建或切换来源使选择失效。
@@ -132,7 +140,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 导出预览先校验选项，待合并方式确定后按最终选中的冻结快照生成文件清单。导出快照优先使用账本已有的头像及今日卡片资料。`gift-export-runtime.js` 仅对仍缺头像的已选公开事件 ID 批量调用 Device `POST /api/device/gift-card-avatars`（每批最多 200 条，总时限 4 秒）。服务器按租户依次使用原记录头像、同 UID 同北京时间日的已知头像和按 UID 向 B 站查询的当前公开头像；桌面端校验返回 ID 和头像 URL，确认来源版本及北京时间日期后将地址用于本次预览和 PNG，无法确认身份或取到头像时使用默认头像。
 
-导出开关 `mergeAcrossDates`（合并同种礼物）默认关闭。关闭时每笔所选结算记录独立成卡，包括北京时间今天的记录，保留事件 ID、顺序和原数量。开启时先用打开预览时已确认的今日送礼人资料合并同款，再为剩余礼物 ID 与名称相同的候选向 Device `POST /api/device/gift-card-groups` 一次提交代表事件 ID。服务端按同租户账本中的可靠 UID 和礼物身份返回选内分组；每组保留首笔位置，各笔数量和整数分金额只累计一次。服务端缺少明细、身份或暂时离线时保留已有证据支持的结果并提示。
+导出开关 `mergeAcrossDates`（合并同种礼物）默认关闭。关闭时每笔所选结算记录独立成卡，包括北京时间今天的记录，保留事件 ID 和原数量。开启时先用打开预览时已确认的今日送礼人资料合并同款，再为剩余礼物 ID 与名称相同的候选向 Device `POST /api/device/gift-card-groups` 一次提交代表事件 ID。服务端按同租户账本中的可靠 UID 和礼物身份返回选内分组。每组保留按时间倒序的首笔位置。合并卡片用 `settledTotalCents` 累加各笔 `gift.totalPrice` 的整数分金额，供导出按金额排序，`cardTotalCents` 继续用于横幅分色。服务端缺少明细、身份或暂时离线时保留已有证据支持的结果并提示。
 
 礼物横幅按单价整数分乘数量分色，配置持久化为本地 `giftDisplayConfig`，不进入云端同步作用域（远端展示字段协商见 §6.1）。
 
@@ -143,13 +151,14 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 | 大航海感谢 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode`（默认空值继承旧配置，行为见 §1） | [guard-thanks-config.js](../../../../src/bilibili/gift/guard-thanks-config.js) |
 | 水晶球价值 | `CRYSTAL_BALL_VALUE_RMB = 100`（RMB） | [sprint-service.js](../../../../src/bilibili/gift/sprint-service.js) |
 | 冲刺快照 | `receivedRmb = SUM(total_price)`（`final` + 资格 + `counted_in_sprint=1`）；`remainingRmb = max(0, target - received)`；**`remainingCrystalBalls = ceil(remaining / 100)`** | [sprint-service.js](../../../../src/bilibili/gift/sprint-service.js) |
-| 列表快照 | `getGiftSnapshot` 最近 **30** 条（`final` + 资格 + 付费）；`getGiftHistory` 解析当前授权 `source`，分页 limit ≤ **100**，按白名单字段复合 keyset 排序并返回 `total/totalPages` | [query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift-query-store.js](../../../../src/storage/gift-query-store.js) |
+| 列表快照 | `getGiftSnapshot` 取当前来源最近 **30** 条可见的 `final` 付费明细，旧本地来源另要求统计资格。`getGiftHistory` 解析当前授权 `source`，分页 limit ≤ **100**，按白名单字段复合 keyset 排序并返回 `total/totalPages` | [query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift-query-store.js](../../../../src/storage/gift-query-store.js) |
 | 重置 | `resetGiftSprintProgress` 按当前来源清零 `counted_in_sprint` 并清除对应冲刺结转；事务由 `gift-query-store.js` 负责 | [sprint-service.js](../../../../src/bilibili/gift/sprint-service.js) |
 
 `counted_in_sprint` 由 `giftStatistics` 消费者在 **final** 时落定（§2.3），因此冲刺统计天然只含已收尾事件。
 
 ## 6. 快照与端点
 
+- `giftSourceEpoch` 是礼物服务在进程内随机生成的展示来源代次。展示页只拿到这个 UUID，实际来源键留在本机服务内。同源留存历史激活或同一授权账号清库重建时沿用原值，展示来源改变时生成新值。
 - WS 快照 `gifts`（礼物事件列表）/ `giftSprint`（冲刺状态，含 `crystalBallValueRmb`）/ `giftDetection`（`getStatus()` 的 `coreActive/pendingCount` 等）由本服务产出（见 [ws.md](../ws.md) §2）；`superChats` 见 §7。
 - 礼物/SC 的 `/api/*` 端点组（`gifts`、`superChat` 两组 context，见 [server.js:312-325](../../../../src/server.js#L312-L325)）完整清单见 [api.md](../api.md)。
 
@@ -186,7 +195,7 @@ pull/history 与 SSE 的请求头统一由 [gift-protocol.js](../../../../src/el
 | --- | --- | --- |
 | 置顶阈值 | `SUPER_CHAT_PIN_THRESHOLD = 2` RMB（协议层 `isPinned`，见 [protocol.md](protocol.md) §6.2） | [superchat-service.js](../../../../src/bilibili/superchat-service.js) |
 | 入库阈值 | `SUPER_CHAT_DISPLAY_THRESHOLD = 2` RMB，`price < 2` 直接拒绝 | [superchat-service.js](../../../../src/bilibili/superchat-service.js) 的 `addSuperChatItem` |
-| 去重 | `platform_id` 属于当前显示项时返回既有行；已在 `super_chat_receipts` 时返回 `null`，不恢复内容 | [superchat-service.js](../../../../src/bilibili/superchat-service.js) |
+| 入库去重 | `platform_id` 属于当前显示项时返回既有行。已在 `super_chat_receipts` 时返回 `null`。旧版本机弹幕源的公开消息另按房间内的平台 ID 去重 | [superchat-service.js](../../../../src/bilibili/superchat-service.js)、[实时弹幕流](danmaku.md#41-实时弹幕流) |
 | 状态机 | `active`（插入默认）→ `assist` → `assisted`；`unassist` → `active`；`delete` 物理删除内容，仅保留平台 ID | [superchat-service.js](../../../../src/bilibili/superchat-service.js) |
 | 平台下线 | `retractSuperChatItems` 按 `platform_id` 批量删除内容并保留最小 ID；尚未收到原消息的撤回 ID 也阻止迟到包入库 | [superchat-service.js](../../../../src/bilibili/superchat-service.js)、[superchat-store.js](../../../../src/storage/superchat-store.js) |
 | 快照 | `WHERE status IN ('active','assisted') ORDER BY price DESC, datetime(created_at) ASC, id ASC` | [superchat-store.js](../../../../src/storage/superchat-store.js) 的 `listActive` |

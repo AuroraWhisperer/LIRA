@@ -10,7 +10,7 @@ const ERRORS = {
   DAILY_BOT_TAKEOVER_REQUIRED: '旧数据正在导入，完成后可编辑词库。',
   DAILY_BOT_BUSY: '上一项操作尚未完成，请稍后重试。',
 };
-const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, search: '', notice: '', readError: '', conflict: false, failed: false });
+const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, search: '', notice: '', readError: '', conflict: false, saveError: '' });
 
 function matchesConfirmed(library, confirmed) {
   return library.length === confirmed.length && library.every((item, index) =>
@@ -23,7 +23,7 @@ function settleUndo(data) {
   // The draft matches its base. Only a successful cloud response clears a read error.
   data.items = structuredClone(data.confirmed.library);
   data.dirty = false;
-  data.failed = false;
+  data.saveError = '';
   data.notice = '';
   return true;
 }
@@ -50,13 +50,13 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     element('Reload').disabled = !enabled || busy;
     element('Reload').hidden = !data.conflict;
     element('Add').disabled = !data.items || data.items.length >= 1000;
-    element('Status').textContent = data.notice || data.readError || (data.dirty ? '有未保存的修改' : data.items ? '已与云端确认' : '展开时读取词库');
-    element('Status').parentElement.hidden = Boolean(data.items && !data.readError && !data.failed && !data.conflict);
+    element('Status').textContent = data.notice || data.readError || data.saveError || (data.dirty ? '有未保存的修改' : data.items ? '已与云端确认' : '展开时读取词库');
+    element('Status').parentElement.hidden = Boolean(data.items && !data.readError && !data.saveError && !data.conflict);
   }
   function changed(data) {
     data.edit++;
     data.dirty = true;
-    data.failed = false;
+    data.saveError = '';
     if (!data.conflict) data.notice = '';
     controls();
     autosaves[data === states.checkin ? 'checkin' : 'fortune'].schedule();
@@ -142,12 +142,13 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     data.confirmed = latest;
     if (hasDraft && !matchesConfirmed(data.items, latest.library)) {
       data.conflict = data.version !== latest.version;
-      data.notice = data.conflict ? ERRORS.DAILY_BOT_LIBRARY_CONFLICT : '已核对云端，未保存的草稿已保留。';
+      data.notice = data.conflict ? ERRORS.DAILY_BOT_LIBRARY_CONFLICT : '';
     } else {
       if (hasDraft) autosaves[key].cancel();
       else data.items = structuredClone(latest.library);
       data.version = latest.version;
-      data.dirty = data.conflict = data.failed = false;
+      data.dirty = data.conflict = false;
+      data.saveError = '';
       data.notice = '';
     }
     if (kind !== key) return;
@@ -164,7 +165,7 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     const library = data.items.map((item) => typeof item === 'string' ? item.trim()
       : Object.fromEntries(Object.entries(item).map(([field, value]) => [field, value.trim()])));
     if (!library.length || library.some((item) => typeof item === 'string' ? !item : Object.values(item).some((value) => !value))) {
-      data.notice = '请至少保留一条文案，并填写所有字段。';
+      data.saveError = data.notice = '请至少保留一条文案，并填写所有字段。';
       controls();
       return;
     }
@@ -174,18 +175,17 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     if (generation !== requested) return;
     if (response?.ok) {
       data.readError = '';
-      data.failed = false;
+      data.saveError = '';
       data.confirmed = response.library;
       data.version = response.library.version;
       data.dirty = data.edit !== edit;
       if (!data.dirty) data.items = structuredClone(response.library.library);
       data.notice = data.dirty ? '已保存提交的内容；后续修改仍未保存。' : '词库已保存到云端。';
     } else {
-      data.failed = true;
       data.conflict = response?.error === 'DAILY_BOT_LIBRARY_CONFLICT';
       // A lost receipt can follow a successful write, so the old snapshot cannot confirm an undo.
       data.confirmed = null;
-      data.notice = ERRORS[response?.error] || '保存尚未确认，草稿已保留。请刷新核对后重试。';
+      data.saveError = data.notice = ERRORS[response?.error] || '保存尚未确认，草稿已保留。请刷新核对后重试。';
     }
     if (kind === key) !automatic && data.edit === edit ? render() : controls();
   }
@@ -203,7 +203,8 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     }
     data.items = structuredClone(data.confirmed.library);
     data.version = data.confirmed.version;
-    data.dirty = data.conflict = data.failed = false;
+    data.dirty = data.conflict = false;
+    data.saveError = '';
     data.edit++;
     data.notice = '';
     render();

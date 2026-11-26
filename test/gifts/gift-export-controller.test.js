@@ -69,17 +69,22 @@ function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport, 
         storedSettings.giftExportDirectory = directory;
       },
       mergeGiftExport,
-      setGiftExportSettings: ({ mode, background, mergeAcrossDates, directory }) =>
+      setGiftExportSettings: ({ mode, background, sortBy, rowGap, mergeAcrossDates, directory }) =>
         Object.assign(storedSettings, {
           giftExportMode: mode,
           giftExportBackground: background,
+          giftExportSortBy: sortBy,
+          giftExportRowGap: String(rowGap),
           giftExportMergeAcrossDates: String(mergeAcrossDates),
           giftExportDirectory: directory,
         }),
       getGiftViewRevision: () => revision,
       prepareGiftExport: () => ({
         viewRevision: revision,
-        items: [{ eventId: 'one' }, { eventId: 'two' }],
+        items: [
+          { eventId: 'one', gift: { totalPrice: 2 } },
+          { eventId: 'two', gift: { totalPrice: 5 } },
+        ],
         config: {},
         catalog: [{ id: 'sample', name: 'Sample gift' }],
       }),
@@ -150,18 +155,22 @@ test('export settings work without a selection, persist and only affect new task
   assert.deepEqual(await controller.settings(), {
     mode: 'combined',
     background: 'transparent',
+    sortBy: 'time',
+    rowGap: 16,
     mergeAcrossDates: false,
     directory: path.join(root, 'LIRA', '礼物导出'),
     custom: false,
   });
   const directory = path.join(root, 'chosen');
   dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] });
-  await controller.settings({ mode: 'separate', background: 'white', directoryAction: 'choose' });
+  await controller.settings({ mode: 'separate', background: 'white', sortBy: 'amount', rowGap: 0, directoryAction: 'choose' });
   assert.equal(fs.existsSync(directory), false);
   const reloaded = fixture(t, undefined, storedSettings);
   const task = await reloaded.controller.prepare({});
   assert.equal(task.mode, 'separate');
   assert.equal(task.background, 'white');
+  assert.deepEqual(task.snapshot.items.map(item => item.eventId), ['two', 'one']);
+  assert.equal(task.rowGap, 0);
   assert.equal(task.root, directory);
   await reloaded.controller.settings({ mode: 'combined', background: 'transparent', directoryAction: 'default' });
   assert.equal((await reloaded.controller.save({ id: task.id })).saved, 2);
@@ -181,6 +190,10 @@ test('export settings reject unsafe values and discard cancelled or stale direct
     { directory: 'C:/arbitrary' },
     { mode: 'huge' },
     { background: 'red' },
+    { sortBy: 'name' },
+    { rowGap: -1 },
+    { rowGap: 33 },
+    { rowGap: '0' },
     { mergeAcrossDates: 'false' },
     { directoryAction: 'write' },
   ]) {
@@ -218,8 +231,29 @@ test('export preview creates no files and accepts only dialog/system directories
   assert.equal(configured.background, 'white');
   assert.equal(storedSettings.giftExportDirectory, undefined);
   await assert.rejects(() => controller.configure({ id: task.id, mode: 'huge', background: 'white' }));
+  await assert.rejects(() => controller.configure({ id: task.id, mode: 'combined', background: 'white', rowGap: 0.5 }));
+  await assert.rejects(() => controller.configure({ id: task.id, mode: 'combined', background: 'white', sortBy: 'name' }));
   assert.equal(exportLayout(40, 'combined').length, 2);
   assert.throws(() => exportLayout(10001, 'combined'));
+});
+
+test('amount order uses merged settlements before pagination and time order restores the snapshot', async t => {
+  const { controller, windows } = fixture(t, undefined, {}, async snapshot => ({
+    ...snapshot,
+    items: [
+      { eventId: 'recent', gift: { totalPrice: 6 } },
+      { eventId: 'tie', gift: { totalPrice: 6 } },
+      { eventId: 'merged', gift: { totalPrice: 1 }, settledTotalCents: '700' },
+    ],
+  }));
+  const { id } = await controller.prepare({});
+  const options = { id, mode: 'separate', background: 'white', mergeAcrossDates: true };
+  const ids = (task) => task.snapshot.items.map(item => item.eventId);
+  const amount = await controller.configure({ ...options, sortBy: 'amount' });
+  assert.deepEqual(ids(amount), ['merged', 'recent', 'tie']);
+  assert.equal((await controller.save({ id })).saved, 3);
+  assert.deepEqual(windows[0].payloads.slice(1).map(payload => payload.items[0].eventId), ids(amount));
+  assert.deepEqual(ids(await controller.configure({ ...options, sortBy: 'time' })), ['recent', 'tie', 'merged']);
 });
 
 test('the export reuses frozen groupings when toggled and saves the previewed cards', async (t) => {

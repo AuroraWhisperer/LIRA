@@ -197,7 +197,7 @@
   border: none;
   border-radius: 50%;
   background: color-mix(in srgb, var(--primary) 12%, transparent);
-  color: var(--primary);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary)));
   cursor: pointer;
   opacity: 0;
   transform: scale(0.8);
@@ -359,7 +359,7 @@
 /* 正在播放小图标 */
 .playlist-now-icon {
   font-size: var(--type-size-micro);
-  color: var(--primary);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary)));
   vertical-align: middle;
   line-height: 1;
 }

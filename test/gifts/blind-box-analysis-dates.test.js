@@ -360,9 +360,35 @@ test('analysis and stats routes pass filters through and return 400 for invalid 
   const summary = request('top=0&hideLoss=1', 'GET /api/gifts/blind-box-stats');
   assert.equal(summary.status, 200);
   assert.deepEqual(summary.payload.data.perUser, []);
-  assert.deepEqual(calls.at(-1), { boxName: '', top: '0', hideLoss: '1' });
+  assert.deepEqual(calls.at(-1), { boxName: '', top: '0', hideLoss: '1', includeRecords: true });
   failure = Object.assign(new Error('Invalid top'), { code: 'INVALID_GIFT_STATS_OPTIONS' });
   const invalidTop = request('top=01', 'GET /api/gifts/blind-box-stats');
   assert.equal(invalidTop.status, 400);
   assert.equal(invalidTop.payload.code, 'INVALID_GIFT_STATS_OPTIONS');
+});
+
+test('summary-only admin stats omit the 500 details while preserving the 520 openings and top ten', async (t) => {
+  const { invokeQueryRoute } = require('../helpers/route-invoke');
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 1, 12) });
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  const createdAt = new Date().toISOString();
+  fixture.giftDb.exec('BEGIN');
+  for (let i = 0; i < 520; i++) {
+    fixture.insertGift(null, `opening-${i}`, { cmd: 'SEND_GIFT', isBlindBox: true, blindBoxPrice: 1,
+      totalPrice: 2, userName: `Viewer ${i % 12}`, createdAt });
+  }
+  fixture.giftDb.exec('COMMIT');
+  const context = { gifts: { getBlindBoxStats: options => getBlindBoxStats(fixture.context, options) } };
+  const read = query => invokeQueryRoute(routes['GET /api/gifts/blind-box-stats'], context, query);
+  const full = (await read('top=10')).body.data;
+  const compact = (await read('top=10&includeRecords=0')).body.data;
+  assert.equal(full.records.length, 500);
+  assert.equal(Object.hasOwn(compact, 'records'), false);
+  assert.equal(compact.summary.boxCount, 520);
+  assert.equal(compact.perUser.length, 10);
+  assert.deepEqual(compact.summary, full.summary);
+  assert.deepEqual(compact.perUser, full.perUser);
+  assert.equal((await read('includeRecords=1')).body.data.records.length, 500);
+  assert.equal((await read('includeRecords=invalid')).status, 400);
 });

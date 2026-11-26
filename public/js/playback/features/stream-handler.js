@@ -6,6 +6,7 @@ export function createStreamHandler(deps) {
   const {
     streamService,
     playbackState,
+    stateActions,
     getPlaybackAudio,
     createPlaybackRequestGuard,
     playPlaybackTrack,
@@ -19,15 +20,18 @@ export function createStreamHandler(deps) {
     const isCurrent = createPlaybackRequestGuard(track);
     const origin = playbackState.currentOrigin;
 
+    if (track.source === 'local' && audio.dataset.trackId === track.id && isCurrent()) {
+      stateActions.forgetLocalFileUrl(track.objectUrl);
+      delete audio.dataset.trackId;
+    }
+
     await streamService.handlePlaybackError(
       { ...track },
-      audio,
-      (track, resumeAt) => {
+      (track) => {
         // 重试成功回调
         return playPlaybackTrack(track, {
           origin,
           isRetry: true,
-          startAt: resumeAt,
         });
       },
       () => {

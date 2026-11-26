@@ -19,12 +19,14 @@ test('QQ liked pagination shares only one load and invalidates after writes or a
   provider.requestMusicsClient = async () => {
     details++;
     return { code: 0, 'music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo': { code: 0, data: {
-      songlist: Array.from({ length: 250 }, (_, i) => ({ id: i + 1, mid: `song-${i}`, title: `Song ${i}`, singer: [] })),
+      songlist: Array.from({ length: 250 }, (_, i) => ({ id: i + 1, mid: `song-${i}`, title: i ? `Song ${i}` : '', singer: [] })),
     } } };
   };
   const page = (offset, loadingSession = 'load-one') => provider.getLikedTracks({ limit: 100, offset, loadingSession });
-  assert.equal((await page(0)).length, 100);
-  assert.equal((await page(100))[0].sourceTrackId, 'song-100');
+  const first = await provider.getLikedTrackPage({ limit: 100, offset: 0, loadingSession: 'load-one' });
+  assert.equal(first.tracks.length, 99);
+  assert.equal(first.nextOffset, 100);
+  assert.equal((await page(first.nextOffset))[0].sourceTrackId, 'song-100');
   assert.equal((await page(200)).length, 50);
   assert.deepEqual([playlists, details], [1, 1]);
   await page(0, 'refresh');
@@ -47,6 +49,52 @@ test('QQ public playlist fallback still requests each actual page', async () => 
   await provider.getLikedTracks({ limit: 100, offset: 0, loadingSession: 'public' });
   await provider.getLikedTracks({ limit: 100, offset: 100, loadingSession: 'public' });
   assert.deepEqual(offsets, ['0', '100']);
+});
+
+test('QQ liked public pages advance past a fully filtered window and stop on a repeated raw page', async () => {
+  const provider = createProvider();
+  provider.getLikedPlaylist = async () => ({ id: '123' });
+  provider.requestMusicsClient = async () => { throw new Error('client unavailable'); };
+  const invalid = [{ id: 7, mid: 's7' }, { id: 8, mid: 's8' }];
+  let repeat = false;
+  provider.requestJson = async (_url, params) => ({ cdlist: [{ songlist: repeat || params.song_begin === '0'
+    ? invalid : [{ id: 9, mid: 'tail', title: 'Tail' }] }] });
+  const read = (offset, loadingSession) => provider.getLikedTrackPage({ limit: 2, offset, loadingSession });
+  const first = await read(0, 'one');
+  assert.equal(first.tracks.length, 0);
+  const tail = await read(first.nextOffset, 'one');
+  assert.deepEqual(tail.tracks.map(track => track.sourceSongId), [9]);
+  assert.equal(tail.nextOffset, null);
+  repeat = true;
+  await read(0, 'two');
+  await assert.rejects(read(2, 'two'));
+});
+
+test('QQ public favorites finish on distinct identities and reject a missing or repeated tail', async () => {
+  const provider = createProvider();
+  provider.getLikedPlaylist = async () => ({ id: '123' });
+  provider.requestMusicsClient = async () => { throw new Error('client unavailable'); };
+  const song = id => ({ id, mid: `m${id}`, title: `Song ${id}` });
+  const first = [song(1), song(2)];
+  let total = 2;
+  let tail;
+  provider.requestJson = async (_url, { song_begin }) => ({
+    cdlist: [{ total_song_num: total, songlist: song_begin === '0' ? first : tail }],
+  });
+  const page = (loadingSession, offset) => provider.getLikedTrackPage({ loadingSession, limit: 2, offset });
+  assert.equal((await page('full', 0)).nextOffset, null);
+
+  total = 3;
+  const start = await page('overlap', 0);
+  tail = [song(2), song(3)];
+  const end = await page('overlap', start.nextOffset);
+  assert.deepEqual(end.tracks.map(t => t.sourceSongId), [3]);
+  assert.equal(end.nextOffset, null);
+  for (const [session, rows] of [['repeated', first], ['missing', undefined]]) {
+    const { nextOffset } = await page(session, 0);
+    tail = rows;
+    await assert.rejects(page(session, nextOffset));
+  }
 });
 
 function createProvider() {
@@ -100,12 +148,13 @@ test('QQ requests keep their signed identity and Cookie on one credential snapsh
 test('QQ liked removal resolves the UI alias through the current account playlist', async () => {
   const provider = createProvider();
   const liked = { id: '987654', tid: '987654', dirId: '201', title: '我喜欢' };
+  const custom = { id: '17', tid: '17', dirId: '7', title: '我喜欢的民谣' };
   let reads = 0;
   const writes = [];
   provider.getCreatedPlaylists = async (options) => {
     assert.equal(options.includeLiked, true);
     reads++;
-    return [liked];
+    return [custom, liked];
   };
   provider.requestPlaylistWrite = async (...args) => { writes.push(args); return { ok: true }; };
   const payload = { platform: 'qq', playlist: { id: 'liked' }, tracks: [{ sourceSongId: 123 }] };
@@ -118,7 +167,7 @@ test('QQ liked removal resolves the UI alias through the current account playlis
   assert.equal(reads, 1);
   const loggedOut = new QQMusicProvider({ getAuthState: () => ({ loggedIn: false }), getCookieHeader: () => '' });
   await assert.rejects(loggedOut.removeTracksFromPlaylist({ id: 'liked' }, payload.tracks), /登录/);
-  provider.getCreatedPlaylists = async () => [];
+  provider.getCreatedPlaylists = async () => [custom];
   await assert.rejects(provider.removeTracksFromPlaylist({ id: 'liked' }, payload.tracks), /没有.*我喜欢/);
   assert.equal(writes.length, 2);
 });

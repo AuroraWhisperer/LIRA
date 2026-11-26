@@ -6,7 +6,7 @@
   border: 1px solid var(--color-border-default);
   border-radius: 14px;
   background: var(--color-bg-primary);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--text) 5.5%, transparent);
+  box-shadow: 0 8px 22px light-dark(color-mix(in srgb, var(--text) 5.5%, transparent), rgba(0, 0, 0, 0.36));
 }
 
 .gift-recent-panel > .panel-header {
@@ -309,10 +309,10 @@
     background: linear-gradient(
       115deg,
       transparent 28%,
-      rgba(255, 237, 178, 0.12) 40%,
-      rgba(255, 253, 230, 0.48) 48%,
-      rgba(255, 255, 248, 0.72) 50%,
-      rgba(255, 247, 208, 0.24) 54%,
+      light-dark(rgba(255, 237, 178, 0.12), rgba(255, 237, 178, 0.05)) 40%,
+      light-dark(rgba(255, 253, 230, 0.48), rgba(255, 244, 200, 0.14)) 48%,
+      light-dark(rgba(255, 255, 248, 0.72), rgba(255, 248, 220, 0.24)) 50%,
+      light-dark(rgba(255, 247, 208, 0.24), rgba(255, 244, 200, 0.08)) 54%,
       transparent 68%
     );
     opacity: 0;

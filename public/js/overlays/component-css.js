@@ -28,6 +28,13 @@ export function createComponentCss() {
           } catch (error) { fail(error); }
         }, { once: true });
         link.addEventListener('error', () => fail(new Error('CSS resource missing')), { once: true });
+      }).catch(error => {
+        if (link === stylesheet) {
+          stylesheet.remove();
+          link = null;
+          pending = null;
+        }
+        throw error;
       });
       pending = { promise, reject };
       document.head.append(link);

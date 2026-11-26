@@ -83,7 +83,9 @@ function createPlannerReminderController({
   let pending = new Map();
   // Only identities are needed for delivered or skipped entries still on the calendar.
   let settled = new Map();
-  const notifications = createSystemNotifications({ Notification, getMainWindow, icon, writeLog, scope: 'planner-reminder' });
+  const notifications = createSystemNotifications({
+    Notification, getMainWindow, icon, writeLog, scope: 'planner-reminder', timedOutLimit: MAX_FUTURE,
+  });
   let timer = null;
   let disposed = false;
 

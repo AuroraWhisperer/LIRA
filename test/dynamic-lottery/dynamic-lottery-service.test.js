@@ -102,6 +102,24 @@ test('tasks are visible and actionable only by the owning streamer identity', as
   assert.throws(() => f.service.getState(), { code: 'LOTTERY_IDENTITY_UNAVAILABLE' });
 });
 
+test('the initial candidate count does not sort a ready pool', t => {
+  const f = createFixture(t);
+  const records = ['103', '101', '102'].map((uid, i) => commentRecord(String(i + 1), uid));
+  const task = seedTask(f.store, 'count-only', '42', { records });
+  const sorts = [];
+  const sort = Array.prototype.sort;
+  Array.prototype.sort = function (compare) {
+    if (this.length && this.every(member => member?.source === 'comment' && member.uid)) sorts.push(this.length);
+    return sort.call(this, compare);
+  };
+  try {
+    assert.equal(f.service.getState({ taskId: task.id }).task.candidateCount, 3);
+  } finally {
+    Array.prototype.sort = sort;
+  }
+  assert.deepEqual(sorts, []);
+});
+
 test('progress polling reuses candidate counts only for the current task and authorization', async (t) => {
   const f = createFixture(t);
   const own = seedTask(f.store, 'cached-own', '42');
@@ -299,6 +317,8 @@ test('failures expose only a public code to the same identity and pause the shar
   (await f.nextRequest()).reject(Object.assign(new Error('challenge'), { code: 'LOTTERY_BILIBILI_CHALLENGE' }));
   await f.settle();
   assert.equal(f.service.getState().error, 'LOTTERY_BILIBILI_CHALLENGE');
+  const other = seedTask(f.store, 'ready-other', '42');
+  assert.equal(f.service.getState({ taskId: other.id }).error, '');
   assert.deepEqual(f.paused, [['42', 'LOTTERY_BILIBILI_CHALLENGE']]);
 
   for (const [code, expected] of [['LOTTERY_BUSY', 'LOTTERY_BUSY'], ['lottery_busy', 'LOTTERY_OPERATION_FAILED'],
@@ -380,6 +400,8 @@ test('routes map public lottery codes to HTTP statuses without raw errors', asyn
 });
 
 test('rules accept only bounded winners and boolean requirements', () => {
+  assert.equal(normalizeRules({ ...RULES, submittedAtMs: 1999 }, 2001).endsAtMs, 1999);
+  assert.equal(normalizeRules({ ...RULES, submittedAtMs: 2005 }, 2001).endsAtMs, 2001);
   for (const winnerCount of [1, 100]) {
     assert.equal(normalizeRules({ ...RULES, winnerCount }, 10).winnerCount, winnerCount);
   }

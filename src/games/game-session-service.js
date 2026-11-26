@@ -36,12 +36,11 @@ function createGameSessionService(options = {}) {
     pruneViewers();
   }
 
-  function listViewers() {
+  function listViewers({ sorted = true } = {}) {
     syncViewerSource();
     pruneViewers();
-    return [...viewers.values()]
-      .map(({ uid, name, lastSeenAt }) => ({ uid, name, lastSeenAt }))
-      .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+    const candidates = [...viewers.values()].map(({ uid, name, lastSeenAt }) => ({ uid, name, lastSeenAt }));
+    return sorted ? candidates.sort((a, b) => b.lastSeenAt - a.lastSeenAt) : candidates;
   }
 
   function syncViewerSource() {

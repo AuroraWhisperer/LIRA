@@ -48,6 +48,8 @@ export function createBlindboxSettings({
 }) {
   const invalid = (id, message) => showFieldError(documentRef.getElementById(id), message, documentRef);
   const overlayFields = OVERLAY_FIELDS.map(key => [key, key]);
+  let pendingConfigWrite;
+  let unsavedAddition;
 
   function mountAppearanceFields() {
     const host = documentRef.getElementById('blindboxAppearanceFields');
@@ -113,6 +115,24 @@ export function createBlindboxSettings({
     }
   }
 
+  async function saveCustomConfig(textarea, raw) {
+    const submitted = textarea.value;
+    textarea.dataset.dirty = 'true';
+    // Each request replaces the whole list, so the last submission must reach storage last.
+    const write = () => saveSettings({ giftBlindBoxCustomConfigV2: raw });
+    const request = pendingConfigWrite ? pendingConfigWrite.then(write, write) : write();
+    pendingConfigWrite = request;
+    try {
+      await request;
+      if (pendingConfigWrite === request && textarea.value === submitted) {
+        textarea.dataset.dirty = 'false';
+        unsavedAddition = null;
+      }
+    } finally {
+      if (pendingConfigWrite === request) pendingConfigWrite = null;
+    }
+  }
+
   function updateHeartBoxSettings() {
     const settings = documentRef.getElementById('blindboxHeartBoxSettings');
     if (settings) settings.hidden = !documentRef.getElementById('blindboxHeartBoxOnly').checked;
@@ -123,10 +143,10 @@ export function createBlindboxSettings({
   function init() {
     mountAppearanceFields();
     documentRef.getElementById('blindBoxAddBtn').addEventListener('click', async () => {
-      const giftId = (value('blindBoxGiftId') || '').trim();
-      const name = (value('blindBoxName') || '').trim();
-      const price = parseFloat(value('blindBoxPrice'));
-      const outputsRaw = (value('blindBoxOutputs') || '').trim();
+      const fields = ['blindBoxGiftId', 'blindBoxName', 'blindBoxPrice', 'blindBoxOutputs'].map(id => documentRef.getElementById(id));
+      const submitted = fields.map(field => field.value);
+      const [giftId, name, priceText, outputsRaw] = submitted.map(text => text.trim());
+      const price = parseFloat(priceText);
       if (!name) return invalid('blindBoxName', '请输入盲盒名');
       if (isNaN(price) || price <= 0) return invalid('blindBoxPrice', '请输入有效成本');
       if (giftId && !/^[1-9]\d{0,19}$/u.test(giftId)) return invalid('blindBoxGiftId', '请输入有效盲盒 ID');
@@ -138,17 +158,20 @@ export function createBlindboxSettings({
       const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
       const config = readCustomConfig(textarea);
       if (!config) return;
+      // The form already appended this unsaved box to the JSON draft. A retry edits that row.
+      const retry = unsavedAddition?.raw === textarea.value &&
+        (giftId && unsavedAddition.giftId ? giftId === unsavedAddition.giftId : name === unsavedAddition.name);
+      if (retry) config.pop();
       config.push({ giftId: giftId || null, name, price, outputs });
       const newRaw = JSON.stringify(config, null, 2);
+      if (retry && newRaw === unsavedAddition.raw && pendingConfigWrite) return;
+      unsavedAddition = { raw: newRaw, giftId, name };
       textarea.value = newRaw;
-      textarea.dataset.dirty = 'true';
-      await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
-      textarea.dataset.dirty = 'false';
+      await saveCustomConfig(textarea, newRaw);
       toast(`已保存盲盒「${name}」，等待服务器确认`);
-      documentRef.getElementById('blindBoxGiftId').value = '';
-      documentRef.getElementById('blindBoxName').value = '';
-      documentRef.getElementById('blindBoxPrice').value = '';
-      documentRef.getElementById('blindBoxOutputs').value = '';
+      if (fields.every((field, index) => field.value === submitted[index])) {
+        for (const field of fields) field.value = '';
+      }
       renderBlindboxList();
     });
 
@@ -172,9 +195,7 @@ export function createBlindboxSettings({
       config.splice(index, 1);
       const newRaw = JSON.stringify(config, null, 2);
       textarea.value = newRaw;
-      textarea.dataset.dirty = 'true';
-      await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
-      textarea.dataset.dirty = 'false';
+      await saveCustomConfig(textarea, newRaw);
       toast('盲盒移除已保存，等待服务器确认');
       renderBlindboxList();
     });
@@ -199,10 +220,7 @@ export function createBlindboxSettings({
       }
       const config = readCustomConfig(textarea);
       if (!config) return;
-      const submittedText = textarea.value;
-      textarea.dataset.dirty = 'true';
-      await saveSettings({ giftBlindBoxCustomConfigV2: JSON.stringify(config) });
-      if (textarea.value === submittedText) textarea.dataset.dirty = 'false';
+      await saveCustomConfig(textarea, JSON.stringify(config));
       toast('自定义盲盒已保存，等待服务器确认');
       renderBlindboxList();
       await getState()?.reloadState?.();

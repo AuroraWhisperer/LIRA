@@ -63,6 +63,7 @@ export function initWorldClock() {
   let selectedId = ids.includes(saved?.selectedId) ? saved.selectedId : (ids[0] || null);
   let customOrder = saved?.customOrder === true;
   let rows = [];
+  let renderedDirectory;
   const weatherRows = new Map();
   let globe;
   let globeStarted = false;
@@ -115,7 +116,7 @@ export function initWorldClock() {
       const status = state?.loading ? '正在更新' : state?.failed ? (state.data ? '未更新，显示上次天气' : '天气暂不可用') : '当前天气';
       row.temperature.title = `${status}${updated ? ` · 微软天气更新于当地 ${updated}` : ''}`;
       row.condition.title = `${condition} · ${row.temperature.title}`;
-      row.button.setAttribute('aria-label', `定位${row.city.name}，${value}，${condition}，${status}`);
+      row.button.setAttribute('aria-description', row.temperature.title);
     }
   }
 
@@ -191,6 +192,7 @@ export function initWorldClock() {
   }
 
   function renderCards() {
+    renderedDirectory = cities;
     cityDrag.cancel();
     closeCityMenu();
     const list = get('list');
@@ -204,7 +206,6 @@ export function initWorldClock() {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'world-clock-city-select';
-      button.setAttribute('aria-label', `定位${city.name}`);
       button.setAttribute('aria-pressed', String(city.id === selectedId));
       button.setAttribute('aria-haspopup', 'menu');
       button.setAttribute('aria-expanded', 'false');
@@ -212,6 +213,10 @@ export function initWorldClock() {
       button.title = '按住拖动调整顺序；Alt+↑/↓ 上下移动；右键打开城市操作';
       button.innerHTML = '<div class="world-clock-city-heading"><span class="world-clock-city-name"></span><span class="world-clock-city-country"></span><span class="world-clock-city-zone"><span class="world-clock-city-offset"></span></span></div><div class="world-clock-city-body"><div><div class="world-clock-city-time-row"><time class="world-clock-city-time"></time><span class="world-clock-city-period"></span></div><div class="world-clock-city-date"><span class="world-clock-date-text"></span><span class="world-clock-day-change"></span></div></div><div class="world-clock-weather"><span class="world-clock-temperature"></span><span class="world-clock-condition"></span></div></div>';
       button.querySelector('.world-clock-city-name').textContent = city.name;
+      const action = document.createElement('span');
+      action.className = 'sr-only';
+      action.textContent = '定位';
+      button.prepend(action);
       button.querySelector('.world-clock-city-country').textContent = city.name === city.country ? '' : city.country;
       button.addEventListener('click', () => selectCity(city.id));
       button.addEventListener('contextmenu', event => openCityMenu(event, city, button));
@@ -290,9 +295,9 @@ export function initWorldClock() {
       cityPicker.updateTime(now, format);
       return;
     }
-    const reference = clockAt('Asia/Shanghai', now, format);
+    const reference = rows.length ? clockAt('Asia/Shanghai', now, format) : null;
     const sun = sunDirection(now);
-    const clocks = new Map(selectedCities().map(city => [city.id, clockAt(city.zone, now, format)]));
+    const clocks = new Map(rows.map(({ city }) => [city.id, clockAt(city.zone, now, format)]));
     if (!customOrder && !cityDrag.dragging) {
       rows.sort((a, b) => clocks.get(a.city.id).offsetMinutes - clocks.get(b.city.id).offsetMinutes
         || ids.indexOf(a.city.id) - ids.indexOf(b.city.id));
@@ -320,9 +325,9 @@ export function initWorldClock() {
         row.lightIcon.setAttribute('aria-label', daylight ? '白昼' : '黑夜');
       }
     }
-    if (clocks.has(selectedId) && !get('details').hidden) {
-      const city = cityById.get(selectedId);
-      const clock = clocks.get(selectedId);
+    const city = cityById.get(selectedId);
+    if (city && !get('details').hidden) {
+      const clock = clocks.get(selectedId) || clockAt(city.zone, now, format);
       setText(get('name'), city.name);
       setText(get('country'), city.name === city.country ? '' : city.country);
       get('country').hidden = city.name === city.country;
@@ -348,6 +353,14 @@ export function initWorldClock() {
     ensureDirectory();
   }
 
+  function renderDirectory() {
+    const focusedButton = document.activeElement;
+    const focusedCityId = rows.find(row => row.button === focusedButton)?.city.id;
+    renderCards();
+    syncMarkers();
+    if (focusedCityId) rows.find(row => row.city.id === focusedCityId)?.button.focus({ preventScroll: true });
+  }
+
   function ensureDirectory() {
     if (cities !== baseCities || directoryTask) return;
     const missing = ids.filter(id => !cityById.has(id));
@@ -355,7 +368,7 @@ export function initWorldClock() {
       if (disposed) return;
       ids = ids.filter(id => cityById.has(id));
       if (!ids.includes(selectedId)) selectedId = ids[0] || null;
-      if (active) { renderCards(); syncMarkers(); }
+      if (active) renderDirectory();
       if (get('dialog').open) cityPicker.render();
       if (missing.length) {
         await initialWeather;
@@ -382,10 +395,13 @@ export function initWorldClock() {
     clearInterval(timer);
     if (active) {
       ensureDirectory();
-      if (get('list').childElementCount) renderTemperatures();
-      else renderCards();
+      if (renderedDirectory !== cities) {
+        renderDirectory();
+      } else {
+        renderTemperatures();
+        tick();
+      }
       loadGlobe();
-      tick();
       timer = setInterval(tick, 1000);
     } else {
       cityDrag.cancel();

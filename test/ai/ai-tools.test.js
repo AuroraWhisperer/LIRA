@@ -21,6 +21,29 @@ test('current time tool uses IANA timezone without an external API', () => {
   assert.throws(() => getCurrentTime({ timeZone: 'Not/AZone' }), /时区/);
 });
 
+test('QWeather distinguishes current air observations from unsupported air forecasts', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-01-31T16:00:00Z') });
+  const paths = [];
+  const weather = createQWeatherTool({ fetchImpl: async url => {
+    paths.push(new URL(url).pathname);
+    return Response.json({ code: '200', location: [{ id: '101', name: '北京' }], now: { aqi: '42' } });
+  } });
+  const config = { qweatherApiHost: 'https://weather.test', qweatherApiKey: 'test' };
+  const query = { location: '北京', dataType: 'air' };
+  for (const date of ['today', '今天', '现在', '今日', '当前', '此刻', '目前', '2026-02-01', '2026年2月1日', '2月1日']) {
+    const current = await weather.getWeather(config, { ...query, date });
+    assert.equal(current.air?.aqi, '42', date);
+    assert.deepEqual(paths.splice(0), ['/geo/v2/city/lookup', '/v7/air/now']);
+  }
+  for (const date of ['tomorrow', '2026-02-02', '2026-01-31', '2025年2月1日', '1月31日', '明天此刻']) {
+    const future = await weather.getWeather(config, { ...query, date });
+    assert.equal(future.reason, 'air_forecast_unavailable');
+    assert.equal(future.unavailable, true);
+    assert.match(future.instruction, /当前.*空气质量/);
+  }
+  assert.deepEqual(paths, [], 'unsupported dates use no upstream requests');
+});
+
 test('QWeather does not send a request after its monthly quota is exhausted', async () => {
   let fetchCalls = 0;
   const tool = createQWeatherTool({

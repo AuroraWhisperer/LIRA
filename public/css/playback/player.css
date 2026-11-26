@@ -27,7 +27,7 @@ body.player-dock-collapsed {
   border-top: 1px solid var(--border);
   border-radius: 0;
   background: var(--surface);
-  box-shadow: 0 -4px 16px rgba(24, 24, 22, 0.05);
+  box-shadow: 0 -4px 16px light-dark(rgba(24, 24, 22, 0.05), rgba(0, 0, 0, 0.36));
   transition: height 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -53,7 +53,7 @@ body.player-dock-collapsed {
   border-radius: 24px 24px 0 0;
   background: var(--surface);
   color: var(--muted);
-  box-shadow: 0 -2px 8px rgba(24, 24, 22, 0.06);
+  box-shadow: 0 -2px 8px light-dark(rgba(24, 24, 22, 0.06), rgba(0, 0, 0, 0.32));
   cursor: pointer;
   transition:
     background 160ms ease,
@@ -122,7 +122,7 @@ body.player-dock-collapsed {
   border-radius: var(--radius-md);
   background: var(--color-bg-secondary);
   color: var(--color-text-muted);
-  box-shadow: inset 0 0 0 1px rgba(24, 24, 22, 0.06);
+  box-shadow: inset 0 0 0 1px light-dark(rgba(24, 24, 22, 0.06), rgba(255, 255, 255, 0.1));
 }
 
 .playback-cover svg {
@@ -258,7 +258,7 @@ body.player-dock-collapsed {
   border: none;
   box-shadow:
     0 0 0 2px var(--primary),
-    0 1px 3px rgba(24, 24, 22, 0.25);
+    0 1px 3px light-dark(rgba(24, 24, 22, 0.24), rgba(0, 0, 0, 0.5));
   cursor: pointer;
   transition: transform 150ms ease;
 }
@@ -273,7 +273,7 @@ body.player-dock-collapsed {
   border-radius: 50%;
   background: var(--color-range-thumb, var(--color-bg-primary));
   border: 2px solid var(--primary);
-  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.25);
+  box-shadow: 0 1px 3px light-dark(rgba(24, 24, 22, 0.24), rgba(0, 0, 0, 0.5));
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -438,7 +438,7 @@ body.player-dock-collapsed {
     transform 160ms ease;
   padding: 0;
   min-height: auto;
-  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.18);
+  box-shadow: 0 1px 3px light-dark(rgba(24, 24, 22, 0.18), rgba(0, 0, 0, 0.42));
 }
 
 .playback-play-btn:hover {
@@ -485,7 +485,7 @@ body.player-dock-collapsed {
 
 /* 队列按钮激活态 */
 #playbackQueueBtn.active {
-  color: var(--primary);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary)));
   background: var(--color-primary-light);
 }
 

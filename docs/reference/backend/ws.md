@@ -2,7 +2,7 @@
 
 > 涉及文件：[src/server/ws.js](../../../src/server/ws.js)、[src/server.js](../../../src/server.js)（`getState` / 广播点）
 
-本文档是 WebSocket 的**单一事实来源**，集中说明传输层实现、快照 21 个字段、全部消息类型与广播原因。客户端处理逻辑见 [frontend/comms.md](../frontend/comms.md)，各字段的领域细节见对应行为文档。
+本文档是 WebSocket 的**单一事实来源**，集中说明传输层实现、快照字段、全部消息类型与广播原因。客户端处理逻辑见 [frontend/comms.md](../frontend/comms.md)，各字段的领域细节见对应行为文档。
 
 ## 1. 传输层（手写 RFC 6455）
 
@@ -33,9 +33,11 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 尚未交给 hub 的拒绝升级由 HTTP 入口收尾：400/423/503 响应写出后直接销毁 socket，不等待对端回 FIN。这类连接不属于 hub 管理的升级集合，不依赖 `hub.stop()` 兜底。
 
-## 2. 快照（Snapshot）21 字段
+<a id="2-快照snapshot21-字段"></a>
 
-初连和重连发送 `{type:'snapshot', reason:'connect', state}`，包含当前身份可见的全部快照字段。旧版管理端继续接收完整 `snapshot`。管理页通过 `/ws?snapshot=music-events-v1` 协商后接收 `{type:'snapshot:patch', reason, state}`，只覆盖其中携带的字段。礼物、点歌和醒目留言的高频补丁按变动选择字段，音乐专用消息负责 `lyricState`、`lyricTimeline`、`nowPlaying`、`lyricSource` 和 `weSing`。展示页仅接收其作用域的投影，时钟、歌词、正在播放和歌单可跳过与本页无关的高频批次。游戏、转盘等独立状态使用 §3 的专用消息与 HTTP 恢复接口。以下 **21 个字段** 是管理端的完整 `state`。[状态组装实现](../../../src/server.js)
+## 2. 快照（Snapshot）
+
+初连和重连发送 `{type:'snapshot', reason:'connect', state}`，包含当前身份可见的全部快照字段。旧版管理端继续接收完整 `snapshot`。管理页通过 `/ws?snapshot=music-events-v1` 协商后接收 `{type:'snapshot:patch', reason, state}`，只覆盖其中携带的字段。礼物、点歌和醒目留言的高频补丁按变动选择字段，音乐专用消息负责 `lyricState`、`lyricTimeline`、`nowPlaying`、`lyricSource` 和 `weSing`。展示页仅接收其作用域的投影，时钟、歌词、正在播放和歌单可跳过与本页无关的高频批次。游戏、转盘等独立状态使用 §3 的专用消息与 HTTP 恢复接口。下表列出管理端完整 `state` 的字段。[状态组装实现](../../../src/server.js)
 
 协商参数不改变身份或权限。仅有已协商 Admin 连接时，增量读取在调用状态 getter 前排除上述五个音乐字段；混有旧版 Admin 或需要音乐字段的 overlay 时仍读取其所需字段，按连接类型分别复用编码帧。同微任务快照合并、投影、背压与重连规则保持不变；新版管理页连接旧版服务仍可兼容完整 `snapshot`。
 
@@ -46,6 +48,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `queue` | `domainServices.queue.getSnapshot()` | 点歌队列快照，单项 `is_live` 为布尔标记，`queue` overlay 白名单保留该字段；排序由后端确定，见 [music/services.md](music/services.md) |
 | `superChats` | `domainServices.superChats.getSnapshot()` | SC 列表（按价格降序），见 [bilibili/gift.md](bilibili/gift.md) |
 | `gifts` | `domainServices.gifts.getSnapshot()` | 管理端读取 `recent` 近期列表与 `viewRevision` 来源版本。仅有礼物展示页订阅时按需读取版本，来源未就绪时为 `null`。同批有管理端需要列表时共用一次读取。 |
+| `giftSourceEpoch` | `domainServices.gifts.getDisplaySourceEpoch()` | 礼物展示来源的随机 UUID，见[礼物快照](bilibili/gift.md#6-快照与端点) |
 | `giftSprint` | `domainServices.gifts.getSprintSnapshot()` | 礼物冲刺状态 |
 | `giftDetection` | `domainServices.gifts.getStatus()` | 礼物检测管道状态（`coreActive` 等），见 [bilibili/gift.md](bilibili/gift.md) |
 | `blindBoxMapping` | `blindBoxMappingState` | 当前盲盒映射配置与同步状态 |
@@ -74,9 +77,10 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | Scope | snapshot 展示字段 | 允许的专用增量 |
 | --- | --- | --- |
 | `queue` | 展示设置、队列歌曲/点歌者展示字段、SC 文本和价格 | 无 |
-| `songlist`、`blindbox` | 各自展示设置 | 无 |
+| `songlist` | 歌单展示设置 | 无 |
+| `blindbox` | 盲盒展示设置、`giftSourceEpoch` | 无 |
 | `overtime` | 倒计时、背景与展示规则 | `overtime:update` |
-| `gift-effects` | 礼物特效/边框展示设置 | `gift:frame`、`gift:effect`、`gift:guard-thanks` |
+| `gift-effects` | 礼物特效/边框展示设置、`giftSourceEpoch` | `gift:frame`、`gift:effect`、`gift:guard-thanks` |
 | `gift-feed` | `gifts.viewRevision` | `gift-catalog:update` 仅保留 `type`，作为刷新通知 |
 | `gift-wishes` | `gifts.viewRevision` | 无专用事件；`gift:wishes` 快照 reason 通知重新读取整数进度 |
 | `heart-box-collection` | `gifts.viewRevision` | 无专用事件；快照中的来源版本变化时重新读取每周收集投影，字段与周期见 [礼物 API](api.md#10-礼物域gifts) |
@@ -131,7 +135,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `settings` | 设置 patch、礼物显示设置、开播媒体选择/清除、歌曲信息外观保存成功；[settings-routes.js](../../../src/server/routes/settings-routes.js)、[gift-routes.js](../../../src/server/routes/gift-routes.js)、[opening-routes.js](../../../src/server/routes/opening-routes.js)、[now-playing-routes.js](../../../src/server/routes/now-playing-routes.js) | 仅状态应用 |
 | `theme:preset-applied` | [theme-routes.js](../../../src/server/routes/theme-routes.js) 预设应用后 | 仅状态应用 |
 | `songs:save`、`songs:delete`、`songs:toggle`、`songs:import`、`songs:import-xlsx` | [song-routes.js](../../../src/server/routes/song-routes.js) 写操作成功；CSV/兼容导入复用 `import` | 合并调度歌库重载 |
-| `cloud:songs` / `cloud:settings` | [server.js](../../../src/server.js) 远端快照写入本地后 | `songs` 调度歌库重载；`settings` 仅状态应用 |
+| `cloud:songs` / `cloud:settings` | 远端快照应用到本地，或[盲盒映射摘要](../../../src/server/cloud-sync-runtime.js)变化后 | `songs` 调度歌库重载。云设置与映射同批确认时，管理页收到一份含两者的快照。仅映射变化时也通知一次，重复读取相同修订与摘要时跳过广播。 |
 | `queue:add` | [queue-routes.js](../../../src/server/routes/queue-routes.js) 手动/随机点歌成功 | 仅状态应用 |
 | `queue:request-result` | [queue-routes.js](../../../src/server/routes/queue-routes.js) 或 [bilibili-client.js](../../../src/server/bilibili-client.js) 点歌被预期规则拒绝并记录临时结果后；字段归属见 [点歌队列](music/services.md#81-统一队列语义) | 仅状态应用；点歌板及场景读取最新结果 |
 | `queue:${action}` | 同路由 `handleAction` 返回后；`action` 仅 `next/clear/pin/unpin/delete/done/skip/live/unlive`，由 [queue-service.js](../../../src/music/queue-service.js) 校验 | 仅状态应用 |
@@ -140,7 +144,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `bilibili:gift` | [runtime-transport.js](../../../src/server/runtime-transport.js) `publishGiftFlushed`；另独立广播全屏礼物感谢和弹幕提示 | 发出 `Events.GIFT_RECEIVED` |
 | `live:status` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新直播状态后 | 仅状态应用 |
 | `bilibili:room-guard` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新房间大航海人数后 | 仅状态应用 |
-| `gift:source` | [gift-export-runtime.js](../../../src/server/gift-export-runtime.js) 来源 `viewEpoch` 变化、退出 `SOURCE_SWITCHING`，或历史激活后从 `BOOTSTRAPPING` 进入 `CATCHING_UP` | 仅状态应用，不伪造礼物收到通知 |
+| `gift:source` | [gift-export-runtime.js](../../../src/server/gift-export-runtime.js) 的 `viewEpoch` 或 `displayEpoch` 变化、退出 `SOURCE_SWITCHING`，或历史激活后从 `BOOTSTRAPPING` 进入 `CATCHING_UP` | 仅通知刷新状态。同源历史激活也会发送。独立页比较 `giftSourceEpoch` 判断是否换源，旧快照缺少该字段时沿用 `gift:source` 作为换源信号 |
 | `gift:wishes` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 非 `getSnapshot` 动作成功 | 仅状态应用 |
 | `gift:heart-box-collection` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 心动盲盒校准成功 | 状态快照；使心动收集场景投影缓存失效，独立源沿用共享进度轮询 |
 | `component:styles` | 添加、安装、移除、配置样式或还原样式库成功后。[样式路由](../../../src/server/routes/component-style-routes.js) | 可见的管理面板重新读取样式列表 |

@@ -81,11 +81,11 @@
 
 .gift-stat.highlight {
   border-color: var(--color-border-accent);
-  background: var(--color-accent-light);
+  background: var(--color-primary-light);
 }
 
 .gift-stat.highlight strong {
-  color: var(--color-control-accent);
+  color: var(--color-selection-text, var(--color-primary-text, var(--color-control-accent)));
 }
 
 .gift-form-actions {

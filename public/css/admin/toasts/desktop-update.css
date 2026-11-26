@@ -1,3 +1,9 @@
 .desktop-update-toast {
-  width: 420px;
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4.5v10.5'/%3E%3Cpath d='m7.8 11.2 4.2 4.2 4.2-4.2'/%3E%3Cpath d='M5.5 19h13'/%3E%3C/svg%3E");
+}
+.desktop-update-toast.toast-success {
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5.5 12.6 4.2 4.2L18.5 7.8'/%3E%3C/svg%3E");
+}
+.desktop-update-toast.toast-error {
+  --toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 7v6.5'/%3E%3Ccircle cx='12' cy='17.2' r='1.2' fill='black' stroke='none'/%3E%3C/svg%3E");
 }

@@ -1,10 +1,10 @@
 /* Workspace tokens, navigation and responsive shell. */
 /* Desktop component workspace. Dimensions and rationale: docs/reference/frontend/pages.md. */
 .live-components-page {
-  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --font-ui: var(--client-font-family, 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif);
   --font: var(--font-ui);
   /* Page titles keep the Display optical size; Latin text at 20px needs it, CJK falls back unchanged. */
-  --font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --font-display: var(--client-font-family, 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif);
   --type-size-page-title: 20px;
   --type-size-section-title: 16px;
   --type-size-card-title: 14px;
@@ -36,8 +36,8 @@
   --components-row-selected-bg: var(--client-main-nav-active-bg, var(--surface));
   --components-row-selected-shadow: var(
     --client-main-nav-active-shadow,
-    0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent)
+    0 1px 2px light-dark(color-mix(in srgb, var(--text) 10%, transparent), rgba(0, 0, 0, 0.35)),
+    0 0 0 1px light-dark(color-mix(in srgb, var(--text) 10%, transparent), rgba(255, 255, 255, 0.08))
   );
 
   font-family: var(--font-ui);

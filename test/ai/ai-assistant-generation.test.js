@@ -5,8 +5,101 @@ const assert = require('node:assert/strict');
 const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { SAFE_REFUSAL } = require('../../src/ai/safety');
+const { createModelClient } = require('../../src/ai/model-client');
+const { createAiApiQuotaStore } = require('../../src/ai/api-quota-store');
 
 const MAP_CONFIG = { functionCallingEnabled: true, routesEnabled: true, placesEnabled: true, amapApiHost: 'https://map.test', amapApiKey: 'test-map-key' };
+
+test('a nonempty length-limited answer never reaches delivery, cache or conversation history', async t => {
+  const partial = 'The final stop is';
+  const delivered = [], cache = [], memory = [], logs = [];
+  const service = createTestService({
+    config: { modelProvider: 'deepseek' },
+    modelClient: createModelClient({ fetchImpl: async () => Response.json({
+      choices: [{ finish_reason: 'length', message: { content: partial } }],
+    }) }),
+    store: { setCache: (_key, value) => cache.push(value.text), setContext: (_uid, value) => memory.push(value),
+      logRequest: row => logs.push(row) },
+    sendReply: async reply => delivered.push(reply.message),
+  });
+  t.after(() => service.shutdown());
+  service.handleDanmaku({ uid: 'one', message: '小米 where?' });
+  await waitUntil(() => delivered.length && service.getStatus().queued === 0);
+  assert.deepEqual({ partialSent: delivered.some(text => text.includes(partial)), cache, memories: memory.length,
+    failure: logs.find(row => row.status === 'failed')?.errorCode },
+  { partialSent: false, cache: [], memories: 0, failure: 'DEEPSEEK_OUTPUT_TRUNCATED' });
+});
+
+test('plain generation and a cache hit skip weather and map usage reads', async t => {
+  const reads = [], delivered = [];
+  let generations = 0;
+  const service = createTestService({
+    config: { modelProvider: 'deepseek', functionCallingEnabled: false },
+    quotaStore: createAiApiQuotaStore({ pruneBefore() {}, read(category) { reads.push(category); return 0; } }),
+    modelClient: { async createResponse() { generations++; return { text: '你好呀', functionCalls: [], usage: {} }; } },
+    sendReply: async reply => delivered.push(reply.message),
+  });
+  t.after(() => service.shutdown());
+  for (let i = 1; i <= 2; i++) {
+    service.handleDanmaku({ uid: 'one', message: '小米 hello' });
+    await waitUntil(() => delivered.length === i);
+  }
+  assert.equal(generations, 1);
+  assert.deepEqual(reads, []);
+});
+
+test('renaming a custom persona without a name token isolates delivered exchanges', async t => {
+  const contexts = new Map(), inputs = [];
+  const service = createTestService({
+    config: { modelProvider: 'deepseek', trigger: 'Alpha', personaId: 'custom',
+      systemPrompt: '用这段不含名字占位符的自定义角色说明与观众交谈。' },
+    store: { getContext: (_uid, scope) => contexts.get(scope), setContext: (_uid, value, _ttl, scope) => contexts.set(scope, value) },
+    modelClient: { async createResponse({ input }) { inputs.push(input); return { text: '记住了', functionCalls: [], usage: {} }; } },
+  });
+  t.after(() => service.shutdown());
+  service.handleDanmaku({ uid: 'one', message: 'Alpha old-question' });
+  await waitUntil(() => contexts.size === 1);
+  service.updateConfig({ trigger: 'Beta' });
+  service.handleDanmaku({ uid: 'one', message: 'Beta new-question' });
+  await waitUntil(() => inputs.length === 2);
+  assert.doesNotMatch(inputs[1], /old-question/);
+});
+
+for (const quotaReached of ['last successful query', 'reservation denied']) {
+  test(`Chat follow-up advertises only remaining tools after ${quotaReached}`, async t => {
+    const bodies = [], delivered = [];
+    const withPlaces = quotaReached === 'last successful query';
+    let used = 39999;
+    const service = createTestService({
+      config: { modelProvider: 'deepseek', functionCallingEnabled: true, weatherEnabled: true,
+        placesEnabled: withPlaces, amapApiHost: 'https://map.test', amapApiKey: 'test',
+        qweatherApiHost: 'https://weather.test', qweatherApiKey: 'test', webSearchEnabled: false },
+      quotaStore: createAiApiQuotaStore({ pruneBefore() {}, read(category) { return category === 'qweather' ? used : 0; } }),
+      modelClient: createModelClient({ fetchImpl: async (_url, options) => {
+        bodies.push(JSON.parse(options.body));
+        const message = bodies.length === 1 ? { tool_calls: [{ type: 'function', id: 'weather-1',
+          function: { name: 'get_weather', arguments: '{}' } }] } : { content: '查完了' };
+        return Response.json({ id: `step-${bodies.length}`, choices: [{ message }] });
+      } }),
+      tools: { qweather: { async getWeather() {
+        used = 40000;
+        if (quotaReached === 'reservation denied') throw Object.assign(new Error('quota'), { quotaCategory: 'qweather' });
+        service.updateConfig({ placesEnabled: false });
+        return { temperature: 20 };
+      } } },
+      sendReply: async reply => delivered.push(reply.message),
+    });
+    t.after(() => service.shutdown());
+    service.handleDanmaku({ uid: 'one', message: '小米 天气' });
+    await waitUntil(() => delivered.length);
+    assert.match(bodies[0].messages[0].content, /本次可用工具：get_weather/);
+    if (withPlaces) assert.ok(bodies[0].tools.some(tool => tool.function.name === 'search_places'));
+    assert.deepEqual(bodies[1].messages.map(message => message.role), ['system', 'user', 'assistant', 'tool']);
+    assert.equal(bodies[1].messages.at(-1).tool_call_id, 'weather-1');
+    assert.ok(!bodies[1].tools?.length);
+    assert.match(bodies[1].messages[0].content, /本次可用工具：无外接工具/);
+  });
+}
 
 for (const scenario of ['input-refusal', 'output-refusal', 'review-injection', 'raw-injection', 'model-refusal']) {
   test(`unsafe review content is never sent, cached or remembered (${scenario})`, async t => {

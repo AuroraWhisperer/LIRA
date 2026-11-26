@@ -307,6 +307,35 @@ test('a pending card read picks up wish edits and rejects a switch of authorized
   assert.equal((await service.getSnapshot(cards)).items.length, 0);
 });
 
+test('a late room response cannot overwrite the current wish session or its fallback count', async t => {
+  const f = setup(t);
+  f.add('session');
+  f.event('three', '2026-09-20T03:00:00Z', 3);
+  const older = Promise.withResolvers();
+  let roomId = '111';
+  let offline = false;
+  const live = time => ({ live_status: 1, live_time: Date.parse(time) / 1000 });
+  const service = createGiftWishService({ ...f.options, getRoomId: () => roomId,
+    readRoom: async id => {
+      if (id === '111') return older.promise;
+      if (offline) throw new Error('offline');
+      return live('2026-09-20T02:00:00Z');
+    },
+  });
+  const oldRead = service.getSnapshot().catch(error => error);
+  roomId = '222';
+  const before = await service.getSnapshot();
+  assert.equal(before.items[0].count, 3);
+  older.resolve(live('2026-09-20T01:00:00Z'));
+  const outdated = await oldRead;
+  f.time('2026-09-20T04:00:31Z');
+  offline = true;
+  const after = await service.getSnapshot();
+  assert.deepEqual([after.items[0].count, after.session.startedAt, after.session.stale, f.store.readSession(f.source, '222')?.started_at],
+    [3, before.session.startedAt, true, before.session.startedAt]);
+  assert.match(outdated.message, /直播间/);
+});
+
 test('session failures preserve known boundaries and concurrent reads share one request', async (t) => {
   const f = setup(t);
   f.add('session');

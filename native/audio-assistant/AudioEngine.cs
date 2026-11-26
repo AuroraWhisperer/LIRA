@@ -5,6 +5,7 @@ using NAudio.Wave.SampleProviders;
 internal sealed class AudioEngine : IDisposable
 {
   readonly IWavePlayer output;
+  readonly PlaybackOutputs.AsioFileTail? asioFileTail;
   readonly DspSource dsp;
   readonly AudioFileReader? file;
   readonly ProcessCapture? capture;
@@ -13,6 +14,7 @@ internal sealed class AudioEngine : IDisposable
   public DspSource Dsp => dsp;
   public double PositionSeconds => file?.CurrentTime.TotalSeconds ?? 0;
   public double DurationSeconds => file?.TotalTime.TotalSeconds ?? 0;
+  public bool AsioFileEnded => asioFileTail?.HasDrained == true;
 
   public AudioEngine(string? filePath, int? processId, string? outputId,
     AudioInputDevice? inputDevice = null, bool loopback = false, string inputChannels = "auto", string outputBackend = "wasapi")
@@ -45,7 +47,8 @@ internal sealed class AudioEngine : IDisposable
         input = incoming.ToSampleProvider();
       }
       dsp = new DspSource(input);
-      output = PlaybackOutputs.Create(outputBackend, string.IsNullOrEmpty(outputId) ? AudioDevices.DefaultOutputId() : outputId, dsp.ToWaveProvider());
+      output = PlaybackOutputs.Create(outputBackend, string.IsNullOrEmpty(outputId) ? AudioDevices.DefaultOutputId() : outputId,
+        dsp.ToWaveProvider(), file != null, out asioFileTail);
       output.PlaybackStopped += (_, args) => Stopped?.Invoke(args.Exception);
       ProcessId = processId;
     }
@@ -94,13 +97,14 @@ internal sealed class DspSource : ISampleProvider, IDisposable
   readonly object readGate = new();
   bool closed;
   volatile StemSeparator? separator;
-  readonly RubberBandProcessor pitch = new();
+  RubberBandProcessor pitch = new();
   readonly float[] input = new float[2048];
   int directOffset, directCount;
   bool finished;
   bool wasOriginal;
   bool separationActive;
   bool pitchActive;
+  bool drainingPitch;
   int appliedSemitones = int.MinValue;
   int appliedSpeed;
   float appliedStrength;
@@ -108,8 +112,8 @@ internal sealed class DspSource : ISampleProvider, IDisposable
   public volatile int StrengthPercent;
   public volatile int Semitones;
   public volatile int SpeedPercent = 100;
-  public volatile float InputPeak;
-  public volatile float OutputPeak;
+  readonly object meterGate = new();
+  float windowInputPeak, windowOutputPeak;
   public volatile float OutputVolume = 0.7f;
   public volatile bool Original;
   public double WorkMilliseconds { get; private set; }
@@ -121,6 +125,16 @@ internal sealed class DspSource : ISampleProvider, IDisposable
   // The control thread prepares the model before enabling separation on the audio callback.
   public void PrepareSeparation(StemModel model) => separator ??= new StemSeparator(source, model);
 
+  public (float, float) TakePeaks()
+  {
+    lock (meterGate)
+    {
+      var peaks = (windowInputPeak, windowOutputPeak);
+      windowInputPeak = windowOutputPeak = 0;
+      return peaks;
+    }
+  }
+
   public int Read(float[] buffer, int offset, int count)
   {
     lock (readGate) return closed ? 0 : ReadAudio(buffer, offset, count);
@@ -130,8 +144,16 @@ internal sealed class DspSource : ISampleProvider, IDisposable
   {
     long work = Stopwatch.GetTimestamp();
     int written = 0;
+    float inputPeak = 0;
     while (written < count)
     {
+      bool original = Original;
+      if (original && pitchActive && !finished && !drainingPitch)
+      {
+        // Deliver already-consumed music before switching new input to the dry path.
+        pitch.Flush();
+        drainingPitch = true;
+      }
       var destination = buffer.AsSpan(offset + written, count - written);
       int directSamples = Math.Min(destination.Length, directCount);
       input.AsSpan(directOffset, directSamples).CopyTo(destination);
@@ -139,13 +161,20 @@ internal sealed class DspSource : ISampleProvider, IDisposable
       int available = directSamples / 2;
       if (available == 0) available = pitch.ReceiveSamples(destination, destination.Length / 2);
       written += available * 2;
-      if (written == count || (finished && available == 0)) break;
-      if (finished) continue;
-      bool original = Original;
+      if (written == count) break;
+      if (finished || drainingPitch)
+      {
+        if (available > 0) continue;
+        if (finished) break;
+        pitch.Dispose();
+        pitch = new();
+        drainingPitch = pitchActive = false;
+        appliedSemitones = int.MinValue;
+        appliedSpeed = 0;
+      }
       int semitones = original ? 0 : Semitones;
       int speed = original ? 100 : Math.Clamp(SpeedPercent, 50, 200);
-      // Once an effect is started, keep its stream alive until Stop so returning to
-      // zero does not discard buffered music or introduce a second timing jump.
+      // Ordinary parameter edits keep the same stream, including a return to zero.
       if (semitones != 0 || speed != 100) pitchActive = true;
       var activeSeparator = separator;
       if (!original && StrengthPercent != 0 && activeSeparator != null) separationActive = true;
@@ -184,12 +213,10 @@ internal sealed class DspSource : ISampleProvider, IDisposable
         finished = true;
         continue;
       }
-      if (separating) InputPeak = activeSeparator!.InputPeak;
+      if (separating) inputPeak = Math.Max(inputPeak, activeSeparator!.InputPeak);
       else
       {
-        float peak = 0;
-        for (int i = 0; i < read; i++) peak = Math.Max(peak, Math.Abs(input[i]));
-        InputPeak = peak;
+        for (int i = 0; i < read; i++) inputPeak = Math.Max(inputPeak, Math.Abs(input[i]));
       }
       InputFrames += read / 2;
       PutProcessed(input.AsSpan(0, read), read / 2);
@@ -201,7 +228,11 @@ internal sealed class DspSource : ISampleProvider, IDisposable
       buffer[i] = Math.Clamp(buffer[i] * volume, -1f, 1f);
       outputPeak = Math.Max(outputPeak, Math.Abs(buffer[i]));
     }
-    OutputPeak = outputPeak;
+    lock (meterGate)
+    {
+      windowInputPeak = Math.Max(windowInputPeak, inputPeak);
+      windowOutputPeak = Math.Max(windowOutputPeak, outputPeak);
+    }
     WorkMilliseconds += Stopwatch.GetElapsedTime(work).TotalMilliseconds;
     return written;
   }

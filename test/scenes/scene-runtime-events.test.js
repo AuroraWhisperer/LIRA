@@ -370,6 +370,7 @@ test('live ranking sources accept their data acknowledgement and retain the boar
 
 test('cloud demand follows display reads, leaves other scenes idle and expires after the last read', t => {
   t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'] });
+  t.mock.method(performance, 'now', () => Date.now());
   const { runtime } = fixture(t);
   const changes = [];
   runtime.subscribeCloudDemand(active => changes.push(active));
@@ -393,6 +394,7 @@ test('cloud demand follows display reads, leaves other scenes idle and expires a
 for (const mode of ['standalone', 'scene']) {
   test(`${mode} notification heartbeats retain cloud demand when page reads pause`, t => {
     t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'] });
+    t.mock.method(performance, 'now', () => Date.now());
     const { runtime } = fixture(t);
     const changes = [];
     runtime.subscribeCloudDemand(active => changes.push(active));

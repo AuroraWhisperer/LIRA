@@ -27,25 +27,28 @@ function createDanmakuSenderService(dependencies) {
   let sendChain = Promise.resolve();
   let roomMapping = null;
   const displayCache = {
-    account: { key: '', name: '', expiresAt: 0 },
-    room: { key: '', name: '', expiresAt: 0 },
+    account: { key: '', name: '', avatarUrl: '', expiresAt: 0 },
+    room: { key: '', name: '', avatarUrl: '', expiresAt: 0 },
   };
 
   async function getState() {
     const sendSession = getSessionKey();
     const [auth, room, target] = await Promise.all([getAuth(), getRoom(), getMentionTarget()]);
-    const live = getLiveStatus();
+    const live = getLiveStatus() || {};
     const loggedIn = Boolean(auth && auth.loggedIn && auth.cookieHeader);
     const roomId = String((room && room.roomId) || '');
+    const liveMatchesRoom = Boolean(roomId && (!live.roomId || String(live.roomId) === roomId));
     const state = {
       loggedIn,
       accountUid: Number(auth && auth.uid) || 0,
       accountName: '',
+      accountAvatarUrl: '',
       roomId,
       sendSession,
-      roomName: cleanText(live && live.ownerName),
-      connected: Boolean(live && live.connected),
-      liveMessage: String((live && live.message) || ''),
+      roomName: liveMatchesRoom ? cleanText(live.ownerName) : '',
+      roomAvatarUrl: liveMatchesRoom ? cleanText(live.ownerAvatarUrl) : '',
+      connected: Boolean(live.connected),
+      liveMessage: String(live.message || ''),
       autoReplyEnabled: Boolean(getAutoReplyEnabled()),
       checkinBotEnabled: Boolean(getCheckinBotEnabled()),
       fortuneBotEnabled: Boolean(getFortuneBotEnabled()),
@@ -54,53 +57,78 @@ function createDanmakuSenderService(dependencies) {
       unavailableReason: !loggedIn ? '请先登录直播账号。' : !roomId ? '请先设置直播间号。' : '',
       requester: target || emptyTarget(),
     };
-    await enrichDisplayNames(state, auth || {}, roomId, live || {});
+    await enrichDisplayProfiles(state, auth || {}, roomId, live, liveMatchesRoom);
     return state;
   }
 
-  async function enrichDisplayNames(state, auth, roomId, live) {
-    if (!state.loggedIn) return;
-    const client = createClient(roomId || '0', auth);
+  async function enrichDisplayProfiles(state, auth, roomId, live, liveMatchesRoom) {
+    if (!state.loggedIn && !roomId) return;
+    const client = typeof createClient === 'function' ? createClient(roomId || '0', auth) : null;
+    if (!client) return;
     await Promise.all([
-      resolveAccountName(state, auth, client).catch(() => {}),
-      resolveRoomName(state, roomId, live, client).catch(() => {}),
+      resolveAccountProfile(state, auth, client).catch(() => {}),
+      resolveRoomProfile(state, roomId, live, liveMatchesRoom, client).catch(() => {}),
     ]);
   }
 
-  async function resolveAccountName(state, auth, client) {
+  async function resolveAccountProfile(state, auth, client) {
     const accountKey = String(Number(auth && auth.uid) || state.accountUid || '');
-    if (!state.loggedIn || !accountKey || typeof client.fetchCurrentUserName !== 'function') return;
-    const cached = getCachedDisplayName(displayCache.account, accountKey);
+    if (!state.loggedIn || !accountKey) return;
+    const cached = getCachedDisplayProfile(displayCache.account, accountKey);
     if (cached) {
-      state.accountName = cached;
+      state.accountName = cached.name;
+      state.accountAvatarUrl = cached.avatarUrl;
       return;
     }
-    const name = cleanText(await client.fetchCurrentUserName());
-    if (name) {
+    let profile = null;
+    if (typeof client.fetchCurrentUserProfile === 'function') {
+      try {
+        profile = await client.fetchCurrentUserProfile();
+      } catch (_) {
+        if (typeof client.fetchUserProfile === 'function') {
+          profile = await client.fetchUserProfile(accountKey).catch(() => null);
+        }
+      }
+    }
+    if (!profile && typeof client.fetchCurrentUserName === 'function') {
+      profile = { name: cleanText(await client.fetchCurrentUserName()), avatarUrl: '' };
+    }
+    const name = cleanText(profile && profile.name);
+    const avatarUrl = cleanText(profile && profile.avatarUrl);
+    if (name || avatarUrl) {
       state.accountName = name;
-      displayCache.account = createDisplayCacheEntry(accountKey, name);
+      state.accountAvatarUrl = avatarUrl;
+      displayCache.account = createDisplayCacheEntry(accountKey, name, avatarUrl);
     }
   }
 
-  async function resolveRoomName(state, roomId, live, client) {
+  async function resolveRoomProfile(state, roomId, live, liveMatchesRoom, client) {
     if (!roomId) return;
-    const liveOwnerName = cleanText(live && live.ownerName);
-    if (liveOwnerName) {
-      state.roomName = liveOwnerName;
-      displayCache.room = createDisplayCacheEntry(roomId, liveOwnerName);
+    const liveOwnerName = liveMatchesRoom ? cleanText(live.ownerName) : '';
+    const liveOwnerAvatarUrl = liveMatchesRoom ? cleanText(live.ownerAvatarUrl) : '';
+    const cached = getCachedDisplayProfile(displayCache.room, roomId);
+    const name = liveOwnerName || (cached && cached.name) || '';
+    const avatarUrl = liveOwnerAvatarUrl || (cached && cached.avatarUrl) || '';
+    if (name) state.roomName = name;
+    if (avatarUrl) state.roomAvatarUrl = avatarUrl;
+    if (liveOwnerName && liveOwnerAvatarUrl) {
+      displayCache.room = createDisplayCacheEntry(roomId, name, avatarUrl);
       return;
     }
-    const cached = getCachedDisplayName(displayCache.room, roomId);
     if (cached) {
-      state.roomName = cached;
+      // Keep the original lookup deadline for the other field.
+      if (liveOwnerName) displayCache.room.name = liveOwnerName;
+      if (liveOwnerAvatarUrl) displayCache.room.avatarUrl = liveOwnerAvatarUrl;
       return;
     }
     if (typeof client.resolveRoomInfo !== 'function') return;
     const roomInfo = await client.resolveRoomInfo();
-    const ownerName = cleanText(roomInfo && roomInfo.ownerName);
-    if (ownerName) {
-      state.roomName = ownerName;
-      displayCache.room = createDisplayCacheEntry(roomId, ownerName);
+    const resolvedName = cleanText(roomInfo && roomInfo.ownerName) || name;
+    const resolvedAvatarUrl = cleanText(roomInfo && roomInfo.ownerAvatarUrl) || avatarUrl;
+    if (resolvedName || resolvedAvatarUrl) {
+      state.roomName = resolvedName;
+      state.roomAvatarUrl = resolvedAvatarUrl;
+      displayCache.room = createDisplayCacheEntry(roomId, resolvedName, resolvedAvatarUrl);
     }
   }
 
@@ -272,15 +300,17 @@ function normalizeReplyTarget(target) {
   };
 }
 
-function getCachedDisplayName(entry, key) {
-  if (!entry || entry.key !== key || entry.expiresAt <= Date.now()) return '';
-  return entry.name;
+function getCachedDisplayProfile(entry, key) {
+  if (!entry || entry.key !== key || entry.expiresAt <= Date.now()) return null;
+  if (!entry.name && !entry.avatarUrl) return null;
+  return { name: entry.name, avatarUrl: entry.avatarUrl };
 }
 
-function createDisplayCacheEntry(key, name) {
+function createDisplayCacheEntry(key, name, avatarUrl = '') {
   return {
     key,
     name,
+    avatarUrl,
     expiresAt: Date.now() + DISPLAY_CACHE_TTL_MS,
   };
 }

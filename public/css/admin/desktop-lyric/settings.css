@@ -180,7 +180,7 @@
 .desktop-lyric-source-option input:checked + .desktop-lyric-source-choice {
   border-color: var(--primary);
   background: var(--color-primary-light);
-  color: var(--primary-strong);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
 }
 
 .desktop-lyric-source-option input:focus-visible + .desktop-lyric-source-choice {
@@ -202,7 +202,7 @@
 .desktop-lyric-source-groups input:checked + .desktop-lyric-source-choice {
   border-color: transparent;
   background: var(--primary);
-  color: var(--color-on-primary);
+  color: var(--color-on-control-accent, var(--color-on-primary));
 }
 
 .desktop-lyric-smart-match-row {
@@ -269,11 +269,11 @@
 
 .desktop-lyric-settings .desktop-lyric-settings-group > summary,
 .desktop-lyric-settings .desktop-lyric-reset-group {
-  background: color-mix(in srgb, var(--color-selection-marker) 12%, var(--surface));
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
 }
 
 .desktop-lyric-settings .desktop-lyric-settings-group > summary:hover {
-  background: color-mix(in srgb, var(--color-selection-marker) 18%, var(--surface));
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
 }
 
 .desktop-lyric-settings-group > summary::-webkit-details-marker {

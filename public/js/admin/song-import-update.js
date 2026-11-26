@@ -129,8 +129,10 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       return { base64: await imports.readFileAsBase64(file), replaceAll: true };
     }
     const text = file ? await imports.readTextFile(file) : textInput.value;
+    const extension = file?.name.split('.').pop().toLowerCase();
+    const delimiter = extension === 'tsv' ? '\t' : extension === 'csv' ? ',' : undefined;
     return {
-      rows: parseTable(text, { preserveMissing: true }),
+      rows: parseTable(text, { preserveMissing: true, delimiter }),
       replaceAll: true,
     };
   }

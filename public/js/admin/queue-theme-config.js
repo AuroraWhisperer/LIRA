@@ -23,8 +23,16 @@ export function pickQueueSettings(settings) {
   return Object.fromEntries(Object.entries(settings).filter(([key]) => SETTING_KEYS.has(key)));
 }
 
-export function queueConfigFromSettings(settings) {
+export function queueAppearanceFromSettings(settings) {
   const config = pickQueueSettings(settings);
+  for (const key of ['queueRequestRequesterColor', 'queueRequestSongColor']) {
+    if (Object.hasOwn(settings, key)) config[key] = settings[key];
+  }
+  return config;
+}
+
+export function queueConfigFromSettings(settings) {
+  const config = queueAppearanceFromSettings(settings);
   config.overlayQueueStyle = normalizePersistedQueueStyle(settings.overlayQueueStyle);
   for (const style of STYLES) Object.assign(config, queueStyleSettingsPayload(style, readQueueStyleSettings(settings, style)));
   return config;

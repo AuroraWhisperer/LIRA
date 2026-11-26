@@ -39,23 +39,25 @@ internal sealed class AssistantContext : ApplicationContext
   readonly Control dispatcher = new();
   readonly System.Windows.Forms.Timer timer = new() { Interval = 500 };
   readonly AudioSession session;
+  readonly AssistantStateOutput output;
   bool ticking, closing;
 
   public AssistantContext(WaitHandle installationExit)
   {
     _ = dispatcher.Handle;
     session = new AudioSession(action => { if (!closing) dispatcher.BeginInvoke(action); });
-    session.Changed += Publish;
+    output = new(session, Console.Out, Environment.GetEnvironmentVariable("LIRA_AUDIO_METER_FRAMES") == "1");
+    session.Changed += output.Publish;
     timer.Tick += async (_, _) => {
       if (installationExit.WaitOne(0)) { Close(); return; }
       if (ticking || closing) return;
       ticking = true;
-      try { await session.Tick(); }
+      try { await session.Tick(output.PublishLevels); }
       catch (Exception error) { session.Fail(error); }
       finally { ticking = false; }
     };
     timer.Start();
-    Publish();
+    output.Publish();
     _ = Task.Run(async () => {
       string? line;
       while ((line = await Console.In.ReadLineAsync()) != null)
@@ -67,18 +69,6 @@ internal sealed class AssistantContext : ApplicationContext
       }
       if (!closing) dispatcher.BeginInvoke(Close);
     });
-  }
-
-  void Write(object value) { Console.WriteLine(JsonSerializer.Serialize(value, AssistantSettings.Json)); Console.Out.Flush(); }
-  void Publish() => Write(new { type = "state", state = session.Snapshot() });
-
-  void Reply(int id, string? error = null)
-  {
-    string state = JsonSerializer.Serialize(session.Snapshot(), AssistantSettings.Json);
-    Console.WriteLine($"{{\"type\":\"state\",\"state\":{state}}}");
-    string outcome = error == null ? "\"ok\":true" : $"\"ok\":false,\"error\":{JsonSerializer.Serialize(error)}";
-    Console.WriteLine($"{{\"id\":{id},{outcome},\"state\":{state}}}");
-    Console.Out.Flush();
   }
 
   async void Handle(string line)
@@ -105,11 +95,11 @@ internal sealed class AssistantContext : ApplicationContext
         case "close": Close(); return;
         default: throw new ArgumentException("未知电音助手操作。");
       }
-      Reply(id);
+      output.Reply(id);
     }
     catch (Exception error)
     {
-      Reply(id, error.Message);
+      output.Reply(id, error.Message);
     }
   }
 
@@ -126,5 +116,39 @@ internal sealed class AssistantContext : ApplicationContext
   {
     if (disposing) { timer.Dispose(); session.Dispose(); dispatcher.Dispose(); }
     base.Dispose(disposing);
+  }
+}
+
+internal sealed class AssistantStateOutput(AudioSession session, TextWriter writer, bool meterFrames)
+{
+  IReadOnlyList<AudioApp>? publishedApps;
+  public void Publish() => WriteFrame(false);
+
+  public void PublishLevels()
+  {
+    // Only the player list can be replaced during a running tick. Compare its visible choices on re-enumeration.
+    var apps = session.Apps;
+    bool same = ReferenceEquals(apps, publishedApps) || publishedApps != null && apps.Count == publishedApps.Count
+      && apps.Select(Choice).SequenceEqual(publishedApps.Select(Choice));
+    WriteFrame(meterFrames && same);
+  }
+
+  static (int, string, string) Choice(AudioApp app) => (app.Pid, app.Name, app.Title);
+
+  void WriteFrame(bool levelsOnly)
+  {
+    writer.WriteLine(JsonSerializer.Serialize(new { type = levelsOnly ? "levels" : "state", state = session.Snapshot(levelsOnly) }, AssistantSettings.Json));
+    writer.Flush();
+    publishedApps = session.Apps;
+  }
+
+  public void Reply(int id, string? error = null)
+  {
+    string state = JsonSerializer.Serialize(session.Snapshot(), AssistantSettings.Json);
+    writer.WriteLine($"{{\"type\":\"state\",\"state\":{state}}}");
+    string outcome = error == null ? "\"ok\":true" : $"\"ok\":false,\"error\":{JsonSerializer.Serialize(error)}";
+    writer.WriteLine($"{{\"id\":{id},{outcome},\"state\":{state}}}");
+    writer.Flush();
+    publishedApps = session.Apps;
   }
 }

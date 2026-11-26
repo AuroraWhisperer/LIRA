@@ -48,6 +48,7 @@ export function createPlaybackActionAdapters({
 
   const homeTrackCallbacks = {
     ...queueCallbacks,
+    playPlaybackTrack,
     removeTrackFromPlaylist: (track, action) => playlistOperations.removeTrackFromPlaylist(track, action),
     addTrackToPlaylist: (track) => playlistOperations.addTrackToPlaylist(track),
   };

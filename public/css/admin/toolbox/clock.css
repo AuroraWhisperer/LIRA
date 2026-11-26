@@ -373,7 +373,7 @@
   left: 3px;
   width: 14px;
   height: 14px;
-  box-shadow: 0 1px 3px rgba(24, 24, 22, 0.22);
+  box-shadow: 0 1px 3px light-dark(rgba(24, 24, 22, 0.24), rgba(0, 0, 0, 0.5));
 }
 .clock-toggle-field input:checked + .switch-track { background: var(--accent); }
 .clock-toggle-field input:checked + .switch-track::after { transform: translateX(16px); }
@@ -405,8 +405,8 @@
   font-size: var(--type-size-control);
 }
 .clock-form-field input:disabled {
-  color: var(--color-text-muted);
-  background-color: var(--color-bg-tertiary);
+  color: var(--color-disabled-text, var(--color-text-muted));
+  background-color: var(--color-disabled-bg, var(--color-bg-tertiary));
   cursor: not-allowed;
 }
 .clock-form-field .lira-select-trigger {

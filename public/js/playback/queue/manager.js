@@ -3,7 +3,7 @@
 'use strict';
 
 import { getQueueTrackKey } from '../utils.js';
-import { addedPlaylistTracks, samePlaylistEntry, sourcePlaylistTracks } from './playlist-entries.js';
+import { addedPlaylistTracks, isSourcePlaylistEntry, samePlaylistEntry, sourcePlaylistTracks } from './playlist-entries.js';
 
 /**
  * 队列管理器类
@@ -210,12 +210,28 @@ export class QueueManager {
    * @param {number} index - 目标索引
    * @returns {Object|null} 目标曲目
    */
-  jumpToPlaylistTrack(index) {
+  jumpToPlaylistTrack(index, dailySourceKey) {
     const tracks = this.state.normalQueueTracks;
     if (!tracks || index < 0 || index >= tracks.length) return null;
     const track = tracks[index];
+    if (dailySourceKey) {
+      this.state.queueSourceKey = dailySourceKey;
+      if (index === this.state.playlistIndex) return track;
+    }
+    let remaining = tracks.slice(index + 1).map((item) => ({ ...item }));
+    if (dailySourceKey) {
+      // The live queue keeps play-next insertions ahead of source rows and appends behind them.
+      const waiting = this.state.normalQueue;
+      let nextCount = waiting.findIndex(isSourcePlaylistEntry);
+      if (nextCount < 0) {
+        nextCount = waiting.findLastIndex(item => item.playNext || item.songRequestKey || item.requestedBy) + 1;
+      }
+      const playNext = waiting.slice(0, nextCount).map(item => ({ ...item, playNext: true }));
+      const appended = waiting.slice(nextCount).filter(item => !isSourcePlaylistEntry(item));
+      remaining = [...playNext, ...remaining.filter(isSourcePlaylistEntry), ...appended];
+    }
     this.state.playlistIndex = index;
-    this.state.normalQueue = tracks.slice(index + 1).map((item) => ({ ...item }));
+    this.state.normalQueue = remaining;
     this.state.radioQueue = [];
     this.rebuildShuffleOrder();
 

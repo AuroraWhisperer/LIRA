@@ -1,4 +1,5 @@
 import { createEditorPagination } from './danmaku-editor-pagination.js';
+import './contextual-help.js';
 
 const TITLES = { checkin: '签到祝福词库', fortune: '抽签设置', names: '昵称管理', random: '点歌回复说明', exact: '完整匹配回复', diy: '关键词回复', welcome: '进场欢迎', pk: 'PK 播报与欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单', thanks: '礼物答谢文案', likeThanks: '点赞感谢词库', shareThanks: '分享感谢词库', followThanks: '关注感谢词库' };
 const QUERY_LIST_HELP = '观众发指令查自己，主播发指令查全房（按北京时间统计）。时间词后面加不加“的”都可以，比如“今日礼物”或“今天的礼物”。此处仅作指令速查，无需编辑。';
@@ -73,11 +74,11 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
   });
   root.addEventListener('welcome:show-editor', () => openEditor('welcome'));
   const observers = [];
-  function mirror(source, update) {
+  function mirror(source, update, attributeFilter) {
     if (!source) return;
     update();
     const observer = new windowRef.MutationObserver(update);
-    observer.observe(source, { childList: true, characterData: true, subtree: true });
+    observer.observe(source, { childList: true, characterData: true, subtree: true, attributeFilter });
     observers.push(observer);
   }
   for (const target of root.querySelectorAll('[data-fixed-count]')) {
@@ -89,8 +90,33 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
   const status = documentRef.getElementById('danmakuCustomReplyStatus');
   const note = root.querySelector('[data-fixed-note="diy"]');
   mirror(status, () => {
+    note.ariaBusy = String(!status.classList.contains('warn'));
     note.textContent = /未保存|更改|失败|保存中|正在保存/.test(status.textContent) ? status.textContent : '';
   });
+  for (const source of root.querySelectorAll('.danmaku-function-groups .danmaku-fixed-note')) {
+    const heading = source.parentElement.querySelector('.danmaku-fixed-item-heading');
+    const help = heading.querySelector('lira-help');
+    const warning = documentRef.createElement('lira-help');
+    warning.className = 'danmaku-status-warning';
+    warning.setAttribute('label', `${heading.querySelector('strong').textContent}状态提示`);
+    const detail = documentRef.createElement('span');
+    warning.append(detail);
+    help.after(warning);
+    heading.addEventListener('beforetoggle', (event) => {
+      if (event.newState !== 'open') return;
+      const other = warning.contains(event.target) ? help : warning;
+      if (other.tooltipOpen) other.hideTooltip();
+    }, true);
+    // Keep the original live region and switch descriptions available with the tooltip closed.
+    source.classList.add('sr-only');
+    mirror(source, () => {
+      const message = source.hidden || source.ariaBusy === 'true' ? '' : source.textContent.trim();
+      detail.textContent = message;
+      if (!message && warning.tooltipOpen) warning.hideTooltip();
+      warning.hidden = !message;
+      if (warning.tooltipOpen) warning.positionTooltip();
+    }, ['hidden', 'aria-busy']);
+  }
   const paginationTargets = [
     ['dailyLibraryList', 'dailyLibraryPagination', '.danmaku-blessing-row, .danmaku-fortune-row'],
     ['danmakuCustomReplyList', '', '.danmaku-custom-reply-row'],

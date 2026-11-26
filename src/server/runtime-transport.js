@@ -33,6 +33,7 @@ function createRuntimeTransport({
   getSessionToken,
   beginPlaybackSnapshotSession,
   getClientTheme,
+  getClientFont,
   getWebSocketHub,
   getState,
   getSettings,
@@ -148,7 +149,7 @@ function createRuntimeTransport({
   async function servePageOrAsset(req, res, requestUrl) {
     if (await serveResourceAsset(getResourceLibrary?.(), req, res, requestUrl)) return;
     if (await serveFontAsset(getFontLibrary?.(), req, res, requestUrl)) return;
-    return pageAssets.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme, Boolean(getFontLibrary?.()));
+    return pageAssets.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession, getClientTheme, Boolean(getFontLibrary?.()), getClientFont);
   }
 
   return {

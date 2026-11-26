@@ -10,7 +10,6 @@ const GPU_COUNTER_OVERHEAD_MS = 10000;
 
 async function getSystemMetrics(rawWindowMs = 5000) {
   const windowMs = Math.min(Math.max(Number(rawWindowMs) || 5000, 1000), 10000);
-  const startedAt = Date.now();
   const cpuStart = readSystemCpuSnapshot();
   const processCpuStart = process.cpuUsage();
   const processTimeStart = process.hrtime.bigint();
@@ -26,7 +25,7 @@ async function getSystemMetrics(rawWindowMs = 5000) {
   const freeMemory = os.freemem();
   const processMemory = process.memoryUsage();
   const sampledAt = now();
-  const sampledWindowMs = Date.now() - startedAt;
+  const sampledWindowMs = Math.round(processElapsedMicros / 1000);
   // Counter initialization can take several seconds. Its child-process timeout
   // bounds the wait without discarding a valid result after the CPU window.
   const gpu = await gpuPromise;

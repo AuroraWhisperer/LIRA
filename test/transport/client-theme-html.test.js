@@ -10,7 +10,7 @@ const { DEFAULT_CLIENT_THEME_ID } = require('../../src/shared/client-theme');
 const publicDir = path.resolve(__dirname, '../../public');
 const token = 'synthetic-client-theme-token';
 
-function request(pathname, { theme = () => 'classic', authorized = true, transport } = {}) {
+function request(pathname, { theme = () => 'classic', font = () => 'wenkai', authorized = true, transport } = {}) {
   return new Promise(resolve => {
     const req = { method: 'GET', headers: authorized ? { authorization: `Bearer ${token}` } : {} };
     const res = { headers: {}, setHeader(key, value) { this.headers[key] = value; },
@@ -18,7 +18,7 @@ function request(pathname, { theme = () => 'classic', authorized = true, transpo
       end(body) { resolve({ status: this.status, headers: this.headers, body: String(body || '') }); } };
     const url = new URL(pathname, 'http://127.0.0.1:3000');
     if (transport) transport.servePageOrAsset(req, res, url);
-    else servePageOrAsset(publicDir, req, res, url, token, undefined, theme);
+    else servePageOrAsset(publicDir, req, res, url, token, undefined, theme, false, font);
   });
 }
 
@@ -27,13 +27,14 @@ test('only approved HTML receives a validated snapshot before CSS without weaken
     const result = await request(route);
     assert.equal(result.status, 200, route);
     assert.match(result.body, /<html[^>]*data-client-theme="classic"/);
+    assert.match(result.body, /<html[^>]*data-client-font="wenkai"/);
     assert.ok(result.body.indexOf('data-client-theme="classic"') < result.body.indexOf('<link'), route);
     assert.equal(result.headers['Cache-Control'], 'no-store');
   }
   for (const route of ['/license', '/scene', '/clock', '/pages/license.html', '/pages/overlays/scene.html']) {
     const result = await request(route);
     assert.equal(result.status, 200, route);
-    assert.doesNotMatch(result.body, /data-client-theme=/, route);
+    assert.doesNotMatch(result.body, /data-client-theme=|client-font-runtime\.js/, route);
   }
   for (const route of ['/admin', '/pages/gift-audit.html']) {
     const result = await request(route, { authorized: false });
@@ -57,4 +58,6 @@ test('each HTML request reads current committed theme, including cached admin co
   }
   const standalone = createRuntimeTransport({ publicDir, getSessionToken: () => token });
   assert.match((await request('/admin', { transport: standalone })).body, new RegExp(`data-client-theme="${DEFAULT_CLIENT_THEME_ID}"`));
+  const invalid = await request('/admin', { font: () => 'untrusted"' });
+  assert.match(invalid.body, /data-client-font="system"/);
 });

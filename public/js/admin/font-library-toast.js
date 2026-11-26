@@ -28,13 +28,14 @@ export function createFontLibraryToast({ window: windowRef = globalThis.window,
     const failed = state.status === 'error';
     const total = state.totalBytes || state.total || 1;
     const completed = state.totalBytes ? state.downloadedBytes || 0 : state.completed || 0;
-    const byteProgress = state.totalBytes
-      ? `${Math.floor(completed / total * 100)}% · ${formatBytes(completed)} / ${formatBytes(total)} · ` : '';
+    const percent = !done && total > 0 ? `${Math.floor((completed / total) * 100)}%` : '';
+    const byteProgress = state.totalBytes ? `${formatBytes(completed)} / ${formatBytes(total)} · ` : '';
     const stack = getToastStack({ container, document: documentRef, window: windowRef });
     handle = stack.show({ key: 'font-library-update', update: true,
       title: failed ? '部分资源暂未下载' : done ? '资源更新完成' : '正在下载字体和图片',
+      meta: percent,
       message: failed ? '已缓存的资源仍可使用，可重试或下次启动时继续。'
-        : `${byteProgress}已完成 ${state.completed || 0} / ${state.total || 0}${state.currentFont ? ` · ${state.currentFont}` : ''}`,
+        : `${byteProgress}${state.completed || 0} / ${state.total || 0}${state.currentFont ? ` · ${state.currentFont}` : ''}`,
       type: failed ? 'warning' : done ? 'success' : 'info',
       duration: done ? 5000 : 0,
       className: 'font-library-update-toast',

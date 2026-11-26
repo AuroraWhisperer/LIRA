@@ -141,6 +141,47 @@ test('fortune mode crosses the restricted bridge without changing the switch and
   await assert.rejects(env.controller.invoke({ action: 'open' }), /INVALID_RESPONSE/);
 });
 
+test('a reloaded page waits for the old library read and coalesces opens while writes remain busy', async (t) => {
+  const library = ['合成词库。'];
+  const reading = Promise.withResolvers();
+  const calls = [];
+  const env = setup(t, async operation => {
+    calls.push(operation);
+    return operation === 'readLibrary' ? reading.promise : fixture.defaultResponse;
+  });
+  const { contextId } = await env.controller.invoke({ action: 'open' });
+  const oldRead = env.controller.invoke({ action: 'library-read', contextId, payload: { kind: 'checkin' } });
+  const opens = Promise.all([env.controller.invoke({ action: 'open' }), env.controller.invoke({ action: 'open' })]);
+  // Register before yielding so a broken busy response is observed as a test failure.
+  const check = assert.doesNotReject(opens);
+  const write = env.controller.invoke({ action: 'update', contextId, payload: {
+    kind: 'checkin', enabled: true, expectedRevision: 0,
+  } });
+  assert.deepEqual(calls, ['read', 'readLibrary']);
+  reading.resolve({ kind: 'checkin', version: digest(library), unchanged: false, library });
+  await Promise.all([oldRead, check, assert.rejects(write, { code: 'DAILY_BOT_BUSY' })]);
+  assert.ok((await opens).every(result => result.contextId === contextId && result.data.executionOwner === 'server'));
+  assert.deepEqual(calls, ['read', 'readLibrary', 'read']);
+});
+
+test('a queued open is discarded when its authorization context changes', async (t) => {
+  const pending = Promise.withResolvers();
+  let reads = 0;
+  const env = setup(t, async operation => {
+    if (operation === 'readLibrary') return pending.promise;
+    reads++;
+    return fixture.defaultResponse;
+  });
+  const { contextId } = await env.controller.invoke({ action: 'open' });
+  const old = env.controller.invoke({ action: 'library-read', contextId, payload: { kind: 'checkin' } });
+  const queued = env.controller.invoke({ action: 'open' });
+  env.switchAccount();
+  pending.resolve({});
+  await Promise.all([old, queued].map(result => assert.rejects(result, { code: 'DAILY_BOT_ACCOUNT_CHANGED' })));
+  assert.equal(reads, 1);
+  assert.notEqual((await env.controller.invoke({ action: 'open' })).contextId, contextId);
+});
+
 test('library requests reject incorrect digests and discard late account responses', async (t) => {
   let resolveRead;
   const env = setup(t, async (operation) => operation === 'read' ? fixture.defaultResponse

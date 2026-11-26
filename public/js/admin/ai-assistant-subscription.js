@@ -42,24 +42,45 @@ export function renderSubscriptionStatus(status = lastStatus) {
 export function createSubscriptionControls({ readApi, flushPendingSave, onAccountChange }) {
   let refreshing = false;
   let identity = '';
-  function accept(status) {
+  let statusRevision = 0;
+  let acceptedRevision = 0;
+  let accountOperationPending = false;
+  function beginStatusRead() {
+    return accountOperationPending ? null : ++statusRevision;
+  }
+  function accept(status, revision) {
+    if (revision === null || revision < acceptedRevision) return;
+    acceptedRevision = revision;
     const nextIdentity = JSON.stringify([status.activeId, status.ready]);
-    if (identity !== nextIdentity) { identity = nextIdentity; onAccountChange(); }
+    if (identity && identity !== nextIdentity && isSubscriptionSelected()) onAccountChange();
+    identity = nextIdentity;
     renderSubscriptionStatus(status);
   }
   async function refresh() {
-    if (!isSubscriptionSelected() || refreshing) return;
+    if (!isSubscriptionSelected() || refreshing || accountOperationPending) return;
     refreshing = true;
-    try { accept(await readApi('/api/ai/chatgpt/status')); }
-    catch { document.getElementById('xiaomiAiChatGptState').textContent = '无法读取 ChatGPT 登录状态，请稍后重试。'; }
+    const revision = beginStatusRead();
+    try {
+      const status = await readApi('/api/ai/chatgpt/status');
+      accept(status, revision);
+    } catch {
+      if (revision === statusRevision) document.getElementById('xiaomiAiChatGptState').textContent = '无法读取 ChatGPT 登录状态，请稍后重试。';
+    }
     finally { refreshing = false; }
   }
   async function operate(operation, body = {}) {
+    const revision = ++statusRevision;
+    // A read already in flight predates this account operation.
+    acceptedRevision = revision;
+    accountOperationPending = true;
     try {
       if (!['cancel', 'logout'].includes(operation) && !(await flushPendingSave())) return;
-      accept(await readApi(`/api/ai/chatgpt/${operation}`, { method: 'POST', body: JSON.stringify(body) }));
+      if (revision !== statusRevision) return;
+      accept(await readApi(`/api/ai/chatgpt/${operation}`, { method: 'POST', body: JSON.stringify(body) }), revision);
     } catch (error) {
-      renderSubscriptionStatus({ ...lastStatus, lastError: error.message || 'ChatGPT 账号操作失败。' });
+      if (revision === statusRevision) renderSubscriptionStatus({ ...lastStatus, lastError: error.message || 'ChatGPT 账号操作失败。' });
+    } finally {
+      if (revision === statusRevision) accountOperationPending = false;
     }
   }
   for (const [id, operation, body] of [
@@ -76,5 +97,5 @@ export function createSubscriptionControls({ readApi, flushPendingSave, onAccoun
   document.getElementById('xiaomiAiChatGptProfiles')?.addEventListener('change', event => {
     void operate('select', { profileId: event.target.value });
   });
-  return { refresh };
+  return { refresh, beginStatusRead, accept };
 }

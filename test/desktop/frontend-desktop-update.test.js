@@ -11,7 +11,7 @@ const root = path.join(__dirname, '../..');
 const markup = fs.readFileSync(path.join(root, 'public/pages/admin/toolbox/desktop-update.html'), 'utf8');
 
 async function createFixture(utils = {}) {
-  const { documentRef, windowRef } = createDom();
+  const { documentRef, windowRef, windowListeners } = createDom();
   const nodes = Object.fromEntries(
     [...markup.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => {
       const node = documentRef.createElement('div');
@@ -22,12 +22,13 @@ async function createFixture(utils = {}) {
   documentRef.getElementById = (id) => nodes[id] || null;
   documentRef.querySelectorAll = () => [];
   const { createDesktopShell } = await loadModuleExports(path.join(root, 'public/js/desktop.js'), {
-    document: documentRef, window: windowRef,
+    document: documentRef, window: windowRef, crypto,
   });
   const desktop = createDesktopShell(utils);
   return {
     nodes,
     windowRef,
+    windowListeners,
     desktop,
     render: desktop.renderDesktopUpdateState,
   };
@@ -60,6 +61,93 @@ test('desktop shell subscribes once per visible page and refreshes after BFCache
   await new Promise(setImmediate);
   assert.equal(subscriptions, 4);
   assert.equal(nodes.desktopVersionPill.textContent, 'v2.0');
+});
+
+test('the update toggle requests only an acknowledgement and rolls back if saving fails', async () => {
+  const calls = [];
+  const { desktop, nodes, windowRef } = await createFixture({
+    api: async (url, body) => {
+      calls.push([url, body.enableAutoUpdate]);
+      if (calls.length === 2) throw new Error('offline');
+      return { ok: true };
+    },
+    toast() {},
+  });
+  windowRef.songAssistantDesktop = { onShowUpdatePage() {}, onUpdateState() {}, getInfo: async () => ({}) };
+  desktop.initDesktopShell();
+  const toggle = nodes.autoUpdateToggle;
+  toggle.checked = true;
+  await toggle.listeners.get('change')();
+  toggle.checked = false;
+  await toggle.listeners.get('change')();
+  assert.deepEqual(calls, [['/api/settings?return=minimal', 'true'], ['/api/settings?return=minimal', 'false']]);
+  assert.equal(toggle.checked, true);
+});
+
+test('two failed rapid changes restore the update setting that was displayed before editing', async () => {
+  const first = Promise.withResolvers();
+  const second = Promise.withResolvers();
+  const errors = [];
+  const writes = [];
+  const { desktop, nodes, windowRef } = await createFixture({
+    async api(_url, { enableAutoUpdate }) {
+      writes.push(enableAutoUpdate);
+      await (writes.length === 1 ? first : second).promise;
+      throw new Error('offline');
+    },
+    toast: message => errors.push(message),
+  });
+  windowRef.songAssistantDesktop = { onShowUpdatePage() {}, onUpdateState() {}, getInfo: async () => ({}) };
+  desktop.initDesktopShell();
+  const toggle = nodes.autoUpdateToggle;
+  toggle.checked = true;
+  const on = toggle.listeners.get('change')();
+  toggle.checked = false;
+  const off = toggle.listeners.get('change')();
+  first.resolve();
+  await on;
+  second.resolve();
+  await off;
+  assert.deepEqual(writes, ['true', 'false']);
+  assert.equal(errors.length, 2);
+  assert.equal(toggle.checked, false);
+  assert.equal(nodes.autoUpdateLabel.textContent, '已关闭');
+});
+
+test('leaving before the first update acknowledgement still hands off the final choice for persistence', async () => {
+  const firstReply = Promise.withResolvers();
+  const writes = [];
+  let pageOpen = true;
+  let stored = 'false';
+  const { desktop, nodes, windowRef, windowListeners } = await createFixture({
+    async api(_url, { enableAutoUpdate }, options) {
+      if (!pageOpen) throw new Error('page closed');
+      writes.push(enableAutoUpdate);
+      if (writes.length === 1) {
+        stored = enableAutoUpdate;
+        await firstReply.promise;
+      } else {
+        await new Promise(setImmediate);
+        if (pageOpen || options.keepalive) stored = enableAutoUpdate;
+      }
+    },
+    toast() {},
+  });
+  windowRef.songAssistantDesktop = { onShowUpdatePage() {}, onUpdateState() {}, getInfo: async () => ({}) };
+  desktop.initDesktopShell();
+  const toggle = nodes.autoUpdateToggle;
+  toggle.checked = true;
+  const first = toggle.listeners.get('change')();
+  await new Promise(setImmediate);
+  toggle.checked = false;
+  const last = toggle.listeners.get('change')();
+  for (const listener of windowListeners.get('pagehide')) listener({ persisted: false });
+  pageOpen = false;
+  await new Promise(setImmediate);
+  assert.equal(stored, 'false', `handed off before teardown: ${writes}`);
+  firstReply.resolve();
+  await Promise.all([first, last]);
+  assert.equal(toggle.checked, false);
 });
 
 test('update failures notify once for manual checks and active downloads, keeping background checks quiet', async () => {

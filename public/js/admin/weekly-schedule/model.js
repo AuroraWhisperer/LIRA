@@ -224,7 +224,7 @@ export function normalizeWeeklyScheduleTemplate(value) {
   const palette = WEEKLY_PALETTES.find(item => item.id === input.palette) || WEEKLY_PALETTES[0];
   const color = (value, fallback) => /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : fallback;
   const font = typeof input.fontId === 'string' && input.fontId.length <= 200
-    && /^[\p{L}\p{N}\s_,'".\-]+$/u.test(input.fontId) ? input.fontId : WEEKLY_FONTS[0].value;
+    && /^[\p{L}\p{N}\s_,'".+\-]+$/u.test(input.fontId) ? input.fontId : WEEKLY_FONTS[0].value;
   return {
     id: text(input.id, '', 100).trim() || createTemplateId(),
     name: text(input.name, '我的周表', WEEKLY_TEXT_LIMITS.name).trim() || '我的周表',

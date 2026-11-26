@@ -1,6 +1,7 @@
 /* ===== 使用文档 ===== */
 #otherUsageGuideFeature {
   --usage-guide-accent: var(--primary);
+  --usage-guide-accent-text: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
   --usage-guide-accent-soft: var(--color-primary-light);
   position: relative;
 }
@@ -155,7 +156,7 @@
   border-radius: 999px;
   background: var(--usage-guide-accent-soft);
   box-shadow: 0 0 0 14px var(--surface);
-  color: var(--usage-guide-accent);
+  color: var(--usage-guide-accent-text);
   font-size: 15px;
   font-weight: 700;
   line-height: 24px;
@@ -300,7 +301,7 @@
   padding: 1px 4px;
   border-radius: 3px;
   background: var(--usage-guide-accent-soft);
-  color: var(--usage-guide-accent);
+  color: var(--usage-guide-accent-text);
   font-size: inherit;
   font-weight: 600;
   line-height: inherit;
@@ -308,7 +309,7 @@
 }
 
 .usage-guide-main a {
-  color: var(--usage-guide-accent);
+  color: var(--usage-guide-accent-text);
   text-underline-offset: 3px;
 }
 
@@ -320,6 +321,7 @@
 
 .usage-guide-main .usage-guide-website-link:hover {
   background: var(--usage-guide-accent-soft);
+  color: var(--usage-guide-accent-text);
 }
 
 .usage-guide-main .usage-guide-website-link:focus-visible {

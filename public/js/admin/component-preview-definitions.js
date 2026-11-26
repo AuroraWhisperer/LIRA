@@ -8,6 +8,8 @@ import { createSceneExtraPreview } from './scene-extra-preview.js';
 import { createBrowserSourcePreview } from './browser-source-preview.js';
 import { createTextBoxPreview } from './text-box-preview.js';
 import { rankingSelection } from '../shared/live-rankings.js';
+import { fitSceneMediaSize } from '../shared/scene-geometry.js';
+import { componentStyleMedia } from '../shared/component-resource-style.js';
 
 export const COMPONENT_PREVIEW_DEFINITIONS = Object.freeze({
   danmaku: Object.freeze({
@@ -50,8 +52,9 @@ export function createInitialPreviewItem(component, document, { id, config, name
   const fillCanvas = component.id === 'background' || (component.id === 'danmaku' && isFloatingDanmakuStyle(draft.style)
     && !size && (!draft.layout || (region?.x === 0 && region?.y === 0
       && region.width === draft.layout.canvas.width && region.height === draft.layout.canvas.height)));
+  const initialSize = size && componentStyleMedia(draft) ? fitSceneMediaSize(document.canvas, ...size) : size;
   const [defaultWidth, defaultHeight] = fillCanvas ? [document.canvas.width, document.canvas.height]
-    : size || (region ? [region.width, region.height] : component.size(draft));
+    : initialSize || (region ? [region.width, region.height] : component.size(draft));
   const scale = component.id === 'browser' ? Math.min(1, document.canvas.width / defaultWidth, document.canvas.height / defaultHeight) : 1;
   const width = Math.max(32, Math.min(defaultWidth * scale, document.canvas.width));
   const height = Math.max(32, Math.min(defaultHeight * scale, document.canvas.height));

@@ -343,6 +343,98 @@ test('manual song entry converts local time and omits per-request preference fie
   assert.equal(Object.hasOwn(payload.data, 'excluded'), false);
 });
 
+test('membership editor saves an instant interval and its original timestamp at full precision', async (t) => {
+  const { fanFixture, interval } = require('../helpers/fan-profile-fixture');
+  const f = fanFixture(t);
+  const profile = f.create();
+  const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), {
+    FormData: class { constructor(form) { return Object.entries(form); } },
+  });
+  function saveForm(record, changes) {
+    const form = forms.recordForm('membership', record);
+    const inputs = Object.fromEntries([...form.fields.matchAll(/<input name="([^"]+)" type="[^"]+" value="([^"]*)"/g)]
+      .map(([, name, value]) => [name, value]));
+    const payload = form.read({ ...inputs, type: record.data.type, level: '3', ...changes });
+    return f.run('save-record', { ...payload, profileId: profile.id }).record;
+  }
+  const dated = f.record(profile.id, 'membership', interval('2026-11-07', '2026-11-08'));
+  const datedEdit = saveForm(dated, { reason: '按日期' });
+  assert.deepEqual([datedEdit.data.precision, datedEdit.data.endAt], ['date', '2026-11-08T16:00:00.000Z']);
+  const instant = f.record(profile.id, 'membership', {
+    type: 'interval', precision: 'instant', level: 3,
+    startAt: '2026-11-09T14:00:00.123+08:00', endAt: '2026-11-09T16:00:01.456+08:00',
+  }, { occurredAt: '2026-11-09T06:01:02.789Z' });
+  const edit = saveForm(instant, { reason: '只改说明' });
+  assert.deepEqual([edit.data.precision, edit.data.startAt, edit.data.endAt, edit.occurredAt],
+    ['instant', instant.data.startAt, instant.data.endAt, instant.occurredAt]);
+  f.setNow(instant.data.endAt);
+  assert.equal(f.detail(profile.id).membership.status, 'expired');
+  const changed = saveForm(edit, { endAt: '2026-11-10T00:00', reason: '修订到期时刻' });
+  assert.equal(changed.data.endAt, '2026-11-09T16:00:00.000Z');
+  assert.equal(changed.original.endAt, instant.data.endAt);
+
+  const observation = f.record(profile.id, 'membership', {
+    type: 'observation', status: 'inactive', level: 3, observedAt: instant.data.startAt,
+  });
+  const reviewed = saveForm(observation, { status: 'inactive', reason: '只改观察说明' });
+  assert.deepEqual([reviewed.data.observedAt, reviewed.data.decision, reviewed.data.conflicts],
+    [instant.data.startAt, 'pending', [instant.id]]);
+});
+
+test('switching membership mode excludes the hidden invalid count from native validation and submission', async t => {
+  const { chromium } = require('playwright');
+  const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+  const server = await startComponentPreviewServer({ parentHtml: '<!doctype html><form></form>' });
+  t.after(() => server.close());
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  const url = `${server.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async () => {
+    const { recordForm } = await import('/js/admin/fans/forms.js');
+    const form = document.querySelector('form');
+    const editor = recordForm('membership');
+    form.innerHTML = editor.fields;
+    editor.bind(form);
+    window.saves = [];
+    form.addEventListener('submit', e => { e.preventDefault(); window.saves.push(editor.read(form)); });
+  });
+  const type = page.locator('[name=type]');
+  await type.selectOption('baseline');
+  await page.locator('[name=totalDays]').fill('1.5');
+  assert.equal(await page.locator('form').evaluate(form => form.checkValidity()), false);
+  await type.selectOption('interval');
+  await page.locator('[name=start]').fill('2026-11-20');
+  await page.locator('[name=end]').fill('2026-11-27');
+  const saves = await page.locator('form').evaluate(form => { form.requestSubmit(); return window.saves; });
+  assert.equal(saves.length, 1);
+  assert.equal(Object.hasOwn(saves[0].data, 'totalDays'), false);
+  const f = fanFixture(t);
+  const profile = f.create();
+  f.run('save-record', { ...saves[0], profileId: profile.id });
+  assert.equal(f.detail(profile.id).records[0].data.end, '2026-11-27');
+  await type.selectOption('baseline');
+  assert.equal(await page.locator('[name=totalDays]').inputValue(), '1.5');
+});
+
+test('editing a zero-day baseline preserves zero and keeps the other metric unknown', async t => {
+  const f = fanFixture(t);
+  const profile = f.create();
+  const record = f.record(profile.id, 'membership', { type: 'baseline', asOf: '2026-09-18', totalDays: 0 });
+  const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), {
+    FormData: class { constructor(form) { return Object.entries(form); } },
+  });
+  const editor = forms.recordForm('membership', record);
+  const inputs = Object.fromEntries([...editor.fields.matchAll(/<input name="([^"]+)" type="[^"]+" value="([^"]*)"/g)]
+    .map(([, name, value]) => [name, value]));
+  assert.deepEqual([inputs.totalDays, inputs.continuousDays], ['0', '']);
+  const payload = editor.read({ ...inputs, type: 'baseline', reason: '核对零值' });
+  const saved = f.run('save-record', { ...payload, profileId: profile.id }).record;
+  assert.deepEqual([saved.data.totalDays, saved.data.continuousDays, saved.data.reason], [0, null, '核对零值']);
+});
+
 test('membership conflicts retain both resolution choices and escape raw data', async () => {
   const confirmed = {
     id: 'confirmed-membership', kind: 'membership', original: { source: 'manual' },

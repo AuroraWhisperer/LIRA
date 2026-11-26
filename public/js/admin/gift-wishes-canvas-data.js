@@ -12,7 +12,7 @@ export function startGiftWishesCanvasData(controller, emit) {
   });
   let active = false;
   const stop = controller.subscribe(({ draft }) => {
-    const needed = draft.document.items.some(item => item.type === 'gift-wishes');
+    const needed = draft.document.items.some(item => item.type === 'gift-wishes' && item.visible !== false);
     if (needed === active) return;
     active = needed;
     if (needed) void feed.start();

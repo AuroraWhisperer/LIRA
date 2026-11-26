@@ -46,12 +46,15 @@ test('wheel admin applies entry, label and weight limits from server state', asy
   assert.equal(input(rows()[0], 'wheel-weight-input').min, '1');
   assert.equal(input(rows()[0], 'wheel-weight-input').max, '7');
   assert.equal(node('wheelSpinBtn').disabled, true, 'spinning needs the minimum entry count');
+  const draftWeight = input(rows()[0], 'wheel-weight-input');
+  draftWeight.value = '';
   for (const expected of [2, 3, 3]) {
     node('wheelAddEntryBtn').listeners.click();
     assert.equal(rows().length, expected, 'adding stops at the server maximum');
   }
   assert.ok(rows().every((row) => input(row, 'wheel-remove-entry').disabled === false));
   assert.equal(input(rows()[2], 'wheel-weight-input').value, '1', 'new entries start at the minimum weight');
+  assert.equal(input(rows()[0], 'wheel-weight-input').value, '', 'adding leaves the existing draft untouched');
 
   wheel.renderWheelState(
     {
@@ -298,7 +301,7 @@ test('games admin marks stale data once after a failed refresh and clears it on 
   assert.equal(status.textContent, '当前没有进行中的游戏');
 });
 
-test('host words follow the current round and ignore late reads after a round change or stop', async () => {
+async function createGamePanelFixture() {
   const nodes = new Map();
   const listeners = new Map();
   function node(id) {
@@ -327,10 +330,43 @@ test('host words follow the current round and ignore late reads after a round ch
     },
   });
   const flush = () => new Promise(setImmediate);
+  games.initGames(); await flush();
+  return { node, listeners, reads, flush };
+}
+
+test('the games panel shows board outcomes while the result session can still be stopped', async () => {
+  const { node, listeners } = await createGamePanelFixture();
+  for (const [game, winner, expected] of [
+    ['number-bomb', '', '进行中'], ['number-bomb', 'viewer', '观众获胜'],
+    ['gomoku', 'host', '主播获胜'], ['gomoku', 'draw', '和棋'],
+  ]) {
+    listeners.get('app:game-update')({ detail: { game, sessionId: 'board', mode: 'multi', state: { winner } } });
+    assert.ok(node('gamesSessionStatus').textContent.includes(expected), node('gamesSessionStatus').textContent);
+    assert.equal(node('gamesStopBtn').disabled, false);
+  }
+});
+
+test('a score patch preserves a collapsed host card and a new game opens it', async () => {
+  const { node, listeners } = await createGamePanelFixture();
+  const game = { game: 'draw-guess', sessionId: 'first', eventRevision: 1,
+    state: { round: 1, totalRounds: 2, phase: 'drawing', correct: [], scores: [] } };
+  const update = detail => listeners.get('app:game-update')({ detail });
+  update(game);
+  assert.equal(node('drawCardDetails').hidden, false);
+  node('drawCardTrigger').listeners.click();
+  listeners.get('app:game-patch')({ detail: { sessionId: 'first', eventRevision: 2,
+    state: { ...game.state, correct: [{ uid: '1', points: 10 }] } } });
+  assert.equal(node('drawCardDetails').hidden, true);
+  assert.match(node('drawCardStatus').textContent, /1 人答对/);
+  update({ ...game, sessionId: 'second' });
+  assert.equal(node('drawCardDetails').hidden, false);
+});
+
+test('host words follow the current round and ignore late reads after a round change or stop', async () => {
+  const { node, listeners, reads, flush } = await createGamePanelFixture();
   const session = (round, sessionId = 'game-one') => ({ game: 'draw-guess', sessionId, state: { round, totalRounds: 3,
     phase: 'drawing', roundDurationMs: 30000, remainingMs: 30000, correct: [], category: '词库', wordLength: 2 } });
   const word = (round, text) => ({ game: 'draw-guess', round, word: text });
-  games.initGames(); await flush();
   listeners.get('app:game-update')({ detail: session(1) });
   listeners.get('app:game-update')({ detail: session(2) });
   reads.pop()(word(2, '第二题')); await flush();

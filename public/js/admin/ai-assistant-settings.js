@@ -60,6 +60,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   let savingPromise = null;
   let editVersion = 0;
   let configRevision = 0;
+  let accountRevision = 0;
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
   const editedFieldIds = new Set();
@@ -68,8 +69,9 @@ function init({ notify = showStackedToast, confirm } = {}) {
     readApi,
     async onCatalog() {
       const revision = configRevision;
+      const account = accountRevision;
       const config = await readApi('/api/ai/config');
-      if (revision === configRevision && !saving && !dirty) renderReasoningState(config);
+      if (revision === configRevision && account === accountRevision && !saving && !dirty) renderReasoningState(config);
     },
     onSelect(id) {
       editedFieldIds.add(id);
@@ -79,15 +81,25 @@ function init({ notify = showStackedToast, confirm } = {}) {
 
   refreshConfig = async () => {
     const requestRevision = configRevision;
+    let requestedAccount = accountRevision;
+    const statusRead = subscriptionControls.beginStatusRead();
     pendingConfigRefreshes += 1;
     try {
-      const [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
+      let [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
       if (requestRevision !== configRevision) return;
+      const accountChanged = requestedAccount !== accountRevision;
+      if (accountChanged) {
+        // Config includes model capabilities from the account that answered the read.
+        requestedAccount = accountRevision;
+        config = await readApi('/api/ai/config');
+        if (requestedAccount !== accountRevision || requestRevision !== configRevision) return;
+      }
       const previousService = JSON.stringify(modelPicker.readService());
       renderConfig(config, editedFieldIds);
       if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate({ preserveConfig: true });
       personaControls.render(config, editedFieldIds);
       renderStatus(status);
+      if (status.chatgpt && !accountChanged) subscriptionControls.accept(status.chatgpt, statusRead);
       if (!configLoaded) {
         configLoaded = true;
         if (dirty && form.checkValidity()) {
@@ -97,7 +109,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
         }
       }
     } catch (error) {
-      if (requestRevision === configRevision) setSaveState(error.message || '无法读取 AI 配置', 'warn');
+      if (requestRevision === configRevision && requestedAccount === accountRevision) setSaveState(error.message || '无法读取 AI 配置', 'warn');
     } finally {
       pendingConfigRefreshes -= 1;
     }
@@ -117,7 +129,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
     }
     saving = true;
     dirty = false;
-    const submittedConfig = collectConfig();
+    const submittedConfig = collectConfig(editedFieldIds);
     // Each reply switch owns its saves; late form saves cannot turn it back on.
     for (const { key } of replySwitches) delete submittedConfig[key];
     const submittedEditVersion = editVersion;
@@ -137,6 +149,9 @@ function init({ notify = showStackedToast, confirm } = {}) {
           if (endpointInput) endpointInput.value = config.deepseekResponsesUrl || '';
           if (protocolInput) protocolInput.value = config.modelApiProtocol || 'auto';
           restoreManualEndpointAfterProviderSave = false;
+        }
+        if (Object.hasOwn(submittedConfig, 'model') && config.model !== submittedConfig.model) {
+          document.getElementById('xiaomiAiModel').value = config.model;
         }
         renderConfigSummary(config, submittedConfig);
         personaControls.render(config);
@@ -346,7 +361,11 @@ function init({ notify = showStackedToast, confirm } = {}) {
   }
 
   let doubaoRefreshPending = false;
-  const subscriptionControls = createSubscriptionControls({ readApi, onAccountChange: modelPicker.invalidate,
+  const subscriptionControls = createSubscriptionControls({ readApi,
+    onAccountChange() {
+      accountRevision++;
+      modelPicker.invalidate();
+    },
     async flushPendingSave() {
       await initialLoadPromise;
       return configLoaded && flushPendingSave();
@@ -397,6 +416,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
     const observer = new MutationObserver(syncPolling);
     observer.observe(page, { attributes: true, attributeFilter: ['class'] });
     observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+    observer.observe(document.getElementById('danmakuAiPanel'), { attributes: true, attributeFilter: ['hidden'] });
     document.addEventListener('visibilitychange', syncPolling);
     window.addEventListener('pagehide', () => {
       disposed = true;

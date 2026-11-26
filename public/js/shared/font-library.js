@@ -1,10 +1,10 @@
 import { SHARED_FONTS, findSharedFont } from './font-catalog.js';
 import { ensureSavedFontOption as ensureLocalFontOption, registerLocalFontSelect } from './local-font-library.js';
 
-const registeredSelects = new Set();
+const registeredSelects = new Map();
 const fontReadiness = new Map();
 const FONT_MODES = new Set(['', 'default', 'system', 'inherit']);
-const legacyFontOptions = new WeakMap();
+const providedFontOptions = new WeakMap();
 const FONT_ALIASES = { 'Christmas Letter Nunito': 'Spooky Nunito', 'Celestial Montserrat': 'Gradient Montserrat', 'Lira Wireframe Serif': 'Lira Sea Breeze Serif' };
 
 function fontName(select, label) {
@@ -12,7 +12,7 @@ function fontName(select, label) {
 }
 
 // Resolve the first available face in the authored stack using the same library inventory.
-export function fontValueForStack(select, stack) {
+export function fontValueForStack(select, stack, fallbackValue = '"Microsoft YaHei UI"') {
   const families = (stack.match(/"(?:[^"\\]|\\.)*"|'[^']*'|[^,]+/g) || [])
     .map(value => value.trim().replace(/^['"]|['"]$/g, ''));
   const context = select.ownerDocument.createElement('canvas').getContext('2d');
@@ -29,25 +29,26 @@ export function fontValueForStack(select, stack) {
     });
     if (available) return value;
   }
-  return '"Microsoft YaHei UI"';
+  return fallbackValue;
 }
 
-function retainLegacyFontOptions(select) {
-  if (legacyFontOptions.has(select)) return;
-  const currentValue = select.value;
-  const legacy = new Map();
-  for (const option of Array.from(select.options)) {
-    if (FONT_MODES.has(option.value)) continue;
-    legacy.set(option.value, { label: fontName(select, SYSTEM_FONT_OPTIONS[option.value] || option.textContent),
-      fontFamily: option.dataset.fontFamily || option.value });
-    option.remove();
+function configureProvidedFonts(select, keepProvidedFonts) {
+  let provided = providedFontOptions.get(select);
+  if (!provided) {
+    provided = Array.from(select.options)
+      .filter(option => !FONT_MODES.has(option.value))
+      .map(option => ({ option, parent: option.parentNode }));
+    providedFontOptions.set(select, provided);
   }
-  for (const group of Array.from(select.children)) {
-    if (group.tagName === 'OPTGROUP' && !group.children.length) group.remove();
+  for (const { option, parent } of provided) {
+    if (keepProvidedFonts && !findSharedFont(option.value)) {
+      if (parent !== select && !parent.parentNode) select.appendChild(parent);
+      if (!option.parentNode) parent.appendChild(option);
+    } else {
+      option.remove();
+      if (parent.tagName === 'OPTGROUP' && !parent.children.length) parent.remove();
+    }
   }
-  legacyFontOptions.set(select, legacy);
-  ensureSavedFontOption(select, currentValue);
-  select.value = currentValue;
 }
 
 function sharedFacesByFamily() {
@@ -65,7 +66,7 @@ function isReady(font) {
 }
 
 function refreshRegisteredSelects() {
-  registeredSelects.forEach(select => populateSharedFontOptions(select));
+  for (const select of registeredSelects.keys()) populateSharedFontOptions(select);
 }
 
 export function refreshSharedFonts() {
@@ -73,7 +74,9 @@ export function refreshSharedFonts() {
   const families = sharedFacesByFamily();
   let changed = false;
   const loads = [];
-  for (const font of SHARED_FONTS) {
+  const menus = new Set(registeredSelects.values());
+  const requestedFonts = menus.has(SHARED_FONTS) ? SHARED_FONTS : new Set([...menus].flat());
+  for (const font of requestedFonts) {
     const faces = families.get(font.family) || [];
     const previous = fontReadiness.get(font.id);
     if (previous && previous.faces.length === faces.length
@@ -101,36 +104,40 @@ export function refreshSharedFonts() {
 export function ensureSavedFontOption(select, value) {
   if (!select?.options) return;
   const font = findSharedFont(value);
-  if (font && !isReady(font)) {
-    for (const option of Array.from(select.options)) {
-      if (option.dataset.sharedFontPending && option.value !== value) option.remove();
-    }
-    ensureLocalFontOption(select, value);
-    const option = Array.from(select.options).find(item => item.value === value);
-    option.textContent = select.dataset.fontNamesOnly === 'true' ? fontName(select, font.label) : `${font.label}（未就绪）`;
-    option.title = '字体资源尚未就绪';
-    option.disabled = true;
-    option.dataset.sharedFontPending = 'true';
-    return;
-  }
+  const offeredFonts = registeredSelects.get(select) ?? SHARED_FONTS;
   const option = font && Array.from(select.options).find(item => item.dataset.fontId === font.id);
-  if (option) {
-    if (option.value !== value) option.value = value;
-  }
-  ensureLocalFontOption(select, value, legacyFontOptions.get(select)?.get(value));
+  if (option && option.value !== value) option.value = value;
+  const provided = providedFontOptions.get(select)?.find(({ option }) => option.value === value)?.option;
+  const systemLabel = Object.hasOwn(SYSTEM_FONT_OPTIONS, value) ? SYSTEM_FONT_OPTIONS[value] : undefined;
+  const label = font?.label ?? systemLabel ?? provided?.textContent;
+  const saved = ensureLocalFontOption(select, value, {
+    label: label && fontName(select, label),
+    fontFamily: provided ? provided.dataset.fontFamily || provided.value : font?.value,
+  });
+  if (!saved?.dataset.savedLocalFont) return;
+  if (font && offeredFonts.includes(font) && !isReady(font)) {
+    saved.textContent = select.dataset.fontNamesOnly === 'true' ? fontName(select, font.label) : `${font.label}（未就绪）`;
+    saved.title = '字体资源尚未就绪';
+    saved.disabled = true;
+  } else if (offeredFonts !== SHARED_FONTS) {
+    // Keep the stored value and trigger label, but don't offer it as a new choice.
+    if (!saved.hidden) saved.hidden = true;
+  } else if (saved.hidden) saved.hidden = false;
 }
 
 export function populateSharedFontOptions(select) {
   if (!select) return;
   const currentValue = select.value;
+  const offeredFonts = registeredSelects.get(select) ?? SHARED_FONTS;
   select.querySelector('optgroup[data-shared-fonts]')?.remove();
   for (const option of Array.from(select.options)) {
-    if (findSharedFont(option.value)) option.remove();
+    const font = findSharedFont(option.value);
+    if (font && (option.dataset.savedLocalFont || (offeredFonts.includes(font) && isReady(font)))) option.remove();
   }
   const group = document.createElement('optgroup');
   group.label = '软件字体库';
   group.dataset.sharedFonts = 'true';
-  for (const font of SHARED_FONTS) {
+  for (const font of offeredFonts) {
     if (!isReady(font)) continue;
     const option = document.createElement('option');
     option.value = font.value;
@@ -146,17 +153,23 @@ export function populateSharedFontOptions(select) {
   select.value = currentValue;
 }
 
-export function registerFontSelect(select, { maxLength, namesOnly = false } = {}) {
+/** allowedFonts scopes this menu by shared catalog ID and installed family name. Omit it for the full library. */
+export function registerFontSelect(select, { allowedFonts, keepProvidedFonts = false, maxLength, namesOnly = false } = {}) {
   if (!select) return;
   if (namesOnly) select.dataset.fontNamesOnly = 'true';
   if (maxLength) select.dataset.fontMaxLength = String(maxLength);
-  retainLegacyFontOptions(select);
-  registeredSelects.add(select);
+  const currentValue = select.value;
+  const fonts = allowedFonts ? SHARED_FONTS.filter(font => allowedFonts.shared?.includes(font.id)) : SHARED_FONTS;
+  registeredSelects.set(select, fonts);
+  select.querySelector('optgroup[data-local-fonts="true"]')?.remove();
+  configureProvidedFonts(select, keepProvidedFonts && !allowedFonts);
+  ensureSavedFontOption(select, currentValue);
+  select.value = currentValue;
   if (!refreshSharedFonts()) populateSharedFontOptions(select);
-  const unregisterLocal = registerLocalFontSelect(select);
+  const unregisterLocal = registerLocalFontSelect(select, allowedFonts && (allowedFonts.local ?? []));
   return () => {
     registeredSelects.delete(select);
-    unregisterLocal();
+    unregisterLocal?.();
   };
 }
 
@@ -170,17 +183,9 @@ const SYSTEM_FONT_OPTIONS = Object.freeze({
   'SimSun, STSong, serif': '宋体 · 传统典雅',
   'Noto Sans SC, Noto Sans JP, Microsoft YaHei, sans-serif': '思源黑体 · 清晰现代',
   'YouYuan, STYuanti, PingFang SC, sans-serif': '幼圆 · 圆润亲切',
+  'STLiti, FZLiShu, KaiTi, serif': '隶书 · 古朴庄重',
   'Georgia, Times New Roman, STSong, serif': 'Georgia · 优雅衬线',
   'Courier New, Consolas, monospace': '等宽字体 · 极客风格',
+  'STHupo, KaiTi, cursive': '琥珀体 · 创意醒目',
+  'Hannotate SC, KaiTi, serif': '手札体 · 文艺清新',
 });
-
-// Registration retains these old stacks as compatibility metadata, not font choices.
-export function populateSystemFontOptions(select, maxLength = Infinity) {
-  if (!select) return;
-  select.replaceChildren(...Object.entries(SYSTEM_FONT_OPTIONS).filter(([value]) => Array.from(value).length <= maxLength).map(([value, title]) => {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = title;
-    return option;
-  }));
-}

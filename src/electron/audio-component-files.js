@@ -22,7 +22,8 @@ async function pruneAudioPreparations(dataDir, root, signal) {
   }
   if (!isOwnedDirectory(dataDir, root)) return;
   for (const name of await fs.readdir(root)) {
-    if (!/^\.prepare-[A-Za-z0-9]{6}$/.test(name)) continue;
+    if (!/^\.prepare-[A-Za-z0-9]{6}$/.test(name)
+      && !/^[a-f0-9]{24}\.replaced-[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(name)) continue;
     const directory = path.join(root, name);
     try {
       if (await abandoned(directory) && isOwnedDirectory(dataDir, directory)) {
@@ -132,7 +133,8 @@ async function publishAudioDirectory(staging, destination) {
   catch (error) { if (error.code !== 'ENOENT') throw error; }
   try { await renameDirectory(staging, destination); }
   catch (error) { if (previous) await renameDirectory(replaced, destination); throw error; }
-  if (previous) await fs.rm(replaced, { recursive: true, force: true });
+  // The verified replacement is already live. Later preparation can retry housekeeping.
+  if (previous) await fs.rm(replaced, { recursive: true, force: true }).catch(() => {});
 }
 
 module.exports = { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, publishAudioDirectory, pruneAudioPreparations };

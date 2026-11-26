@@ -1,5 +1,12 @@
 'use strict';
 
+const RECORDING_DURATION_TOLERANCE_MS = 5000;
+
+function recordingDurationChanged(previousMs, currentMs) {
+  return previousMs > 0 && Number.isFinite(currentMs) && currentMs > 0 &&
+    Math.abs(currentMs - previousMs) > RECORDING_DURATION_TOLERANCE_MS;
+}
+
 // External players keep their own catalog. WeSing's multi-provider preference
 // deliberately does not participate in this resolver.
 function createExternalClientLyricResolver({ platform, getRegistry, catalogService, lyricsService }) {
@@ -26,10 +33,11 @@ function createExternalClientLyricResolver({ platform, getRegistry, catalogServi
         track: candidate,
         durationDistance: durationMs > 0 && candidate.durationMs > 0
           ? Math.abs(candidate.durationMs - durationMs) : Number.MAX_SAFE_INTEGER,
-      })).filter((candidate) => candidate.durationDistance === Number.MAX_SAFE_INTEGER || candidate.durationDistance <= 5000)
+      })).filter((candidate) => candidate.durationDistance === Number.MAX_SAFE_INTEGER || candidate.durationDistance <= RECORDING_DURATION_TOLERANCE_MS)
         .sort((left, right) => left.durationDistance - right.durationDistance);
       if (!candidates.length) return null;
       track = candidates[0].track;
+      if (platform === 'netease' && durationMs) track = { ...track, durationMs };
     }
     const result = await lyricsService.getMusicTrackLyrics(registry, { track });
     if (result?.source && result.source !== platform) return null;
@@ -47,4 +55,4 @@ function artistKey(artists) {
   return artists.flatMap((artist) => String(artist).split('/')).map(normalizeText).filter(Boolean).sort().join('\n');
 }
 
-module.exports = { createExternalClientLyricResolver };
+module.exports = { createExternalClientLyricResolver, recordingDurationChanged };

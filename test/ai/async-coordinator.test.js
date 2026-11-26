@@ -30,6 +30,36 @@ test('grouped generation skips busy viewers without losing global delivery order
   assert.deepEqual(delivered, ['A1', 'A2', 'B1', 'B2']);
 });
 
+test('a delivery retry shares the generation limit and retains its delivery position', async () => {
+  const second = Promise.withResolvers();
+  const starts = [];
+  const sent = [];
+  const coordinator = createOrderedAsyncCoordinator({
+    getConcurrency: () => 1,
+    async generate(item, options) {
+      starts.push(options?.retry ? `${item}-retry` : item);
+      if (item === 'B') await second.promise;
+    },
+    async deliver(item, _result, regenerate) {
+      if (item === 'A') await regenerate({ retry: true });
+      sent.push(item);
+    },
+  });
+  try {
+    coordinator.enqueue('A');
+    coordinator.enqueue('B');
+    await waitUntil(() => coordinator.getStatus().delivering && starts.includes('B'));
+    assert.deepEqual(starts, ['A', 'B']);
+    second.resolve();
+    await waitUntil(() => sent.length === 2);
+    assert.deepEqual(starts, ['A', 'B', 'A-retry']);
+    assert.deepEqual(sent, ['A', 'B']);
+  } finally {
+    second.resolve();
+    await coordinator.stop();
+  }
+});
+
 for (const failure of ['generate', 'deliver', 'onError']) {
   test(`a ${failure} failure releases the viewer for the following turn`, async t => {
     t.mock.method(console, 'warn', () => {});

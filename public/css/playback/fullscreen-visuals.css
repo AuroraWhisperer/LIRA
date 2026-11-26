@@ -285,13 +285,13 @@
   aspect-ratio: 1;
   display: block;
   overflow: visible;
-  border: 1px solid rgba(255, 255, 255, 0.86);
+  border: 1px solid light-dark(rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.16));
   border-radius: 11%;
   background: #fff url('/img/playback/player-turntable-chassis.webp') center / cover no-repeat;
   box-shadow:
-    0 24px 44px rgba(67, 75, 105, 0.14),
-    0 8px 18px rgba(67, 75, 105, 0.1),
-    inset 0 1px 1px rgba(255, 255, 255, 0.98);
+    0 24px 44px light-dark(rgba(67, 75, 105, 0.14), rgba(0, 0, 0, 0.48)),
+    0 8px 18px light-dark(rgba(67, 75, 105, 0.1), rgba(0, 0, 0, 0.34)),
+    inset 0 1px 1px light-dark(rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.14));
 }
 
 .player-fs-vinyl::before {

@@ -77,6 +77,13 @@ test('display gift settlement keeps time unchanged and remains idempotent', () =
     assert.equal(fixture.countSettlements(event.giftEventId), 1);
     assert.equal(updates.filter((update) => update.reason === 'gift').length, 1);
     assert.equal(updates.at(-1).adjustment.displayText, '谢谢支持');
+    service.setTime({ remainingSeconds: 0 });
+    service.act('disable');
+    service.act('enable');
+    const atZero = fixture.insertFinalGift({ giftId: 'display-gift', overtimeEpoch: service.getSnapshot().enableEpoch });
+    consumer.handle(atZero);
+    assert.equal(fixture.getSettlement(atZero.giftEventId).status, 'applied');
+    assert.equal(service.getSnapshot().status, 'paused');
   } finally {
     service.dispose();
     fixture.close();

@@ -4,6 +4,7 @@ import { mountComponentStyleLibrary, openComponentStyleLibrary } from './compone
 import { openComponentLibraryManager } from './component-library-manager.js';
 import { loadComponentStyleCss, requestComponentStyles } from './component-style-api.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
+import { fitSceneMediaSize } from '../shared/scene-geometry.js';
 import { mountResourceStyleSettings } from './component-resource-settings-panel.js';
 import { renderGiftFrameStyleState } from './gift-frame.js';
 import { renderGiftFrameStyles } from './gift-frame-styles.js';
@@ -17,8 +18,7 @@ export async function addStyleToCanvas(style, { previewData, reuseExisting = fal
     createItem(document, component) {
       const media = componentStyleMedia(style.config);
       const [sourceWidth, sourceHeight] = media ? [media.width, media.height] : component.size(style.config);
-      const scale = Math.min(1, document.canvas.width / sourceWidth, document.canvas.height / sourceHeight);
-      const width = Math.max(32, Math.round(sourceWidth * scale)); const height = Math.max(32, Math.round(sourceHeight * scale));
+      const [width, height] = fitSceneMediaSize(document.canvas, sourceWidth, sourceHeight);
       return { id: crypto.randomUUID(), type: style.type, name: style.name,
         x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
         width, height, visible: true, locked: false, appearance: { mode: 'independent', config: structuredClone(style.config) } };
@@ -40,7 +40,7 @@ export function initComponentStyleLibraries() {
     manager = openComponentLibraryManager({ request: requestComponentStyles,
       onUpdate(pack, file) {
         updateEditor = openComponentStyleLibrary({ type: pack.importTarget === 'suite' ? undefined : pack.importTarget,
-          suitesOnly: pack.importTarget === 'suite', initialFile: file, updatePack: pack });
+          suitesOnly: pack.importTarget === 'suite', initialFile: file, updatePack: pack, onUse: addStyleToCanvas });
       } });
   }, { signal: requests.signal });
   let pendingList;

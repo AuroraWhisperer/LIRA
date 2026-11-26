@@ -311,10 +311,18 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
   render();
   documentRef.fonts?.addEventListener('loadingdone', refreshTypography);
 
+  let chassisPrepared = false;
   const observer = new ResizeObserver(() => {
     const width = playerRoot.clientWidth;
     const height = playerRoot.clientHeight;
     if (!width || !height || !preview.clientWidth) return;
+    if (!chassisPrepared && settings.layout !== 'lyrics') {
+      // Decode the CSS artwork when the playback page gets its size, ahead of the first switch.
+      chassisPrepared = true;
+      const chassis = new Image();
+      chassis.src = '/img/playback/player-turntable-chassis.webp';
+      void chassis.decode().catch(() => {});
+    }
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     preview.style.aspectRatio = `${width} / ${height}`;

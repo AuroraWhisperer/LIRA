@@ -8,6 +8,7 @@ const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { parseRandomSongTerms } = require('../music/random-song-filter');
 const { normalizeRandomScopeText, randomSourceValue } = require('../music/song-field-utils');
 const { logSongRequest, songRequestReason } = require('./diagnostics');
+const { isSongCancelCommand } = require('./danmaku/command-text');
 const { isQueueRequestRejection } = require('../music/queue-service');
 const { requesterIdentity, userCooldownSeconds, requestRejection } = require('../music/song-request-policy');
 
@@ -23,6 +24,7 @@ function handleDanmakuMessage(
     fanScope,
     source,
     messageTimestamp,
+    historyCancellation,
     requesterGuardLevel,
     requesterMedalName,
     requesterMedalLevel,
@@ -53,10 +55,13 @@ function handleDanmakuMessage(
     if (settings.songRequestCancelEnabled === 'false') {
       return { accepted: false, reason: '观众取消点歌已关闭。', command };
     }
-    const queueItem = context.cancelQueueItem({
+    const ambiguous = source === 'history' &&
+      hasAmbiguousHistoryTarget(context, command.songName, historyCancellation?.unorderedRequests);
+    const queueItem = ambiguous ? null : context.cancelQueueItem({
       songName: command.songName,
       requesterUid: uid,
       requesterIdentityType,
+      ...(source === 'history' && { messageTimestamp, historyCancellation: historyCancellation || { timeline: messageTimestamp } }),
     });
     return queueItem
       ? { accepted: true, command, queueItem }
@@ -133,7 +138,7 @@ function handleDanmakuMessage(
         isPinned,
       });
     } else {
-      const matchedSong = context.resolveSongRequest ? context.resolveSongRequest(command.songName) : null;
+      const matchedSong = context.resolveSongRequest?.(command.songName);
       queueItem = context.addQueueItem({
         songName: matchedSong ? matchedSong.name : command.songName,
         artist: matchedSong?.artist,
@@ -144,7 +149,7 @@ function handleDanmakuMessage(
         message: text,
         messageTimestamp,
         isPinned,
-      });
+      }, matchedSong);
     }
   } catch (error) {
     if (!isQueueRequestRejection(error)) throw error;
@@ -166,13 +171,25 @@ function handleDanmakuMessage(
 
 // ── 指令解析 ──
 
+function hasAmbiguousHistoryTarget(context, songName, messages = []) {
+  const title = toSimplifiedChinese(songName);
+  return messages.some(message => {
+    const request = parseDanmakuCommand(message);
+    if (request?.type === 'random') return true;
+    if (request?.type !== 'request') return false;
+    if (!title) return true;
+    const song = context.resolveSongRequest?.(request.songName);
+    return toSimplifiedChinese(song?.name || request.songName) === title;
+  });
+}
+
 function parseDanmakuCommand(message) {
   const text = cleanText(message);
   return parseCommandText(text, toSimplifiedChinese(text));
 }
 
 function parseCommandText(text, commandText) {
-  if (commandText.startsWith('取消点歌')) {
+  if (isSongCancelCommand(commandText)) {
     return { type: 'cancel', songName: cleanText(text.slice('取消点歌'.length)) };
   }
 

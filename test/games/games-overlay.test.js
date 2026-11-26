@@ -162,6 +162,15 @@ test('scene drawing retains painted history until its revision, session, round o
   assert.equal(nodes.get('drawGuessView').hidden, false);
 });
 
+test('the drawing clue invites answers only during scoring', async () => {
+  const { nodes, receive } = await createGameOverlayFixture();
+  const hints = ['choosing', 'drawing', 'round-result', 'finished'].map(phase => {
+    receive('draw-guess', { phase, round: 1, totalRounds: 1, wordLength: 2, correct: [], scores: [] });
+    return nodes.get('drawClueHint').textContent;
+  });
+  assert.deepEqual(hints.map(text => text.includes('即可抢答')), [false, true, false, false], hints.join(' / '));
+});
+
 test('drawing updates retain the lists and revealing chat renders the latest snapshot once', async () => {
   const { nodes, context, evaluate, receive } = await createGameOverlayFixture();
   const chats = [];

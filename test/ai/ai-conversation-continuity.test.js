@@ -111,10 +111,13 @@ test('traditional conversation commands reset only the current viewer without ge
 
 test('unidentified messages cannot share persistent memory through a nickname', async t => {
   const f = fixture(t);
-  for (const extra of [{ uid: '' }, { uid: '' }, { roomId: '' }, { roomId: '' }]) {
-    f.ask('继续', extra);
+  f.config.roomLimitPerMinute = 2;
+  assert.equal(f.ask('继续', { uid: '' }).accepted, false);
+  for (const question of ['上一题', '继续']) {
+    assert.equal(f.ask(question, { roomId: '' }).accepted, true);
     await f.idle();
   }
+  assert.equal(f.requests.length, 2);
   assert.equal(f.db.prepare('SELECT COUNT(*) AS count FROM ai_viewer_context').get().count, 0);
   assert.ok(f.requests.every(request => JSON.parse(request.input).previousExchange === null));
 });

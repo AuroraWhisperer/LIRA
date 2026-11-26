@@ -8,6 +8,10 @@ const { normalizeSceneConfig } = require('./scene-components');
 const { SCENE_TYPES } = require('../shared/scene-component-types');
 const { invalidBackup, backupFileName } = require('./component-library-archive');
 
+function checkBackupDocumentCount(documents) {
+  if (documents.length > 1000) throw invalidBackup('备份最多支持 1000 份保存布局与发布快照，请减少布局后重试。');
+}
+
 function transferId(...values) {
   const hex = createHash('sha256').update(JSON.stringify(values)).digest('hex');
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
@@ -95,11 +99,12 @@ function portableDocuments(entries) {
 function validateBackupManifest(manifest, files) {
   if (!manifest || Object.keys(manifest).some(key => !['format', 'version', 'packages', 'documents', 'warnings', 'files'].includes(key))
     || manifest.format !== 'lira-component-library-backup' || manifest.version !== 1
-    || !Array.isArray(manifest.documents) || manifest.documents.length > 1000
+    || !Array.isArray(manifest.documents)
     || !Array.isArray(manifest.warnings) || manifest.warnings.length > 32
     || manifest.warnings.some(value => typeof value !== 'string' || value.length > 300)
     || !Array.isArray(manifest.packages) || manifest.packages.length > 1000
     || !Array.isArray(manifest.files) || manifest.files.length !== files.length) throw invalidBackup();
+  checkBackupDocumentCount(manifest.documents);
   const sorted = value => [...value].sort((a, b) => a.name.localeCompare(b.name));
   if (!isDeepStrictEqual(sorted(manifest.files), sorted(files))) throw invalidBackup('备份文件的摘要或清单不匹配。');
   validateIndex({ version: 1, packages: manifest.packages });
@@ -143,4 +148,4 @@ function validateBackupManifest(manifest, files) {
   return manifest;
 }
 
-module.exports = { transferId, mapConfigReferences, backupDependencies, portableDocuments, validateBackupManifest };
+module.exports = { transferId, mapConfigReferences, backupDependencies, portableDocuments, validateBackupManifest, checkBackupDocumentCount };

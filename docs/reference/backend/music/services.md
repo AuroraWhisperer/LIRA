@@ -145,11 +145,11 @@
 
 | action                | 行为                                                          | 缓存                                                                                           |
 | --------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `personalized`        | 推荐歌单,`limit` 转发时截 30,带 `page`                        | **缓存**(key 含 platform/action/limit/playlistId 及当前授权凭证派生的作用域，**page 不入 key**，故 `page > 1` 必须绕过缓存) |
+| `personalized`        | 推荐歌单。网易云在最多 30 项中按 `page` 分批，播放器每批最多 12 项                        | **缓存**(key 含 platform/action/limit/playlistId 及当前授权凭证派生的作用域，**page 不入 key**，故 `page > 1` 必须绕过缓存) |
 | `playlist-tracks`     | 歌单详情,`playlistId` 必填                                    | **不缓存**，直接读取 Provider；由播放器内容缓存及后台刷新负责                                                                       |
-| `daily`               | 每日推荐                                                      | **不缓存**——注释:radio/daily 的重点是每次给新歌,缓存会让它们永远返回同一批                     |
+| `daily`               | 每日推荐。QQ 的 `nextPage` 指示下一批起始页，见 [QQ 每日推荐](qq-provider.md#75-每日推荐qq-providerjs) | 不缓存 |
 | `radio`               | 电台                                                          | 不缓存                                                                                         |
-| `liked`               | 我喜欢                                                        | 不缓存                                                                                         |
+| `liked`               | 我喜欢。QQ 按原始页偏移读取，已覆盖声明曲数的不同收藏时 `nextOffset` 为 `null`，见 [QQ「我喜欢」](qq-provider.md#77-我喜欢qq-providerjs) | 不缓存                                                                                         |
 | `created-playlists`   | 我的歌单;`body.track` 存在时并发标注 `containsTrack`(见 §6.5) | 不缓存                                                                                         |
 | `collected-playlists` | 收藏歌单                                                      | 不缓存                                                                                         |
 | `recent`              | 最近播放                                                      | 不缓存                                                                                         |
@@ -164,8 +164,9 @@
 ### 6.3 歌词(`getMusicTrackLyrics`,[lyrics-service.js](../../../../src/music/lyrics-service.js))
 
 - 入参先过 `normalizeMusicTrackForProvider`(强制完整契约)
-- 缓存 key:`musicCacheKey(version, { source, sourceTrackId })`；网易云使用 `lyrics-v6`，QQ 保持 `lyrics-v5`。版本前缀参与 hash，旧网易云无逐字缓存不会压制新解析结果。
-- 30 天内命中时异步读取磁盘并返回 `{...cached, cached: true}`。未命中时调用 `provider.getLyrics(normalizedTrack)`。同一服务实例按 registry、授权修订、曲目 ID 及影响匹配或逐字时间的输入合并在途请求。
+- 缓存键为 `musicCacheKey('lyrics-v7', { source, sourceTrackId })`。网易云缓存已解析的行，只有缺少结束时间且没有词时的 LRC 末句延后到每次返回时按调用方曲长估算。
+- 30 天内命中时异步读盘并返回 `cached: true`。未命中时，同一服务实例按 registry、授权修订和曲目合并在途请求。网易云调用 `provider.getLyrics(normalizedTrack, {deferFinalTiming: true})`，不同曲长可共享读取。QQ 调用 `provider.getLyrics(normalizedTrack)`，另按曲长和数值歌曲 ID 区分请求，缺少该 ID 时还区分歌名和首位歌手。
+- 升级后第一次在线取词遇到连接故障时，可以从有效的旧缓存恢复按行歌词。QQ 依次读取 v6、v5，网易云读取 v6。返回正文、行起点、译文和罗马音，网易云按本次请求的曲长设置末行终点。降级响应带有 `cached: true` 和 `retryable: true`，播放器先显示按行正文，下次播放同一曲目时重新取词以恢复逐字高亮。
 - 有效歌词行非空且授权修订仍匹配时，异步暂存结果，随后原子替换缓存文件并更新 §5 的容量账本。空结果与失败均允许下次重试。
 
 ### 6.4 歌单写入([music-catalog-service.js](../../../../src/music/music-catalog-service.js))
@@ -257,7 +258,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 1. `songName` 必填
 2. **观众资格**：仅内部入口标记 `viewerRequest: true` 时由 [song-request-policy.js](../../../../src/music/song-request-policy.js) 检查有效 UID 黑名单、配额所需身份、大航海与粉丝牌门槛。默认均不限，已过期名单忽略；名单启用但无法核验 UID 时拒绝，不能把 `open_id` 当 UID。粉丝牌与大航海分别依赖当前房间已核验证据；免牌只豁免粉丝牌，不豁免大航海门槛。
 3. **队列上限**：`queueLimit` 设置（defaults 兜底），统计 `status IN ('current','waiting')` 的活跃数，满则抛「点歌队列已达到上限。」
-4. **曲库校验**：显式给出歌手时先按歌名和歌手匹配，`artist: ''` 可选中空歌手的版本。省略歌手时按歌名匹配。`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛「歌库里没有这首歌。」
+4. **曲库校验**：显式给出歌手时，只匹配该歌名和歌手的启用版本，`artist: ''` 匹配空歌手。仅省略歌手时按歌名匹配。`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛「歌库里没有这首歌。」
 5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与请求归属检查最近成功入队时间；比较时简繁等价，历史 `song_key` 格式和原值不变，同一作用域的等价记录取最近接受时间。事务内复查及随机候选过滤沿用相同规则。小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
 6. **重复检查**：沿用 `allowDuplicate`（默认 `'true'`），界面以「禁止同名点歌」呈现，默认关闭；开启时保存 `'false'`。`allowDuplicate !== 'true'` 时，活跃队列内歌名文本相同（仅比较 `song_name`、不区分歌手，简繁歌名视为相同歌曲）即抛 `SONG_ALREADY_QUEUED`。普通点歌、随机抽中的歌曲、SC 和手动入队均经过此检查；拒绝沿用点歌板红色失败提示，随机点歌不会另抽一首规避拒绝。完成、跳过、删除或清空后不再占用同名名额，歌曲冷却仍独立生效；开启规则不会移除已有重复项。
 
@@ -297,7 +298,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 观众取消点歌复用 [song-request-policy.js](../../../../src/music/song-request-policy.js) 的稳定身份校验，同时匹配队列的 `requester_uid` 与 `requester_identity_type`；UID 与 `open_id` 分开，昵称不能证明归属，缺少可识别身份或未找到本人活跃项时返回 `null`。只处理 `current` / `waiting`，包含本人置顶和 LIVE 项。
 
-`songName` 为空时选择本人点歌时间（`created_at`）最新的一首；指定歌名时按清洗后的完整歌名精确匹配，只在本人同名歌曲中选择最新一首，同一时间以较大 ID 优先，不受置顶或身份排序影响。成功复用 `setStatus(id, 'deleted', now())` 原子移除队列与原始点歌记录，返回被移除的项；释放排队名额，保留已有观众间隔、歌曲冷却、随机避重历史与粉丝档案累计结果。不新增数据库字段或 HTTP 入口；弹幕桥接行为见 [danmaku.md](../bilibili/danmaku.md#53-handledanmakumessage-处理链)。
+`songName` 为空时选择本人点歌时间（`created_at`）最新的一首。指定歌名时按清洗后的完整歌名精确匹配，只在本人同名歌曲中选择最新一首。历史回补按平台时间的原始精度和 `admin`、`room` 的列表顺序判断。同秒的先后差异可能改变取消目标时，保留队列。指名取消时，普通点歌按歌库匹配后的歌名判断，其他歌名的先后差异不影响取消，随机点歌可能命中指定歌曲。能确定在取消之前且精确到同一毫秒的请求，缺少列表先后依据时以较大 ID 优先。置顶或身份排序不影响选择。成功复用 `setStatus(id, 'deleted', now())` 原子移除队列与原始点歌记录，返回被移除的项；释放排队名额，保留已有观众间隔、歌曲冷却、随机避重历史与粉丝档案累计结果。不新增数据库字段或 HTTP 入口；弹幕桥接行为见 [danmaku.md](../bilibili/danmaku.md#53-handledanmakumessage-处理链)。
 
 ## 9. 歌曲匹配(song-matcher.js)
 
@@ -316,7 +317,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | 条件                                                                           | 加分 |
 | ------------------------------------------------------------------------------ | ---- |
 | 完整歌名归一后一致(忽略大小写、全半角、标点及空白，保留括号内容)                | +60  |
-| 任一 artist 与请求 artist 归一后一致(忽略大小写、全半角及首尾空白)               | +25  |
+| 整名命中或斜杠并列的请求歌手全部命中（忽略顺序、大小写、全半角及首尾空白）               | +25  |
 | 仅忽略已识别的括号版本标记后歌名一致                                           | +15  |
 | 清洗后的完整标题长度相同且至少 5 个字符，仅一个位置的英文字母不同                | +10  |
 | 双 durationMs > 0 且差 ≤ 5000ms                                                | +10  |
@@ -334,7 +335,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `翻唱\|cover`                           | -20  |
 | `加速\|慢速\|speed up\|sped up\|slowed` | -20  |
 
-自动接受除总分达到 `AUTO_ACCEPT_SCORE` 外，还要求：填写的歌手命中；双方均有时长时误差不超过 5 秒；候选未被平台标记 `playable: false`。冲突候选保留待确认并给出原因，不能靠其他加分抵消这些限制。仅填写歌名、未提供歌手或时长时，普通完整匹配最高 65 分，仍需确认；不要求用户补填歌手才能获得相关候选。
+自动接受要求总分达到 `AUTO_ACCEPT_SCORE`、填写的歌手命中，且候选可播放性未标记为 `playable: false`。按斜杠并列的歌手须全部命中，顺序不限。单人艺名中的标点按整名匹配，例如 `&Echo`。双方均有时长时，误差须在 5 秒内。冲突候选保留待确认并给出原因。仅填写歌名、未提供歌手或时长时，普通完整匹配最高 65 分，仍需确认。
 
 `rankTrackCandidates` 排除 `null` 后按分数降序，同分优先未标记不可播的歌曲，其余保留 Provider 搜索返回的相关性顺序；全部不相关时返回空数组。`normalizeSongKey` 做 NFKC、简繁字形、大小写及标点空白归一化；`stripVersionAnnotations` 只删除包含已知版本类型的括号内容，保留 `Run (To You)` 等有意义的歌名部分。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分，并保留同一候选的 Provider 标识、封面及权益字段；评分不会丢失 QQ 的 `sourceSongId/sourceMediaId/sourceSongType` 等播放与歌单元数据。
 
@@ -378,20 +379,24 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 下载模板使用 `SONG_TEMPLATE_HEADERS`，只将标签列表头改为 `歌曲标签（如：怀旧、抒情、治愈）`；其余列名与顺序沿用导出表头。CSV/XLSX 模板仅含表头，不含示例歌曲。XLSX 标签列加宽以容纳提示。后端导入和前端 CSV/TSV/粘贴解析均接受该表头别名，普通歌库导出的表头不变。
 
-`SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js](../../../../src/music/song-import-schema.js));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空，布尔 `false` 和数值 `0` 不当作缺值。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集，原生 `false/0` 与字符串 `false/0` 均表示停用，空值或未识别值回退默认值。`normalizeImportedSongRow` 产出清洗后的行,曲风缺省"默认"，点歌价格与歌切均缺省空字符串。
+[`SONG_IMPORT_ALIASES`](../../../../public/js/shared/song-import-headers.js) 为前后端导入维护每个字段的中英文别名;`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空，布尔 `false` 和数值 `0` 不当作缺值。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集，原生 `false/0` 与字符串 `false/0` 均表示停用，空值或未识别值回退默认值。`normalizeImportedSongRow` 产出清洗后的行,曲风缺省"默认"，点歌价格与歌切均缺省空字符串。
 
 按 [点歌资料规范](../../../../specs/song-request-metadata.md)，价格和歌切在导入、保存中使用 `cleanTextPreserveLines`，保留内部空格和换行，统一 CRLF、去除控制字符及首尾空白；价格数值 0 变为文本 `0`。显式升级原先的空白折叠和价格首别名规则，其余字段不变。普通保存省略价格/歌切保留旧值，显式空字符串清空。
 
 ### 11.2 编解码(song-file-codec.js)
 
+CSV、TSV 和 XLSX 共用首行判定。十列外部表可以只提供一个可识别的歌名标题，其余标题可自定义。整列留空的 A 列不影响按标题读取。在混合自定义标题的首行，歌名标题位于前九列、A 列有值且第五列为空或不是启用值时，按歌名标题所在列读取。
+
+第十列也是无表头歌单的备注位。若首行只有第五列和备注与标题重名，第五列的「可点」「启用」按歌曲数据读取，备注「歌名」原样保留。非法启用值留在首行供预览报错。若第五列留空或填了「是」「否」等启用值，而「歌名」既可作备注又可作外部表的列名，解析器会提示补全表头后重新预览。
+
 | 函数                         | 行为                                                                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析：有工作簿元数据时按 `workbook.xml` 首个 sheet 与对应关系读取工作表，不依赖 ZIP 条目顺序；拒绝外部、越界或缺失引用。无元数据的兼容输入沿用首个 `xl/worksheets/sheet\d+.xml`。读取该表与 `sharedStrings.xml` 后执行 `parseWorksheetXml`；优先按歌名列及其别名识别表头，完整十列的无表头歌单中第五列的“可点”“启用”按歌曲数据读取，默认新增模式无表头按导出列序解析并丢弃空歌名行；`preserveMissing:true` 保留无歌名的非空行供预览报错、保留缺列语义，无表头要求完整十列。 |
+| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析：有工作簿元数据时按 `workbook.xml` 首个 sheet 与对应关系读取工作表，不依赖 ZIP 条目顺序；拒绝外部、越界或缺失引用。无元数据的兼容输入沿用首个 `xl/worksheets/sheet\d+.xml`。读取该表与 `sharedStrings.xml` 后执行 `parseWorksheetXml`。共享字符串和内联字符串按顺序拼接正文，跳过注音 `rPh`。空单元格读为空值，非空的共享字符串索引无效时拒绝整份文件。优先按歌名列及其别名识别表头，完整十列的无表头歌单中第五列的“可点”“启用”和备注里的“歌名”等表头同文值按歌曲数据读取，默认新增模式无表头按导出列序解析并丢弃空歌名行；`preserveMissing:true` 保留无歌名的非空行供预览报错、保留缺列语义，无表头要求完整十列。 |
 | `buildSongsCsv(rows, options?)` | 表头 + `csvCell` 转义逐行；`template:true` 使用模板表头，下载模板传入空 rows |
 | `buildSongsWorkbook(rows, options?)` | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)；`template:true` 使用模板表头及标签列宽，下载模板传入空 rows |
 | `songToExportRow(song)`      | 行映射（曲风缺省「默认」、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切、`source_platform` → 导出保存的核对平台值） |
 
-前端 [song-import-parser.js](../../../../public/js/admin/song-import-parser.js) 按首条有内容的逻辑记录中引号外的 Tab 识别 TSV，否则按 CSV 解析；引号内的 Tab、换行和转义双引号不改变格式判断，支持本程序导出的价格与歌切文本重新导入。
+管理页上传 `.tsv` 时按 Tab 分列，上传 `.csv` 时按逗号分列，扩展名忽略大小写。粘贴文本时，[song-import-parser.js](../../../../public/js/admin/song-import-parser.js) 按首条有内容的记录中引号外的 Tab 识别 TSV，否则按 CSV 解析。引号外的 CR、LF 或 CRLF 结束一条记录，引号内的 Tab、换行和转义双引号保留在单元格中，支持导出的价格与歌切文本重新导入。
 
 读到文本末尾时若双引号仍未闭合，解析器会拒绝整份输入，包括此前读到的完整行。管理页在每次检查开始时清除上次预览及其 token，整份文本解析成功后才发送预览请求。
 
@@ -464,13 +469,15 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 [qq-client-monitor.js](../../../../src/music/qq-client-monitor.js) 在 Windows 上以隐藏的 PowerShell 子进程只读采样系统媒体会话，每 500 ms 检查 QQMusic 会话的歌名、歌手、播放状态、速率及时间轴；不控制客户端、不读取客户端凭据。辅助进程启动失败、error 或退出时按 500 / 1000 / 2000 ms 最多自动重试三次，有效样本重置重试预算；停用或服务退出取消重试并关闭进程，旧进程及已缓冲回调失效。
 
-[qq-client-capture.js](../../../../src/music/qq-client-capture.js) 管理曲目切换与解析代次：新歌名须连续采样 2 次确认；切歌后，沿用旧曲的时钟需等到时间戳越过切换时刻后才生效，但若时钟已随新歌名同步更新且伴随总时长变化或进度明显回跳，则在歌名稳定后即可采信。遇到无效或倒退时间戳时维持 `loading`。系统媒体传输控件（SMTC）的 `Position` 对应 `LastUpdatedTime` 时刻的位置：播放时按经过时间与 `PlaybackRate` 线性外推（并同步输出到歌词状态的 `playbackRate`，上限为曲目时长）；暂停时停止外推，不因锚点超过 3 秒未更新就判定失效。时钟有效期间允许短暂丢失会话 1.5 秒；持续失联、状态明确变为 `Stopped` / `Closed` 或发生采集错误时清空旧曲。
+[qq-client-capture.js](../../../../src/music/qq-client-capture.js) 管理曲目切换与解析代次。同名同歌手时，以有效、有序样本中超过 5 秒的已知曲长差异识别另一录音。新曲须连续采样 2 次确认。若时间戳和位置都沿用旧曲，则继续等待。时间戳越过换曲时观察到的读数后可采信新位置。若随换曲到达的读数已伴随曲长变化或进度回跳超过 1 秒，也可在曲目稳定后直接采用。以旧曲外推位置判定回跳时，原始读数也须停止前进。遇到无效或倒退时间戳时维持 `loading`。时钟有效期间允许短暂丢失会话 1.5 秒，持续失联、状态明确变为 `Stopped` / `Closed` 或发生采集错误时清空旧曲。
+
+QQ 和网易云共用 SMTC 时钟。`Position` 是 `LastUpdatedTime` 时刻的歌曲位置。播放时按 `PlaybackRate` 推算，位置上限为曲长，速率缺失或无效时取 1，并通过歌词状态的 `playbackRate` 传给渲染器。原始读数未更新时，暂停、恢复或变速均从收到状态变化时已经走到的位置起算。暂停期间收到拖动后的新位置，立即冻结在该读数。恢复后迟到的暂停读数也不会把暂停时长计入进度。仅凭锚点超过 3 秒未更新不会判定失效。[SMTC 时钟](../../../../src/music/smtc-clock.js)
 
 QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimeline()` 快照。采集状态区分 inactive、waiting、loading、ready、empty、error；只有有效时钟和非空歌词同时就绪才 ready。管理状态 `playing` 保留实际播放状态，即使歌词缺失或加载中；歌词状态的 `playing` 只在 ready 时为真。歌词读取错误映射为 overlay idle，清除旧内容；无歌词为 empty。异步歌词结果不能覆盖新曲或停用后的状态；暂停、继续及同曲 seek 不重复解析歌词。手动重新检测会重建该采集器与当前曲目解析，不修改跟随偏好。
 
 ### 13.5 外部网易云音乐
 
-[netease-client-monitor.js](../../../../src/music/netease-client-monitor.js) 每 500 ms 优先读取 cloudmusic 的 SMTC 歌曲、状态和时钟；没有可用媒体会话时，匹配 cloudmusic 进程的播放窗口标题，先通过 [netease-native-player-source.js](../../../../src/music/netease-native-player-source.js) 读取该进程播放引擎的歌曲 ID、播放/暂停状态、毫秒进度与时长。这条路径不依赖普通页、唱片样式的进度控件。读取仅使用 `PROCESS_VM_READ`，不注入、不写入、不申请调试权限；在 `cloudmusic.dll` 有界 `.text`（最多 32 MiB）中定位两个唯一代码特征，目标必须位于该模块 `.data` 内。每个进程定位一次，后续只读取播放字段；字符串最多 64 字节，拒绝无效 ID、非有限/越界时间、未知状态及读取过程中变化的曲目标识。模块范围、特征或读取不满足条件时保留现有回退。特征与字段布局参考 Music-DiscordRPC，MIT 版权与许可保留在源码中。
+[netease-client-monitor.js](../../../../src/music/netease-client-monitor.js) 每 500 ms 优先读取 cloudmusic 的 SMTC 歌曲、播放状态、速率和时钟；没有可用媒体会话时，匹配 cloudmusic 进程的播放窗口标题，先通过 [netease-native-player-source.js](../../../../src/music/netease-native-player-source.js) 读取该进程播放引擎的歌曲 ID、播放/暂停状态、毫秒进度与时长。这条路径不依赖普通页、唱片样式的进度控件。读取仅使用 `PROCESS_VM_READ`，不注入、不写入、不申请调试权限；在 `cloudmusic.dll` 有界 `.text`（最多 32 MiB）中定位两个唯一代码特征，目标必须位于该模块 `.data` 内。每个进程定位一次，后续只读取播放字段；字符串最多 64 字节，拒绝无效 ID、非有限/越界时间、未知状态及读取过程中变化的曲目标识。模块范围、特征或读取不满足条件时保留现有回退。特征与字段布局参考 Music-DiscordRPC，MIT 版权与许可保留在源码中。
 
 引擎读取不可用时，通过 UI Automation 只读获取 `MM:SS / MM:SS` 或 `MM:SS | MM:SS` 进度及附近的播放/暂停按钮。托管 UIA 读不到进度时，回退到 Windows MSAA（`AccessibleObjectFromWindow` / `AccessibleChildren`）读取 Chromium 的无障碍树，兼容网易云 3.x 的空 UIA 容器和小写 `play/pause` 按钮。MSAA 扫描最多 2000 个节点、32 层，只保留进度与附近状态控件，重扫/切歌释放旧 COM 引用，不调用控件或修改客户端。
 
@@ -480,7 +487,7 @@ QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimelin
 
 文件探测和旧 JSON 读取为异步操作。监视器按主库和 WAL 的身份、大小与时间复用最近一行，读锁失败后仍会重开。未匹配时按 1、2、4、5 秒（上限）重试。切歌或辅助进程退出后丢弃旧读取的迟到结果。
 
-[netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待稳定歌名与有效时钟后获取歌词。SMTC 使用时间戳锚点；新标题到达时，若总时长变化或进度回跳超过 1 秒，可确认随标题到达的新曲锚点，不要求客户端再次更新时间戳。SMTC 同源样本仍拒绝倒退时间戳；切换时钟来源时不比较不同来源的时间戳。引擎采样按真实毫秒位置及采样时间外推，暂停与 seek 直接采用读数；与 UIA 一样要求样本不超过 2.5 秒，新标题稳定至少 1.5 秒，播放中连续 2.5 秒无进度变化时等待有效读数，不无限外推。
+[netease-client-capture.js](../../../../src/music/netease-client-capture.js) 等待曲目稳定且时钟有效后获取歌词。同名同歌手时，首次补得可信 ID 会按该 ID 重取歌词。已知 ID 变为另一可信 ID，或当前样本缺少可信 ID 且曲长与上次匹配相差超过 5 秒时，按换曲处理，等待新曲时钟。SMTC 的换曲、速率与暂停规则见 [§13.4](#134-外部-qq-音乐)。同源 SMTC 样本仍拒绝倒退时间戳，切换时钟来源时不比较不同来源的时间戳。引擎采样按真实毫秒位置及采样时间外推，暂停与 seek 直接采用读数；与 UIA 一样要求样本不超过 2.5 秒，新标题稳定至少 1.5 秒，播放中连续 2.5 秒无进度变化时等待有效读数，不无限外推。
 
 UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且读数未回退时，若上次连续位置加经过时间仍落在该区间内，就保留该估计，避免每次轮询发现新秒数时回拉。首次有效读数、暂停/继续、向后跳转和超出区间的估计仍采用采样锚点。UIA 按钮状态未知时，连续两次正常递增（每次相隔 250–2500 ms、递增不超过 2 秒）才推断播放，单次暂停拖动不触发播放，也不把静音或静止读数当暂停。UIA/MSAA 回退仍依赖可访问的控件；客户端改版后若引擎特征与 UI 都不可读，则显示等待/错误，不沿用上一首歌词。不同客户端版本及托盘最小化模式的兼容性存在差异，需分别实测确认。
 
@@ -488,25 +495,25 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 
 [external-client-lyrics.js](../../../../src/music/external-client-lyrics.js) 的 `createExternalClientLyricResolver({platform, getRegistry, catalogService, lyricsService})` 只接受 qq 或 netease，并返回 `resolveLyrics({title, artists?, artist?, durationMs?, sourceTrackId?})`。网易云有可信数值曲目 ID 时直接取该曲歌词；没有 ID 时与 QQ 一样，在本平台按歌名、歌手搜索最多 20 个候选。候选必须属于本平台，且完整歌名规范化后相同，保留 Live、DJ 等版本信息；已知歌手时，按 `/` 拆分并排序后的完整歌手列表也必须相同。歌名与歌手均执行 NFKC 规范化、合并空白、去除首尾空白及忽略大小写。双方时长已知时相差不得超过 5 秒，合格候选按时长距离择近；没有准确候选则返回空，不跨平台兜底。歌词响应声明了其他平台或没有有效行时也返回空；请求失败交给采集器显示错误。
 
-外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；翻译和版本匹配取决于该平台返回内容。网易云优先真实 YRC，只有 LRC 时补估算逐字时间（§14.7），QQ 保持平台逐字数据。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能匹配歌词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
+外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；翻译和版本匹配取决于该平台返回内容。网易云目录匹配成功后优先用客户端采样曲长取词。已有 YRC 时保留真实词时，只有 LRC 时按 [§14.7](#147-estimatewordtimingslines-durationms-deferfinaltimingfalse) 估算。QQ 保持平台逐字数据。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能匹配歌词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
 
 ## 14. 歌词解析器(src/music/lyric-parser.js)
 
-`lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 `parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine` 及仅由网易云调用的 `estimateWordTimings`([lyric-parser.js](../../../../src/music/lyric-parser.js))。
+`lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 `parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine` 及 `estimateWordTimings`([lyric-parser.js](../../../../src/music/lyric-parser.js))。
 
 解析器在多时间戳展开、逐字行提取和四路文本组合时检查资源预算：每份结果最多 4096 行，累计文本最多 524,288 个 UTF-16 代码单元（组合结果包含正文、翻译、罗马音及词文本）。超预算抛出 `LYRIC_EXPANSION_LIMIT`（`statusCode:400`），不返回截断结果；检查在逐字估算和 HTTP 序列化之前执行。正常同行多时间戳语义不变。HTTP 层将该错误映射为 400（`code: 'LYRIC_EXPANSION_LIMIT'`）并返回统一固定错误提示；QQ 仍保留新版失败回退旧版的逻辑，双路均失败时不丢失该错误码。
 
-### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)([lyric-parser.js:45-75](../../../../src/music/lyric-parser.js#L45-L75))
+### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)
 
-组合四路原始文本，产出完整行数组：
+组合四路原始文本，产出完整行数组。[实现](../../../../src/music/lyric-parser.js#L55-L96)
 
 1. `parseWordLyric(rawWordLyric)` → 逐字行；`parseLrc(rawLyric)` → LRC 行
-2. **LRC 非空取 LRC，空则降级为逐字行**（无词版行，`{startMs, endMs, text}`）([lyric-parser.js:48-50](../../../../src/music/lyric-parser.js#L48-L50))
-3. 翻译/罗马音各经 `parseTimedText`（先 LRC 后逐字）解析，并构造各自的 `createTimedTextResolver`
+2. LRC 非空时取 LRC 作正文，只有逐字歌词时直接保留各行自带的 `words`。
+3. 翻译/罗马音各经 `parseTimedText`（先 LRC 后逐字）解析，并构造各自的 `createTimedLineResolver`
 4. 每行输出 `{ startMs, endMs, text, translation, roma, words[] }`：
-   - `endMs` 缺失时取下一行 `startMs`([lyric-parser.js:69](../../../../src/music/lyric-parser.js#L69))
+   - `endMs` 缺失时取下一行 `startMs`。
    - `roma` = API 罗马音优先；空则取 `[kana:…]` 假名注音（§14.5）
-   - `words` = 逐字行按 `startMs` 精确对齐([lyric-parser.js:72](../../../../src/music/lyric-parser.js#L72))
+   - LRC 行的 `words` 按 [§14.4](#144-createtimedlineresolverlines-tolerancems100) 匹配，无法确定对应行时留空。
 
 ### 14.2 parseLrc(rawText)([lyric-parser.js:113-137](../../../../src/music/lyric-parser.js#L113-L137))
 
@@ -526,16 +533,16 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 | -------------------- | -------------------------------- | --------------------------- |
 | 行                   | `/\[(\d+),(\d+)\]([/s/S]*)/`     | `[startMs,durationMs,body]` |
 | 前缀词（优先）       | `/\((\d+),(\d+),\d*\)/g` | 从时间标记末尾读取到下一个标记或行尾，保留词中文字和括号 |
-| 后缀词（仅无前缀时） | `/\((\d+),(\d+)\)\|[()]/g`     | 单向扫描时间标记/括号，截取标记前文本；缺少或截断标记时不反复扫描尾部 |
+| 后缀词（仅无前缀时） | `/\((\d+),(\d+)\)/g` | 截取相邻时间标记之间的正文，保留歌词括号。缺少或截断标记时只扫描一次 |
 
 每词输出 `{ startMs, endMs: startMs + max(0, durationMs), text }`，保留有效词文本中的空格，避免 YRC 英文词连写；无词的行整体丢弃；行 `text` = 所有词文本拼接后 `trim()`。
 
-### 14.4 createTimedTextResolver(lines, toleranceMs=100)([lyric-parser.js:86-111](../../../../src/music/lyric-parser.js#L86-L111))
+### 14.4 createTimedLineResolver(lines, toleranceMs=100)
 
-用于翻译/罗马音行的时间容差匹配（QQ 音乐翻译行常有毫秒级偏移）：
+QQ 正文优先匹配起点相同的逐字行。起点不同时，正文须相同且两行互为最近邻。任一方向有两个等距起点时，该行的 `words` 留空。同一起点有多个声部时按正文区分，仍有歧义时同样留空。翻译和罗马音按时间匹配，取返回行的 `text`。未命中时翻译为空，罗马音按 [§14.1](#141-parselyricresultrawlyric-rawtranslation-rawwordlyric-rawroma) 回退到假名注音。[逐字行与时间查找](../../../../src/music/lyric-parser.js#L104-L144)
 
-1. 过滤非有限 `startMs` → 升序排序 → `exact = Map(startMs → text)`
-2. 查询：`exact.has(startMs)` 直中；否则二分查找最近邻，`|Δ| ≤ 100ms` 才命中，否则返回 `''`
+1. 过滤非有限 `startMs`，将其余行按起点升序排列，并建立 `startMs → 行` 索引。
+2. 起点精确命中时返回对应行。否则二分查找最近邻，偏差不超过容差（默认 100 ms，含边界）时返回该行，超出时返回 `undefined`。
 
 ### 14.5 假名注音([lyric-parser.js:11-43](../../../../src/music/lyric-parser.js#L11-L43))
 
@@ -550,9 +557,9 @@ CJK 判定三范围：`0x4E00-0x9FFF`（基本汉字）、`0x3400-0x4DBF`（扩�
 
 二分查找**最后一个 `startMs ≤ currentMs` 的行**；`lines` 为空或 `currentMs` 非数字时返回 `null`。是播放页、WeSing 采集与歌词窗口的唯一当前行定位入口。
 
-### 14.7 estimateWordTimings(lines, durationMs)
+### 14.7 estimateWordTimings(lines, durationMs, deferFinalTiming=false)
 
-仅网易云 Provider 在解析后调用：已有 `words` 的行原样保留；LRC 行按 Unicode 字素切分，连续拉丁字母/数字合为词，标点和空白附到相邻字词以保留原文。每个字权重为 1，拉丁词按长度 / 3 计算且至少为 1，在行的起止时间间按权重连续分配毫秒。末句缺少结束时间时使用曲目时长；曲目时长也缺失时按每权重 300 ms 估算，限制在 1–8 秒。没有正时长或有效字词的行不生成时间。
+网易云 Provider 在解析后调用。已有 `words` 的行原样保留。传入 `deferFinalTiming: true` 时跳过未定长的 LRC 末句，由歌词服务在返回每个请求前按该请求的曲长调用同一函数补齐。LRC 行按 Unicode 字素切分，连续拉丁字母/数字合为词，标点和空白附到相邻字词以保留原文。每个字权重为 1，拉丁词按长度 / 3 计算且至少为 1，在行的起止时间间按权重连续分配毫秒。末句缺少结束时间时以晚于句首的曲目时长为终点，否则按每权重 300 ms 估算，限制在 1–8 秒。没有正时长或有效字词的行不生成时间。
 
 该算法仅用于展示层估算，不分析音频内容，长间奏或拖腔处可能存在偏差；真实 YRC 不经过重分配。内置音频和外部真实采样仍各自维护播放时钟，估算只补行内 `words`。
 

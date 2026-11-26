@@ -59,14 +59,15 @@
 }
 .danmaku-category-tabs > button[aria-selected='true'] {
   background: var(--client-main-nav-active-bg, var(--surface));
-  box-shadow: var(--client-main-nav-active-shadow, 0 1px 2px color-mix(in srgb, var(--text) 10%, transparent), 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent));
+  box-shadow: var(--client-main-nav-active-shadow, 0 1px 2px light-dark(color-mix(in srgb, var(--text) 10%, transparent), rgba(0, 0, 0, 0.35)), 0 0 0 1px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(255, 255, 255, 0.08)));
   color: var(--text);
 }
 .danmaku-category-tabs > button[aria-selected='true'] > svg {
   color: var(--color-selection-marker);
   opacity: 1;
 }
-.danmaku-category-tabs > button:focus-visible {
+.danmaku-category-tabs > button:focus-visible,
+.danmaku-runtime-guide:focus-visible {
   outline: 2px solid var(--color-selection-marker);
   outline-offset: 1px;
 }
@@ -78,9 +79,32 @@
   min-height: 32px;
   margin-left: auto;
 }
-.danmaku-cloud-toolbar .hint {
-  margin: 0;
-  font-size: var(--type-size-caption);
+.danmaku-cloud-toolbar :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.danmaku-cloud-toolbar svg {
+  width: 16px;
+  height: 16px;
+}
+.danmaku-runtime-guide {
+  border-radius: var(--radius-control);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+.danmaku-runtime-guide:is(:hover, :focus-visible) {
+  background: var(--color-bg-tertiary);
+  color: var(--color-selection-text);
+}
+.danmaku-cloud-toolbar .lira-help-tooltip {
+  position-area: block-start;
+  position-try-fallbacks: flip-block;
+  margin-block: var(--spacing-sm);
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
 }
 .danmaku-category-panel[hidden] {
   display: none;
@@ -89,7 +113,8 @@
   display: grid;
   gap: var(--spacing-md);
 }
-.danmaku-tool-panel button:is(.primary, .secondary, .ghost) {
+.danmaku-tool-panel button:is(.primary, .secondary, .ghost),
+.danmaku-runtime-guide {
   min-height: 32px;
   padding: 5px 12px;
   font-size: var(--type-size-control);
@@ -131,8 +156,69 @@
   border-width: 1px;
 }
 .danmaku-connection-section {
+  container-type: inline-size;
   gap: 12px;
-  padding-block: var(--spacing-md);
+  padding: 13px 20px 17px;
+  border-radius: var(--radius-xl, 16px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--color-floating-surface, var(--surface)) 70%, transparent),
+    var(--shadow-sm);
+}
+.danmaku-tool-panel .danmaku-section-heading.danmaku-connection-heading h3 {
+  gap: 6px;
+  color: var(--color-text-muted, var(--muted));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 1.4;
+}
+.danmaku-connection-heading .danmaku-heading-icon {
+  width: 15px;
+  height: 15px;
+  opacity: 0.85;
+}
+.danmaku-connection-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 120ms ease;
+}
+.danmaku-connection-refresh svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+.danmaku-connection-refresh:hover:not(:disabled) {
+  border-color: var(--color-border-light, var(--danmaku-section-border));
+  background: var(--color-bg-tertiary, var(--surface-2));
+  color: var(--text);
+}
+.danmaku-connection-refresh:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.danmaku-connection-refresh:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+.danmaku-connection-refresh:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+.danmaku-connection-refresh:disabled svg {
+  animation: danmakuRefreshSpin 760ms linear infinite;
 }
 .danmaku-bot-switch-grid {
   display: grid;
@@ -451,7 +537,7 @@
   padding: 2px 5px;
   border-radius: 3px;
   background: var(--color-primary-light);
-  color: var(--primary-strong);
+  color: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
   font-size: var(--type-size-micro);
   content: '已选';
 }
@@ -587,65 +673,231 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.danmaku-status-grid {
+.danmaku-connection-bridge {
+  --bridge-tone: var(--muted);
+  --bridge-dot: var(--muted);
+  --bridge-bg: var(--color-bg-tertiary, var(--surface-2));
+  --bridge-border: color-mix(in srgb, var(--danmaku-section-border) 85%, transparent);
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, auto) minmax(176px, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 14px;
 }
-.danmaku-status-grid > div {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
+.danmaku-connection-bridge:has(#danmakuToolStatus.connection-good) {
+  --bridge-tone: var(--color-success-dark);
+  --bridge-dot: var(--color-success);
+  --bridge-bg: var(--color-success-light);
+  --bridge-border: color-mix(in srgb, var(--color-success) 26%, transparent);
+}
+.danmaku-connection-bridge:has(#danmakuToolStatus.connection-bad) {
+  --bridge-tone: var(--danger);
+  --bridge-dot: var(--color-danger-medium, var(--danger));
+  --bridge-bg: var(--color-danger-light);
+  --bridge-border: color-mix(in srgb, var(--danger) 28%, transparent);
+}
+.danmaku-connection-bridge:has(#danmakuToolStatus.warn) {
+  --bridge-tone: var(--warning);
+  --bridge-dot: var(--color-warning-medium, var(--warning));
+  --bridge-bg: var(--color-warning-light);
+  --bridge-border: color-mix(in srgb, var(--warning) 28%, transparent);
+}
+.danmaku-bridge-node {
+  display: flex;
+  align-items: center;
+  gap: 11px;
   min-width: 0;
-  padding: 4px var(--spacing-md);
-  text-align: center;
+  max-width: 240px;
 }
-.danmaku-status-grid > div + div {
-  border-left: 1px solid var(--danmaku-section-border);
+.danmaku-bridge-node--room {
+  justify-content: flex-end;
+  text-align: right;
 }
-.danmaku-status-grid span {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  font-weight: 400;
-}
-.danmaku-status-grid strong {
-  overflow-wrap: anywhere;
-  color: var(--text);
-  font-size: var(--type-size-body);
-  font-weight: 400;
-  line-height: var(--type-leading-body);
-}
-.danmaku-status-grid strong.connection-good,
-.danmaku-status-grid strong.connection-bad {
+.danmaku-bridge-avatar {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  width: fit-content;
-  padding: 2px 6px;
-  border-radius: 6px;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--danmaku-section-border) 82%, transparent);
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary-light) 72%, var(--surface)) 0%,
+    var(--color-bg-tertiary, var(--surface-2)) 100%
+  );
+  color: var(--muted);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-floating-surface, var(--surface)) 65%, transparent);
+}
+.danmaku-bridge-avatar--room {
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-bg-secondary) 70%, var(--surface)) 0%,
+    color-mix(in srgb, var(--color-primary-light) 45%, var(--surface)) 100%
+  );
+}
+.danmaku-bridge-avatar[data-empty='true'] {
+  border-style: dashed;
+  background: var(--color-bg-tertiary, var(--surface-2));
+  color: var(--color-text-muted, var(--muted));
+}
+.danmaku-bridge-avatar-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.danmaku-bridge-avatar-img[data-loaded='true'] {
+  opacity: 1;
+}
+.danmaku-bridge-avatar-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+.danmaku-bridge-avatar-icon[hidden] {
+  display: none;
+}
+.danmaku-bridge-avatar-icon--bilibili {
+  width: 20px;
+  height: 20px;
+}
+.danmaku-bridge-avatar[data-empty='true'] .danmaku-bridge-avatar-icon {
+  opacity: 0.72;
+}
+.danmaku-bridge-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.danmaku-bridge-label {
+  color: var(--color-text-muted, var(--muted));
   font-size: var(--type-size-caption);
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 1.35;
 }
-.danmaku-status-grid strong.connection-good {
-  background: var(--color-success-light);
-  color: var(--color-success-dark);
+.danmaku-bridge-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 1.35;
 }
-.danmaku-status-grid strong.connection-bad {
-  background: var(--color-danger-light);
-  color: var(--danger);
+.danmaku-bridge-link {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 2px;
 }
-.danmaku-status-grid strong.connection-good::before,
-.danmaku-status-grid strong.connection-bad::before {
-  margin-right: 6px;
-  font-size: var(--type-size-micro);
-  line-height: 1;
+.danmaku-bridge-track {
+  flex: 1 1 18px;
+  height: 1.5px;
+  border-radius: 999px;
+  opacity: 0.6;
 }
-.danmaku-status-grid strong.connection-good::before {
-  content: '\25CF';
+.danmaku-bridge-track--start {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--danmaku-section-border) 80%, transparent) 0%,
+    var(--bridge-dot) 100%
+  );
 }
-.danmaku-status-grid strong.connection-bad::before {
-  content: '\25B2';
+.danmaku-bridge-track--end {
+  background: linear-gradient(
+    90deg,
+    var(--bridge-dot) 0%,
+    color-mix(in srgb, var(--danmaku-section-border) 80%, transparent) 100%
+  );
 }
-.danmaku-status-grid strong.warn {
-  color: var(--warning);
+.danmaku-connection-bridge:has(#danmakuToolStatus.connection-bad) .danmaku-bridge-track,
+.danmaku-connection-bridge:has(#danmakuToolStatus.warn) .danmaku-bridge-track {
+  background: repeating-linear-gradient(90deg, var(--bridge-dot) 0 4px, transparent 4px 8px);
+  opacity: 0.55;
+}
+.danmaku-bridge-arrow {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  margin-left: -4px;
+  color: var(--bridge-dot);
+  opacity: 0.72;
+}
+.danmaku-bridge-status-wrap {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  max-width: 100%;
+  margin-inline: 8px;
+}
+#danmakuToolStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 5px 12px;
+  border: 1px solid var(--bridge-border);
+  border-radius: 999px;
+  background: var(--bridge-bg);
+  color: var(--bridge-tone);
+  box-shadow: 0 2px 6px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(0, 0, 0, 0.32));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+#danmakuToolStatus::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--bridge-dot);
+}
+#danmakuToolStatus.connection-good::before {
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--bridge-dot) 55%, transparent);
+  animation: danmakuBridgePulse 2.4s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+@keyframes danmakuBridgePulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--bridge-dot) 52%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+@keyframes danmakuRefreshSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@container (max-width: 540px) {
+  .danmaku-connection-bridge {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 10px;
+  }
+  .danmaku-bridge-node {
+    max-width: none;
+  }
+  .danmaku-bridge-link {
+    grid-column: 1 / -1;
+    order: 3;
+    padding-inline: 0;
+  }
 }
 .danmaku-reply-target {
   min-height: 72px;

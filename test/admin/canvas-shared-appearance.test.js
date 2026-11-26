@@ -40,15 +40,17 @@ async function fixture(t) {
         return data;
       }
       writes.push(body.patch);
-      if (saveError) throw new Error('save failed');
       if (holdSave) await new Promise(resolve => { deferredSave = resolve; });
+      if (saveError) throw new Error('save failed');
       Object.assign(values, body.patch);
       return { ...values };
     },
   });
   t.after(() => provider.dispose());
   async function tick(delay) {
-    const [id, timer] = [...timers].find(([, timer]) => timer.delay === delay);
+    const scheduled = [...timers].find(([, timer]) => timer.delay === delay);
+    assert.ok(scheduled, `expected a scheduled ${delay} ms callback`);
+    const [id, timer] = scheduled;
     timers.delete(id);
     await timer.fn();
   }
@@ -88,6 +90,58 @@ test('shared appearance follows the desktop, shares instances and retains failed
   assert.equal(f.provider.getState(f.twin).draft.songBoardTitle, 'canvas');
   f.provider.dispose();
   assert.equal(f.isDisposed(), true);
+});
+
+test('a failed style write blocks surviving twins but expires with its last layer', async t => {
+  const f = await fixture(t);
+  await f.tick(0);
+  f.saveError(true);
+  f.provider.edit(f.item, { songBoardTitle: 'failed' });
+  f.setItems([f.twin]);
+  await assert.rejects(f.provider.flush(), /save failed/);
+  f.setItems([]);
+  await f.provider.flush();
+  assert.equal(f.writes.length, 1);
+  assert.equal(f.provider.getStatuses().length, 0);
+  f.setItems([f.item]);
+  await f.tick(0);
+  assert.equal(f.provider.getState(f.item).draft.songBoardTitle, 'desktop');
+});
+
+test('deleting the last layer preserves its pending autosave and reuses it when the style returns', async t => {
+  const f = await fixture(t);
+  await f.tick(0);
+  f.provider.edit(f.item, { songBoardTitle: 'first' });
+  f.setItems([]);
+  f.holdSave();
+  await f.tick(180);
+  f.setItems([f.twin]);
+  assert.equal(f.provider.getState(f.twin).draft.songBoardTitle, 'first');
+  f.provider.edit(f.twin, { songBoardTitle: 'second' });
+  f.setItems([]);
+  const applying = f.provider.flush();
+  f.finishSave();
+  await applying;
+  assert.equal(f.values.songBoardTitle, 'second');
+  assert.deepEqual(f.writes.map(patch => patch.songBoardTitle), ['first', 'second']);
+  assert.equal(f.timers.size, 0);
+});
+
+test('a detached autosave failure releases the style and lets the remaining scene publish', async t => {
+  const f = await fixture(t);
+  await f.tick(0);
+  f.provider.edit(f.item, { songBoardTitle: 'pending' });
+  f.holdSave();
+  const applying = f.provider.flush();
+  f.setItems([]);
+  f.saveError(true);
+  f.finishSave();
+  await applying;
+  await f.provider.flush();
+  assert.equal(f.writes.length, 1);
+  f.setItems([f.twin]);
+  await f.tick(0);
+  assert.equal(f.provider.getState(f.twin).draft.songBoardTitle, 'desktop');
 });
 
 test('geometry keeps the polling deadline while new appearance owners are read promptly', async t => {

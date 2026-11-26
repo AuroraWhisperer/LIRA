@@ -99,7 +99,7 @@
   align-items: center;
   gap: 16px;
   min-width: 0;
-  padding: 6px 16px;
+  padding: 4px 16px;
 }
 
 .usage-guide-toc-toggle {
@@ -152,7 +152,11 @@
   line-height: 1.5;
 }
 
-.usage-guide-toc-detail,
+.usage-guide-toc-detail {
+  font-size: var(--type-size-micro);
+  line-height: 1.5;
+}
+
 .usage-guide-reading-status,
 .usage-guide-chapter-label {
   font-size: var(--type-size-caption);
@@ -222,7 +226,7 @@
 }
 
 .usage-guide-chapter-title {
-  font-size: var(--type-size-control);
+  font-size: var(--type-size-caption);
   font-weight: 600;
 }
 
@@ -448,7 +452,7 @@
   .usage-guide-toc-toolbar {
     grid-template-columns: auto minmax(0, 1fr);
     gap: 8px;
-    padding: 6px 10px;
+    padding-inline: 10px;
   }
 
   .usage-guide-reading-status {

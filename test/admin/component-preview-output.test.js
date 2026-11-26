@@ -414,8 +414,20 @@ test('canvas save updates the original default source and separate instance URLs
   const defaultHeight = await setSize(800);
   await save();
   assert.deepEqual(fixture.service.getComponentSize('clock'), { width: 800, height: defaultHeight });
+  const sizeRoute = '**/api/component/size?type=clock';
+  let sizeReads = 0;
+  await desktop.route(sizeRoute, route => {
+    sizeReads++;
+    return route.fulfill({ status: 503, json: { ok: false, error: '尺寸服务暂不可用' } });
+  });
+  await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
+  await page.waitForFunction(() => window.copiedSource);
+  assert.equal(new URL(await page.evaluate(() => window.copiedSource)).pathname, '/scene');
+  assert.equal(sizeReads, 0);
+  await desktop.unroute(sizeRoute);
   const defaultUrl = await copy();
   assert.equal(new URL(defaultUrl).pathname, '/clock');
+  await page.getByRole('status').filter({ hasText: `800 × ${defaultHeight}` }).waitFor();
   assert.equal((await fetch(defaultUrl)).status, 200);
   await output.goto(defaultUrl);
   await output.waitForFunction(() => document.documentElement.style.width === '800px');

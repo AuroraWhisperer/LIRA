@@ -97,9 +97,10 @@ test('query indexes upgrade without changing rows and migrate idempotently', (t)
       .join('\n'),
     /idx_requests_queue_id/u,
   );
+  // Run the current store's plan check against its matching expression index.
+  runAllMigrations(f.databases);
   const { queries, prepare } = observe(f.giftDb);
   const store = createGiftQueryStore(f.giftDb);
-  // The v12 partial index still owns local eligible rows; remote visibility is covered on the current schema below.
   store.listRecent({ sourceScope: { kind: 'local' }, limit: 30 });
   const { sql, params } = queries.find(({ sql }) => /FROM gift_events g/u.test(sql));
   const plan = prepare(`EXPLAIN QUERY PLAN ${sql}`)
@@ -379,7 +380,7 @@ test('count cache is bounded and failed pages do not publish counts', (t) => {
   assert.equal(queries.filter(({ sql }) => /COUNT\(\*\)/u.test(sql)).length, 1);
 });
 
-test('remote recent index upgrades without data changes and preserves source and local time ordering', (t) => {
+test('remote recent index upgrades without data changes and preserves milliseconds, offsets and equal-time ID order', (t) => {
   const f = createVersionedFixture(t, { gift_db: 23 });
   t.after(() => f.close());
   const source = f.resolveSource('a'.repeat(64));
@@ -426,11 +427,11 @@ test('remote recent index upgrades without data changes and preserves source and
   ]) {
     queries.length = 0;
     const rows = store.listRecent({ sourceScope, limit: 3 });
-    assert.deepEqual(rows.map(row => row.platform_id), [3, 2, 1].map(i => `lira-server:${prefix}-${i}`));
+    assert.deepEqual(rows.map(row => row.platform_id), [3, 0, 2].map(i => `lira-server:${prefix}-${i}`));
     const { sql, params } = queries.find(({ sql }) => /FROM gift_events g/u.test(sql));
     const plan = prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params).map(row => row.detail).join('\n');
     assert.match(plan, new RegExp(`SEARCH g USING INDEX ${index} \\(source_id=\\?\\)`, 'u'));
     assert.doesNotMatch(plan, /TEMP B-TREE/u);
   }
-  assert.equal(schema.getSchemaVersion(db, 'gift_db'), 25);
+  assert.equal(schema.getSchemaVersion(db, 'gift_db'), 26);
 });

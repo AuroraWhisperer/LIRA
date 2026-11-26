@@ -13,6 +13,73 @@ const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { compiler, plugins } = resolveInstallerTools();
 const quote = (value) => value.replaceAll('$', () => '$$');
 
+test('embedded installer seeds only the installation-drive baseline and retires mismatched manual block maps', {
+  skip: process.platform !== 'win32' || !compiler || !plugins,
+}, t => {
+  const scratch = createScratchDirectory('installer-cache-', t);
+  const templates = path.dirname(require.resolve('app-builder-lib/templates/nsis/installer.nsi'));
+  const read = name => fs.readFileSync(path.resolve(__dirname, '../..', name), 'utf8');
+  const util = read('build/nsis/installUtil.nsh');
+  const copy = util.match(/!macro copyFile\b[\s\S]*?!macroend/)[0];
+  const parent = util.match(/Function GetFileParent\b[\s\S]*?FunctionEnd/)[0];
+  const custom = read('build/installer.nsh').match(/!macro customInstall\b[\s\S]*?!macroend/)[0];
+  const builderCopy = fs.readFileSync(path.join(templates, 'include/installer.nsh'), 'utf8')
+    .match(/!insertmacro copyFile "\$EXEPATH"[^\r\n]+/)[0];
+  const flags = new NsisScriptGenerator();
+  flags.flags(['updated', 'lock-map']);
+  const exe = path.join(scratch, 'cache-fixture.exe');
+  const script = path.join(scratch, 'cache-fixture.nsi');
+  fs.writeFileSync(path.join(scratch, 'control.txt'), 'ordinary copy');
+  // Only the production cache macros run. Every LOCALAPPDATA access maps into the scratch directory.
+  const isolated = text => text.replaceAll('$LOCALAPPDATA', '$INSTDIR\\profile');
+  fs.writeFileSync(script, [
+    'Unicode true', 'Name "Cache fixture"', 'RequestExecutionLevel user', 'SilentInstall silent',
+    `OutFile "${quote(exe)}"`, '!include LogicLib.nsh', '!include FileFunc.nsh',
+    `!addplugindir /x86-unicode "${quote(plugins)}"`, `!addincludedir "${quote(path.join(templates, 'include'))}"`,
+    '!include StdUtils.nsh', '!define APP_INSTALLER_STORE_FILE "lira-updater\\installer.exe"', 'Var installMode',
+    flags.build(), parent, isolated(copy), isolated(custom),
+    'Function liraRestoreInstallData', 'FunctionEnd', 'Function liraRecordDataPreservation', 'FunctionEnd',
+    'Section', `StrCpy $INSTDIR "${quote(scratch)}"`, 'StrCpy $installMode "current"', isolated(builderCopy),
+    '!insertmacro copyFile "$EXEDIR\\control.txt" "$INSTDIR\\control\\copied.txt"',
+    'IfFileExists "$INSTDIR\\profile\\${APP_INSTALLER_STORE_FILE}" 0 +3',
+    'FileOpen $0 "$INSTDIR\\staging-copy-observed" w', 'FileClose $0',
+    '${If} ${isLockMap}', 'FileOpen $1 "$INSTDIR\\updates\\lira-updater\\current.blockmap" r', '${EndIf}',
+    '!insertmacro customInstall',
+    '${If} ${isLockMap}', 'FileClose $1', '${EndIf}', 'SectionEnd',
+  ].join('\n'));
+  const compiled = spawnSync(compiler, ['/V2', '/WX', '-INPUTCHARSET', 'UTF8', script],
+    { encoding: 'utf8', windowsHide: true, timeout: 30000 });
+  assert.equal(compiled.status, 0, compiled.stdout + compiled.stderr);
+  const cache = path.join(scratch, 'updates/lira-updater');
+  fs.mkdirSync(cache, { recursive: true });
+  const baseline = path.join(cache, 'installer.exe');
+  const blockmap = path.join(cache, 'current.blockmap');
+  const installer = fs.readFileSync(exe);
+  const different = Buffer.from(installer);
+  different[different.length - 1] ^= 1;
+  for (const [flags, previous, keepMap] of [
+    [['--updated'], different, true],
+    [[], installer, true],
+    [[], different, false],
+  ]) {
+    fs.writeFileSync(baseline, previous);
+    fs.writeFileSync(blockmap, 'map');
+    const run = spawnSync(exe, ['/S', ...flags], { windowsHide: true, timeout: 10000 });
+    assert.equal(run.status, 0);
+    assert.equal(fs.readFileSync(path.join(scratch, 'control/copied.txt'), 'utf8'), 'ordinary copy');
+    assert.deepEqual(fs.readFileSync(baseline), installer);
+    assert.deepEqual({ staged: fs.existsSync(path.join(scratch, 'staging-copy-observed')),
+      hasMap: fs.existsSync(blockmap) }, { staged: false, hasMap: keepMap });
+  }
+  fs.writeFileSync(baseline, 'previous installer');
+  fs.writeFileSync(blockmap, 'previous map');
+  const locked = spawnSync(exe, ['/S', '--lock-map'], { windowsHide: true, timeout: 10000 });
+  assert.equal(locked.status, 0);
+  assert.equal(fs.readFileSync(blockmap, 'utf8'), 'previous map');
+  assert.ok(fs.readFileSync(baseline).equals(Buffer.from('previous installer')),
+    'a map still in use must stay paired with its original installer');
+});
+
 test('builder upgrade runs the current safe uninstaller instead of a destructive legacy executable', {
   skip: process.platform !== 'win32' || !compiler || !plugins,
 }, async (t) => {

@@ -2,7 +2,7 @@
   position: relative;
   container: opening-settings / inline-size;
   --opening-admin-accent: var(--primary);
-  --opening-admin-accent-strong: var(--primary-strong);
+  --opening-admin-accent-strong: var(--color-selection-text, var(--color-primary-text, var(--primary-strong)));
   --opening-admin-accent-soft: var(--color-primary-light);
   --opening-admin-border: var(--border);
   --opening-admin-text: var(--text);

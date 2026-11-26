@@ -12,8 +12,9 @@ function fixture() {
     settings: {
       defaults: DEFAULT_SETTINGS,
       get: () => saved,
-      setMany(values) {
+      setMany(values, { onCloudChange }) {
         events.push('save');
+        if (values.paused !== undefined && values.paused !== saved.paused) onCloudChange();
         saved = { ...saved, ...values };
         return Object.keys(values);
       },

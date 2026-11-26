@@ -145,10 +145,10 @@ GET https://music.163.com/api/song/lyric/v1?id=<歌曲ID>&cp=false&lv=0&kv=0&tv=
 ### 7.4 推荐歌单([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
 ```
-GET https://music.163.com/api/personalized/playlist?limit=<1-30 默认9>
+GET https://music.163.com/api/personalized/playlist?limit=30
 ```
 
-响应 `data.result[]` → `mapNeteasePlaylist`(见 §8.2)。无需登录。
+这是公开接口，上游只接收 `limit`。Provider 每次请求 30 项，将 `data.result[]` 经 `mapNeteasePlaylist` 映射后，按调用方的 `page`（1–50）和 `limit`（1–30，默认 9）在本地切片。播放器首屏与「换一批」每批取 12 项。上游稳定返回 30 项时，依次展示第 1–12、13–24、25–30 项，再回到第一批。上游若改变排序，本次窗口按新的返回顺序取值。
 
 ### 7.5 每日推荐([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
@@ -190,17 +190,17 @@ GET https://music.163.com/api/personalized/newsong?limit=100
 ### 7.8 我的歌单 / 收藏歌单([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
 ```
-GET https://music.163.com/api/user/playlist?uid=<userId>&limit=<1-500 默认200>&offset=0
+GET https://music.163.com/api/user/playlist?uid=<userId>&limit=<1-500 默认200>&offset=<原始偏移>
 ```
 
-两个方法共享 `getUserPlaylists(userId, {limit})`([netease-provider.js](../../../../src/music/providers/netease-provider.js)),然后按 `creatorUserId` 与自己的 userId 是否相等分流:
+两个方法用登录凭据取当前 `userId`，从偏移 0 读取该账号的混合目录。`getUserPlaylists` 按每页原始行数推进偏移，只把符合当前分类的歌单按 ID 去重并累计到 `limit`（默认 200，最多 500 个匹配项）。
 
 | 方法                    | 过滤                                 |
 | ----------------------- | ------------------------------------ |
 | `getCreatedPlaylists`   | `creatorUserId === userId`(我创建的) |
 | `getCollectedPlaylists` | `creatorUserId !== userId`(我收藏的) |
 
-均需 `requireLogin`。
+读满所需类别或上游返回 `more: false` 即结束。上游省略 `more` 时，短页表示读完。翻页时复核起始 Cookie。凭据变化、响应缺少目录、重复返回同一页，或 `more: true` 却返回空页，都会使整次读取报错，抽屉可以重试。「我喜欢」仍按 §7.7 在原始目录的前 50 个位置定位。
 
 ### 7.9 歌单详情([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
@@ -282,6 +282,8 @@ GET https://music.163.com/api/nuser/account/get
 | `coverUrl`             | 优先 `album.picUrl \|\| album.pic_url`,否则 `artists[0].img1v1Url`(搜索接口回退)  |
 | `playable`             | `song.status !== -1`(-1 = 不可用)                                                 |
 | `vip`                  | `song.fee === 1 \|\| song.fee === 4`                                              |
+
+点歌匹配使用完整 `artists` 数组核对并列歌手。`playable: false` 的曲目仍可出现在评分结果里，只能由用户确认。同一平台有可自动接受的版本时，播放器优先选用其中评分最高的一首。见[歌曲匹配规则](services.md#9-歌曲匹配song-matcherjs)。
 
 ### 8.2 mapNeteasePlaylist([netease-mappers.js](../../../../src/music/providers/netease-mappers.js))
 

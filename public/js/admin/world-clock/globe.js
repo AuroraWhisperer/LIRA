@@ -69,14 +69,17 @@ const FRAGMENT = `
 export async function createGlobe(canvas, markerLayer, onSelect, onRotationChange, onError) {
   const gl = canvas.getContext('webgl', { alpha: true, antialias: false, powerPreference: 'low-power' });
   if (!gl) throw new Error('当前设备无法显示地球');
-  const dayMap = gl.getParameter(gl.MAX_TEXTURE_SIZE) >= 8192 ? 'earth-day-8k.png' : 'earth-day.jpg';
-  const images = await Promise.all([dayMap, 'earth-night.jpg'].map(async file => {
+  async function loadMap(file) {
     const image = new Image();
     image.src = new URL(`../../../img/admin/world-clock/${file}`, import.meta.url).href;
     try { await image.decode(); }
     catch { throw new Error('地球影像加载失败，请刷新重试'); }
     return image;
-  }));
+  }
+  const dayMap = gl.getParameter(gl.MAX_TEXTURE_SIZE) >= 8192
+    ? loadMap('earth-day-8k.png').catch(() => loadMap('earth-day.jpg'))
+    : loadMap('earth-day.jpg');
+  const images = await Promise.all([dayMap, loadMap('earth-night.jpg')]);
   const program = gl.createProgram();
   for (const [kind, source] of [[gl.VERTEX_SHADER, VERTEX], [gl.FRAGMENT_SHADER, FRAGMENT]]) {
     const shader = gl.createShader(kind);

@@ -55,20 +55,31 @@ test('fan list and backup batch record reads without changing record order or sc
     }
   });
   const { queries } = observe(f.db.songDb);
+  let searchTexts = 0;
+  const lower = String.prototype.toLocaleLowerCase;
+  t.mock.method(String.prototype, 'toLocaleLowerCase', function (...args) {
+    if (this.includes('观众-') && this.includes('中文')) searchTexts++;
+    return lower.apply(this, args);
+  });
   const selected = f.run('list', { query: '观众-502' }).profiles;
   assert.equal(selected.length, 1);
+  assert.equal(searchTexts, 503);
+  searchTexts = 0;
   const recordsQueries = () => queries.filter(({ sql }) => /FROM fan_records/u.test(sql));
   assert.equal(recordsQueries().length, 1);
   assert.ok(recordsQueries()[0].params.includes(ids[502]));
   assert.ok(!recordsQueries()[0].params.includes(ids[0]));
   queries.length = 0;
   assert.equal(f.run('list', { filters: ['favorite'] }).profiles.length, 1);
+  assert.equal(searchTexts, 0);
   assert.equal(recordsQueries().length, 1);
   queries.length = 0;
   assert.equal(f.run('list', { query: '找不到' }).profiles.length, 0);
   assert.equal(recordsQueries().length, 0);
   queries.length = 0;
+  searchTexts = 0;
   assert.equal(f.run('list').profiles.length, 503);
+  assert.equal(searchTexts, 0);
   assert.equal(recordsQueries().length, 2);
   assert.equal(queries.filter(({ sql }) => /FROM fan_reminder_states/u.test(sql)).length, 2);
   queries.length = 0;

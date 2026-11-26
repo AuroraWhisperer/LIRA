@@ -35,7 +35,7 @@ export function renderConnectionStatus(nextState) {
   connectionState = nextState;
   render();
   if (nextState === 'disconnected') {
-    notify?.({ key: 'local-connection', update: true, type: 'warning', title: '本机连接已断开', message: '正在自动重连，可点击右上角状态查看详情。', duration: 6000 });
+    notify?.({ key: 'local-connection', update: true, type: 'warning', title: '本机连接已断开', message: '正在自动重连，可点击右上角状态查看详情。', className: 'toast-icon-offline', duration: 6000 });
   } else if (nextState === 'connected' && previous === 'disconnected') {
     notify?.({ key: 'local-connection', update: true, type: 'success', title: '本机连接已恢复', duration: 2800 });
   }

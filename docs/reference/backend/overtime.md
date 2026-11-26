@@ -116,7 +116,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明字�
 | `pause` | `remainingMs <= 0` 时归 `finished`，否则 `paused`（时间冻结） | [113-119](../../../src/overtime/overtime-service.js#L113-L119) |
 | `reset` | `remainingMs = initialSeconds * 1000`，归零时 `finished`，否则 `paused` | [121-127](../../../src/overtime/overtime-service.js#L121-L127) |
 | `setTime` | 写入 `remainingSeconds` 后强制 `paused`（归零时 `finished`）；`initialSeconds` 仅改重置基准 | [64-74](../../../src/overtime/overtime-service.js#L64-L74) |
-| 礼物结算联动 | `remainingMs` 归零 → `finished`；剩余时间实际增加且原为 `finished` → 自动恢复 `running`（§3.3） | [overtime-settlement.js](../../../src/overtime/overtime-settlement.js) |
+| 礼物结算联动 | 从正时长扣至零 → `finished`，已暂停在零秒时，纯展示礼物保持暂停；剩余时间实际增加且原为 `finished` → 自动恢复 `running`（§3.3） | [overtime-settlement.js](../../../src/overtime/overtime-settlement.js) |
 
 **清空全部后的状态重载**：运行期执行“清空全部数据”成功后，`domain-services.data.clearAll()` 调用内部 `overtime.reloadState()` 重新读取已提交状态，并同步单调时钟锚点、归零与补偿定时器，防止后续暂停或礼物操作写回清空前的时间（存储失败或部分提交失败时不执行重载）。禁用默认行随 `giftDb` 事务提交，保留已有 `enable_epoch` 供下次启用递增；同一事务将保留来源的 `pending` 置为 `ignored`，保留其礼物历史与 `applied` / `ignored` 终态，防止清空前的 `final` 进入新一轮。已有单例的 `revision` 在同一事务内递增而不归零，确保现有浏览器源连接能正常接受清空后的快照及后续更新，同时继续拒绝清空前迟到的 HTTP 响应；仅当单例行缺失时才从 `epoch=0`、`revision=0` 新建。清库期间的静默与部分失败策略见 [storage.md §6.3](storage.md#63-并发写入静默quiesce)；该操作不新增 HTTP/IPC 接口。
 

@@ -24,7 +24,8 @@ function getBlindBoxChangeToken(context, nowDate = new Date()) {
 }
 
 function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false, includeRecords = true } = {}) {
-  if (!/^(?:-1|[0-9]|10)$/.test(String(top)) || ![true, false, '0', '1'].includes(hideLoss)) {
+  if (!/^(?:-1|[0-9]|10)$/.test(String(top)) || ![true, false, '0', '1'].includes(hideLoss)
+      || ![true, false, '0', '1'].includes(includeRecords)) {
     throw Object.assign(new Error('盲盒榜单参数无效。'), { code: 'INVALID_GIFT_STATS_OPTIONS' });
   }
   top = Number(top);
@@ -34,7 +35,7 @@ function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false, i
     if (hideLoss) perUser = perUser.filter((user) => user.totalProfit > 0);
     if (top > 0) perUser = perUser.slice(0, top);
     const projection = { ...value, perUser };
-    if (!includeRecords) delete projection.records;
+    if (includeRecords === false || includeRecords === '0') delete projection.records;
     return structuredClone(projection);
   };
   boxName = cleanText(boxName);

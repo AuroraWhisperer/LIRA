@@ -32,6 +32,35 @@ test('configured-room guard counts update even while local danmaku monitoring is
   assert.ok(broadcasts.includes('bilibili:room-guard'));
 });
 
+test('switching rooms with monitoring disabled clears only the previous owner profile', async (t) => {
+  const { BilibiliApiClient } = require('../../src/bilibili/danmaku/api-client');
+  const settings = { roomId: '44', danmakuMonitoringEnabled: 'false' };
+  const lookup = t.mock.method(BilibiliApiClient.prototype, 'resolveRoomInfo', async () => ({
+    ownerName: '新房主播', ownerAvatarUrl: 'fixture:new',
+  }));
+  const runtime = createBilibiliRuntime({
+    settingsStore: { getSettings: () => settings },
+    domainServices: { requesterTargets: { getLatestRandomRequester: () => null } },
+    broadcastSnapshot() {}, readRoomGuardCount: async () => null,
+  });
+  t.after(() => runtime.stop());
+  runtime.updateStatus({ roomId: '44', ownerName: '原房主播', ownerAvatarUrl: 'fixture:old' });
+  runtime.configure();
+  const sender = runtime.getDanmakuSender();
+  assert.equal((await sender.getState()).roomName, '原房主播');
+  assert.equal(lookup.mock.callCount(), 0);
+  settings.roomId = '55';
+  runtime.configure();
+  const status = runtime.getLiveStatus();
+  assert.deepEqual([status.roomId, status.ownerName, status.ownerAvatarUrl], ['55', '', '']);
+  const room = await sender.getState();
+  assert.deepEqual([room.roomId, room.roomName, room.roomAvatarUrl], ['55', '新房主播', 'fixture:new']);
+  assert.equal(lookup.mock.callCount(), 1);
+  settings.roomId = '';
+  runtime.configure();
+  assert.equal((await sender.getState()).roomName, '');
+});
+
 test('Bilibili runtime owns auth refresh, client replacement, and shutdown', async (t) => {
   const logs = [];
   t.mock.method(console, 'info', (line) => logs.push(line));
@@ -379,6 +408,22 @@ function createReplacementFixture(options = {}) {
   });
   return { runtime, settings, clients };
 }
+
+test('realtime readiness requires the confirmed listener identity to match the active runtime account', async (t) => {
+  const { runtime, clients } = createReplacementFixture();
+  t.after(() => runtime.stop());
+  await runtime.reconnect();
+  const source = { ready: true, roomId: '123', ownerUid: '7', accountUid: '41', connectionKey: 'prior' };
+  clients[0].getRealtimeState = () => source;
+  let state = runtime.getRealtimeState();
+  assert.equal(state.accountUid, '42');
+  assert.equal(state.ready, false);
+  assert.ok(state.reason);
+  Object.assign(source, { accountUid: '42', connectionKey: 'current' });
+  state = runtime.getRealtimeState();
+  assert.equal(state.ready, true);
+  assert.equal(state.connectionKey, 'current');
+});
 
 test('credential read failures reject listener replacement and sender state, then recover without anonymous fallback', async (t) => {
   let fail = false;

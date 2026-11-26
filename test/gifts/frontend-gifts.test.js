@@ -13,7 +13,7 @@ function response(payload) {
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-async function createStatsHarness({ active = true } = {}) {
+async function createStatsHarness({ active = true, start = new Date(2026, 8, 1, 12).getTime() } = {}) {
   function classes(initial = []) {
     const values = new Set(initial);
     return { contains: (name) => values.has(name), toggle(name, enabled) {
@@ -48,6 +48,10 @@ async function createStatsHarness({ active = true } = {}) {
     path.join(ROOT_DIR, 'public/js/admin/gifts/blindbox-stats.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
   ], {
     window: {},
+    Date: class extends Date {
+      constructor(...args) { super(...(args.length ? args : [start + clock.now()])); }
+      static now() { return start + clock.now(); }
+    },
     document, AbortController, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
     MutationObserver: class {
       constructor(callback) { this.callback = callback; this.targets = new Map(); observers.push(this); }
@@ -99,6 +103,7 @@ test('visible blind box summary requests the displayed ranking and coalesces in-
 
   assert.equal(requests.length, 1);
   assert.equal(new URL(requests[0].url, 'http://localhost').searchParams.get('top'), '10');
+  assert.equal(new URL(requests[0].url, 'http://localhost').searchParams.get('includeRecords'), '0');
   await finish(0);
 
   eventBus.emit('state:loaded', { state: {} });
@@ -124,6 +129,28 @@ test('visible blind box summary requests the displayed ranking and coalesces in-
   assert.equal(requests.length, 4);
   await finish(3);
   assert.doesNotMatch(body.innerHTML, /Test viewer/);
+});
+
+test('at local midnight the open summary replaces yesterday and a late previous-day read cannot restore it', async () => {
+  const f = await createStatsHarness({ start: new Date(2026, 8, 1, 23, 59, 59).getTime() });
+  await f.finish(0, statsFor('Yesterday'));
+  f.eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  f.clock.tick(500);
+  assert.match(f.body.innerHTML, /Yesterday/);
+  f.clock.tick(500);
+  assert.equal(f.requests.length, 3);
+  assert.equal(f.requests[1].signal.aborted, true);
+  await f.finish(2);
+  await f.finish(1, statsFor('Yesterday'));
+  assert.doesNotMatch(f.body.innerHTML, /Yesterday/);
+  f.setCollapsed(true);
+  f.clock.tick(86400000);
+  assert.equal(f.requests.length, 3);
+  f.setCollapsed(false);
+  assert.equal(f.requests.length, 4);
+  f.close();
+  f.clock.tick(86400000);
+  assert.equal(f.requests.length, 4);
 });
 
 test('hidden blind box summary defers invalidation and rejects reads from an earlier visible session', async () => {

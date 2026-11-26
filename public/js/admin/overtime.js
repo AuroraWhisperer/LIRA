@@ -20,6 +20,8 @@ let rulesSaving = false;
 let rulesEditRevision = 0;
 let appearance = null;
 let displayRevision = 0;
+let overviewRequest = 0;
+let lastDisplayedOverview = 0;
 let catalogLiveStatus = null;
 let ruleEditor = null;
 let timeChangePending = false;
@@ -28,7 +30,7 @@ const giftPicker = createOvertimeGiftPicker({
   getLiveStatus: () => catalogLiveStatus,
   onSelect(gift, previousRow) {
     const row = previousRow ? ruleEditor.reselectGift(previousRow, gift) : ruleEditor.createRule(gift);
-    if (!row) { toast('原规则已删除或变更，请重新选择要修改的规则。', { type: 'warn' }); return; }
+    if (!row) { toast('原规则已删除或变更，请重新选择要修改的规则。', { type: 'warning' }); return; }
     row.scrollIntoView({ block: 'nearest' });
   },
 });
@@ -113,12 +115,18 @@ export function initOvertime(currentState = {}) {
 }
 
 async function refresh() {
+  const request = ++overviewRequest;
   const requestedRevision = displayRevision;
   const response = await fetch('/api/overtime');
   const payload = await readJsonResponse(response, '读取加班机失败');
-  if (!payload.ok) throw new Error(payload.error || '读取加班机失败');
+  if (!payload.ok) {
+    if (request === overviewRequest) throw new Error(payload.error || '读取加班机失败');
+    return;
+  }
+  if (request < lastDisplayedOverview) return;
+  lastDisplayedOverview = request;
   settlements = payload.data.settlements || [];
-  if (requestedRevision === displayRevision) renderState(payload.data);
+  if (request === overviewRequest && requestedRevision === displayRevision) renderState(payload.data);
   renderSettlements();
 }
 

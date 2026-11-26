@@ -13,7 +13,7 @@ const STORAGE_KEY = 'admin.streamerWorkbench.v3';
 const PREVIOUS_STORAGE_KEY = 'admin.streamerWorkbench.v2';
 const LEGACY_STORAGE_KEY = 'admin.streamerPlanner.v1';
 
-test('cancelling event deletion preserves the draft, while confirmation deletes only the saved target', async t => {
+async function plannerFormFixture(t, { globals, fanProfiles, plannerReminders } = {}) {
   const { documentRef: document, windowRef: window, windowListeners, container } = createDom();
   const events = new EventTarget();
   document.addEventListener = events.addEventListener.bind(events);
@@ -54,13 +54,177 @@ test('cancelling event deletion preserves the draft, while confirmation deletes 
   window.localStorage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
   window.setInterval = () => 1;
   window.clearInterval = () => {};
+  window.plannerReminders = plannerReminders;
+  if (fanProfiles) {
+    window.fanProfiles = fanProfiles;
+    const panel = get('otherDailyTodoFeature');
+    document.body.append(panel);
+    panel.closest = () => null;
+  }
   let nextId = 0;
   const { todo } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/streamer-planner.js'), {
-    document, window, ...clock, crypto: { randomUUID: () => `event-${++nextId}` },
+    document, window, ...clock, ...globals, crypto: { randomUUID: () => `event-${++nextId}` },
     MutationObserver: class { observe() {} disconnect() {} },
   });
   t.after(() => { for (const listener of windowListeners.get('pagehide') || []) listener(); });
   todo.init();
+  get('plannerNoteType').value = 'idea';
+  return { document, get, clock, radios, stored, todo, windowListeners };
+}
+
+test('date navigation reuses the calendar index until planner records or fan events change', async t => {
+  const builds = [];
+  let fanEvents = [];
+  const { todo, get, stored, windowListeners } = await plannerFormFixture(t, {
+    globals: { WeakMap: class extends WeakMap {
+      set(key, value) {
+        if (value?.dates && value?.months) builds.push(key);
+        return super.set(key, value);
+      }
+    } },
+    fanProfiles: { invoke: async () => ({ ok: true, data: fanEvents }) },
+  });
+  await new Promise(setImmediate);
+  const date = '2099-11-03';
+  const first = todo.addEvent({ title: '晚场', date, time: '20:00' });
+  todo.addEvent({ title: '午场', date, time: '12:00' });
+  builds.length = 0;
+  for (const key of ['ArrowRight', 'ArrowLeft']) get('plannerCalendarGrid').fire('keydown', { key, preventDefault() {} });
+  const agenda = () => get('plannerAgendaList').textContent;
+  assert.match(agenda(), /午场.*晚场/);
+  assert.equal(builds.length, 0);
+  todo.updateEvent(first.id, { time: '10:00' });
+  todo.getState().events[0].title = '外部副本';
+  assert.match(agenda(), /晚场.*午场/);
+  const refreshFans = async () => {
+    for (const listener of windowListeners.get('fan-profiles-changed')) listener();
+    await new Promise(setImmediate);
+  };
+  fanEvents = [{ id: 'fan-1', date, time: '11:00', readonly: true, title: '粉丝提醒', detail: '', type: 'work' }];
+  await refreshFans();
+  assert.match(agenda(), /晚场.*粉丝提醒.*午场/);
+  assert.equal(stored.get(STORAGE_KEY).includes('粉丝提醒'), false);
+  fanEvents = [];
+  await refreshFans();
+  assert.doesNotMatch(agenda(), /粉丝提醒|外部副本/);
+  todo.removeEvent(first.id);
+  assert.doesNotMatch(agenda(), /晚场/);
+});
+
+test('Today updates both the selected calendar day and the page heading after midnight', async t => {
+  let time = new Date(2026, 10, 24, 23, 59).getTime();
+  const { get } = await plannerFormFixture(t, { globals: { Date: class extends Date {
+    constructor(...args) { super(...(args.length ? args : [time])); }
+    static now() { return time; }
+  } } });
+  assert.match(get('plannerTodayLabel').textContent, /11月24日/);
+  time += 60000;
+  await get('plannerGoToday').fire('click');
+  assert.match(get('plannerTodayLabel').textContent, /11月25日/);
+  const selected = get('plannerCalendarGrid').children.find(day => day.getAttribute('aria-pressed') === 'true');
+  assert.equal(selected.dataset.calendarDate, '2026-11-25');
+});
+
+test('cancelling a failed event submission leaves only the next unrelated task after reload', async t => {
+  const { get, stored, todo } = await plannerFormFixture(t);
+  const dialog = get('plannerEventDialog');
+  dialog.showModal();
+  get('plannerEventTitle').value = '核对彩排时间';
+  get('plannerEventDate').value = '2026-11-25';
+  get('plannerEventAllDay').checked = true;
+  const write = t.mock.method(stored, 'set', () => { throw new Error('quota'); }, { times: 1 });
+  await get('plannerEventForm').fire('submit', { preventDefault() {} });
+  assert.equal(write.mock.callCount(), 1);
+  assert.ok(dialog.open && !get('plannerEventError').hidden);
+  dialog.close();
+  todo.addTask({ title: '更换备用电池' });
+  const saved = (await loadTodo(stored)).todo.getState();
+  assert.equal(saved.tasks[0].title, '更换备用电池');
+  assert.equal(saved.events.length, 0);
+});
+
+test('a blank event title after a quota failure gets validation feedback and a corrected retry saves once', async t => {
+  const { get, stored } = await plannerFormFixture(t);
+  const dialog = get('plannerEventDialog');
+  const error = get('plannerEventError');
+  const submit = () => get('plannerEventForm').fire('submit', { preventDefault() {} });
+  dialog.showModal();
+  get('plannerEventAllDay').checked = true;
+  get('plannerEventDate').value = '2099-11-25';
+  get('plannerEventTitle').value = '彩排';
+  const writes = t.mock.method(stored, 'set', () => { throw new Error('quota'); }, { times: 1 });
+  await submit();
+  const storageError = error.textContent;
+  get('plannerEventTitle').value = '   ';
+  await submit();
+  assert.ok(dialog.open && !error.hidden && error.textContent);
+  assert.notEqual(error.textContent, storageError);
+  assert.equal(writes.mock.callCount(), 1);
+  get('plannerEventTitle').value = '补录彩排';
+  await submit();
+  assert.equal(dialog.open, false);
+  assert.deepEqual(JSON.parse(stored.get(STORAGE_KEY)).events.map(event => event.title), ['补录彩排']);
+});
+
+test('a task checkbox skips reminder serialization after a successful sync and retries a failed sync', async t => {
+  let serialized = 0;
+  let calls = 0;
+  let rejectSync = false;
+  const { get, todo } = await plannerFormFixture(t, {
+    globals: { JSON: { parse: JSON.parse, stringify(value, ...args) {
+      if (value?.localAt && value.remindAt) serialized++;
+      return JSON.stringify(value, ...args);
+    } } },
+    plannerReminders: { sync: async () => { calls++; return { ok: !rejectSync, supported: true }; } },
+  });
+  const task = todo.addTask({ title: '准备' });
+  const toggle = done => get('streamerPlanner').fire('change', { target: { dataset: { taskComplete: task.id }, checked: done } });
+  const first = todo.addEvent({ title: '晚场', date: '2099-11-03', time: '19:00', reminderTime: '19:00' });
+  todo.addEvent({ title: '午场', date: '2099-11-03', time: '12:00', reminderTime: '12:00' });
+  await new Promise(setImmediate);
+  const before = calls;
+  serialized = 0;
+  toggle(true);
+  assert.equal(calls, before);
+  assert.equal(serialized, 0);
+  rejectSync = true;
+  todo.updateEvent(first.id, { time: '20:00' });
+  await new Promise(setImmediate);
+  rejectSync = false;
+  toggle(false);
+  await new Promise(setImmediate);
+  assert.equal(calls, before + 2);
+});
+
+for (const [field, value] of [['Type', 'review'], ['Body', '']]) {
+  test(`switching memos confirms a draft with only ${field} changed`, async t => {
+    const { document, get, clock, todo } = await plannerFormFixture(t);
+    const first = todo.addNote({ body: '第一条', type: 'idea' });
+    const second = todo.addNote({ body: '第二条', type: 'promise' });
+    const edit = note => {
+      const button = document.createElement('button');
+      button.dataset.noteEdit = note.id;
+      return get('streamerPlanner').fire('click', { target: button });
+    };
+    await edit(first);
+    get(`plannerNote${field}`).value = value;
+    for (const accept of [false, true]) {
+      const pending = edit(second);
+      const dialog = document.body.children.find(node => node.className.includes('lira-confirm-backdrop'));
+      assert.ok(dialog, `editor shows ${get('plannerNoteType').value} / ${get('plannerNoteBody').value}`);
+      dialog.querySelector(accept ? '.lira-confirm-confirm' : '.lira-confirm-cancel').fire('click');
+      clock.tick(170);
+      await pending;
+      if (!accept) assert.equal(get(`plannerNote${field}`).value, value);
+    }
+    assert.equal(get('plannerNoteBody').value, second.body);
+    assert.equal(get('plannerNoteType').value, second.type);
+    assert.equal(todo.getState().notes.find(note => note.id === first.id).body, first.body);
+  });
+}
+
+test('cancelling event deletion preserves the draft, while confirmation deletes only the saved target', async t => {
+  const { document, get, clock, radios, stored, todo } = await plannerFormFixture(t);
   const original = todo.addEvent({ title: '原日程', date: '2026-11-20', time: '20:00' });
   const other = todo.addEvent({ title: '另一日程', date: '2026-11-21', time: '21:00' });
   const edit = document.createElement('button');
@@ -351,7 +515,7 @@ test('unreadable or unwritable storage never replaces the native reminder snapsh
   assert.equal(calls.length, 0);
 });
 
-test('a successful retry persists the in-memory draft before synchronizing reminders', async () => {
+test('explicitly retrying the event persists it before synchronizing reminders', async () => {
   const stored = new Map();
   const calls = [];
   let writable = false;
@@ -367,11 +531,12 @@ test('a successful retry persists the in-memory draft before synchronizing remin
       stored.set(key, value);
     },
   }, bridge);
-  todo.addEvent({ title: '未保存的日程', date: '2026-10-02', time: '20:00', reminderTime: '20:00' });
+  const draft = { title: '未保存的日程', date: '2026-10-02', time: '20:00', reminderTime: '20:00' };
+  assert.equal(todo.addEvent(draft), null);
   assert.equal(calls.length, 0);
-  assert.equal(todo.getState().events.length, 1);
   writable = true;
-  todo.addTask({ title: '同时保存草稿' });
+  todo.addEvent(draft);
+  assert.equal(todo.getState().events.length, 1);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].title, '未保存的日程');
   await Promise.resolve();
