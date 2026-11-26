@@ -147,8 +147,8 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | E5 | [查看原图](../images/usage-guide/E/danmaku-blacklist.webp) | 补上下文 | 屏蔽设置控件齐全；需标明弹幕姬面板。 |
 | E6 | [查看原图](../images/usage-guide/E/danmaku-params.webp) | 修改要求/补图 | 固定深色面板没有停留时间；另截全屏随机状态与应用按钮。 |
 | E7 | [查看原图](../images/usage-guide/E/ai-assistant-config.webp) | 需补关键状态 | 配置表单存在；六个平台下拉选项未展开，没有正常测试结果。 |
-| E8 | [查看原图](../../public/img/usage-guide/E/dynamic-lottery-setup.webp) | 需补拍 | 桌面专用功能不可用的错误状态，不宜作为正常设置截图。 |
-| E10 | [查看原图](../../public/img/usage-guide/E/toolbox-games.webp) | 需补下半部 | 只有数字炸弹/五子棋；你画我猜和转盘未入镜。 |
+| E8 | [查看原图](../images/usage-guide/E/dynamic-lottery-setup.webp) | 需补拍 | 桌面专用功能不可用的错误状态，不宜作为正常设置截图。 |
+| E10 | [查看原图](../images/usage-guide/E/toolbox-games.webp) | 需补下半部 | 只有数字炸弹/五子棋；你画我猜和转盘未入镜。 |
 | E10b | [查看原图](../../public/img/usage-guide/E/toolbox-voting.webp) | 演示/补上下文 | 投票表单和内置预览齐全；标明小游戏→投票与评分。 |
 | E10c | [查看原图](../../public/img/usage-guide/E/toolbox-rating.webp) | 演示/补上下文 | 评分范围和结果示例齐全；不能当实际评分成功证据。 |
 | E11 | [查看原图](../images/usage-guide/E/toolbox-overtime-rule.webp) | 补定位/主控制区 | 规则编辑清楚；图内无加班机页面定位，未覆盖计时器主控制。 |

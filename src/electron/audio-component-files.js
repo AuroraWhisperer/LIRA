@@ -9,28 +9,98 @@ const { renameWithRetry } = require('./atomic-file');
 const { writeResource } = require('../resources/resource-download');
 const { isOwnedDirectory } = require('../shared/file-retention');
 
-async function pruneAudioPreparations(dataDir, root, signal) {
-  const cutoff = Date.now() - 86400000;
-  async function abandoned(directory) {
+async function listPlainAudioTree(directory, signal, cutoff = Infinity) {
+  const members = [];
+  async function visit(filename) {
     signal.throwIfAborted();
-    const stat = await fs.lstat(directory);
+    const stat = await fs.lstat(filename);
     if (stat.isSymbolicLink() || stat.mtimeMs > cutoff) return false;
-    if (stat.isFile()) return true;
-    if (!stat.isDirectory()) return false;
-    for (const entry of await fs.readdir(directory)) if (!await abandoned(path.join(directory, entry))) return false;
+    if (stat.isDirectory()) {
+      for (const name of await fs.readdir(filename)) {
+        if (!await visit(path.join(filename, name))) return false;
+      }
+    } else if (!stat.isFile()) return false;
+    members.push({ filename, isDirectory: stat.isDirectory() });
     return true;
   }
+  return await visit(directory) ? members : null;
+}
+
+async function pruneAudioPreparations(dataDir, root, entry, signal) {
+  const cutoff = Date.now() - 86400000;
   if (!isOwnedDirectory(dataDir, root)) return;
   for (const name of await fs.readdir(root)) {
-    if (!/^\.prepare-[A-Za-z0-9]{6}$/.test(name)
-      && !/^[a-f0-9]{24}\.replaced-[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(name)) continue;
+    const replaced = /^[a-f0-9]{24}\.replaced-[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/.test(name);
+    if (!replaced && !/^\.prepare-[A-Za-z0-9]{6}$/.test(name)) continue;
     const directory = path.join(root, name);
     try {
-      if (await abandoned(directory) && isOwnedDirectory(dataDir, directory)) {
+      if (await listPlainAudioTree(directory, signal, cutoff) && isOwnedDirectory(dataDir, directory)) {
         signal.throwIfAborted();
-        await fs.rm(directory, { recursive: true, force: true });
+        const image = replaced ? await openIdleAudioImage(directory, entry) : null;
+        try { await fs.rm(directory, { recursive: true, force: true }); }
+        finally { await image?.close(); }
       }
     } catch { if (signal.aborted) return; }
+  }
+}
+
+// Windows denies non-truncating write access to a running image and prevents
+// new launches while we hold the handle. Renaming its parent offers no such protection.
+async function openIdleAudioImage(directory, entry) {
+  try {
+    if (!(await fs.lstat(directory)).isDirectory()) return null;
+    const filename = path.join(directory, entry);
+    if (!(await fs.lstat(filename)).isFile()) return null;
+    return await fs.open(filename, 'r+');
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+async function audioImageBusy(directory, entry) {
+  try {
+    const image = await openIdleAudioImage(directory, entry);
+    await image?.close();
+    return false;
+  } catch (error) {
+    if (['EBUSY', 'EPERM', 'EACCES'].includes(error.code)) return true;
+    throw error;
+  }
+}
+
+async function removeIdleAudioVersion(dataDir, directory, entry, signal) {
+  const image = await openIdleAudioImage(directory, entry);
+  if (image) {
+    try {
+      const members = await listPlainAudioTree(directory, signal);
+      if (!members) return;
+      const executable = path.join(directory, entry);
+      for (const { filename, isDirectory } of members) {
+        if (filename === directory || path.relative(executable, filename) === '') continue;
+        signal.throwIfAborted();
+        if (!isOwnedDirectory(dataDir, path.dirname(filename))) return;
+        if (isDirectory) await fs.rmdir(filename);
+        else await fs.unlink(filename);
+      }
+      // Remove the entry last so an interrupted cleanup can continue next launch.
+      if (!isOwnedDirectory(dataDir, directory)) return;
+      await fs.unlink(executable);
+    } finally { await image.close(); }
+  }
+  if (isOwnedDirectory(dataDir, directory)) await fs.rmdir(directory);
+}
+
+async function pruneObsoleteAudioVersions(dataDir, root, manifest, activeDirectory, signal) {
+  if (!isOwnedDirectory(dataDir, root)) return;
+  for (const name of await fs.readdir(root)) {
+    signal.throwIfAborted();
+    if (name === manifest.id || (name !== 'legacy' && !/^[a-f0-9]{24}$/.test(name))) continue;
+    const directory = path.join(root, name);
+    if (path.relative(directory, activeDirectory) === '' || !isOwnedDirectory(dataDir, directory)) continue;
+    // Busy or inaccessible versions stay eligible on the next client start.
+    try { await removeIdleAudioVersion(dataDir, directory, manifest.entry, signal); }
+    catch { signal.throwIfAborted(); }
   }
 }
 
@@ -126,7 +196,9 @@ async function renameDirectory(source, destination) {
   await renameWithRetry(source, destination, { fileSystem: fs, retryCodes: ['EPERM', 'EACCES', 'EBUSY'] });
 }
 
-async function publishAudioDirectory(staging, destination) {
+async function tryPublishAudioDirectory(staging, destination, entry) {
+  // All supported worker launches wait on this preparation before starting.
+  if (await audioImageBusy(destination, entry)) return false;
   const replaced = `${destination}.replaced-${randomUUID()}`;
   let previous = false;
   try { await renameDirectory(destination, replaced); previous = true; }
@@ -135,6 +207,8 @@ async function publishAudioDirectory(staging, destination) {
   catch (error) { if (previous) await renameDirectory(replaced, destination); throw error; }
   // The verified replacement is already live. Later preparation can retry housekeeping.
   if (previous) await fs.rm(replaced, { recursive: true, force: true }).catch(() => {});
+  return true;
 }
 
-module.exports = { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, publishAudioDirectory, pruneAudioPreparations };
+module.exports = { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, tryPublishAudioDirectory,
+  audioImageBusy, pruneObsoleteAudioVersions, pruneAudioPreparations };

@@ -289,8 +289,8 @@ test('effect controls retain each component style, save through desktop IPC, pub
   const previewElement = await page.locator('.component-preview-frame').elementHandle();
   const previewDocument = await previewElement.contentFrame();
   await previewDocument.waitForFunction(() => {
-    const nickname = document.querySelector('.draw-danmaku-identity > strong');
-    return nickname && getComputedStyle(nickname).fontSize === '24px';
+    const nicknames = document.querySelectorAll('.draw-danmaku-identity > strong, .sc-name');
+    return nicknames.length > 0 && Array.from(nicknames).every(node => getComputedStyle(node).fontSize === '24px');
   }, null, { timeout: 7000 });
   await previewElement.dispose();
   const shadow = page.locator('[data-effect-enabled="shadow"]');

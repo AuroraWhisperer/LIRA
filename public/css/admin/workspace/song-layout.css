@@ -15,7 +15,7 @@ body.player-dock-expanded .song-workspace {
 
 /* ---- 并排双队列 ---- */
 .queues-row {
-  --queue-height: 450px;
+  --queue-height: 480px;
   display: grid;
   flex: 0 0 var(--queue-height);
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -41,8 +41,8 @@ body.player-dock-expanded .song-workspace {
 .queues-row .queue-panel .panel-header {
   flex: 0 0 auto;
   flex-wrap: wrap;
-  min-height: 56px;
-  padding: 8px 12px;
+  min-height: 52px;
+  padding: 6px 12px;
   gap: 12px;
   border-bottom: 1px solid var(--color-border-light);
   background: var(--surface);
@@ -306,8 +306,8 @@ body.player-dock-expanded .song-workspace {
 .song-management-panel > .tabs {
   flex: 0 0 auto;
   gap: 4px;
-  min-height: 52px;
-  padding: 4px 8px;
+  min-height: 48px;
+  padding: 3px 8px;
   border-bottom-color: var(--color-border-light);
   border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0;
 }

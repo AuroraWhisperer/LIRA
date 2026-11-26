@@ -62,8 +62,17 @@
   .game-config-grid {
     grid-template-columns: 1fr;
   }
-  .games-admin-footer {
-    align-items: stretch;
+  .games-category-primary .games-category-header {
+    align-items: center;
+    flex-direction: row;
+    gap: 10px;
+  }
+  .games-status-bar {
+    align-items: flex-start;
     flex-direction: column;
+    min-height: 0;
+  }
+  .games-meta-divider {
+    display: none;
   }
 }

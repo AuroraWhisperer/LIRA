@@ -2,7 +2,7 @@
 
 /* Shared desktop geometry stays independent of the selected palette. */
 html.desktop-shell {
-  --topbar-height: 44px;
+  --topbar-height: 48px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;

@@ -436,6 +436,8 @@ test('game command replies preserve a later stop or replacement session', async 
   const firstStart = commands.shift();
   broadcast(first);
   assert.equal(node('gamesStopBtn').disabled, false, 'the start broadcast enables stopping before its HTTP response');
+  assert.equal(node('gamesStopBtn').hidden, false);
+  assert.equal(node('gamesRunningBadge').hidden, false);
   node('gamesStopBtn').listeners.click();
   const firstStop = commands.shift();
   assert.equal(firstStop.input.action, 'stop');
@@ -444,6 +446,8 @@ test('game command replies preserve a later stop or replacement session', async 
   firstStart.reply(first); await flush();
   assert.equal(start.disabled, false, 'a late start reply must not resurrect the stopped game');
   assert.equal(node('gamesStopBtn').disabled, true);
+  assert.equal(node('gamesStopBtn').hidden, true);
+  assert.equal(node('gamesRunningBadge').hidden, true);
 
   start.listeners.click();
   commands.shift().reply({ ...first, sessionId: 'second' }); await flush();

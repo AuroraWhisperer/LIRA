@@ -8,34 +8,123 @@
 >
   <div id="gamesAdminPanel" class="other-feature-panel-body games-admin">
     <section class="games-category games-category-primary" aria-labelledby="gamesCategoryTitle">
-      <header class="games-category-header">
-        <div>
-          <span class="games-category-kicker">观众发弹幕参与</span>
-          <h3 id="gamesCategoryTitle" class="ui-section-title">直播间互动</h3>
-        </div>
-        <span id="gamesLiveStatus" class="pill warn">等待直播间</span>
-        <div class="games-source-actions">
-          <button
-            id="gamesOverlayUrl"
-            class="copy-url games-source-url"
-            type="button"
-            aria-label="复制直播间互动浏览器源链接"
-            title="点击复制链接"
-          ></button>
-          <button id="gamesOpenOverlayBtn" class="secondary" type="button">打开预览</button>
-        </div>
-      </header>
+      <div class="games-primary-top">
+        <header class="games-category-header">
+          <div class="games-category-title-group">
+            <h3 id="gamesCategoryTitle" class="ui-section-title">直播间互动</h3>
+            <span id="gamesRunningBadge" class="games-running-badge" hidden>进行中</span>
+          </div>
+          <div class="games-source-actions">
+            <button
+              id="gamesOverlayUrl"
+              class="secondary games-header-action"
+              type="button"
+              aria-label="复制直播间互动浏览器源链接"
+            >
+              <svg
+                class="games-action-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+              <span>复制地址</span>
+            </button>
+            <button id="gamesOpenOverlayBtn" class="secondary games-header-action" type="button">
+              <svg
+                class="games-action-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M15 3h6v6" />
+                <path d="M10 14 21 3" />
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              </svg>
+              <span>打开预览</span>
+            </button>
+          </div>
+        </header>
 
-      <footer class="games-admin-footer">
-        <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
-        <span id="gamesViewerStatus" class="hint" role="status" aria-live="polite"></span>
-        <div>
-          <button id="gamesRefreshViewersBtn" class="secondary" type="button">刷新观众名单</button>
-          <button id="gamesStopBtn" class="danger" type="button" disabled>结束当前游戏</button>
+        <div id="gamesStatusBar" class="games-status-bar">
+          <div class="games-status-meta">
+            <span class="games-session-item">
+              <span class="games-status-dot" aria-hidden="true"></span>
+              <span id="gamesSessionStatus" role="status" aria-live="polite">当前没有进行中的游戏</span>
+            </span>
+            <span class="games-meta-divider" aria-hidden="true"></span>
+            <span class="games-viewer-item">
+              <svg
+                class="games-meta-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              <span id="gamesViewerStatus" role="status" aria-live="polite"></span>
+              <button
+                id="gamesRefreshViewersBtn"
+                class="ghost games-refresh-btn"
+                type="button"
+                aria-label="刷新观众名单"
+                title="刷新观众名单"
+              >
+                <svg
+                  class="games-action-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+                <span>刷新</span>
+              </button>
+              <a
+                class="games-audience-help"
+                data-usage-guide-link
+                href="#ug-game-audience"
+                interestfor="gamesAudienceHint"
+                aria-describedby="gamesAudienceHint"
+                aria-label="查看观众名单范围说明"
+              >
+                <span class="lira-help-mark" aria-hidden="true"><span class="lira-help-glyph">?</span></span>
+              </a>
+              <span id="gamesAudienceHint" class="lira-help-tooltip" role="tooltip" popover="hint"
+                >找不到观众时，请让对方发一条弹幕后点「刷新」。点击图标查看名单范围说明。</span
+              >
+            </span>
+          </div>
+          <button id="gamesStopBtn" class="danger games-stop-btn" type="button" disabled hidden>
+            <svg class="games-action-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
+            <span>结束当前游戏</span>
+          </button>
         </div>
-      </footer>
-
-      <p class="hint">找不到观众时，请让对方发一条弹幕后刷新。<a data-usage-guide-link href="#ug-game-audience">查看名单范围</a></p>
+      </div>
 
       <section class="games-catalog" aria-label="直播间互动游戏">
         <article class="game-admin-card is-bomb" data-game-card="number-bomb">
@@ -293,17 +382,6 @@
           </div>
         </div>
       </article>
-    </section>
-    <section class="games-category" aria-labelledby="publicGamesTitle">
-      <header class="games-category-header">
-        <div>
-          <h3 id="publicGamesTitle" class="ui-section-title">网页小游戏</h3>
-          <p class="hint">独立网页模拟游戏，不连接直播间；进度保存在当前浏览器。</p>
-        </div>
-        <div class="games-source-actions">
-          <a class="secondary" href="https://games.lirahub.cn/" target="_blank" rel="noopener noreferrer">打开网页小游戏</a>
-        </div>
-      </header>
     </section>
   </div>
 </section>

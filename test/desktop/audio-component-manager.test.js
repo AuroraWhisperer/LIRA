@@ -3,15 +3,18 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { spawn } = require('node:child_process');
 const { createHash } = require('node:crypto');
+const { once } = require('node:events');
 const test = require('node:test');
 const { createDeflatedZip } = require('../../scripts/component-style-zip');
-const { verifyAudioDirectory } = require('../../src/electron/audio-component-files');
+const { verifyAudioDirectory, pruneObsoleteAudioVersions } = require('../../src/electron/audio-component-files');
 const { createAudioComponentManager } = require('../../src/electron/audio-component-manager');
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+const previousId = 'fedcba9876543210fedcba98';
 
-test('audio preparation removes abandoned staging without deleting completed versions, recent work or linked content', async t => {
+test('offline preparation reclaims idle versions and abandoned staging while preserving recent work and linked content', async t => {
   const f = await fixture(t);
   await f.populate(f.destination);
   const old = new Date(Date.now() - 2 * 86400000);
@@ -19,23 +22,33 @@ test('audio preparation removes abandoned staging without deleting completed ver
   await fs.mkdir(abandoned); await fs.writeFile(path.join(abandoned, 'download.tmp'), 'partial');
   await fs.utimes(path.join(abandoned, 'download.tmp'), old, old); await fs.utimes(abandoned, old, old);
   const recent = path.join(f.root, '.prepare-new123'); await fs.mkdir(recent);
-  const previous = path.join(f.root, 'fedcba9876543210fedcba98'); await f.populate(previous);
+  const previous = path.join(f.root, previousId); await f.populate(previous);
+  const legacy = path.join(f.root, 'legacy'); await f.populate(legacy);
+  const outside = path.join(f.dataDir, 'unrelated'); await f.populate(outside);
+  await fs.symlink(outside, path.join(legacy, 'link'), 'junction');
   const linked = path.join(f.root, '.prepare-link12');
-  await fs.symlink(previous, linked, 'junction');
+  await fs.symlink(outside, linked, 'junction');
+  await fs.symlink(outside, path.join(f.root, 'a'.repeat(24)), 'junction');
   const manager = f.manager({ fetch: () => { throw new Error('Must remain offline'); } });
   await manager.initialize();
+  await t.waitFor(() => assert.rejects(fs.access(previous), { code: 'ENOENT' }), { timeout: 5000 });
   await assert.rejects(fs.access(abandoned), { code: 'ENOENT' });
   await fs.access(recent); await fs.access(linked);
-  assert.equal((await fs.readFile(path.join(previous, 'dependency.dll'))).toString(), 'isolated library');
+  await fs.access(path.join(legacy, f.manifest.entry));
+  await fs.access(path.join(f.root, 'a'.repeat(24), 'dependency.dll'));
   assert.equal(await manager.getExecutable(), path.join(f.destination, f.manifest.entry));
 });
 
-async function fixture(t) {
+async function fixture(t, executable = Buffer.from('isolated executable fixture')) {
   const scratch = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(scratch, { recursive: true });
   const dataDir = await fs.mkdtemp(path.join(scratch, 'audio-component-test-'));
-  t.after(() => fs.rm(dataDir, { recursive: true, force: true }));
-  const entries = new Map([['LiraAudioAssistant.exe', Buffer.from('isolated executable fixture')],
+  const managers = [];
+  t.after(async () => {
+    await Promise.all(managers.map(manager => manager.close()));
+    await fs.rm(dataDir, { recursive: true, force: true });
+  });
+  const entries = new Map([['LiraAudioAssistant.exe', executable],
     ['dependency.dll', Buffer.from('isolated library')], ['vendor/lira.onnx', Buffer.from('isolated model')]]);
   const archive = createDeflatedZip(entries);
   const manifest = { id: '0123456789abcdef01234567', platform: 'win32', arch: 'x64', entry: 'LiraAudioAssistant.exe',
@@ -46,7 +59,7 @@ async function fixture(t) {
   function manager(extra = {}) {
     const result = createAudioComponentManager({ dataDir, manifest, platform: 'win32', arch: 'x64',
       onState: state => states.push(state), fetch: async () => { requests++; return new Response(archive); }, ...extra });
-    t.after(() => result.close());
+    managers.push(result);
     return result;
   }
   async function populate(directory) {
@@ -197,8 +210,13 @@ test('an unsupported platform reports the cause without creating a download task
   assert.equal(f.requests(), 0);
 });
 
-test('download corruption leaves no partial executable and retries only when explicitly requested', async t => {
+test('a failed upgrade preserves the old component until an explicit retry installs the verified replacement', async t => {
   const f = await fixture(t);
+  const previous = path.join(f.root, previousId);
+  const legacy = path.join(f.root, 'legacy');
+  await f.populate(previous);
+  await f.populate(legacy);
+  await fs.writeFile(path.join(legacy, 'dependency.dll'), 'old library');
   let requests = 0;
   const manager = f.manager({ fetch: async () => {
     requests++;
@@ -209,13 +227,16 @@ test('download corruption leaves no partial executable and retries only when exp
   await assert.rejects(manager.initialize(), /HASH_INVALID/);
   await assert.rejects(manager.getExecutable(), /系统与关于.*重试/);
   assert.equal(requests, 1);
-  assert.deepEqual(await fs.readdir(f.root), []);
+  assert.deepEqual((await fs.readdir(f.root)).sort(), [previousId, 'legacy']);
+  await fs.access(path.join(previous, 'vendor/lira.onnx'));
+  assert.equal(await fs.readFile(path.join(legacy, 'dependency.dll'), 'utf8'), 'old library');
   await manager.retry();
   assert.equal(requests, 2);
   assert.equal(manager.getState().status, 'ready');
+  await t.waitFor(async () => assert.deepEqual(await fs.readdir(f.root), [f.manifest.id]), { timeout: 5000 });
 });
 
-test('a damaged installed version is repaired while a different version is preserved', async t => {
+test('repair leaves unrelated directory names untouched', async t => {
   const f = await fixture(t);
   await f.populate(f.destination);
   await fs.writeFile(path.join(f.destination, 'dependency.dll'), Buffer.alloc(f.entries.get('dependency.dll').length));
@@ -225,6 +246,73 @@ test('a damaged installed version is repaired while a different version is prese
   assert.equal(f.requests(), 1);
   assert.equal(await fs.readFile(path.join(old, 'dependency.dll'), 'utf8'), 'isolated library');
   assert.equal(await fs.readFile(path.join(f.destination, 'dependency.dll'), 'utf8'), 'isolated library');
+});
+
+async function withRunningWindowsImage(entry, check) {
+  const worker = spawn(entry, [], { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+  const closed = once(worker, 'close');
+  let output = '';
+  worker.stdout.setEncoding('utf8').on('data', chunk => { output += chunk; });
+  try {
+    await once(worker, 'spawn');
+    await check();
+    worker.stdin.end('playing\r\n');
+    assert.equal((await closed)[0], 0);
+    assert.equal(output.trim(), 'playing');
+  } finally {
+    worker.stdin.end();
+    await closed;
+  }
+}
+
+test('a live Windows image and its dependencies survive cleanup until the next offline client start', {
+  skip: process.platform !== 'win32',
+}, async t => {
+  const f = await fixture(t);
+  await f.populate(f.destination);
+  const previous = path.join(f.root, previousId);
+  await f.populate(previous);
+  const entry = path.join(previous, f.manifest.entry);
+  await fs.copyFile(path.join(process.env.SystemRoot, 'System32', 'sort.exe'), entry);
+  await withRunningWindowsImage(entry, async () => {
+    await pruneObsoleteAudioVersions(f.dataDir, f.root, f.manifest, f.destination, new AbortController().signal);
+    assert.equal(await fs.readFile(path.join(previous, 'vendor/lira.onnx'), 'utf8'), 'isolated model');
+  });
+  await f.manager().initialize();
+  await t.waitFor(() => assert.rejects(fs.access(previous), { code: 'ENOENT' }), { timeout: 5000 });
+  assert.equal(f.requests(), 0);
+});
+
+test('a verified legacy image stays in place while running and can be promoted after exit', {
+  skip: process.platform !== 'win32',
+}, async t => {
+  const f = await fixture(t, await fs.readFile(path.join(process.env.SystemRoot, 'System32', 'sort.exe')));
+  const legacy = path.join(f.root, 'legacy');
+  await f.populate(legacy);
+  const entry = path.join(legacy, f.manifest.entry);
+  const manager = f.manager();
+  await withRunningWindowsImage(entry, async () => {
+    assert.equal(await manager.getExecutable(), entry);
+  });
+  assert.equal(await manager.getExecutable(), path.join(f.destination, f.manifest.entry));
+  assert.equal(f.requests(), 0);
+});
+
+test('repair of the same version waits for the running image before downloading or replacing files', {
+  skip: process.platform !== 'win32',
+}, async t => {
+  const f = await fixture(t);
+  await f.populate(f.destination);
+  const entry = path.join(f.destination, f.manifest.entry);
+  await fs.copyFile(path.join(process.env.SystemRoot, 'System32', 'sort.exe'), entry);
+  const manager = f.manager();
+  await withRunningWindowsImage(entry, async () => {
+    await assert.rejects(manager.initialize(), /AUDIO_COMPONENT_IN_USE/);
+    assert.equal(f.requests(), 0);
+    await fs.access(path.join(f.destination, 'vendor/lira.onnx'));
+  });
+  assert.equal(await manager.retry(), entry);
+  assert.equal(f.requests(), 1);
 });
 
 test('a valid archive hash cannot authorize an unexpected member or a path outside the component', async t => {

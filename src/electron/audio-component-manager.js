@@ -4,7 +4,8 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const manifestDefault = require('./audio-component-manifest.json');
 const { resolveCdnOrigin, writeResource } = require('../resources/resource-download');
-const { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, publishAudioDirectory, pruneAudioPreparations } = require('./audio-component-files');
+const { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, tryPublishAudioDirectory,
+  audioImageBusy, pruneObsoleteAudioVersions, pruneAudioPreparations } = require('./audio-component-files');
 
 function createAudioComponentManager({ dataDir, bundledDirectory, manifest = manifestDefault,
   fetch: fetchImpl = globalThis.fetch, cdnBaseUrl, canDownload = () => true, onState = () => {},
@@ -14,6 +15,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
   const origin = resolveCdnOrigin(cdnBaseUrl);
   const controller = new AbortController();
   let task = null;
+  let obsoleteCleanup = null;
   let executable = '';
   let failure = null;
   let state = { status: 'idle', totalBytes: 0, downloadedBytes: 0, revision: 0 };
@@ -26,16 +28,20 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     if (platform !== manifest.platform || arch !== manifest.arch) throw new Error('AUDIO_PLATFORM_UNSUPPORTED');
     publish({ status: 'checking', error: '', totalBytes: 0, downloadedBytes: 0 });
     await ensureAudioRoot(dataDir);
-    await pruneAudioPreparations(dataDir, root, signal).catch(() => {});
+    await pruneAudioPreparations(dataDir, root, manifest.entry, signal).catch(() => {});
     if (await verifyAudioDirectory(directory, manifest, signal)) return path.join(directory, manifest.entry);
     const legacy = path.join(root, 'legacy');
     if (await verifyAudioDirectory(legacy, manifest, signal)) {
-      await publishAudioDirectory(legacy, directory);
-      return path.join(directory, manifest.entry);
+      // A verified legacy image remains usable in place while either path is busy.
+      if (!await audioImageBusy(legacy, manifest.entry) && await tryPublishAudioDirectory(legacy, directory, manifest.entry)) {
+        return path.join(directory, manifest.entry);
+      }
+      return path.join(legacy, manifest.entry);
     }
     if (bundledDirectory && await verifyAudioDirectory(bundledDirectory, manifest, signal))
       return path.join(bundledDirectory, manifest.entry);
     if (!canDownload()) throw new Error('AUDIO_AUTHORIZATION_REQUIRED');
+    if (await audioImageBusy(directory, manifest.entry)) throw new Error('AUDIO_COMPONENT_IN_USE');
     const staging = await fs.mkdtemp(path.join(root, '.prepare-'));
     const stalled = new AbortController();
     const startIdleTimer = () => setTimeout(() => stalled.abort(), 300000);
@@ -69,7 +75,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
       await fs.mkdir(unpacked);
       await extractAudioComponent(archive, manifest, unpacked, signal);
       signal.throwIfAborted();
-      await publishAudioDirectory(unpacked, directory);
+      if (!await tryPublishAudioDirectory(unpacked, directory, manifest.entry)) throw new Error('AUDIO_COMPONENT_IN_USE');
       return path.join(directory, manifest.entry);
     } finally {
       clearTimeout(idleTimer);
@@ -81,6 +87,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     if (controller.signal.aborted) return '音频组件已关闭，请重新打开 LIRA。';
     if (error.message === 'AUDIO_AUTHORIZATION_REQUIRED') return '下载音频组件需要 LIRA 账号授权，请确认授权后重试。';
     if (error.message === 'AUDIO_PLATFORM_UNSUPPORTED') return '这台设备不支持音频组件。';
+    if (error.message === 'AUDIO_COMPONENT_IN_USE') return '音频组件暂时无法替换。请在播放或原声恢复结束后，到「系统与关于」重试。';
     return '音频组件准备失败。请打开「百宝箱 → 设置 → 系统与关于」，在音频组件下载任务旁点击「重试」。';
   }
 
@@ -94,6 +101,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
       controller.signal.throwIfAborted();
       executable = filename;
       publish({ status: 'ready', error: '' });
+      obsoleteCleanup ??= pruneObsoleteAudioVersions(dataDir, root, manifest, path.dirname(filename), controller.signal).catch(() => {});
       return filename;
     }).catch(error => {
       failure = error.message === 'AUDIO_AUTHORIZATION_REQUIRED' ? null : error;
@@ -120,7 +128,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
   }
 
   return { initialize, getExecutable, retry, getState: () => ({ ...state }),
-    async close() { controller.abort(); await task?.catch(() => {}); } };
+    async close() { controller.abort(); await task?.catch(() => {}); await obsoleteCleanup; } };
 }
 
 module.exports = { createAudioComponentManager };

@@ -57,7 +57,7 @@ AI 配置读取记录开始时的写入代次；表单、开关或角色成功�
 
 管理页 HTML 分片位于 [pages/admin/](../../../public/pages/admin)，由 [server/admin-page.js](../../../src/server/admin-page.js) 按固定顺序组合；完整性、顺序和唯一 ID 由 [admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js) 保护。
 
-桌面顶栏高度由 `css/desktop/theme.css` 的 `--topbar-height` 控制，默认为 44px。`css/desktop/shell.css` 中主导航按钮最小高度为 30px，右侧工具按钮和直播状态高 26px。导航与状态区使用紧凑字号和图标，左侧软件标志与右侧窗口控制图标按 SVG 固有尺寸显示。各主页面的剩余高度、启动遮罩与盲盒分析工作区的顶部偏移共用该变量。非桌面顶栏默认高度为 58px。
+桌面顶栏高度由 `css/desktop/theme.css` 的 `--topbar-height` 控制，默认为 48px。`css/desktop/shell.css` 中主导航按钮最小高度为 30px，右侧工具按钮和直播状态高 26px。导航与状态区使用紧凑字号和图标，左侧软件标志与右侧窗口控制图标按 SVG 固有尺寸显示。各主页面的剩余高度、启动遮罩与盲盒分析工作区的顶部偏移共用该变量。非桌面顶栏默认高度为 58px。
 
 ```
 topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝箱）

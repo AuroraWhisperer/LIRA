@@ -74,7 +74,9 @@ data/
 
 可执行组件存于 `<dataDir>/components/audio/<内容版本>/`，与 `audio-assistant/settings.json`、路由恢复记录及播放器输出状态分离。内容版本来自固定文件清单的摘要，不随客户端版本或账号变化；该目录不参与字体/图片缓存清理及业务云同步。程序启动后首次使用前校验文件，开发构建目录或旧版 bundled 目录完整时可直接复用。
 
-6.0.0 升级时安装器在删除旧程序前将 `resources/audio-assistant` 复制到数据备份的 `components/audio/legacy`，主进程按内置描述完整校验后直接重命名到内容版本目录，复用过程不发起 CDN 请求；未知或损坏文件禁止执行。下载写入独占 `.prepare-*` 目录，成功后原子发布，失败或关闭时清理本次临时文件，不删除其他已存在版本。安装维护退出时会检查旧路径与版本目录中的本实例音频进程。
+6.0.0 升级时安装器在删除旧程序前将 `resources/audio-assistant` 复制到数据备份的 `components/audio/legacy`。主进程完整校验后将其迁入内容版本目录。迁移路径仍被占用时，本次可直接从校验通过的 `legacy` 运行。下载写入独占 `.prepare-*` 目录，逐项校验成功后原子发布。安装维护退出时会检查旧路径与版本目录中的本实例音频进程。
+
+每次启动首次确认当前组件可用后，主进程在后台回收其他 24 位内容版本目录和闲置的 `legacy`。准备失败时保留旧版。Windows 上先以非截断写模式打开旧版 EXE，持有句柄期间清理依赖，最后移除 EXE。正在播放或恢复原声的进程继续使用原目录，占用解除后可在下次启动时清理。当前版本、实际使用的目录和含链接的目录均跳过。
 
 ### 电音助手本机数据
 
@@ -141,7 +143,7 @@ data/
 | 礼物图片 | 复用初始化完成后的完整目录检查，每小时至多一次；保护当前目录、历史 last-good 映射、全账号场景/素材配置、未保存预览、在途下载与近期文件。无引用生成文件 30 天后回收；总量超过 512 MiB 时额外淘汰至少 24 小时未用的最旧候选（受保护与近期文件可超预算，不牺牲离线回退）。索引不可读且已有图片时本次进程停止淘汰 | [remote-gift-image-cache.js](../../../src/bilibili/gift/remote-gift-image-cache.js)、[gift-catalog-initializer.js](../../../src/bilibili/gift/gift-catalog-initializer.js) |
 | 礼物缓存临时文件 | 缓存实例创建时回收超过 24 小时、符合原子写入命名的临时文件，不清理未知 `.tmp` | 同上 |
 | 公共资源下载残留 | 初始化或显式重试时清理超过 24 小时的临时文件与字体下载 ZIP；正式摘要文件、旧版本 URL 与旧字体兼容缓存保留 | [resource-library.js](../../../src/resources/resource-library.js) |
-| 音频组件准备残留 | 准备组件时清理超过 24 小时的 `.prepare-*` 目录（目录与全部子项均超期且不含链接）；正式版本、`legacy` 与恢复记录不清理 | [audio-component-files.js](../../../src/electron/audio-component-files.js) |
+| 音频组件 | 准备时检查 `.prepare-*` 和替换残留，目录及子项均超过 24 小时且无链接时回收。当前组件就绪后按[音频组件文件](#音频组件文件)回收闲置旧版。路由恢复记录独立保存 | [audio-component-files.js](../../../src/electron/audio-component-files.js) |
 
 [local-asset-references.js](../../../src/server/local-asset-references.js) 汇总全账号场景草稿/发布文档、预览配置、在途命令、本机设置与素材库配置的全部引用；任一引用或索引不可读、存在未完整获取的未保存修改、素材导入或备份在途时保守跳过。文本图片备份另对实际图片路径加占用保护至流结束。自动维护不触发任何服务器/CDN 请求，也不改变素材包的显式清理入口。
 

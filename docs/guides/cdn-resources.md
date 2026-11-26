@@ -71,9 +71,11 @@ https://assets.lirahub.cn/client/resources/manifest.json
 1. 音频源码或运行库依赖变化时运行 `npm run build:audio-assistant -- <vendor目录>`；仅更新客户端时复用已有音频构建。
 2. 运行 `npm run export:audio`。产物位于 `tmp/audio-component-export/upload/client/resources/audio/`，上传说明为同级导出根目录的 `UPLOAD.md`；内置描述写入 `src/electron/audio-component-manifest.json`。重复导出相同输入产生相同内容版本和包摘要。
 3. 只上传当前导出的 `audio-win-x64-<包摘要前缀>.zip` 至 CDN 的 `client/resources/audio/`，保留原名。使用 HTTPS、关闭内容转换、允许长期缓存，不能覆盖同名文件；已发布旧包继续保留。
-4. 验证上传文件的大小和完整 SHA-256 与导出说明一致，然后发布包含对应内置描述的新客户端。无需修改字体/图片 `manifest.json` 或额外上传音频 manifest。
+4. 验证上传文件的大小和完整 SHA-256 与导出说明一致，然后发布包含对应内置描述的新客户端。旧客户端重新安装或修复组件时，仍从 CDN 下载各自指定的旧包。无需修改字体/图片 `manifest.json` 或额外上传音频 manifest。
 
 首次授权后，缺失组件由独立后台任务补齐，可在「百宝箱 → 设置 → 系统与关于」查看进度和重试。6.0.0 已有组件由安装器保留并校验复用；本地完整且兼容时无音频 CDN 请求，账号切换和无关客户端更新不重下。音频使用相同可信启动环境的 `LIRA_RESOURCE_CDN_BASE`，正常用户不需要安装 .NET。首次联网准备完成前，电音助手与原生声卡输出暂不可用，默认浏览器播放可照常使用。即使上次使用 ASIO，此时也可在「内置播放器输出」选择「系统默认输出」继续播放。组件准备妥当后离线也能正常使用。
+
+客户端校验新版组件成功后会自动清理本机闲置旧版。旧版仍在播放或恢复原声时，等它退出后，下次启动 LIRA 再清理。若新版下载或校验失败，本机保留旧版。
 
 音频组件包需开启压缩，不能沿用字体包使用的无压缩（stored）ZIP 模式。客户端每次准备最多一个包请求。每次写入新字节都会重新计时，连续 5 分钟没有写入才判定下载超时。失败后等待明确重试；音频组件准备不阻塞礼物或字体任务。下载及版本目录的原子发布见[桌面主进程](../reference/desktop/main.md#电音助手生命周期)，持久位置见[存储](../reference/backend/storage.md#音频组件文件)。
 

@@ -272,10 +272,9 @@
   border-left: 1px solid var(--border);
 }
 
-.dynamic-lottery-guide > summary {
+.dynamic-lottery-guide > h3 {
+  margin-bottom: var(--spacing-xs);
   color: var(--text);
-  font-size: var(--type-size-card-title);
-  font-weight: var(--type-weight-semibold);
 }
 
 .dynamic-lottery-guide li + li {

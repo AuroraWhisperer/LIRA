@@ -78,7 +78,7 @@ Radix 特别区分纯灰与带色相的灰：`slate` 偏蓝，`sand` 偏黄。�
 | 加班机控制台与规则编辑器（保留项） | [实际界面](../../public/img/usage-guide/E/toolbox-overtime-controls.webp)在浅色页面中已有深色控制台；[控制台](../../public/css/admin/overtime/console.css)与[规则编辑器](../../public/css/admin/overtime/rule-editor.css)有专属按钮、状态与局部样式。 | 延续现有专属颜色，检查全局文字或控件变量是否造成意外变化，不为新增客户端主题重设计控制台。 |
 | 粉丝档案 | [实际界面](../../public/img/usage-guide/E/toolbox-fan-profiles.webp)包含分栏、筛选、提醒和档案操作；[样式](../../public/css/admin/toolbox/fan-profiles.css)由模块管理，另有编辑器样式。 | 验证档案列表、详情、编辑器、提醒和空状态；一个设置表单无法代表这些表面。 |
 | 主播工作台日历 | [实际界面](../../public/img/usage-guide/E/toolbox-planner.webp)包含日期格、日程、便签与待办；[日历样式](../../public/css/admin/toolbox/streamer-planner/calendar.css)区分直播、工作、个人事件。 | 保留事件分类，分别适配今天、选中日期、跨月日期和事件文字。选择状态不等同于事件类型。 |
-| 小游戏及直播画面预览 | [实际界面](../../public/img/usage-guide/E/toolbox-games.webp)包含游戏海报、玩法卡片与配置；[页面结构](../../public/pages/admin/toolbox/games.html)按游戏分区。其他投屏设置也有独立预览内容。 | 配置界面随客户端主题适配；游戏识别视觉和观众侧预览按各自契约处理，不能用全局换色替代。 |
+| 小游戏及直播画面预览 | [实际界面](../images/usage-guide/E/toolbox-games.webp)包含游戏海报、玩法卡片与配置；[页面结构](../../public/pages/admin/toolbox/games.html)按游戏分区。其他投屏设置也有独立预览内容。 | 配置界面随客户端主题适配；游戏识别视觉和观众侧预览按各自契约处理，不能用全局换色替代。 |
 
 公共主题的适配单元应是现有颜色规则和实际使用它们的组件。页面数多不意味着每页都要重新设计，但不同导航形态、普通控件的局部覆盖与动态浮层仍需覆盖。保留项主要验证不受误改，无须为其另做三套配色。
 

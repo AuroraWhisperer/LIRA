@@ -11,16 +11,47 @@
   border-radius: var(--radius-lg);
   background: var(--color-bg-tertiary);
 }
+.games-primary-top {
+  display: grid;
+  gap: 0;
+}
 .games-category-header {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 18px;
+  gap: 12px 18px;
   padding: 0 2px;
 }
-.games-category-header > div:first-child {
+.games-category-header > div:first-child:not(.games-category-title-group) {
   display: grid;
   gap: 3px;
+}
+.games-category-header > .games-category-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.games-running-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--color-success) 32%, transparent);
+  border-radius: 999px;
+  background: var(--color-success-light);
+  color: var(--color-success-dark, var(--color-success));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.games-running-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
 }
 .games-source-actions {
   display: flex;
@@ -30,6 +61,48 @@
   gap: 8px;
   margin-left: auto;
   max-width: 100%;
+}
+.games-action-icon,
+.games-meta-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+.games-meta-icon {
+  color: var(--color-text-muted, var(--muted));
+}
+.games-source-actions button.games-header-action,
+.games-source-actions button.copy-url.games-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto;
+  height: auto;
+  min-height: 32px;
+  padding: 5px 12px;
+  border: 1px solid var(--color-button-border, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+  line-height: var(--type-leading-control);
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease;
+}
+.games-source-actions button.games-header-action .games-action-icon {
+  color: var(--muted);
+}
+.games-source-actions button.games-header-action:hover:not(:disabled),
+.games-source-actions button.copy-url.games-header-action:hover:not(:disabled) {
+  border-color: var(--color-button-border-hover, var(--color-border-strong));
+  background: var(--surface-2);
 }
 .games-source-actions > a.secondary {
   display: inline-flex;
@@ -154,19 +227,145 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-.games-admin-footer {
+.games-status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 38px;
+  margin-top: 12px;
+  padding: 10px 2px 0;
+  border-top: 1px solid var(--color-border-light);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
 }
-.games-admin-footer > div {
+.games-status-meta {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-width: 0;
+}
+.games-session-item,
+.games-viewer-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.games-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.games-status-bar.is-active .games-status-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 20%, transparent);
+}
+.games-status-bar.is-active #gamesSessionStatus {
+  color: var(--text);
+  font-weight: var(--type-weight-semibold);
+}
+.games-meta-divider {
+  width: 1px;
+  height: 12px;
+  flex: 0 0 auto;
+  background: var(--border);
+}
+#gamesViewerStatus {
+  font-variant-numeric: tabular-nums;
+}
+button.ghost.games-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 1.4;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
+}
+button.ghost.games-refresh-btn:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-2);
+  color: var(--text);
+}
+button.ghost.games-refresh-btn:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-disabled-text, var(--color-text-muted));
+}
+.games-refresh-btn.is-loading .games-action-icon {
+  animation: games-spin 700ms linear infinite;
+}
+@keyframes games-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .games-refresh-btn.is-loading .games-action-icon {
+    animation: none;
+  }
+}
+.games-audience-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: var(--color-help-accent, var(--color-text-muted));
+  text-decoration: none;
+  cursor: pointer;
+}
+.games-audience-help:is(:hover, :focus-visible) .lira-help-mark {
+  border-color: var(--color-help-accent, var(--color-control-accent));
+  background: var(--color-help-accent, var(--color-control-accent));
+  color: var(--color-on-help-accent, var(--color-text-white));
+}
+.games-audience-help:focus-visible {
+  outline: 2px solid var(--color-help-accent, var(--color-control-focus));
+  outline-offset: 2px;
+}
+.games-status-bar .lira-help-tooltip {
+  position-area: block-start;
+  position-try-fallbacks: flip-block;
+  margin-block: var(--spacing-sm);
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+button.danger.games-stop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 10px;
+  border-radius: var(--radius-control);
+  background: var(--color-danger-light);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+button.danger.games-stop-btn:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--color-danger-active, var(--color-danger-light));
 }
 
 /* Collapsible game cards share the same interaction surface. */

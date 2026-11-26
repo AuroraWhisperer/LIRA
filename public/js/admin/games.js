@@ -26,8 +26,11 @@ export function initGames() {
     onRefreshFailure: reportPanelRefreshFailure,
     onRefreshSuccess: clearPanelRefreshFailure,
   });
-  byId('gamesOverlayUrl').textContent = overlayBaseUrl();
-  bindCopyUrl(byId('gamesOverlayUrl'), { onCopied: () => toast('游戏浏览器源地址已复制'), onError: showError });
+  bindCopyUrl(byId('gamesOverlayUrl'), {
+    getUrl: overlayBaseUrl,
+    onCopied: () => toast('游戏浏览器源地址已复制'),
+    onError: showError,
+  });
   byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
   byId('gamesRefreshViewersBtn').addEventListener('click', () => {
     requestViewerRefresh({ notify: true }).catch(showError);
@@ -124,6 +127,7 @@ function requestViewerRefresh(options = {}) {
   const button = byId('gamesRefreshViewersBtn');
   const status = byId('gamesViewerStatus');
   button.disabled = true;
+  button.classList.add('is-loading');
   status.textContent = '正在刷新观众名单…';
   viewerRefreshPromise = refreshViewers(options).catch((error) => {
     const message = '观众名单刷新失败，请检查直播间连接后重试。';
@@ -138,6 +142,7 @@ function requestViewerRefresh(options = {}) {
     throw new Error(message, { cause: error });
   }).finally(() => {
     button.disabled = false;
+    button.classList.remove('is-loading');
     viewerRefreshPromise = null;
   });
   return viewerRefreshPromise;
@@ -155,7 +160,7 @@ async function refreshViewers(options = {}) {
     if (viewers.length > 0 || attempt === VIEWER_REFRESH_RETRY_DELAYS_MS.length) break;
   }
   for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), viewers);
-  byId('gamesViewerStatus').textContent = viewers.length ? `已找到 ${viewers.length} 位可选观众` : '暂无可选观众，可稍后刷新。';
+  byId('gamesViewerStatus').textContent = viewers.length ? `可选观众 ${viewers.length} 位` : '暂无可选观众';
   clearPanelRefreshFailure();
   if (notify) toast(`已找到 ${viewers.length} 位可选观众`);
 }
@@ -223,8 +228,17 @@ async function stopGame() {
 function renderSession(session) {
   if (session && session.sessionId === activeGameSession?.sessionId && session.eventRevision < activeGameSession.eventRevision) return;
   activeGameSession = session || null;
+  const running = Boolean(session);
   const stop = byId('gamesStopBtn');
-  stop.disabled = !session;
+  stop.disabled = !running;
+  stop.hidden = !running;
+  const statusBar = byId('gamesStatusBar');
+  if (statusBar) statusBar.classList.toggle('is-active', running);
+  const badge = byId('gamesRunningBadge');
+  if (badge) {
+    badge.hidden = !running;
+    if (running) badge.textContent = session.state?.winner ? '本局结束' : '进行中';
+  }
   document.querySelectorAll('[data-start-game]').forEach((button) => {
     button.disabled = Boolean(session) || interactionCollecting;
     button.setAttribute('aria-disabled', String(button.disabled));
