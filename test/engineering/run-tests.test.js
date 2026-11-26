@@ -12,6 +12,8 @@ const RUNNER = path.join(ROOT, 'scripts/run-tests.js');
 const { buildNodeArguments, defaultConcurrency } = require(RUNNER);
 const temporaryRoot = path.join(ROOT, 'tmp/test-runner');
 const runtimeGroups = ['browser', 'desktop', 'installer', 'contracts', 'offline'];
+const groupManifest = 'scripts/test-runtime-groups.json';
+const selectionGroups = { browser: ['ui/picker', 'preview/clock'], desktop: ['ui/window'] };
 
 function run(root, ...args) {
   const env = { ...process.env };
@@ -33,7 +35,7 @@ function list(root, ...args) {
 
 const configuredGroups = Object.fromEntries(runtimeGroups.map((group) => [group, list(ROOT, group)]));
 
-function fixture(t) {
+function fixture(t, groups = {}) {
   fs.mkdirSync(temporaryRoot, { recursive: true });
   const root = fs.mkdtempSync(path.join(temporaryRoot, 'run-'));
   t.after(() => {
@@ -49,9 +51,9 @@ function fixture(t) {
   put('scripts/run-tests.js', fs.readFileSync(RUNNER, 'utf8'));
   put('scripts/test-results-reporter.js', fs.readFileSync(path.join(ROOT, 'scripts/test-results-reporter.js'), 'utf8'));
   put('scripts/test-progress-reporter.js', fs.readFileSync(path.join(ROOT, 'scripts/test-progress-reporter.js'), 'utf8'));
-  for (const group of runtimeGroups.filter((name) => name !== 'offline')) {
-    for (const file of configuredGroups[group]) put(file);
-  }
+  put(groupManifest, JSON.stringify(groups));
+  fs.mkdirSync(path.join(root, 'test'));
+  for (const name of Object.values(groups).flat()) put(`test/${name}.test.js`);
   return { root, put };
 }
 
@@ -99,7 +101,7 @@ test('browser and Electron test dependencies belong to their runtime groups', ()
 });
 
 test('recursive discovery excludes helpers and probes while preserving distinct files with the same basename', (t) => {
-  const { root, put } = fixture(t);
+  const { root, put } = fixture(t, selectionGroups);
   for (const file of [
     'sample/a.test.js',
     'sample/nested/b.test.js',
@@ -120,11 +122,11 @@ test('recursive discovery excludes helpers and probes while preserving distinct 
     'test/sample/nested/b.test.js',
   ]);
   assert.deepEqual(list(root, 'offline', '--domain=other', '--domain=sample'), list(root, 'offline'));
-  assert.deepEqual(list(root, 'browser', '--domain=ui'), configuredGroups.browser.filter((file) => file.startsWith('test/ui/')));
+  assert.deepEqual(list(root, 'browser', '--domain=ui'), ['test/ui/picker.test.js']);
 });
 
 test('file selectors combine without duplicates and intersect with domains and runtime groups', (t) => {
-  const { root, put } = fixture(t);
+  const { root, put } = fixture(t, selectionGroups);
   put('test/sample/first.test.js');
   put('test/sample/second.test.js');
   put('test/other/first.test.js');
@@ -134,11 +136,11 @@ test('file selectors combine without duplicates and intersect with domains and r
   ]);
   assert.deepEqual(list(root, '--domain=sample', '--file=test/**/first.test.js'), ['test/sample/first.test.js']);
   assert.deepEqual(list(root, '--file=.\\test\\sample\\first.test.js'), ['test/sample/first.test.js']);
-  assert.deepEqual(list(root, 'browser', '--file=test/ui/*.test.js'), configuredGroups.browser.filter((file) => file.startsWith('test/ui/')));
+  assert.deepEqual(list(root, 'browser', '--file=test/ui/*.test.js'), ['test/ui/picker.test.js']);
 });
 
 test('invalid selectors and empty intersections fail instead of running an unintended suite', (t) => {
-  const { root, put } = fixture(t);
+  const { root, put } = fixture(t, selectionGroups);
   put('test/sample/only.test.js');
   for (const args of [
     ['unknown'], ['--domain=unknown'], ['--domain='], ['--domain'], ['browser', '--domain=sample'],
@@ -157,14 +159,13 @@ test('invalid selectors and empty intersections fail instead of running an unint
 });
 
 test('missing and duplicate dependency assignments fail collection', (t) => {
-  const { root, put } = fixture(t);
-  const source = fs.readFileSync(RUNNER, 'utf8');
-  put('scripts/run-tests.js', source.replace('browser: [', "browser: ['engineering/build-integrity',"));
+  const { root, put } = fixture(t, selectionGroups);
+  put(groupManifest, JSON.stringify({ ...selectionGroups, desktop: ['ui/picker'] }));
   let result = run(root, '--list');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Missing or duplicate test group entry/);
-  put('scripts/run-tests.js', source);
-  fs.unlinkSync(path.join(root, 'test/engineering/build-integrity.test.js'));
+  put(groupManifest, JSON.stringify(selectionGroups));
+  fs.unlinkSync(path.join(root, 'test/ui/window.test.js'));
   result = run(root, '--list');
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Missing or duplicate test group entry/);
@@ -318,7 +319,7 @@ test('full acceptance rejects selection and filter options before executing any 
 });
 
 test('full acceptance rejects skipped and todo cases while focused debugging allows them', (t) => {
-  const { root, put } = fixture(t);
+  const { root, put } = fixture(t, { desktop: ['desktop/local-instance-windows'] });
   put('test/sample/unfinished.test.js', `
     const test = require('node:test');
     test.skip('missing tool', () => {});
@@ -339,21 +340,19 @@ test('full acceptance rejects skipped and todo cases while focused debugging all
   assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
 });
 
-test('requiring the runner only exposes its functions and never runs the suite', (t) => {
+test('requiring the runner does not start the suite', (t) => {
   const { root, put } = fixture(t);
   put('test/sample/selected.test.js', `
     const test = require('node:test');
     test('runs', () => require('node:fs').writeFileSync('executed.txt', 'yes'));
   `);
-  const marker = path.join(root, 'require-marker.txt');
-  const probe = spawnSync(process.execPath, [
-    '-e',
-    `const runner = require(${JSON.stringify(RUNNER)});`
-      + "require('node:fs').writeFileSync('require-marker.txt', JSON.stringify(Object.keys(runner).sort()));",
-  ], { cwd: root, env: { ...process.env }, encoding: 'utf8', windowsHide: true, timeout: 15000 });
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  const probe = spawnSync(process.execPath, ['-e', "require('./scripts/run-tests.js')"], {
+    cwd: root, env, encoding: 'utf8', windowsHide: true, timeout: 15000,
+  });
   assert.equal(probe.status, 0, probe.stderr);
   assert.equal(probe.stdout, '', 'requiring the runner must not print run output');
-  assert.ok(fs.existsSync(marker));
   assert.equal(fs.existsSync(path.join(root, 'executed.txt')), false, 'requiring the runner must not execute tests');
 });
 

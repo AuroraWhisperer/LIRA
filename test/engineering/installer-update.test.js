@@ -142,17 +142,19 @@ test('builder upgrade runs the current safe uninstaller instead of a destructive
   const fixtureUtil = path.join(fixtureBuildDir, 'nsis/installUtil.nsh');
   fs.mkdirSync(path.dirname(fixtureUtil), { recursive: true });
   fs.writeFileSync(fixtureUtil, util);
+  const legacyFixture = path.join(root, 'legacy.exe');
+  compile('legacy', [
+    `OutFile "${quote(legacyFixture)}"`, 'Section',
+    `FileOpen $0 "${quote(calledLegacy)}" w`, 'FileClose $0',
+    `Delete "${quote(personal)}"`, 'SectionEnd',
+  ]);
+  const original = fs.readFileSync(legacyFixture);
   for (const scenario of ['same-directory', 'change-directory', 'changed-registration', 'failed-launch']) {
     await t.test(scenario, () => {
       fs.mkdirSync(installDir, { recursive: true });
       fs.writeFileSync(personal, 'unrelated user file');
       fs.writeFileSync(path.join(installDir, 'LIRA.exe'), 'old app');
-      compile('legacy', [
-        `OutFile "${quote(legacy)}"`, 'Section',
-        `FileOpen $0 "${quote(calledLegacy)}" w`, 'FileClose $0',
-        `Delete "${quote(personal)}"`, 'SectionEnd',
-      ]);
-      const original = fs.readFileSync(legacy);
+      fs.writeFileSync(legacy, original);
       const bad = path.join(root, 'invalid-uninstaller.exe');
       fs.writeFileSync(bad, 'not executable');
       const executable = path.join(root, scenario + '.exe');

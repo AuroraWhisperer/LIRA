@@ -63,8 +63,14 @@ test('each built-in style applies its text clusters to real messages and restore
       const bodyBefore = typography(body);
       const groups = DANMAKU_TEXT_TARGETS[style];
       if (!groups) throw new Error(`${style}: missing text groups`);
-      const fields = Object.entries(styleOptionFields(style)).filter(([, field]) => field.textRole && field.type === 'number');
+      const sizeFields = Object.entries(styleOptionFields(style)).filter(([, field]) => field.textRole && field.type === 'number');
+      // A role with just its plain FontSize field is exercised with its font and color below.
+      const splitRoles = new Set(sizeFields.filter(([key, field]) => key !== `${field.textRole}FontSize`
+        || field.sizeSelector || field.legacySizeKey || field.linkedSizeKey).map(([, field]) => field.textRole));
+      const fields = sizeFields.filter(([, field]) => splitRoles.has(field.textRole));
       const defaultOptions = styleOptionsFor(style);
+      const matchesDefaultSize = (key, nodes) => nodes.every(node =>
+        Math.abs(parseFloat(getComputedStyle(node).fontSize) - defaultOptions[key]) < .006);
       const allTargets = [...document.querySelectorAll(Object.values(groups).join(','))];
       const fieldTargets = new Map(fields.map(([key, field]) => {
         const siblings = fields.filter(([, other]) => other.legacySizeKey === key).map(([, other]) => other.sizeSelector);
@@ -81,8 +87,7 @@ test('each built-in style applies its text clusters to real messages and restore
         const others = allTargets.filter(node => !targets.includes(node));
         const before = targets.map(typography);
         const otherBefore = others.map(typography);
-        const defaultsMatch = cluster.every(([member]) => fieldTargets.get(member)
-          .every(node => Math.abs(parseFloat(getComputedStyle(node).fontSize) - defaultOptions[member]) < .006));
+        const defaultsMatch = cluster.every(([member]) => matchesDefaultSize(member, fieldTargets.get(member)));
         const edited = editStyleOption({ style, styleOptions: {} }, key, 25.25);
         applyStyleOptions(document, style, edited.styleOptions);
         results.push({ style, role: key, defaultsMatch,
@@ -99,12 +104,18 @@ test('each built-in style applies its text clusters to real messages and restore
         const others = Object.entries(groups).filter(([key]) => key !== role)
           .flatMap(([, other]) => [...document.querySelectorAll(other)]);
         const otherBefore = others.map(typography);
+        const sizeKey = `${role}FontSize`;
+        const split = splitRoles.has(role);
+        const defaultsMatch = split || matchesDefaultSize(sizeKey, targets);
+        const size = split ? 25 : 25.25;
+        const sizeOptions = split ? { [sizeKey]: size }
+          : editStyleOption({ style, styleOptions: {} }, sizeKey, size).styleOptions[style];
         applyStyleOptions(document, style, { [style]: {
-          [`${role}FontSize`]: 25, [`${role}FontFamily`]: '"Georgia"', [`${role}Color`]: '#123abc',
+          ...sizeOptions, [`${role}FontFamily`]: '"Georgia"', [`${role}Color`]: '#123abc',
         } });
-        results.push({ style, role, changed: targets.every(node => {
+        results.push({ style, role, defaultsMatch, changed: targets.every(node => {
           const css = getComputedStyle(node);
-          return css.fontSize === '25px' && css.fontFamily.includes('Georgia') && css.color === 'rgb(18, 58, 188)';
+          return css.fontSize === `${size}px` && css.fontFamily.includes('Georgia') && css.color === 'rgb(18, 58, 188)';
         }), independent: typography(body) === bodyBefore && others.every((node, index) => typography(node) === otherBefore[index]),
         actual: typography(targets[0]) });
         applyStyleOptions(document, style, {});

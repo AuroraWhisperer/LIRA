@@ -52,7 +52,7 @@ async function sender(store, options = {}) {
   const state = stateModule.createInitialState();
   state.current = { id: 'test-track', source: 'qq', title: 'Test track' };
   const audio = { readyState: 1, currentTime: 17 };
-  const calls = { http: [], ipc: [], beacon: [], sessions: [] };
+  const calls = { http: [], ipc: [], beacon: [] };
   const beaconSaves = [];
   const ipcHandlers = new Map();
   const timers = new Map();
@@ -113,13 +113,8 @@ async function sender(store, options = {}) {
             },
       async fetch(url, init) {
         const body = JSON.parse(init.body);
-        if (url.endsWith('/session')) {
-          calls.sessions.push(body);
-          if (options.beforeSession) await options.beforeSession();
-        } else {
-          calls.http.push(body);
-          if (options.beforeHttp) await options.beforeHttp();
-        }
+        calls.http.push({ ...body, url });
+        if (options.beforeHttp) await options.beforeHttp();
         const { statusCode, result } = await post(store, url, body);
         return { ok: statusCode === 200, json: async () => result };
       },
@@ -129,7 +124,6 @@ async function sender(store, options = {}) {
     playbackState: state,
     getPlaybackAudio: () => audio,
   });
-  await new Promise((resolve) => setImmediate(resolve));
   return {
     audio,
     calls,
@@ -187,11 +181,13 @@ test('progress notifications defer track serialization until the debounced save 
   assert.equal(app.calls.http.length, 0);
 
   app.audio.currentTime = 42;
+  app.state.current = null;
   app.state.normalQueue.push({ id: 'latest', source: 'qq', title: 'Latest track' });
   await app.flushScheduledSave();
   assert.equal(reads, 1);
   assert.equal(app.calls.http.length, 1);
   const saved = store.getQueueState().payload;
+  assert.equal(saved.current, null);
   assert.equal(saved.currentTime, 42);
   assert.deepEqual(saved.normalQueue.map((track) => track.id), ['queued', 'latest']);
   assert.equal(saved.snapshotVersion.sequence, 40);
@@ -208,6 +204,7 @@ for (const flush of ['flushPlaybackStateOnUnload', 'flushPlaybackStateForShutdow
     app.audio.currentTime = 42;
     await app.persistence[flush]();
     await app.settle();
+    assert.equal(app.calls.ipc.length, 1);
     const saved = store.getQueueState().payload;
     assert.equal(saved.normalQueue[0].title, 'Latest before closing');
     assert.equal(saved.currentTime, 42);
@@ -217,11 +214,9 @@ for (const flush of ['flushPlaybackStateOnUnload', 'flushPlaybackStateForShutdow
   });
 }
 
-test('a delayed old session cannot take ownership from a newer page', async (t) => {
+test('an old page first saving on unload leaves the newer page in control', async (t) => {
   const { store } = fixture(t);
-  const oldSession = deferred();
-  t.after(() => oldSession.resolve());
-  const old = await sender(store, { beforeSession: () => oldSession.promise });
+  const old = await sender(store);
   const current = await sender(store);
   current.audio.currentTime = 42;
   current.persistence.savePlaybackState();
@@ -229,44 +224,13 @@ test('a delayed old session cannot take ownership from a newer page', async (t) 
   old.audio.currentTime = 11;
   old.persistence.savePlaybackState();
   old.persistence.flushPlaybackStateOnUnload();
-  oldSession.resolve();
   await old.settle();
+  assert.equal(old.calls.beacon[0].payload.currentTime, 11);
   assert.equal(store.getQueueState().payload.currentTime, 42);
   current.audio.currentTime = 43;
   current.persistence.savePlaybackState();
   await current.persistence.flushPlaybackStateSave();
   assert.equal(store.getQueueState().payload.currentTime, 43);
-});
-
-test('an initial session failure cannot discard an empty-current queue snapshot', async (t) => {
-  const { store } = fixture(t);
-  const initialSession = deferred();
-  t.after(() => initialSession.resolve());
-  const app = await sender(store, {
-    beforeSession: async () => {
-      await initialSession.promise;
-      throw new Error('Temporary handshake failure');
-    },
-  });
-  app.state.current = null;
-  app.state.normalQueue = [{ id: 'queued', source: 'qq', title: 'Retained queue' }];
-  app.persistence.savePlaybackState();
-  const initial = app.persistence.flushPlaybackStateSave();
-  initialSession.resolve();
-  await initial;
-  await app.persistence.flushPlaybackStateForShutdown();
-  assert.equal(store.getQueueState()?.payload.normalQueue[0].id, 'queued');
-});
-
-test('unload sends its actual snapshot synchronously without awaiting a session request', async (t) => {
-  const { store } = fixture(t);
-  const session = deferred();
-  t.after(() => session.resolve());
-  const app = await sender(store, { beforeSession: () => session.promise });
-  app.persistence.savePlaybackState();
-  app.persistence.flushPlaybackStateOnUnload();
-  assert.equal(app.calls.ipc.length, 1);
-  assert.equal(app.calls.ipc[0].currentTime, 17);
 });
 
 for (const flush of ['flushPlaybackStateOnUnload', 'flushPlaybackStateForShutdown']) {
@@ -347,8 +311,11 @@ test('beacon-first delivery cannot be replaced by a later duplicate IPC save', a
   const app = await sender(store, { beforeIpc: () => ipc.promise });
   app.persistence.savePlaybackState();
   app.persistence.flushPlaybackStateOnUnload();
+  assert.equal(app.calls.ipc.length, 1);
+  assert.equal(app.calls.ipc[0].currentTime, 17);
   await app.settle();
   const saved = store.getQueueState();
+  assert.equal(saved.payload.currentTime, 17);
   const changes = db.prepare('SELECT total_changes() AS count').get().count;
   ipc.resolve();
   await app.settle();
@@ -375,23 +342,10 @@ test('rebuilt senders start at sequence one with a new writer and reject the old
   first.persistence.savePlaybackState();
   await first.persistence.flushPlaybackStateSave();
   assert.equal(store.getQueueState().payload.currentTime, 51);
-  assert.equal(first.calls.sessions.length, 0, 'a retired sender must not reclaim ownership');
-});
-
-test('shutdown commits through IPC without a separate session request', async (t) => {
-  const { store } = fixture(t);
-  const session = deferred();
-  const app = await sender(store, { beforeSession: () => session.promise });
-  app.audio.currentTime = 62;
-  app.persistence.savePlaybackState();
-  const shutdown = app.persistence.flushPlaybackStateForShutdown();
-  await app.settle();
-  assert.equal(app.calls.ipc.length, 1);
-  session.resolve();
-  await shutdown;
-  assert.equal(app.calls.sessions.length, 0);
-  assert.equal(store.getQueueState().payload.currentTime, 62);
-  assert.equal(store.getQueueState().payload.snapshotVersion.sequence, 1);
+  assert.deepEqual(first.calls.http.map(({ url }) => url), [
+    '/api/playback/queue-state',
+    '/api/playback/queue-state',
+  ], 'a retired sender must not reclaim ownership');
 });
 
 test('browser unload fallback uses the same ordered protocol', async (t) => {
@@ -517,7 +471,7 @@ test('shutdown HTTP fallback preserves the failed IPC snapshot version', async (
     app.calls.http[0].payload.snapshotVersion,
     JSON.parse(JSON.stringify(app.calls.ipc[0].snapshotVersion)),
   );
-  assert.equal(app.calls.sessions.length, 0);
+  assert.equal(app.calls.http.length, 1);
 });
 
 test('shutdown retains an empty-current snapshot when both channels decline its save', async (t) => {

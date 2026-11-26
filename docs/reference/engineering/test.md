@@ -31,7 +31,7 @@
 
 五组互不重叠且合集等于 `npm test`，可用 `node scripts/run-tests.js <组名或all> --list` 查看实际文件清单：
 
-- 新增使用浏览器、桌面或服务器样例的测试需在执行器中登记，普通 Node 测试自动进入 `offline` 组。
+- 浏览器、桌面、安装器和服务器样例测试按依赖登记在[运行时分组清单](../../../scripts/test-runtime-groups.json)中。普通 Node 测试自动进入 `offline` 组。
 - `run-tests.test.js` 会沿测试与共享辅助模块的静态 `require` 校验依赖归组：直接或间接启动 Chromium 的文件归 `browser`，依赖 `electron` 或 `shared-electron` 的文件归 `desktop`，防止遗漏登记后落入 `offline`；`contracts` 组仅放必须读取锁定服务器样例的用例，同文件中不依赖样例的用例拆到离线文件。
 - 日常开发只运行改动所属的测试组及直接受影响的用例，完整验证仍使用 `npm run verify`。管理页定向入口包含浏览器组件，需先安装 Chromium：`npx playwright install chromium`。
 

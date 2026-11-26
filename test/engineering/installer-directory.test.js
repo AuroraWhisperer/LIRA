@@ -20,11 +20,42 @@ test(
     const installer = fs.readFileSync(path.join(__dirname, '../../build/installer.nsh'), 'utf8');
     const choose = installer
       .match(/Function liraSelectDefaultDirectory\b[\s\S]*?FunctionEnd/)[0]
-      .replace(/ReadRegStr[^\r\n]+/, 'StrCpy $liraPreviousInstallDir "${FIXTURE_PREVIOUS}"')
-      .replace('!insertmacro GetDParameter $R0', 'StrCpy $R0 "${FIXTURE_EXPLICIT}"')
-      .replace('IfFileExists "D:\\*.*"', 'IfFileExists "${FIXTURE_DRIVE}"');
+      .replace(/ReadRegStr[^\r\n]+/, 'ReadEnvStr $liraPreviousInstallDir FIXTURE_PREVIOUS')
+      .replace('!insertmacro GetDParameter $R0', 'ReadEnvStr $R0 FIXTURE_EXPLICIT')
+      .replace('IfFileExists "D:\\*.*"', 'IfFileExists "$fixtureDrive"');
     assert.doesNotMatch(choose, /ReadReg|WriteReg|DeleteReg/);
     try {
+      const executable = path.join(root, 'defaults.exe');
+      const script = path.join(root, 'defaults.nsi');
+      fs.writeFileSync(script, [
+        'Unicode true',
+        'Name "LIRA directory fixture"',
+        'RequestExecutionLevel user',
+        `OutFile "${executable.replaceAll('$', () => '$$')}"`,
+        'Var liraPreviousInstallDir',
+        'Var fixtureDrive',
+        choose,
+        'Function .onInit',
+        'ReadEnvStr $INSTDIR FIXTURE_SELECTED',
+        'ReadEnvStr $fixtureDrive FIXTURE_DRIVE',
+        'Call liraSelectDefaultDirectory',
+        'ReadEnvStr $1 FIXTURE_OUTPUT',
+        'FileOpen $0 "$1" w',
+        'FileWriteUTF16LE /BOM $0 "$INSTDIR$\\r$\\n$liraPreviousInstallDir"',
+        'FileClose $0',
+        'SetErrorLevel 0',
+        'Quit',
+        'FunctionEnd',
+        'Section',
+        'SectionEnd',
+      ].join('\n'));
+      const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 30000,
+      });
+      assert.equal(build.status, 0, build.stdout + build.stderr);
+
       for (const [name, previous, selected, explicit, hasD, expected] of [
         ['fresh-with-d', '', 'C:\\Default\\LIRA', '', true, 'D:\\LIRA'],
         ['fresh-without-d', '', 'C:\\Default\\LIRA', '', false, 'C:\\Default\\LIRA'],
@@ -33,43 +64,17 @@ test(
         ['explicit-other-drive', 'D:\\Apps\\LIRA', 'E:\\软件\\LIRA', 'E:\\软件\\LIRA', true, 'E:\\软件\\LIRA'],
       ]) {
         const output = path.join(root, name + '.txt');
-        const executable = path.join(root, name + '.exe');
-        const script = path.join(root, name + '.nsi');
-        const quote = (text) => text.replaceAll('$', () => '$$');
-        fs.writeFileSync(
-          script,
-          [
-            'Unicode true',
-            'Name "LIRA directory fixture"',
-            'RequestExecutionLevel user',
-            `OutFile "${quote(executable)}"`,
-            'Var liraPreviousInstallDir',
-            `!define FIXTURE_PREVIOUS "${quote(previous)}"`,
-            `!define FIXTURE_EXPLICIT "${quote(explicit)}"`,
-            `!define FIXTURE_DRIVE "${quote(hasD ? root : path.join(root, 'absent-drive'))}"`,
-            choose,
-            'Function .onInit',
-            `StrCpy $INSTDIR "${quote(selected)}"`,
-            'Call liraSelectDefaultDirectory',
-            `FileOpen $0 "${quote(output)}" w`,
-            'FileWriteUTF16LE /BOM $0 "$INSTDIR$\\r$\\n$liraPreviousInstallDir"',
-            'FileClose $0',
-            'SetErrorLevel 0',
-            'Quit',
-            'FunctionEnd',
-            'Section',
-            'SectionEnd',
-          ].join('\n'),
-        );
-        const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
-          encoding: 'utf8',
-          windowsHide: true,
-          timeout: 30000,
-        });
-        assert.equal(build.status, 0, build.stdout + build.stderr);
         const run = spawnSync(executable, ['/S'], {
           windowsHide: true,
           timeout: 10000,
+          env: {
+            ...process.env,
+            FIXTURE_PREVIOUS: previous,
+            FIXTURE_SELECTED: selected,
+            FIXTURE_EXPLICIT: explicit,
+            FIXTURE_DRIVE: hasD ? root : path.join(root, 'absent-drive'),
+            FIXTURE_OUTPUT: output,
+          },
         });
         assert.equal(run.status, 0, name);
         const actual = fs
@@ -139,7 +144,7 @@ test('installer accepts current-user installs and validates targets before touch
   fs.mkdirSync(scratch, { recursive: true });
   const root = fs.mkdtempSync(path.join(scratch, 'lira-install-permissions-'));
   const source = fs.readFileSync(path.join(__dirname, '../../build/installer-per-user.nsh'), 'utf8')
-    .replace('ReadRegStr $R3 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" "InstallLocation"', 'StrCpy $R3 "${FIXTURE_REGISTERED}"');
+    .replace('ReadRegStr $R3 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" "InstallLocation"', 'ReadEnvStr $R3 FIXTURE_REGISTERED');
   assert.doesNotMatch(source, /ReadReg|WriteReg|DeleteReg/);
   const templates = path.join(path.dirname(require.resolve('app-builder-lib/package.json')), 'templates/nsis');
   const quote = (value) => value.replaceAll('$', () => '$$');
@@ -150,10 +155,41 @@ test('installer accepts current-user installs and validates targets before touch
   let denied;
   const junctions = [];
   try {
+    // The elevated-update fixture overrides UAC_IsAdmin at compile time.
+    for (const variant of ['current-user', 'elevated-update']) {
+      const executable = path.join(root, variant + '.exe');
+      const script = path.join(root, variant + '.nsi');
+      fs.writeFileSync(script, [
+        'Unicode true', 'Name "LIRA permission fixture"', 'RequestExecutionLevel user',
+        `OutFile "${quote(executable)}"`,
+        `!addplugindir /x86-unicode "${quote(plugins)}"`,
+        `!addincludedir "${quote(path.join(templates, 'include'))}"`,
+        '!include LogicLib.nsh', '!include UAC.nsh', 'Var installMode',
+        'Var hasPerMachineInstallation', 'Var hasPerUserInstallation',
+        ...(variant === 'elevated-update' ? ['!undef UAC_IsAdmin', '!define UAC_IsAdmin "1 = 1"'] : []),
+        source,
+        'Function .onInit',
+        'ReadEnvStr $installMode FIXTURE_MODE',
+        'ReadEnvStr $hasPerMachineInstallation FIXTURE_PER_MACHINE',
+        'StrCpy $hasPerUserInstallation "1"',
+        'Call liraRequireUserInstall',
+        'FunctionEnd',
+        'Section',
+        // /S and /D use the same final validation as the production preservation section.
+        'Call liraRequireWritableInstallDirectory',
+        'ReadEnvStr $1 FIXTURE_PASSED',
+        'FileOpen $0 "$1" w',
+        'FileWrite $0 "$installMode|$hasPerMachineInstallation|$hasPerUserInstallation"', 'FileClose $0',
+        'SectionEnd',
+      ].join('\n'));
+      const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
+        encoding: 'utf8', windowsHide: true, timeout: 30000,
+      });
+      assert.equal(build.status, 0, build.stdout + build.stderr);
+    }
+
     for (const scenario of ['fresh', 'unknown-directory', 'data-only-directory', 'retained-data', 'update', 'mixed-context-update', 'junction-target', 'junction-resources-update', 'junction-unpacked-update', 'protected-target', 'protected-data', 'protected-list', 'protected-resources', 'all-users', 'elevated-update']) {
       const target = path.join(root, scenario, 'LIRA');
-      const executable = path.join(root, scenario + '.exe');
-      const script = path.join(root, scenario + '.nsi');
       const passed = path.join(root, scenario + '-passed.txt');
       if (scenario === 'junction-target') {
         const linkedDirectory = path.join(root, scenario, 'actual-LIRA');
@@ -185,36 +221,20 @@ test('installer accepts current-user installs and validates targets before touch
         const acl = spawnSync('icacls', [denied, '/deny', `*${sid}:(${scenario === 'protected-resources' || scenario === 'protected-list' ? 'RD' : 'W'})`], { encoding: 'utf8', windowsHide: true });
         assert.equal(acl.status, 0, acl.stdout + acl.stderr);
       }
-      fs.writeFileSync(script, [
-        'Unicode true', 'Name "LIRA permission fixture"', 'RequestExecutionLevel user',
-        `OutFile "${quote(executable)}"`,
-        `!define FIXTURE_REGISTERED "${scenario.endsWith('update') || scenario === 'protected-resources' ? quote(target) : ''}"`,
-        `!addplugindir /x86-unicode "${quote(plugins)}"`,
-        `!addincludedir "${quote(path.join(templates, 'include'))}"`,
-        '!include LogicLib.nsh', '!include UAC.nsh', 'Var installMode',
-        'Var hasPerMachineInstallation', 'Var hasPerUserInstallation',
-        ...(scenario === 'elevated-update' ? ['!undef UAC_IsAdmin', '!define UAC_IsAdmin "1 = 1"'] : []),
-        source,
-        'Function .onInit',
-        `StrCpy $installMode "${scenario === 'all-users' ? 'all' : 'CurrentUser'}"`,
-        `StrCpy $hasPerMachineInstallation "${scenario === 'mixed-context-update' || scenario === 'all-users' ? '1' : '0'}"`,
-        'StrCpy $hasPerUserInstallation "1"',
-        'Call liraRequireUserInstall',
-        'FunctionEnd',
-        'Section',
-        // /S and /D use the same final validation as the production preservation section.
-        'Call liraRequireWritableInstallDirectory',
-        `FileOpen $0 "${quote(passed)}" w`,
-        'FileWrite $0 "$installMode|$hasPerMachineInstallation|$hasPerUserInstallation"', 'FileClose $0',
-        'SectionEnd',
-      ].join('\n'));
-      const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
-        encoding: 'utf8', windowsHide: true, timeout: 30000,
+      const executable = path.join(root, scenario === 'elevated-update' ? 'elevated-update.exe' : 'current-user.exe');
+      const isUpdate = scenario.endsWith('update');
+      const updateArgs = isUpdate ? ['--updated', '--force-run'] : [];
+      const run = spawnSync(executable, [...updateArgs, '/S', `/D=${target}`], {
+        windowsHide: true, timeout: 10000,
+        env: {
+          ...process.env,
+          FIXTURE_MODE: scenario === 'all-users' ? 'all' : 'CurrentUser',
+          FIXTURE_PER_MACHINE: scenario === 'mixed-context-update' || scenario === 'all-users' ? '1' : '0',
+          FIXTURE_REGISTERED: isUpdate || scenario === 'protected-resources' ? target : '',
+          FIXTURE_PASSED: passed,
+        },
       });
-      assert.equal(build.status, 0, build.stdout + build.stderr);
-      const updateArgs = scenario.endsWith('update') ? ['--updated', '--force-run'] : [];
-      const run = spawnSync(executable, [...updateArgs, '/S', `/D=${target}`], { windowsHide: true, timeout: 10000 });
-      const allowed = scenario === 'fresh' || scenario === 'retained-data' || (scenario.endsWith('update') && !scenario.startsWith('junction-'));
+      const allowed = scenario === 'fresh' || scenario === 'retained-data' || (isUpdate && !scenario.startsWith('junction-'));
       assert.equal(run.status, allowed ? 0 : 2, scenario);
       assert.equal(fs.existsSync(passed), allowed, scenario);
       if (allowed) assert.equal(fs.readFileSync(passed, 'utf8'), 'CurrentUser|0|1', 'silent updates must not request machine elevation');

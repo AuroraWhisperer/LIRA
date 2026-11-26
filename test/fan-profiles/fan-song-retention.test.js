@@ -133,7 +133,7 @@ test('failed source deletion rolls back song conversion, snapshot pruning and mi
 
 test('startup retention expires daily counts but preserves totals, latest dates and active request context', (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
-  const f = fanFixture(t);
+  const f = fanFixture(t, { allDatabases: true });
   const p = f.create();
   f.record(p.id, 'song', { songName: '长期歌曲', category: '国语' });
   const request = oldQueue(f);

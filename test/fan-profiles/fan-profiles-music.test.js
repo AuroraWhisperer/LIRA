@@ -53,7 +53,7 @@ function acceptedSnapshot(f, requestId) {
 
 test('ordinary danmaku requests archive library and non-library songs through the same accepted queue path', (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: Date.parse(NOW) });
-  const f = fanFixture(t);
+  const f = fanFixture(t, { allDatabases: true });
   const profile = f.create();
   const settingsStore = createSettingsStore(f.db.songDb);
   for (const [key, value] of Object.entries({ onlyFromLibrary: 'false', allowDuplicate: 'true', userCooldownSeconds: '0' })) {

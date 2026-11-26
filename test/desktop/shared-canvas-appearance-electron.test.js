@@ -4,18 +4,20 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { chromium } = require('playwright');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 const { launchElectron } = require('../helpers/shared-electron');
 const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const { installResourceStyles, mountResourceStylePage } = require('../helpers/resource-style-fixture');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
+const openBrowserSession = useSharedBrowser();
+
 test('overtime canvas changes the real desktop countdown and saved output in both directions', { timeout: 60000 }, async t => {
   const root = path.resolve(__dirname, '../..');
   const directory = createScratchDirectory('overtime-canvas-electron-');
+  const browser = openBrowserSession();
   let app;
-  let browser;
-  t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
+  t.after(async () => { await browser.close(); await app?.close(); removeScratchDirectory(directory); });
   app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory, '--overtime'], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
   await desktop.locator('#liveComponentsPage #danmakuParameterFields > .danmaku-parameter-section').first().waitFor({ state: 'attached' });
@@ -45,7 +47,6 @@ test('overtime canvas changes the real desktop countdown and saved output in bot
     if (!url) await new Promise(resolve => setTimeout(resolve, 25));
   }
   assert.equal((await fetch(url)).status, 200);
-  browser = await chromium.launch({ headless: true });
   const canvas = await browser.newPage({ viewport: { width: 1600, height: 1000 } }); canvas.setDefaultTimeout(8000);
   canvas.on('pageerror', error => errors.push(error.message));
   await canvas.goto(url);
@@ -105,9 +106,9 @@ test('overtime canvas changes the real desktop countdown and saved output in bot
 test('desktop and canvas share local settings and imported resources across instances and reopening', { timeout: 90000 }, async t => {
   const root = path.resolve(__dirname, '../..');
   const directory = createScratchDirectory('shared-canvas-electron-');
+  const browser = openBrowserSession();
   let app;
-  let browser;
-  t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
+  t.after(async () => { await browser.close(); await app?.close(); removeScratchDirectory(directory); });
   await installResourceStyles(directory);
   app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
@@ -142,7 +143,6 @@ test('desktop and canvas share local settings and imported resources across inst
     if (!url) await new Promise(resolve => setTimeout(resolve, 25));
   }
   assert.equal((await fetch(url)).status, 200);
-  browser = await chromium.launch({ headless: true });
   const canvas = await browser.newPage({ viewport: { width: 1600, height: 1000 } }); canvas.setDefaultTimeout(8000);
   canvas.on('pageerror', error => errors.push(error.message));
   await canvas.goto(url);
@@ -216,7 +216,8 @@ test('desktop and canvas share local settings and imported resources across inst
   await canvas.locator('#previewCanvasSource').waitFor({ state: 'visible' });
   const sourceUrl = await canvas.locator('#previewCanvasSource').textContent();
   assert.equal((await fetch(sourceUrl)).status, 200);
-  const live = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  const liveContext = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const live = await liveContext.newPage();
   await live.goto(sourceUrl);
   const liveRecord = live.frameLocator('iframe[title*="圆形封面"]');
   const liveText = live.frameLocator('iframe[title*="歌名 / 歌手"]');
@@ -225,7 +226,7 @@ test('desktop and canvas share local settings and imported resources across inst
   assert.equal(await liveRecord.locator('.now-playing-copy').isVisible(), false);
   assert.equal(await liveText.locator('.now-playing-visual').isVisible(), false);
   assert.equal(Math.round((await liveRecord.locator('.now-playing-visual').boundingBox()).width), 240);
-  await live.close();
+  await liveContext.close();
   await canvas.reload();
   await canvas.locator('.preview-canvas-layer-select').filter({ hasText: '航海旗帜' }).click();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nameFontSize"]').value === '70');
@@ -238,9 +239,9 @@ test('desktop and canvas share local settings and imported resources across inst
 test('heart box backgrounds save from desktop and canvas into the published appearance', { timeout: 40000 }, async t => {
   const root = path.resolve(__dirname, '../..');
   const directory = createScratchDirectory('heart-backgrounds-electron-');
+  const browser = openBrowserSession();
   let app;
-  let browser;
-  t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
+  t.after(async () => { await browser.close(); await app?.close(); removeScratchDirectory(directory); });
   app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
   await desktop.locator('#liveComponentsPage #danmakuParameterFields > .danmaku-parameter-section').first().waitFor({ state: 'attached' });
@@ -268,7 +269,6 @@ test('heart box backgrounds save from desktop and canvas into the published appe
     if (!url) await new Promise(resolve => setTimeout(resolve, 25));
   }
   assert.equal((await fetch(url)).status, 200);
-  browser = await chromium.launch({ headless: true });
   const canvas = await browser.newPage({ viewport: { width: 1600, height: 1000 } }); canvas.setDefaultTimeout(8000);
   canvas.on('pageerror', error => errors.push(error.message));
   await canvas.goto(url);
@@ -296,9 +296,9 @@ test('heart box backgrounds save from desktop and canvas into the published appe
 test('motion, advanced lyrics and shared viewing controls save through desktop and canvas without replacing layers', { timeout: 90000 }, async t => {
   const root = path.resolve(__dirname, '../..');
   const directory = createScratchDirectory('aligned-parameters-electron-');
+  const browser = openBrowserSession();
   let app;
-  let browser;
-  t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
+  t.after(async () => { await browser.close(); await app?.close(); removeScratchDirectory(directory); });
   app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
   await desktop.locator('#liveComponentsPage #danmakuParameterFields > .danmaku-parameter-section').first().waitFor({ state: 'attached' });
@@ -340,7 +340,6 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
     if (!url) await new Promise(resolve => setTimeout(resolve, 25));
   }
   assert.equal((await fetch(url)).status, 200);
-  browser = await chromium.launch({ headless: true });
   const canvas = await browser.newPage({ viewport: { width: 1600, height: 1000 } }); canvas.setDefaultTimeout(8000);
   canvas.on('pageerror', error => errors.push(error.message));
   await canvas.goto(url);

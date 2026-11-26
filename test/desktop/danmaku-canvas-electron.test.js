@@ -2,8 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { chromium } = require('playwright');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 const { launchElectron } = require('../helpers/shared-electron');
+
+const openBrowserSession = useSharedBrowser();
 
 async function setFontSize(input, value) {
   await input.focus();
@@ -18,10 +20,10 @@ test('danmaku favorites synchronize between the desktop and external canvas with
   const scratchRoot = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(scratchRoot, { recursive: true });
   const directory = await fs.mkdtemp(path.join(scratchRoot, 'lira-favorites-electron-'));
+  const browser = openBrowserSession();
   let app;
-  let browser;
   t.after(async () => {
-    await browser?.close();
+    await browser.close();
     await app?.close();
     assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(scratchRoot));
     await fs.rm(directory, { recursive: true, force: true });
@@ -41,7 +43,6 @@ test('danmaku favorites synchronize between the desktop and external canvas with
   }
   assert.ok(url, 'The desktop opens the authorized editor.');
   assert.equal((await fetch(url)).status, 200);
-  browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   page.setDefaultTimeout(5000);
   await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -82,10 +83,10 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   const scratchRoot = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(scratchRoot, { recursive: true });
   const directory = await fs.mkdtemp(path.join(scratchRoot, 'lira-canvas-electron-'));
+  const browser = openBrowserSession();
   let app;
-  let browser;
   t.after(async () => {
-    await browser?.close();
+    await browser.close();
     await app?.close();
     assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(scratchRoot));
     await fs.rm(directory, { recursive: true, force: true });
@@ -98,7 +99,6 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   const errors = [];
   desktop.on('pageerror', (error) => errors.push(error.message));
   await desktop.locator('#danmakuFontSize:enabled').waitFor({ state: 'attached' });
-  browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const openPreview = async (count) => {
     await desktop.locator('#danmakuPreviewOverlayBtn').click();
@@ -256,14 +256,15 @@ test('effect controls retain each component style, save through desktop IPC, pub
   const root = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(root, { recursive: true });
   const directory = await fs.mkdtemp(path.join(root, 'style-parameters-'));
-  const app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
-    args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
+  let app;
   t.after(async () => {
-    await browser.close(); await app.close();
+    await browser.close(); await app?.close();
     assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(root));
     await fs.rm(directory, { recursive: true, force: true });
   });
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
+    args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow();
   await desktop.waitForURL('**/admin', { waitUntil: 'load', timeout: 15000 });
   await desktop.locator('#danmakuFontSize:enabled').waitFor({ state: 'attached' });

@@ -4,33 +4,40 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { createDatabases, closeDatabases } = require('../../src/storage/database');
+const { DB_FILE_NAMES, createDatabases, openSqliteDatabase, closeDatabases } = require('../../src/storage/database');
 const { createFanProfileStore } = require('../../src/storage/fan-profile-store');
 const { createFanProfileService } = require('../../src/fans/profile-service');
+const { migrateTestSongDb } = require('./song-database');
 
 const SCOPE = JSON.stringify(['https://lira.example', 'streamer-a']);
 const IDENTITY = { platform: 'bilibili', type: 'uid', value: '900000001' };
 const NOW = '2026-09-18T04:00:00.000Z';
 
-function fanFixture(t) {
+function fanFixture(t, { allDatabases = false } = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-fan-test-'));
   let currentTime = NOW;
   let db;
   let store;
   let service;
   function open() {
-    db = createDatabases({ dataDir });
+    if (allDatabases) {
+      db = createDatabases({ dataDir });
+    } else {
+      const songFile = path.join(dataDir, DB_FILE_NAMES.songDb);
+      db = { songDb: openSqliteDatabase(songFile, { foreignKeys: true }) };
+      migrateTestSongDb(db.songDb);
+    }
     store = createFanProfileStore(db.songDb);
     service = createFanProfileService({ store, now: () => currentTime });
   }
-  open();
-  service.execute(SCOPE, 'configure', { autoCreate: true, autoUpdate: true });
   t.after(() => {
     closeDatabases(db);
     assert.equal(path.dirname(path.resolve(dataDir)), path.resolve(os.tmpdir()));
     assert.ok(path.basename(dataDir).startsWith('lira-fan-test-'));
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
+  open();
+  service.execute(SCOPE, 'configure', { autoCreate: true, autoUpdate: true });
   const fixture = {
     get db() {
       return db;
