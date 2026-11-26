@@ -90,7 +90,8 @@ function fixture({ phase, index = 0, closeFails = false } = {}) {
 
 for (const phase of ['constructor', 'pragma']) {
   for (const index of [0, 2, 4]) {
-    for (const closeFails of [false, true]) {
+    const hasOpenHandles = phase === 'pragma' || index > 0;
+    for (const closeFails of hasOpenHandles ? [false, true] : [false]) {
       test(`${phase} failure at database ${index + 1}, close fails=${closeFails}`, () => {
         const f = fixture({ phase, index, closeFails });
         assert.throws(

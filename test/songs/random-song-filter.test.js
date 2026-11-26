@@ -187,25 +187,21 @@ test('random tag conditions are normalized once per scope instead of per library
   assert.ok(queryNormalizations < 20, `three query terms were normalized ${queryNormalizations} times`);
 });
 
-test('describes direct and alias terms against the song library', () => {
-  const description = describeRandomSongScope(SONGS, '情歌+摇滚');
-  assert.deepEqual(description.terms, ['情歌', '摇滚']);
-  assert.deepEqual(description.unmatchedTerms, ['摇滚']);
-  assert.equal(description.hasCandidates, false);
-});
-
 test('scope descriptions retain all unmatched terms and same-song AND semantics', () => {
   const songs = [
     { artist: 'A1 TRIP', language: 'English', tags: '抒情' },
-    { artist: 'B', category_name: 'rock', category_is_enabled: 0, tags: '情歌' },
+    { artist: 'B', category_name: 'rock', category_is_enabled: 0 },
   ];
   assert.deepEqual(describeRandomSongScope(songs, 'A1 TRIP+英语+情歌'), {
     terms: ['A1 TRIP', '英语', '情歌'], unmatchedTerms: [], hasCandidates: true,
   });
-  assert.deepEqual(describeRandomSongScope(songs, 'A1 TRIP+B+摇滚+治愈'), {
-    terms: ['A1 TRIP', 'B', '摇滚', '治愈'], unmatchedTerms: ['摇滚', '治愈'], hasCandidates: false,
+  assert.deepEqual(describeRandomSongScope(songs, '情歌+B+摇滚+治愈'), {
+    terms: ['情歌', 'B', '摇滚', '治愈'], unmatchedTerms: ['摇滚', '治愈'], hasCandidates: false,
   });
-  assert.deepEqual(filterRandomSongCandidates([songs[1]], '抒情'), [], 'standard tags do not reverse-match viewer aliases');
+  assert.deepEqual(describeRandomSongScope(songs, '情歌+B'), {
+    terms: ['情歌', 'B'], unmatchedTerms: [], hasCandidates: false,
+  });
+  assert.deepEqual(filterRandomSongCandidates([{ tags: '情歌' }], '抒情'), [], 'standard tags do not reverse-match viewer aliases');
   assert.equal(describeRandomSongScope(songs, '').hasCandidates, true);
   assert.equal(describeRandomSongScope([], '').hasCandidates, false);
 });

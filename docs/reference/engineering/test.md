@@ -336,7 +336,7 @@ npm run verify
 | [danmaku-overlay-fullscreen.test.js](../../../test/danmaku/danmaku-overlay-fullscreen.test.js) | 全屏随机位置、计时、预览与时间戳 | 同上 |
 | [opening-overlay.test.js](../../../test/overlays/opening-overlay.test.js) | 开场动画管理设置与直播画面展示 | 同上 |
 | [opening-upload-api.test.js](../../../test/overlays/opening-upload-api.test.js) | 开场媒体上传、鉴权与静态提供 | 同上 + [backend/api.md](../backend/api.md) |
-| [frontend-song-board.test.js](../../../test/songs/frontend-song-board.test.js) | 歌单展示板字号、视口与滚动速度 | [frontend/pages.md](../frontend/pages.md) |
+| [frontend-song-board.test.js](../../../test/songs/frontend-song-board.test.js)、[canvas-songlist.test.js](../../../test/admin/canvas-songlist.test.js) | 歌单展示板视口与滚动速度、画布发布、独立展示页的实际字号及上下限 | [frontend/pages.md](../frontend/pages.md) |
 | [playback-cache.test.js](../../../test/playback/playback-cache.test.js) | `public/js`（个人歌单缓存 `CacheManager`） | [frontend/playback.md](../frontend/playback.md) |
 | [playback-persistence.test.js](../../../test/playback/playback-persistence.test.js) | 播放队列、进度、Provider 与关闭冲刷持久化 | 同上 + [backend/storage.md](../backend/storage.md) |
 | [playback-provider-operations.test.js](../../../test/playback/playback-provider-operations.test.js) | 音源切换后的登录归属、健康检查与通知更新 | 同上 |
@@ -437,7 +437,7 @@ npm run verify
 - **规则归属明确**：公共规则在所属模块层验证，调用方只验证自身接线与集成契约，不重复冻结被调方的内部结构。不同层确有独立失败风险的覆盖仍分别保留。
 - **矩阵围绕分支**：共享字段校验器的输入边界在所属模块验证一次；各样式仅覆盖自身默认分支与代表性应用，不展开「所有样式 × 所有字段 × 所有非法值」。调用方预期可引用所属模块导出的默认值，但不能用待测算法计算预期答案。
 - **复用保持隔离**：共享构造逻辑，不共享可变状态或依赖执行顺序；避免改动通用夹具迫使无关用例同步改断言，不为单次使用预先抽象。
-- **按模块加载输入**：单页或单控件测试优先用 `readAdminFragmentHtml` / `readCssBundle` 读取所属片段，纯函数直接加载所属模块；整页组合与入口接线由独立集成测试承接。
+- **按模块加载输入**：单页或单控件测试优先用 `readAdminFragmentHtml` 读取所属管理页片段，纯函数直接加载所属模块。整页组合与入口接线由独立集成测试承接。
 - **检查连带影响**：局部改动引发大量测试失败时，先区分真实契约变更、重复断言与过宽夹具耦合，再在本次范围内修正，不通过批量改期望或删独立回归来掩盖问题。
 
 ### 断言的取舍

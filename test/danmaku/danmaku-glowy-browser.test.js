@@ -37,7 +37,7 @@ test('Glowy horizontal chat keeps flank icons clear of complete text and paid to
         expireItems: false, showAvatar: true, showGiftTotal: true });
       const message = '谢谢每次在夜里陪大家唱歌。\n也记得照顾好自己。';
       feed.render([{ id: 'sample', kind: fixture.kind, name: '在星河边听歌的小猫', message,
-        roomGuardLevel: fixture.guard, price: 200, giftName: '星河八音盒', giftCount: 1888,
+        roomGuardLevel: fixture.guard, price: 200, giftName: '星河八音盒', giftCount: 1200,
         giftTotalPrice: 1888, giftGuardLevel: fixture.giftGuardLevel }]);
       await document.fonts.ready;
       for (let frame = 0; frame < 3; frame++) await new Promise(requestAnimationFrame);
@@ -45,16 +45,21 @@ test('Glowy horizontal chat keeps flank icons clear of complete text and paid to
       const bounds = card.getBoundingClientRect();
       const copy = card.querySelector('.glowy-copy');
       const heading = card.querySelector('.glowy-heading');
+      const panel = card.querySelector('.glowy-panel');
+      const style = getComputedStyle(panel);
+      const contentWidth = panel.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const spansPanel = node => Math.abs(node.offsetWidth - contentWidth) <= 1;
       const avatar = card.querySelector('.glowy-avatar')?.getBoundingClientRect();
       const guard = card.querySelector('.glowy-guard')?.getBoundingClientRect();
       const copyBounds = copy.getBoundingClientRect();
       results.push({ ...fixture, message, text: copy.textContent, total: card.querySelector('.glowy-amount')?.textContent,
         totalCopies: (card.textContent.match(/¥/g) || []).length,
-        copyWidth: copyBounds.width / bounds.width,
-        headingWidth: heading.getBoundingClientRect().width / bounds.width,
-        flankClearance: avatar && guard ? Math.min(copyBounds.left - avatar.right, guard.left - copyBounds.right) : null,
-        avatarCenterOffset: avatar ? Math.abs(avatar.top + avatar.height / 2 - bounds.top - bounds.height / 2) : null,
-        fits: bounds.height <= root.clientHeight && card.scrollWidth <= card.clientWidth + 1 });
+        copySpansPanel: spansPanel(copy), headingSpansPanel: spansPanel(heading),
+        belowHeading: copyBounds.top >= heading.getBoundingClientRect().bottom,
+        avatarOccupiesSpace: avatar?.width > 0,
+        clearOfIcons: avatar?.width > 0 && guard?.width > 0 && avatar.right <= copyBounds.left && copyBounds.right <= guard.left,
+        fits: bounds.height <= root.clientHeight && card.scrollWidth <= card.clientWidth + 1 &&
+          copy.scrollWidth <= copy.clientWidth + 1 && copy.scrollHeight <= copy.clientHeight + 1 });
       feed.destroy();
     }
     return results;
@@ -63,17 +68,17 @@ test('Glowy horizontal chat keeps flank icons clear of complete text and paid to
     assert.ok(result.fits, `${result.kind} fits the unchanged horizontal region`);
     if (result.kind !== 'gift') {
       assert.equal(result.text, result.message, 'full original message survives fitting');
-      if (result.kind === 'superchat') assert.ok(result.copyWidth > .9, 'SC uses the width below its identity row');
+      if (result.kind === 'superchat') assert.ok(result.belowHeading && result.copySpansPanel, 'SC uses the full row below its identity');
     } else {
       assert.equal(result.total, '¥1,888', 'the settled total is not multiplied by quantity');
     }
     assert.equal(result.totalCopies, result.kind === 'danmaku' ? 0 : 1);
     if (result.kind === 'danmaku' && result.avatar === 'show') {
-      assert.ok(result.flankClearance > 0, 'chat text stays between the avatar and guard');
-      assert.ok(result.avatarCenterOffset < 1, 'chat avatar remains vertically centered beside the content');
+      assert.ok(result.clearOfIcons, 'chat text stays between the visible avatar and guard');
     }
     if (result.kind === 'danmaku' && result.avatar === 'hide') {
-      assert.ok(result.headingWidth > .9 && result.copyWidth > .9, 'hidden avatar and absent guard release their space to text');
+      assert.equal(result.avatarOccupiesSpace, false, 'hiding the avatar releases its space');
+      assert.ok(result.headingSpansPanel && result.copySpansPanel, 'chat without flank icons uses the full content width');
     }
   }
 });

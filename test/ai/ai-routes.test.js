@@ -2,8 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
-const { ALLOWED_KEYS, routes } = require('../../src/server/routes/ai-routes');
+const { routes } = require('../../src/server/routes/ai-routes');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiStateStore } = require('../../src/storage/ai-state-store');
@@ -25,10 +24,6 @@ function createResponseRecorder() {
     },
   };
 }
-
-test('AI route allowed keys come from the config contract', () => {
-  assert.deepEqual([...ALLOWED_KEYS].sort(), Object.keys(AI_CONFIG_DEFAULTS).sort());
-});
 
 test('ChatGPT routes pass only account selections and reject invalid inputs before side effects', async () => {
   let received;

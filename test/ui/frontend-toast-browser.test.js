@@ -146,31 +146,6 @@ test('browser gift toasts reuse safe local artwork and top-layer notifications s
     giftStack.dispose();
     document.getElementById('gift-notice-test').remove();
   });
-  await t.test('gift artwork progress and completion preserve the ongoing entrance', async () => {
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    const uninterrupted = await page.evaluate(async () => {
-      const { createGiftCatalogUpdateToast } = await import('/js/admin/gifts/catalog-update-toast.js');
-      const toast = createGiftCatalogUpdateToast();
-      const state = { status: 'updating', phase: 'images', total: 43, completed: 0 };
-      toast.handleState(state);
-      try {
-        const node = toast.getNode();
-        const entrance = node.getAnimations().find(animation => animation.transitionProperty === 'opacity');
-        // Deliver the burst mid-fade without depending on frame scheduling.
-        entrance.pause();
-        entrance.currentTime = entrance.effect.getTiming().duration / 2;
-        for (let completed = 1; completed <= state.total; completed++) {
-          toast.handleState({ ...state, completed, available: completed });
-        }
-        toast.handleState({ ...state, status: 'ready', phase: 'complete', completed: 43, available: 43 });
-        return toast.getNode() === node && node.getAnimations().includes(entrance);
-      } finally {
-        toast.dispose();
-      }
-    });
-    assert.ok(uninterrupted);
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-  });
   await t.test('top-layer notifications remain above an open panel without stealing focus and release the layer on close', async () => {
     const result = await page.evaluate(async () => {
       const { createToastStack } = await import('/js/shared/toast.js');

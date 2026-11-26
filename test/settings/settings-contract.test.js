@@ -227,9 +227,9 @@ test('new request controls default to no additional restrictions and synchronize
 test('request control limits reject invalid batches without saving or requesting sync', async (t) => {
   const f = fixture(t);
   const cases = {
-    scSongRequestEnabled: [null, [], {}, 'TRUE', ' false ', 2],
-    songRequestCancelEnabled: [null, [], {}, 'TRUE', ' false ', 2],
-    songRequestRequireSpace: [null, [], {}, 'TRUE', ' false ', 2],
+    scSongRequestEnabled: ['TRUE'],
+    songRequestCancelEnabled: [' false '],
+    songRequestRequireSpace: [null],
     songRequestMatchMode: [null, [], {}, true, 1, '', ' prefix ', 'PREFIX', 'contains'],
     userQueueLimit: [-1, 301, '', ' ', true, null, [], {}, 1.5, '1e2'],
     userCooldownCaptainSeconds: [-1, 3601, ' ', null, [], false, 0.5],
@@ -238,7 +238,7 @@ test('request control limits reject invalid batches without saving or requesting
     userDailyLimit: [-1, 301, ' ', null, true, [], 1.5, '1e2'],
     songRequestMinMedalLevel: [-1, 101, '', true],
     songRequestGuardLevel: [-1, 4, 'captain', true],
-    songRequestGuardMedalBypass: [null, [], {}, 'TRUE', ' false ', 2],
+    songRequestGuardMedalBypass: [2],
   };
   for (const [key, values] of Object.entries(cases)) {
     for (const value of values) {

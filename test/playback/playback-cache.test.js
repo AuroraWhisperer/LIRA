@@ -75,31 +75,29 @@ test('large playlist caches have a bounded memory footprint without truncating p
   assert.equal(cache.get('qq:playlist-tracks:99').items.length, 1000);
 });
 
-for (const hours of [12, 24, 168]) {
-  test(`playlist writes evict expired entries over ${hours} accelerated hours without revisiting old keys`, async () => {
-    let now = 1000;
-    const { CacheManager } = await loadCacheManager({
-      Date: class extends Date {
-        static now() {
-          return now;
-        }
+test('playlist writes evict expired entries over 168 accelerated hours without revisiting old keys', async () => {
+  let now = 1000;
+  const { CacheManager } = await loadCacheManager({
+    Date: class extends Date {
+      static now() {
+        return now;
+      }
+    },
+    localStorage: {
+      setItem() {},
+      getItem() {
+        return null;
       },
-      localStorage: {
-        setItem() {},
-        getItem() {
-          return null;
-        },
-        removeItem() {},
-      },
-    });
-    const cache = new CacheManager();
-    for (let hour = 0; hour < hours; hour += 1) {
-      cache.set(`qq:playlist-tracks:${hour}`, { items: [{ id: hour }] });
-      now += 3600000;
-    }
-    assert.ok(cache._mem.size <= Math.min(hours, 24), `retained ${cache._mem.size} expired/current playlists`);
+      removeItem() {},
+    },
   });
-}
+  const cache = new CacheManager();
+  for (let hour = 0; hour < 168; hour += 1) {
+    cache.set(`qq:playlist-tracks:${hour}`, { items: [{ id: hour }] });
+    now += 3600000;
+  }
+  assert.ok(cache._mem.size <= 24, `retained ${cache._mem.size} expired/current playlists`);
+});
 
 function loadCacheManager(globals) {
   return loadModuleExports(path.join(__dirname, '../../public/js/playback/cache/manager.js'), globals);

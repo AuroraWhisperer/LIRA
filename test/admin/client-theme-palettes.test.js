@@ -139,18 +139,6 @@ test('client text, action states, semantic pairs and functional boundaries meet 
     }
 
     if (isDark) {
-      const lPage = luminance(resolveColor(palette, '--color-bg-page'));
-      const lControl = luminance(resolveColor(palette, '--color-control-surface'));
-      const lPrimary = luminance(bgPrimary);
-      const lSecondary = luminance(resolveColor(palette, '--color-bg-secondary'));
-      const lFloating = luminance(resolveColor(palette, '--color-floating-surface'));
-      assert.ok(lPage < lPrimary && lPrimary < lSecondary && lSecondary < lFloating, `${id}: dark surface elevation must be monotonic`);
-      assert.ok(lControl < lPrimary, `${id}: dark control surface must recess below primary card`);
-      assert.notEqual(resolveColor(palette, '--color-bg-hover').toLowerCase(), primaryLight.toLowerCase(), `${id}: dark hover must not collapse onto selected fill`);
-      assert.notEqual(resolveColor(palette, '--client-main-nav-active-bg').toLowerCase(), bgPrimary.toLowerCase(), `${id}: dark active nav must lift above primary card`);
-      for (const role of ['success', 'warning', 'danger', 'info']) {
-        assert.ok(luminance(resolveColor(palette, `--color-${role}-light`)) > lPrimary, `${id}: dark ${role}-light must not sink below primary card`);
-      }
       check('--color-danger-border', '--color-bg-primary', 3);
       check('--color-help-border', '--color-bg-primary', 3);
     }

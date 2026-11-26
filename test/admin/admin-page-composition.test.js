@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute } = require('../../src/server/admin-page');
+const { ADMIN_FRAGMENT_PATHS, composeAdminHtml } = require('../../src/server/admin-page');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -46,10 +46,6 @@ test('nested admin fragments reject circular includes', (t) => {
       }),
     /Circular admin fragment/,
   );
-});
-
-test('the queue overlay is outside the admin routes', () => {
-  assert.equal(isAdminPageRoute('/queue'), false);
 });
 
 test('composed admin page is complete and has unique ids', () => {

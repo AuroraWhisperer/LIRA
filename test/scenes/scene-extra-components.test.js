@@ -277,22 +277,25 @@ test('mixed lyric scenes reuse the song query until a write or owner change, wit
   assert.equal(reads, 6);
 });
 
-test('standalone color alpha survives scene normalization while paired opacity retains its own field', () => {
-  for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {
-    for (const [key, field] of Object.entries(definition.fields)) {
-      if (field.type !== 'color') continue;
-      if (field.opacity) {
-        const config = normalizeSceneConfig(type, { ...createSceneExtraDefaults(type), [key]: '#123456', [field.opacity]: 0 });
-        const saved = normalizeSceneDocument(documentFor(type, config), { normalizeConfig: normalizeSceneConfig });
-        assert.equal(saved.items[0].appearance.config[key], '#123456');
-        assert.equal(Number(saved.items[0].appearance.config[field.opacity]), 0);
-        continue;
-      }
-      const config = { ...createSceneExtraDefaults(type), [key]: '#12345680' };
-      const saved = normalizeSceneDocument(documentFor(type, config), { normalizeConfig: normalizeSceneConfig });
-      assert.equal(saved.items[0].appearance.config[key], '#12345680');
-    }
+test('scene colors preserve paired zero opacity and standalone alpha through a round trip', () => {
+  function roundTrip(type, input) {
+    const config = normalizeSceneConfig(type, input);
+    const saved = normalizeSceneDocument(documentFor(type, config), { normalizeConfig: normalizeSceneConfig });
+    return saved.items[0].appearance.config;
   }
+
+  const background = roundTrip('background', { overlayColor: '#123456', overlayOpacity: 0 });
+  assert.equal(background.overlayColor, '#123456');
+  assert.equal(background.overlayOpacity, 0);
+
+  const lyrics = roundTrip('lyrics', {
+    desktopLyricShadowColor: '#654321', desktopLyricShadowIntensity: 0,
+    desktopLyricSungColor: '#12345680', advancedLyricTextColor: '#abcdef40',
+  });
+  assert.equal(lyrics.desktopLyricShadowColor, '#654321');
+  assert.equal(lyrics.desktopLyricShadowIntensity, '0');
+  assert.equal(lyrics.desktopLyricSungColor, '#12345680');
+  assert.equal(lyrics.advancedLyricTextColor, '#abcdef40');
 });
 
 test('backgrounds default to empty and preserve explicit legacy presets through template import', () => {

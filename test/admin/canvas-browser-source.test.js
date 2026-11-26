@@ -2,8 +2,10 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { chromium } = require('playwright');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
+
+const openBrowserSession = useSharedBrowser();
 
 const SOURCE_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   body { margin: 0; background: transparent; font: 28px system-ui; color: #173d37; }
@@ -37,12 +39,12 @@ async function assertSource(frame, instance, width, height) {
 }
 
 test('a selected browser source publishes its fractional fitted height', async t => {
+  const browser = openBrowserSession();
+  t.after(() => browser.close());
   const fixture = await startCanvasOutputFixture();
   t.after(() => fixture.close());
   const scene = fixture.service.create({ title: '等比缩放', canvas: { width: 1280, height: 720 } });
   fixture.service.publishCanvas({ id: scene.document.id, expectedRevision: scene.revision, expectedPublishedVersion: 0 });
-  const browser = await chromium.launch({ headless: true });
-  t.after(() => browser.close());
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   page.setDefaultTimeout(5000);
@@ -66,8 +68,10 @@ test('a selected browser source publishes its fractional fitted height', async t
 });
 
 test('canvas browser sources keep independent viewports through editing, saving and published output', { timeout: 90000 }, async (t) => {
+  const browser = openBrowserSession();
+  t.after(() => browser.close());
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  t.after(() => fixture.close());
   const desktop = await browser.newPage();
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const page = await context.newPage();
@@ -83,9 +87,7 @@ test('canvas browser sources keep independent viewports through editing, saving 
     sourceRequests.push(route.request().headers());
     return route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: SOURCE_HTML });
   });
-  t.after(async () => {
-    await browser.close();
-    await fixture.close();
+  t.after(() => {
     assert.deepEqual(errors, []);
     assert.ok(sourceRequests.length > 0);
     assert.ok(sourceRequests.every((headers) => !headers.referer && !headers.authorization),

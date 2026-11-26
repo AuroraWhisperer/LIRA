@@ -6,6 +6,7 @@ const { startComponentPreviewServer } = require('../helpers/component-preview-se
 const { useSharedBrowser } = require('../helpers/shared-browser');
 const { DANMAKU_STYLE_OPTIONS } = require('../../src/shared/danmaku-style-options');
 
+const PREVIEW_MAX_ITEMS = 8;
 const openBrowserSession = useSharedBrowser();
 const styledMotion = Object.keys(DANMAKU_STYLE_OPTIONS)
   .filter(style => DANMAKU_STYLE_OPTIONS[style].scrollDirection && style !== 'moonlit');
@@ -27,7 +28,7 @@ async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'verti
   const url = `${fixture.origin}/preview-test-host`;
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
-  await page.evaluate(async ({ style, flowAxis }) => {
+  await page.evaluate(async ({ style, flowAxis, maxItems }) => {
     const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
     window.mountStyle = style => {
       window.feed?.destroy();
@@ -36,7 +37,7 @@ async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'verti
       root.id = 'feed';
       root.className = 'draw-danmaku-feed';
       document.querySelector('.danmaku-signal-stage').replaceChildren(root);
-      window.feed = createDanmakuFeed(root, { style, flowAxis, fitWidth: !['celestial-horizontal', 'horizontal-charm'].includes(style), offscreenViewports: 0, autoScroll: false, maxItems: 8 });
+      window.feed = createDanmakuFeed(root, { style, flowAxis, fitWidth: !['celestial-horizontal', 'horizontal-charm'].includes(style), offscreenViewports: 0, autoScroll: false, maxItems });
       feed.render([
         { name: '云洲来信', message: '提督报到，这一段太好听了', guardLevel: 2 },
         { name: '路过听一首', message: '刚进来，这首歌叫什么名字呀？' },
@@ -48,7 +49,7 @@ async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'verti
       animation.pause();
       animation.currentTime = time;
     }));
-  }, { style, flowAxis });
+  }, { style, flowAxis, maxItems: PREVIEW_MAX_ITEMS });
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise(requestAnimationFrame);
@@ -158,30 +159,43 @@ test('wireframe keeps the chosen background transparency throughout live entranc
   }
 });
 
-for (const [style, direction, scale] of [['stargazer', 'up', 1], ['stargazer', 'down', 0.63], ['celestial-horizontal', 'up', 1], ['celestial-horizontal', 'up', 0.63], ['horizontal-charm', 'up', 1], ['horizontal-charm', 'up', 0.63]]) {
+for (const [style, direction, scale] of [
+  ['stargazer', 'down', 0.63],
+  ['celestial-horizontal', 'up', 1],
+  ['horizontal-charm', 'up', 0.63],
+]) {
   test(`${style} horizontal ${direction} at ${scale} preserves interrupted positions and releases exited messages`, { timeout: 15000 }, async t => {
     const page = await preview(t, direction, scale, style, 'horizontal');
-    const result = await page.evaluate(async () => {
-      let removed = 0;
+    if (style === 'stargazer') {
+      const [up, down] = await page.evaluate(() => ['up', 'down'].map(direction => {
+        document.body.dataset.scrollDirection = direction;
+        return root.lastElementChild.getBoundingClientRect().left - root.firstElementChild.getBoundingClientRect().left;
+      }));
+      assert.ok(up > 0, 'up places the newest message to the right of the oldest');
+      assert.ok(down < 0, 'down places the newest message to the left of the oldest');
+    }
+    const result = await page.evaluate(async ({ style, maxItems }) => {
+      let evictedBeforeLimit = false;
       const changes = [];
       const gaps = [];
       for (let index = 0; index < 16; index += 1) {
         freezeMoves(150);
         const area = root.getBoundingClientRect();
         const old = Array.from(root.children).map(node => ({ node, rect: node.getBoundingClientRect() }));
-        feed.append({ id: `horizontal-${index}`, name: '连续观众', message: '横向消息保留完整内容' });
+        const short = style === 'horizontal-charm' && index % 2 === 0;
+        feed.append({ id: `horizontal-${index}`, name: short ? 'i' : '连续观众', message: short ? 'hi' : '横向消息保留完整内容' });
         await new Promise(requestAnimationFrame);
         freezeMoves(0);
-        removed += old.filter(({ node }) => !node.isConnected).length;
+        evictedBeforeLimit ||= old.length < maxItems && old.some(({ node }) => !node.isConnected);
         changes.push(...old.filter(({ rect }) => rect.right > area.left && rect.left < area.right)
           .map(({ node, rect }) => ({ connected: node.isConnected, delta: node.getBoundingClientRect().left - rect.left })));
         const boxes = Array.from(root.children).map(node => node.getBoundingClientRect()).sort((a, b) => a.left - b.left);
         gaps.push(...boxes.slice(1).map((box, i) => box.left - boxes[i].right));
       }
       feed.destroy();
-      return { removed, changes, gaps, animations: document.getAnimations().length };
-    });
-    assert.ok(result.removed > 0);
+      return { evictedBeforeLimit, changes, gaps, animations: document.getAnimations().length };
+    }, { style, maxItems: PREVIEW_MAX_ITEMS });
+    assert.ok(result.evictedBeforeLimit, 'exited messages are removed before appending would exceed the item limit');
     assert.ok(result.changes.every(row => row.connected && Math.abs(row.delta) < 0.5 * scale), 'visible cards continue without snapping');
     assert.ok(result.gaps.every(gap => gap >= -0.2), 'horizontal cards do not cross during dense arrivals');
     assert.equal(result.animations, 0, 'destroy releases entry, movement and ambient layers');

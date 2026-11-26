@@ -77,11 +77,6 @@ test('conditional refreshes preserve cards and still apply independently changed
   await page.waitForFunction(() => document.getElementById('giftFeedStage').children.length === 0);
 });
 
-test('feed loads without AbortSignal any or timeout', async (t) => {
-  const page = await openFeed(t, { missingAbortMethods: ['any', 'timeout'] });
-  assert.deepEqual((await frame(page, 0)).ids, ['0', '1', '2', '3']);
-});
-
 for (const cancellation of ['timeout', 'pagehide']) {
   test(`feed ${cancellation} aborts a pending response body without modern AbortSignal methods`, async (t) => {
     const page = await openFeed(t, { count: 1, missingAbortMethods: ['any', 'timeout'] });
@@ -253,9 +248,9 @@ test('hidden feeds defer requests across Shanghai midnight and reconcile the new
   assert.equal(requests.filter(url => url === '/api/gifts/display-settings').length, 1);
 });
 
-test('source changes clear the moving rows and pagehide cancels animation work', async (t) => {
-  const page = await openFeed(t);
-  await frame(page, 0);
+test('feed without modern AbortSignal methods renders initial rows, switches sources and stops on pagehide', async (t) => {
+  const page = await openFeed(t, { missingAbortMethods: ['any', 'timeout'] });
+  assert.deepEqual((await frame(page, 0)).ids, ['0', '1', '2', '3']);
   await frame(page, 1000);
   await page.evaluate(() => {
     window.feedItems = window.feedItems.map((item) => ({ ...item, eventId: `replacement-${item.eventId}` }));

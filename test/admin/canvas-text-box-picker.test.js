@@ -4,20 +4,22 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { randomUUID } = require('node:crypto');
 const { Readable } = require('node:stream');
-const { chromium } = require('playwright');
 const { createComponentWebLibrary } = require('../../src/server/component-web-library');
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
+const openBrowserSession = useSharedBrowser();
+
 test('a native CSS text box can be selected, edited and published with its stylesheet', async t => {
+  const browser = openBrowserSession();
+  t.after(() => browser.close());
   const dataDir = createScratchDirectory('text-box-css-', t);
   const fixture = await startCanvasOutputFixture({ dataDir });
   t.after(() => fixture.close());
   await createComponentWebLibrary(dataDir).add([{ path: 'ink.css', stream: Readable.from(['body { --text-box-ink: #123456; }']) }],
     { type: 'text-box', entry: 'ink.css', name: '墨色文本' }, () => {});
-  const browser = await chromium.launch({ headless: true });
-  t.after(() => browser.close());
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   page.setDefaultTimeout(5000);
@@ -42,9 +44,10 @@ test('a native CSS text box can be selected, edited and published with its style
 });
 
 test('canvas can reuse a configured desktop text box, customize the independent copy and create a new one', { timeout: 45000 }, async (t) => {
+  const browser = openBrowserSession();
+  t.after(() => browser.close());
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
-  t.after(async () => { await browser.close(); await fixture.close(); });
+  t.after(() => fixture.close());
   const desktop = await browser.newPage();
   const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
   page.setDefaultTimeout(5000);

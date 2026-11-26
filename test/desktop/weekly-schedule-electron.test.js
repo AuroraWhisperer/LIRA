@@ -447,48 +447,52 @@ test('WebP assets export through the real bridge and rejected SVG replacements p
   assert.deepEqual(errors, []);
 });
 
-for (const initialWidth of [960, 1920]) {
-  test(`desktop PNG export retains all four canvas corners from an initial ${initialWidth}px window`, { timeout: 90000 }, async t => {
-    const { app, page, errors } = await fixture(t);
-    await app.evaluate(({ app }, initialWidth) => {
-      app.once('browser-window-created', (_event, window) => {
-        const load = window.loadURL.bind(window);
-        window.loadURL = async (...args) => {
-          await load(...args);
-          // Reproduce a display constraining the initial hidden window on any monitor.
-          window.setContentSize(initialWidth, initialWidth * 9 / 16);
-          await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-        };
-        const execute = window.webContents.executeJavaScript.bind(window.webContents);
-        window.webContents.executeJavaScript = async (...args) => {
-          const result = await execute(...args);
-          if (args[0].startsWith('window.renderWeeklyScheduleExport(')) {
-            await execute(`new Promise(resolve => {
-              const root = document.querySelector('.weekly-schedule-art');
-              for (const [x, y] of [[8, 8], [1888, 8], [8, 1048], [1888, 1048]]) {
-                const marker = document.createElement('div');
-                marker.style.cssText = 'position:absolute;width:24px;height:24px;background:#ff00ff;z-index:99999;left:' + x + 'px;top:' + y + 'px';
-                root.append(marker);
-              }
-              requestAnimationFrame(() => requestAnimationFrame(resolve));
-            })`);
-          }
-          return result;
-        };
-      });
-    }, initialWidth);
-    const result = await exportPng(app, page);
-    const corners = await app.evaluate(({ nativeImage }, filePath) => {
-      const image = nativeImage.createFromPath(filePath);
-      const bitmap = image.toBitmap();
-      return [[16, 16], [1904, 16], [16, 1064], [1904, 1064]].map(([x, y]) => {
-        const offset = (y * 1920 + x) * 4;
-        return { x, y, pixel: Array.from(bitmap.subarray(offset, offset + 4)) };
-      });
-    }, result.filePath);
-    for (const { x, y, pixel } of corners) {
-      assert.deepEqual(pixel, [255, 0, 255, 255], `Canvas corner at ${x},${y} was lost or rescaled.`);
+test('desktop PNG export retains all four canvas corners from 960px and 1920px initial windows', { timeout: 90000 }, async t => {
+  const { app, page, errors } = await fixture(t);
+  for (const initialWidth of [960, 1920]) {
+    try {
+      await app.evaluate(({ app }, initialWidth) => {
+        app.once('browser-window-created', (_event, window) => {
+          const load = window.loadURL.bind(window);
+          window.loadURL = async (...args) => {
+            await load(...args);
+            // Reproduce a display constraining the initial hidden window on any monitor.
+            window.setContentSize(initialWidth, initialWidth * 9 / 16);
+            await execute('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+          };
+          const execute = window.webContents.executeJavaScript.bind(window.webContents);
+          window.webContents.executeJavaScript = async (...args) => {
+            const result = await execute(...args);
+            if (args[0].startsWith('window.renderWeeklyScheduleExport(')) {
+              await execute(`new Promise(resolve => {
+                const root = document.querySelector('.weekly-schedule-art');
+                for (const [x, y] of [[8, 8], [1888, 8], [8, 1048], [1888, 1048]]) {
+                  const marker = document.createElement('div');
+                  marker.style.cssText = 'position:absolute;width:24px;height:24px;background:#ff00ff;z-index:99999;left:' + x + 'px;top:' + y + 'px';
+                  root.append(marker);
+                }
+                requestAnimationFrame(() => requestAnimationFrame(resolve));
+              })`);
+            }
+            return result;
+          };
+        });
+      }, initialWidth);
+      const result = await exportPng(app, page);
+      const corners = await app.evaluate(({ nativeImage }, filePath) => {
+        const image = nativeImage.createFromPath(filePath);
+        const bitmap = image.toBitmap();
+        return [[16, 16], [1904, 16], [16, 1064], [1904, 1064]].map(([x, y]) => {
+          const offset = (y * 1920 + x) * 4;
+          return { x, y, pixel: Array.from(bitmap.subarray(offset, offset + 4)) };
+        });
+      }, result.filePath);
+      for (const { x, y, pixel } of corners) {
+        assert.deepEqual(pixel, [255, 0, 255, 255], `Canvas corner at ${x},${y} was lost or rescaled.`);
+      }
+      assert.deepEqual(errors, []);
+    } catch (error) {
+      throw new Error(`Initial ${initialWidth}px window: ${error.message}`, { cause: error });
     }
-    assert.deepEqual(errors, []);
-  });
-}
+  }
+});

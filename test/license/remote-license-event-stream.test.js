@@ -93,26 +93,11 @@ test('cloud state event stream uses DeviceBearer and parses revision-only SSE fr
   assert.equal(requests[0].init.body, undefined);
 });
 
-test('cloud state event stream rejects non-SSE and oversized event data', async () => {
-  const createClient = (response) =>
-    createRemoteLicenseClient({
-      baseUrl: 'https://api.lirahub.cn',
-      fetchImpl: async () => response,
-    });
-
-  await assert.rejects(
-    createClient(
-      new Response('{}', {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    ).watchCloudStateChanges('device-token'),
-    (error) => error.code === 'INVALID_RESPONSE',
-  );
-
+test('cloud state event stream rejects oversized event data', async () => {
   const oversized = new TextEncoder().encode(`event: cloud-state-changed\ndata: ${'x'.repeat(70_000)}\n\n`);
-  await assert.rejects(
-    createClient(
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.lirahub.cn',
+    fetchImpl: async () =>
       new Response(
         new ReadableStream({
           start(controller) {
@@ -125,7 +110,9 @@ test('cloud state event stream rejects non-SSE and oversized event data', async 
           headers: { 'content-type': 'text/event-stream' },
         },
       ),
-    ).watchCloudStateChanges('device-token'),
+  });
+  await assert.rejects(
+    client.watchCloudStateChanges('device-token'),
     (error) => error.code === 'RESPONSE_TOO_LARGE',
   );
 });

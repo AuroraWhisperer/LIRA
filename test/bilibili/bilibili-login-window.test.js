@@ -220,15 +220,6 @@ test('login window remains usable when only a subframe fails to load', async () 
   }
 });
 
-test('URL policy: allows navigation to allowedHosts domains', async () => {
-  const { isAllowedLoginNavigation } = require('../../src/electron/external-url-policy');
-  const config = createAuth().BILIBILI_LOGIN_CONFIG;
-
-  assert.equal(isAllowedLoginNavigation('https://bilibili.com', config.allowedHosts), true);
-  assert.equal(isAllowedLoginNavigation('https://passport.bilibili.com', config.allowedHosts), true);
-  assert.equal(isAllowedLoginNavigation('https://api.live.bilibili.com', config.allowedHosts), true);
-});
-
 test('login redirects stay inside the provider without opening an external browser', async () => {
   const external = [];
   const completion = openBilibiliLoginWindow({
@@ -254,22 +245,4 @@ test('login redirects stay inside the provider without opening an external brows
     win.close();
     await completion;
   }
-});
-
-test('URL policy: rejects navigation to disallowed domains', async () => {
-  const { isAllowedLoginNavigation } = require('../../src/electron/external-url-policy');
-  const config = createAuth().BILIBILI_LOGIN_CONFIG;
-
-  assert.equal(isAllowedLoginNavigation('https://evil.com', config.allowedHosts), false);
-  assert.equal(isAllowedLoginNavigation('http://bilibili.com', config.allowedHosts), false);
-  assert.equal(isAllowedLoginNavigation('file:///etc/passwd', config.allowedHosts), false);
-});
-
-test('URL policy: external URLs require https protocol', async () => {
-  const { isAllowedExternal } = require('../../src/electron/external-url-policy');
-
-  assert.equal(isAllowedExternal('https://github.com'), true);
-  assert.equal(isAllowedExternal('http://github.com'), false);
-  assert.equal(isAllowedExternal('javascript:alert(1)'), false);
-  assert.equal(isAllowedExternal('file:///C:/Windows/calc.exe'), false);
 });

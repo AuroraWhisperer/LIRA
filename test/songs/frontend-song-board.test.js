@@ -7,8 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { readCssBundle } = require('../helpers/css-bundle');
-const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -128,37 +127,6 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
     assert.equal(listeners.size, 0);
   });
 }
-
-test('song board applies the saved font size within its bounds', async () => {
-  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const boardRule = overlayStyles.match(/\.song-board\s*\{[^}]*\}/)?.[0];
-  const baseFontSize = Number(boardRule.match(/font-size:[^;]*?([\d.]+)px/)?.[1]);
-  assert.ok(baseFontSize > 0);
-
-  const values = new Map();
-  const sandbox = {
-    window: {},
-    URLSearchParams,
-    location: { search: '' },
-    document: {
-      addEventListener() {},
-      documentElement: {
-        style: {
-          setProperty: (name, value) => values.set(name, value),
-          removeProperty: (name) => values.delete(name),
-        },
-      },
-      querySelector: () => ({ classList: { toggle() {} }, style: {} }),
-      getElementById: () => null,
-    },
-  };
-  const evaluate = await loadModuleScope(path.join(ROOT_DIR, 'public/js/overlays/songs.js'), sandbox);
-  const applyTheme = evaluate('applyTheme');
-  for (const [input, expected] of [['36', 36], ['4', 10], ['99', 80]]) {
-    applyTheme({ songBoardFontSize: input });
-    assert.equal(Number(values.get('--overlay-font-scale')) * baseFontSize, expected, input);
-  }
-});
 
 test('song board records preserve names and group by the leading artist', async () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');

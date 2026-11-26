@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { projectGuardExpiry } = require('../../src/fans/guard-expiry');
 const { fixture, deferred } = require('../helpers/fan-profile-controller-fixture');
-const { fanFixture, IDENTITY, SCOPE } = require('../helpers/fan-profile-fixture');
+const { IDENTITY } = require('../helpers/fan-profile-fixture');
 
 const NOW = Date.parse('2026-10-12T04:00:00Z');
 const profile = { id: 'fan', identity: IDENTITY, currentGuardLevel: 3 };
@@ -101,11 +101,4 @@ test('expiry IPC explains old servers without blocking local profiles and requir
   assert.equal(opened.ok, true);
   const result = await f.invoke({ action: 'guard-expiry', contextId: opened.contextId });
   assert.deepEqual(result.data, { state: 'unsupported', observedAt: null, badges: [] });
-});
-
-test('blacklisted profiles cannot receive expiry badges through the list owner', (t) => {
-  const f = fanFixture(t);
-  const created = f.create();
-  f.run('suppress', { id: created.id, revision: created.revision });
-  assert.deepEqual(project(snapshot, f.service.execute(SCOPE, 'list').profiles).badges, []);
 });

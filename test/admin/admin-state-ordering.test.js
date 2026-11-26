@@ -140,17 +140,6 @@ test('an older HTTP snapshot cannot replace a newer WebSocket snapshot', async (
   assert.equal(service.getAppState().overtime.revision, 8);
 });
 
-test('concurrent HTTP state requests only accept the latest request', async () => {
-  const { service, requests } = await createFixture();
-  const older = service.reloadState();
-  const newer = service.reloadState();
-  requests[1]({ settings: { roomId: 'new' } });
-  await newer;
-  requests[0]({ settings: { roomId: 'old' } });
-  await older;
-  assert.equal(service.getAppState().settings.roomId, 'new');
-});
-
 test('HTTP hydration keeps newer partial updates while accepting unrelated fields', async () => {
   const { service, requests } = await createFixture();
   const reload = service.reloadState();

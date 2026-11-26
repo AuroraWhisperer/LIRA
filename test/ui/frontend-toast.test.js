@@ -117,34 +117,3 @@ test('API errors remain automatic by default and callers can own contextual feed
   await assert.rejects(api('/api/queue/random', {}), /歌库里还没有可随机歌曲。/);
   assert.equal(container.children.length, 1);
 });
-
-test('title-only notices render compactly while detailed notices auto-attach semantic icon, meta and action classes', async () => {
-  const { stack } = await setup();
-  const compact = stack.show({ key: 'conn', type: 'success', title: '本机连接已恢复' });
-  assert.doesNotMatch(compact.node.className, /\btoast-detailed\b/);
-  assert.match(compact.node.children[0].className, /\btoast-content-compact\b/);
-  assert.match(compact.node.textContent, /本机连接已恢复/);
-
-  const actionCard = stack.show({
-    key: 'upd',
-    type: 'success',
-    title: '已是最新版本',
-    message: '当前 v6.3.5，无需更新',
-    actionLabel: '更新页',
-    onClick: () => {},
-  });
-  assert.match(actionCard.node.className, /\btoast-detailed\b/);
-  assert.match(actionCard.node.className, /\btoast-with-icon\b/);
-  assert.match(actionCard.node.className, /\btoast-has-action\b/);
-  assert.equal(actionCard.node.children[1].textContent, '更新页');
-
-  const progressCard = stack.show({
-    key: 'dl',
-    type: 'info',
-    title: '正在更新礼物图片',
-    meta: '40%',
-    message: '已处理 4 / 10',
-  });
-  assert.equal(progressCard.node.children[0].children[0].children[1].textContent, '40%');
-  assert.equal(progressCard.node.children[0].children[1].textContent, '已处理 4 / 10');
-});

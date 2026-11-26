@@ -100,9 +100,10 @@ test('song board parameters reach the canvas renderer and persist into the live 
   await standalone.route('**/api/songs?*', route => route.fulfill({ json: { ok: true, data: songs } }));
   const standaloneUrl = `${fixture.origin}/songlist`;
   assert.equal((await fetch(standaloneUrl)).status, 200);
-  for (const [size, songSize, sync, expected] of [
+  for (const [size, songSize, sync, expected, checkBoardSize] of [
     ['16', '20', 'false', '20px'], ['16', '60', 'false', '60px'],
     ['28', '36', 'false', '63px'], ['28', '60', 'true', '28px'],
+    ['4', '60', 'true', '10px', true], ['99', '60', 'true', '80px', true],
   ]) {
     Object.assign(fixture.runtime.settings, { songBoardFontSize: size,
       songBoardSongFontSize: songSize, songBoardSyncTheme: sync });
@@ -110,5 +111,9 @@ test('song board parameters reach the canvas renderer and persist into the live 
     await standalone.locator('.song-card strong').first().waitFor();
     assert.equal(await standalone.locator('.song-card strong').first().evaluate(node => getComputedStyle(node).fontSize),
       expected, `standalone song size ${songSize}, board size ${size}, theme sync ${sync}`);
+    if (checkBoardSize) {
+      assert.equal(await standalone.locator('.song-board').evaluate(node => getComputedStyle(node).fontSize),
+        expected, `standalone board size ${size}`);
+    }
   }
 });

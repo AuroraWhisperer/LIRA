@@ -72,7 +72,6 @@ const groups = {
     'scenes/scene-live-updates',
     'scenes/scene-material-flows',
     'scenes/scene-renderer',
-    'playback/fullscreen-reopen-browser',
     'playback/playback-drawer-browser',
     'playback/player-appearance-browser',
     'ui/copy-url',
