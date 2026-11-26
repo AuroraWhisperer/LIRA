@@ -366,7 +366,7 @@ test('request results reach display snapshots once while ordinary messages and c
   }
 });
 
-function cancellationClient(t) {
+function cancellationClient(t, settings = {}) {
   const { createSettingsStore } = require('../../src/storage/settings-store');
   const { createDomainServices } = require('../../src/server/domain-services');
   const { createBilibiliClient } = require('../../src/server/bilibili-client');
@@ -374,7 +374,7 @@ function cancellationClient(t) {
   t.mock.method(console, 'log', () => {});
   const f = historyFixture(t);
   const settingsStore = createSettingsStore(f.db.songDb);
-  for (const [key, value] of Object.entries({ onlyFromLibrary: 'false', allowDuplicate: 'true', userCooldownSeconds: '0' })) {
+  for (const [key, value] of Object.entries({ onlyFromLibrary: 'false', allowDuplicate: 'true', userCooldownSeconds: '0', ...settings })) {
     settingsStore.setSetting(key, value);
   }
   const services = createDomainServices({ db: f.db, settingsStore });
@@ -490,8 +490,8 @@ test('history-only requests retain their time precision across polls and mixed-p
   assert.deepEqual(remaining('45'), ['甲', '乙']);
 });
 
-function historyListReplay(t, previousTitle = '甲') {
-  const { client, services } = cancellationClient(t);
+function historyListReplay(t, previousTitle = '甲', settings) {
+  const { client, services } = cancellationClient(t, settings);
   const second = Math.floor(Date.now() / 1000) * 1000;
   let history;
   let nextUid = 60;
@@ -538,6 +538,14 @@ test('a named history cancellation only waits for conflicts that can change the 
     const possibleTarget = row(text);
     assert.deepEqual(await replay([cancel, possibleTarget], [possibleTarget, cancel]), ['晴天', '晴天'], text);
   }
+});
+
+test('only valid same-second cross-list request commands block history cancellation', async t => {
+  const { replay, second } = historyListReplay(t, '晴天', { songRequestRequireSpace: 'true' });
+  const row = text => ({ text, timeline: second / 1000 });
+  const cancel = [row('取消点歌')];
+  assert.deepEqual(await replay(cancel, [row('点歌晴天')]), []);
+  assert.deepEqual(await replay(cancel, [row('点歌 晴天')]), ['晴天', '晴天']);
 });
 
 test('an untitled history cancellation requires the two lists to agree on the latest eligible song', async t => {

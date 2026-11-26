@@ -1,8 +1,7 @@
 import { canAddTrackToPlaylist } from '../utils.js';
 
-export function renderTrackMenu(track, index, action = '') {
+export function renderTrackMenu(track, index, action = '', canRemove = false) {
   const menuId = `playback-home-track-menu-${index}`;
-  const canRemove = action === 'liked' || action === 'playlist-tracks';
 
   return `
     <div class="track-menu-wrapper">

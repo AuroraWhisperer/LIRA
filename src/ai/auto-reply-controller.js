@@ -158,12 +158,12 @@ function createAutoReplyController({ now = Date.now, setTimer = setTimeout, clea
     const snapshot = {
       roomId,
       messages: selected.map(({ event, eligible, ...message }) => message),
-      contextMessages: messages.filter(message => Number(message.id) < Number(selected[0].id))
+      contextMessages: messages.filter(message => !message.eligible || Number(message.id) < Number(selected[0].id))
         .map(({ event, eligible, ...message }) => message),
       botReplies: botReplies.map(reply => ({ ...reply })),
       waitAllowed: candidate.attempts === 0 && now() < candidate.firstAt + WAIT_MS,
     };
-    const endId = Number(selected.at(-1).id);
+    const endId = Number(messages.at(-1).id);
     for (const message of selected) {
       candidate.participants.add(message.uid);
       candidate.latestByUid.set(message.uid, Number(message.id));

@@ -39,6 +39,7 @@ export function createDesktopLyric({
     'desktopLyricShowTranslation',
     'desktopLyricShowRoma',
     'desktopLyricKaraokeEnabled',
+    'desktopLyricWordBounceEnabled',
     'desktopLyricHidePassedLines',
     'desktopLyricTraditionalMode',
     'desktopLyricHideOnPause',

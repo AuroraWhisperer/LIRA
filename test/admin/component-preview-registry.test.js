@@ -122,14 +122,15 @@ test('registry rejects unknown types and lazily creates ordered descriptions wit
 test('now playing widgets add separate saved appearances to the canvas without standalone relay sessions', async () => {
   const notices = [];
   const writes = [];
-  const nativePreview = (_type, { controller } = {}) => ({ id: 'now-playing', sceneOnly: true, controller,
-    size: require('../../public/js/shared/now-playing-appearance.js').nowPlayingSize, createPanel: () => ({ dispose() {} }) });
+  const definitions = await loadModuleExports(path.join(adminPath, 'component-preview-definitions.js'), {
+    TextEncoder, URL, structuredClone, location: new URL('http://127.0.0.1:3000/admin'),
+  });
   const fixture = await loadOwner('now-playing.js', {
     '../shared/utils.js': { api: async (url, config) => { writes.push(url); return { data: config }; },
       copyText() {}, localOverlayOrigin: () => 'http://127.0.0.1:3000', toast: message => notices.push(message) },
     '../shared/now-playing-renderer.js': { createNowPlayingRenderer: () => ({ updateConfig() {}, updateState() {}, dispose() {} }) },
-    './scene-extra-preview.js': { createSceneExtraPreview: nativePreview },
-    './component-preview-definitions.js': { COMPONENT_PREVIEW_DEFINITIONS: { 'now-playing': { createPreview: nativePreview } } },
+    './scene-extra-preview.js': { createSceneExtraPreview: () => ({ createPanel: () => ({ dispose() {} }) }) },
+    './component-preview-definitions.js': definitions,
     './component-style-library.js': { mountComponentStyleLibrary() {}, openComponentStyleLibrary() {} },
     './component-library-manager.js': { openComponentLibraryManager() {} },
     './component-style-api.js': { loadComponentStyleCss() {}, requestComponentStyles() {} },

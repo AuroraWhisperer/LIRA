@@ -114,6 +114,7 @@ test('runtime HTTP saves and publishes a scene, retaining its capability and fro
   assert.equal(saved.hasPublication, false);
   assert.deepEqual(await request(`/api/scenes/document?id=${id}`), saved);
   const source = await request(`/api/scenes/source?id=${id}`);
+  assert.deepEqual(source.sharedTypes, {});
   const outputRoute = `/api/scene/output?id=${id}`;
   const readOutput = (suffix = '') => request(outputRoute + suffix, { token: source.token });
   const unpublished = await request(outputRoute, { token: source.token, status: 409 });
@@ -128,7 +129,7 @@ test('runtime HTTP saves and publishes a scene, retaining its capability and fro
   assert.equal((await readOutput('&version=1')).document, null);
 
   await request('/api/settings', { body: { clockLabel: '下一次发布' } });
-  const draft = { ...saved.document, title: '未发布的修改' };
+  const draft = { ...saved.document, title: '未发布的修改', items: saved.document.items.slice(0, 2) };
   const updated = await request('/api/scenes/save', { body: { id, expectedRevision: saved.revision, document: draft } });
   assert.equal(updated.revision, 3);
   const conflict = await request('/api/scenes/save', { body: { id, expectedRevision: saved.revision, document: draft }, status: 409 });
@@ -140,12 +141,13 @@ test('runtime HTTP saves and publishes a scene, retaining its capability and fro
   assert.equal(fixtureState.baseUrl, oldBaseUrl);
   assert.notEqual(fixtureState.runtime.getApiToken(), oldAdminToken);
   await request('/api/scenes/list', { token: oldAdminToken, status: 401 });
-  assert.deepEqual(await request(`/api/scenes/source?id=${id}`), {
-    ...source,
-    canvas: firstOutput.document.canvas,
-    itemIds: firstOutput.document.items.map((item) => item.id),
-    itemSizes: Object.fromEntries(firstOutput.document.items.map((item) => [item.id, { width: item.width, height: item.height }])),
-  });
+  const reopened = await request(`/api/scenes/source?id=${id}`);
+  assert.equal(reopened.id, id);
+  assert.equal(reopened.token, source.token);
+  assert.deepEqual(reopened.canvas, firstOutput.document.canvas);
+  assert.deepEqual(reopened.itemIds, saved.document.items.map(item => item.id));
+  assert.deepEqual(reopened.itemSizes, Object.fromEntries(saved.document.items.map(item => [item.id, { width: item.width, height: item.height }])));
+  assert.deepEqual(reopened.sharedTypes, Object.fromEntries(saved.document.items.map(item => [item.id, item.type])));
   assert.deepEqual(await request(`/api/scenes/document?id=${id}`), updated);
   assert.deepEqual((await readOutput()).document, firstOutput.document);
   assert.deepEqual((await request('/api/scenes/list')).map((scene) => scene.document.id), [id]);
@@ -391,7 +393,7 @@ test('runtime scene streams notify game updates, drawing operations and round pa
     assert.equal((await session()).state.canvas.strokes[0].id, 'stroke-1');
     const first = await request(`/api/scene/output?id=${id}&incrementalParts=1&dataVersions={}`, { token: source.token });
     assert.equal(first.data.games.session.state.canvas.strokes[0].id, 'stroke-1');
-    await request('/api/games/session/move', { body: { value: { action: 'finish-round' } } });
+    await request('/api/games/session/move', { body: { value: { action: 'finish-round', sessionId: started.sessionId, round: 1 } } });
     await expectEvent('change');
     const changed = await request(`/api/scene/output?id=${id}&version=${first.version}&incrementalParts=1&dataVersions=${
       encodeURIComponent(JSON.stringify(first.dataVersions))}`, { token: source.token });

@@ -70,6 +70,7 @@ const winnerLink = (node) => descendants(node).find(child => child.tagName === '
 function task(status = 'collecting') {
   return {
     id: 'task-1',
+    requestId: 'previous-request',
     revision: 4,
     createdAtMs: 1_700_000_000_000,
     status,
@@ -353,7 +354,7 @@ test('new task polling follows the new current task after a completed result is 
   f.setState(state(null, null, { kind: 'collect', taskId: null }));
   f.get('form').dispatch('submit');
   await settle();
-  const next = { ...task('collecting'), id: 'task-2' };
+  const next = { ...task('collecting'), id: 'task-2', requestId: 'request-1' };
   f.setState(state(next, null, { kind: 'collect', taskId: next.id }));
   [...f.timers.values()].at(-1)();
   await settle();
@@ -364,6 +365,46 @@ test('new task polling follows the new current task after a completed result is 
   await settle();
   assert.match(f.calls.at(-1).url, /taskId=task-2$/);
   assert.equal(f.get('draw').disabled, false);
+});
+
+for (const knownHistory of [true, false]) {
+  test(`a failed new task cannot restore old history (previously loaded: ${knownHistory})`, async (t) => {
+    const previous = task('ready');
+    const f = await fixture(knownHistory ? state(previous) : state());
+    t.after(() => f.controller.dispose());
+    await f.click('new');
+    f.get('form').elements.url.value = 'https://t.bilibili.com/999';
+    f.setState({ ...state(), tasks: state(previous).tasks, job: { kind: 'create', taskId: null } });
+    f.get('form').dispatch('submit');
+    await settle();
+    f.setState({ ...state(previous), error: 'LOTTERY_BILIBILI_CHALLENGE' });
+    [...f.timers.values()].at(-1)();
+    await settle();
+    assert.equal(f.get('draw').disabled, true);
+    assert.equal(f.get('fields').disabled, false);
+    assert.equal(f.get('form').elements.url.value, 'https://t.bilibili.com/999');
+    await f.click('state-refresh');
+    assert.equal(f.get('draw').disabled, true);
+    const requests = f.calls.length;
+    await f.click('draw');
+    assert.equal(f.calls.length, requests, 'the old activity cannot be drawn implicitly');
+    f.get('history').value = previous.id;
+    f.get('history').dispatch('change');
+    await settle();
+    assert.equal(f.get('draw').disabled, false, 'history requires an explicit selection');
+  });
+}
+
+test('a retried submission accepts only its persisted request, including an already-known task', async (t) => {
+  const created = { ...task('ready'), requestId: 'request-1' };
+  const f = await fixture(state(created));
+  t.after(() => f.controller.dispose());
+  await f.click('new');
+  f.get('form').dispatch('submit');
+  await settle();
+  assert.equal(f.get('draw').disabled, false);
+  await f.click('draw');
+  assert.equal(JSON.parse(f.calls.at(-1).body).taskId, created.id);
 });
 
 test('logged-out users can prepare settings and new drafts but cannot fetch participants', async (t) => {

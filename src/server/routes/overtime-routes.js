@@ -48,7 +48,7 @@ const routes = {
 
   'POST /api/overtime/action': overtimeRoute(async (overtime, request) => {
     const body = await request.body();
-    return overtime.act(body.action);
+    return overtime.act(body.action, body);
   }),
 
   'POST /api/overtime/config': overtimeRoute(async (overtime, request) => {

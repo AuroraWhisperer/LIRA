@@ -16,37 +16,48 @@ export function initDesktopNotificationSettings({ documentRef = document, bridge
   let settings = null;
   let supported = false;
   let pending = null;
+  let queued = null;
+  let editingThreshold = false;
+
+  function effectiveSettings() {
+    return settings && { ...settings, ...pending, ...queued };
+  }
 
   function render() {
-    const values = pending || settings;
+    const values = effectiveSettings();
     if (values) {
       planner.checked = values.plannerRemindersEnabled;
       gifts.checked = values.largeGiftEnabled;
-      threshold.value = values.largeGiftThresholdRmb;
+      if (!editingThreshold) threshold.value = values.largeGiftThresholdRmb;
     }
-    planner.disabled = gifts.disabled = !supported || !settings || Boolean(pending);
+    planner.disabled = gifts.disabled = !supported || !settings;
     threshold.disabled = gifts.disabled || !values?.largeGiftEnabled;
     for (const preset of presets) {
       const amount = Number(preset.dataset.giftThresholdPreset);
       preset.disabled = threshold.disabled;
       preset.setAttribute('aria-pressed', String(Boolean(values?.largeGiftEnabled) && Number(values.largeGiftThresholdRmb) === amount));
     }
-    panel.setAttribute('aria-busy', String(Boolean(pending)));
+    panel.setAttribute('aria-busy', String(Boolean(pending || queued)));
   }
 
   async function save(patch) {
-    if (!settings || pending || !supported) return;
-    pending = { ...settings, ...patch };
+    if (!settings || !supported) return;
+    queued = { ...queued, ...patch };
     feedback.textContent = '正在保存…';
     render();
-    try {
-      const result = await bridge.update(patch);
-      if (!result?.ok) throw new Error('Notification settings were not saved');
-      settings = result.settings;
-      feedback.textContent = '通知设置已保存';
-    } catch {
-      feedback.textContent = '通知设置未保存，请重试。';
-    } finally {
+    if (pending) return;
+    while (queued) {
+      pending = queued;
+      queued = null;
+      try {
+        const result = await bridge.update(pending);
+        if (!result?.ok) throw new Error('Notification settings were not saved');
+        settings = result.settings;
+        if (!queued) feedback.textContent = '通知设置已保存';
+      } catch {
+        if (queued) queued = { ...pending, ...queued };
+        else feedback.textContent = '通知设置未保存，请重试。';
+      }
       pending = null;
       render();
     }
@@ -54,8 +65,10 @@ export function initDesktopNotificationSettings({ documentRef = document, bridge
 
   planner.addEventListener('change', () => void save({ plannerRemindersEnabled: planner.checked }));
   gifts.addEventListener('change', () => void save({ largeGiftEnabled: gifts.checked }));
+  threshold.addEventListener('input', () => { editingThreshold = true; });
   threshold.addEventListener('change', () => {
     if (!threshold.reportValidity()) return;
+    editingThreshold = false;
     void save({ largeGiftThresholdRmb: Number(threshold.value) });
   });
   for (const preset of presets) {
@@ -63,8 +76,9 @@ export function initDesktopNotificationSettings({ documentRef = document, bridge
       if (threshold.disabled) return;
       const amount = Number(preset.dataset.giftThresholdPreset);
       if (!Number.isFinite(amount)) return;
+      editingThreshold = false;
       threshold.value = String(amount);
-      if (Number(settings?.largeGiftThresholdRmb) === amount) {
+      if (Number(effectiveSettings()?.largeGiftThresholdRmb) === amount) {
         render();
         return;
       }

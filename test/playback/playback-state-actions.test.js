@@ -107,6 +107,35 @@ test('lyric results retain their request generation when playback returns to the
   assert.deepEqual(publications, [lyrics, latest]);
 });
 
+for (const failure of ['empty', 'error']) {
+  test(`a failed track switch keeps the original pending lyric request (${failure})`, async () => {
+    const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));
+    const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+    const state = createInitialState();
+    state.current = { id: 'original', source: 'qq' };
+    const lyrics = Promise.withResolvers();
+    const publications = [];
+    const controls = createPlaybackControls({
+      playbackState: state, getPlaybackAudio: () => ({}),
+      lyricService: { loadLyrics: () => lyrics.promise },
+      streamService: { async getTrackUrl() {
+        if (failure === 'error') throw new Error('unavailable');
+        return '';
+      } },
+      renderPlayback() {}, showError() {},
+      syncPlaybackLyricWindow: () => publications.push(state.current.lyrics),
+    });
+    const loading = controls.loadPlaybackLyrics(state.current);
+    await controls.playPlaybackTrack({ id: 'next', source: 'qq' });
+    const result = { lines: [{ startMs: 0, text: 'Original lyric' }] };
+    lyrics.resolve(result);
+    await loading;
+    assert.equal(state.current.id, 'original');
+    assert.equal(state.current.lyrics, result);
+    assert.deepEqual(publications, [result]);
+  });
+}
+
 for (const outcome of ['success', 'failure']) {
   test(`a ${outcome === 'success' ? 'successful' : 'failed'} quality switch retains the current lyric request`, async () => {
     const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));

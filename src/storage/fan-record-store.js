@@ -150,8 +150,20 @@ function createFanRecordStore(db) {
   function addSong(scope, profileId, record, at) {
     const sourceKey = `song:${profileId}:${createHash('sha256').update(songIdentity(record.data)).digest('hex')}`;
     const previous = decodeRecord(db.prepare('SELECT * FROM fan_records WHERE scope = ? AND source_key = ?').get(scope, sourceKey));
+    const mergedRecordIds = new Set(previous?.data.mergedRecordIds || []);
+    if (previous && Object.hasOwn(record.data, 'count')) {
+      const owned = new Set([previous.id, ...mergedRecordIds]);
+      const incoming = [record.id, ...(record.data.mergedRecordIds || [])];
+      if (incoming.some(id => owned.has(id)))
+        throw createPublicError('点歌汇总包含已合并记录，无法安全累加。请完整恢复合并前的备份或恢复点，再重新合并。');
+    }
     const summary = summarizeSongs(previous ? [previous, record] : [record], at)[0];
     const id = previous?.id || record.id || randomUUID();
+    for (const mergedId of record.data.mergedRecordIds || []) mergedRecordIds.add(mergedId);
+    if (Object.hasOwn(record.data, 'count') && record.id && record.id !== id) mergedRecordIds.add(record.id);
+    mergedRecordIds.delete(id);
+    if (mergedRecordIds.size) summary.data.mergedRecordIds = [...mergedRecordIds].sort();
+    else delete summary.data.mergedRecordIds;
     db.prepare(`INSERT INTO fan_records
       (id, scope, profile_id, kind, source_key, occurred_at, data, original, revisions, revision)
       VALUES (?, ?, ?, 'song', ?, ?, ?, '{}', '[]', 1)

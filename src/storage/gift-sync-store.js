@@ -129,6 +129,8 @@ function createGiftSyncStore(options = {}) {
         importLiveEvent(event, page.sourceId, {
           projectionGeneration: page.projectionGeneration,
           registerAfterCommit,
+          remoteDelivery: Object.freeze({ sourceId: page.sourceId, syncEpoch: page.syncEpoch,
+            projectionGeneration: page.projectionGeneration, cursor: event.cursor }),
         });
         giftDb.prepare("UPDATE gift_events SET remote_final_cursor=? WHERE source_id=? AND platform_id=? AND cmd='LIRA_SERVER_GIFT'")
           .run(event.cursor, page.sourceId, `lira-server:${event.eventId}`);

@@ -6,6 +6,31 @@ const test = require('node:test');
 const { createFixture, fixedRule } = require('../helpers/overtime-service-fixture');
 const { createOvertimeStore } = require('../../src/storage/overtime-store');
 
+test('configured start commits rules, enablement and time together or rolls everything back', (t) => {
+  const fixture = createFixture();
+  const updates = [];
+  const service = fixture.createService({ onUpdate: update => updates.push(update) });
+  t.after(() => { service.dispose(); fixture.close(); });
+  service.replaceRules([fixedRule('gift-a', 10)]);
+  const before = service.getSnapshot();
+  const input = { initialSeconds: 60, expectedRevision: before.revision, enable: true, rules: [fixedRule('gift-a', 300)] };
+  fixture.db.giftDb.exec(`CREATE TEMP TRIGGER fail_start BEFORE UPDATE ON overtime_machine_state
+    BEGIN SELECT RAISE(ABORT, 'start save failed'); END;`);
+  updates.length = 0;
+  assert.throws(() => service.act('start', input), /start save failed/);
+  assert.equal(service.getSnapshot().revision, before.revision);
+  assert.equal(service.getSnapshot().enabled, false);
+  assert.equal(service.getSnapshot().rules[0].fixedSeconds, 10, 'warm cache retains committed rules');
+  assert.equal(updates.length, 0);
+  fixture.db.giftDb.exec('DROP TRIGGER fail_start');
+  service.act('start', input);
+  service.finalizeGift(fixture.insertFinalGift({ overtimeEpoch: service.getCurrentEpoch() }));
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 360_000);
+  assert.equal(service.getSnapshot().rules[0].fixedSeconds, 300, 'successful start invalidates the rule cache');
+  assert.throws(() => service.act('start', input), error => error.statusCode === 409);
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 360_000);
+});
+
 test('enable epochs advance only on disabled to enabled transitions', () => {
   const fixture = createFixture();
   const service = fixture.createService();
@@ -179,7 +204,8 @@ for (const scenario of [
       assert.equal(savedState.get().revision, after.revision);
       service.dispose();
       service = fixture.createService();
-      assert.deepEqual(service.getSnapshot(), after);
+      const { pendingCount, quantityLimitedCount, settlements, ...snapshot } = after;
+      assert.deepEqual(service.getSnapshot(), snapshot);
     } finally {
       service.dispose();
       fixture.close();

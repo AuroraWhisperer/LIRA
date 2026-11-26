@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 
 const path = require('node:path');
 const test = require('node:test');
-const { FakeNode } = require('../helpers/fake-dom');
+const { FakeNode, allNodes } = require('../helpers/fake-dom');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -346,6 +346,22 @@ test('the games panel shows board outcomes while the result session can still be
   }
 });
 
+test('the final draw round marks both shared indicators finished and can still be dismissed', async t => {
+  const { node, listeners } = await createGamePanelFixture();
+  const { createGameSessionService } = require('../../src/games/game-session-service');
+  const { chooseGameWord } = require('../helpers/draw-guess');
+  const games = createGameSessionService();
+  t.after(() => games.dispose());
+  games.start({ game: 'draw-guess', totalRounds: 1 });
+  chooseGameWord(games);
+  games.move({ value: { action: 'finish-round' } });
+  const { session } = games.move({ value: { action: 'reveal-answer' } });
+  listeners.get('app:game-update')({ detail: session });
+  assert.match(node('gamesSessionStatus').textContent, /结束/);
+  assert.match(node('gamesRunningBadge').textContent, /结束/);
+  assert.equal(node('gamesStopBtn').disabled, false);
+});
+
 test('a score patch preserves a collapsed host card and a new game opens it', async () => {
   const { node, listeners } = await createGamePanelFixture();
   const game = { game: 'draw-guess', sessionId: 'first', eventRevision: 1,
@@ -391,13 +407,14 @@ test('host words follow the current round and ignore late reads after a round ch
   assert.equal(node('drawHostWord').textContent, '已选题词', 'a late choice list cannot replace the selected word in the same round');
 });
 
-test('game command replies preserve a later stop or replacement session', async () => {
+async function createGameCommandFixture({ loadCategories, loadViewers } = {}) {
   const nodes = new Map();
   const listeners = new Map();
   function node(id) {
     if (!nodes.has(id)) {
       const value = new FakeNode('div');
-      Object.assign(value, { id, value: '', selectedOptions: [], disabled: false,
+      Object.assign(value, { id, value: '', selectedOptions: [], disabled: false, open: false,
+        showModal() { this.open = true; }, close() { this.open = false; }, focus() {},
         classList: { toggle() {}, add() {}, remove() {}, contains: () => false },
         closest: () => null, querySelector: selector => node(`${id} ${selector}`), querySelectorAll: () => [] });
       Object.defineProperty(value, 'options', { get: () => value.children });
@@ -405,17 +422,34 @@ test('game command replies preserve a later stop or replacement session', async 
     }
     return nodes.get(id);
   }
-  const start = node('start');
-  start.dataset.startGame = 'number-bomb';
+  const starts = ['number-bomb', 'gomoku', 'draw-guess'].map(game => {
+    const button = node(`start-${game}`);
+    button.dataset.startGame = game;
+    return button;
+  });
+  const start = game => starts.find(button => button.dataset.startGame === game);
+  const categories = () => allNodes(node('drawWordCategories')).filter(item => item.tag === 'input');
   node('numberBombMode').value = 'multi';
+  node('drawTotalRounds').value = '3';
+  node('drawRoundDuration').value = '90';
   const commands = [];
+  const reads = [];
+  const messages = [];
   const response = data => ({ ok: true, status: 200, text: async () => JSON.stringify({ ok: true, data }) });
-  const games = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/games.js'), {
-    document: { hidden: false, getElementById: node, querySelector: node,
-      querySelectorAll: selector => selector === '[data-start-game]' ? [start] : [],
-      createElement: tag => new FakeNode(tag), addEventListener() {} },
+  const [games, { eventBus, Events }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/games.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ], {
+    document: { hidden: false, getElementById: node,
+      querySelector: selector => selector === '[data-start-game="draw-guess"]' ? start('draw-guess') : node(selector),
+      querySelectorAll: selector => selector === '[data-start-game]' ? starts
+        : selector === '[data-draw-category]' ? categories()
+          : selector === '[data-draw-category]:checked' ? categories().filter(input => input.checked) : [],
+      createElement: tag => Object.assign(new FakeNode(tag), { closest: () => null }),
+      addEventListener() {}, removeEventListener() {} },
     window: { addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener() {} },
     location: { protocol: 'http:', host: '127.0.0.1', origin: 'http://127.0.0.1' },
+    MutationObserver: class { observe() {} disconnect() {} },
+    performance: { now: () => 0 },
     setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
     fetch: async (url, options) => {
       if (url === '/api/games/session' && options?.method === 'POST') {
@@ -423,44 +457,178 @@ test('game command replies preserve a later stop or replacement session', async 
           input: JSON.parse(options.body), reply: data => resolve(response(data)),
         }));
       }
+      if (url === '/api/games/host-state') return new Promise(resolve => reads.push(data => resolve(response(data))));
+      if (url === '/api/games/draw-guess/categories') return response(loadCategories
+        ? await loadCategories() : [{ id: 'food', label: '食物', count: 1 }]);
+      if (url === '/api/games/viewers' && loadViewers) return response(await loadViewers());
       return response(url === '/api/games/viewers' ? [{ uid: '1', name: 'Viewer' }]
         : url.startsWith('/api/interactions/') ? { runtimeId: 'one', revision: 1, session: null } : null);
     },
-  });
+  }, { moduleFixtures: new Map([[path.join(ROOT_DIR, 'public/js/shared/toast.js'), {
+    toast: message => messages.push(message), showStackedToast() {},
+  }]]) });
   const flush = () => new Promise(setImmediate);
   const broadcast = session => listeners.get('app:game-update')({ detail: session });
-  const first = { sessionId: 'first', eventRevision: 1, game: 'number-bomb', mode: 'multi', state: { phase: 'playing' } };
+  const hostState = session => ({ game: 'draw-guess', phase: session.state.phase, round: session.state.round,
+    categoryIds: ['food'], choices: [{ word: '苹果', category: '食物' }] });
   games.initGames(); await flush();
+  return { node, start, commands, reads, messages, flush, broadcast, hostState,
+    reconnect: () => eventBus.emit('ws:connected'),
+    room: roomId => eventBus.emit(Events.STATE_LOADED, { state: { liveStatus: { roomId, connected: true } } }) };
+}
 
-  start.listeners.click();
-  const firstStart = commands.shift();
+test('reconnect retries the missing word catalog once and enables draw start', async () => {
+  let requests = 0;
+  const catalog = Promise.withResolvers();
+  const f = await createGameCommandFixture({ loadCategories() {
+    if (++requests === 1) throw new Error('offline');
+    return catalog.promise;
+  } });
+  assert.equal(f.start('draw-guess').disabled, true);
+  f.reconnect();
+  f.reconnect();
+  catalog.resolve([{ id: 'food', label: '食物', count: 2 }]);
+  await f.flush();
+  f.reconnect();
+  await f.flush();
+  assert.equal(requests, 2);
+  assert.equal(f.start('draw-guess').disabled, false);
+  f.start('draw-guess').listeners.click();
+  assert.deepEqual(f.commands[0].input.categoryIds, ['food']);
+});
+
+test('switching rooms immediately drops the opponent and ignores the outstanding old roster', async () => {
+  const requests = [];
+  const f = await createGameCommandFixture({ loadViewers() {
+    const read = Promise.withResolvers();
+    requests.push(read);
+    return read.promise;
+  } });
+  f.room('101');
+  requests.at(-1).resolve([{ uid: '197', name: 'old' }]);
+  await f.flush();
+  const picker = f.node('gomokuViewer');
+  picker.value = '197';
+  f.node('gamesRefreshViewersBtn').listeners.click();
+  const oldRefresh = requests.at(-1);
+  f.room('202');
+  const newRefresh = requests.at(-1);
+  oldRefresh.resolve([{ uid: '197', name: 'old' }]);
+  await f.flush();
+  f.start('gomoku').listeners.click();
+  assert.equal(f.commands.length, 0);
+  assert.equal(picker.value, '');
+  newRefresh.resolve([{ uid: '283', name: 'new' }]);
+  requests[0].resolve([{ uid: '197', name: 'old' }]);
+  await f.flush();
+  assert.deepEqual(picker.children.map(option => option.value), ['', '283']);
+  picker.value = '283';
+  f.start('gomoku').listeners.click();
+  assert.equal(f.commands[0].input.targetUid, '283');
+  assert.equal(f.commands[0].input.viewerRoomId, '202');
+});
+
+for (const game of ['number-bomb', 'draw-guess']) {
+  test(`${game} command replies preserve a later stop or replacement session`, async () => {
+    const { node, start, commands, reads, messages, flush, broadcast, hostState } = await createGameCommandFixture();
+    const first = { sessionId: 'first', eventRevision: 1, game, mode: 'multi', state: game === 'draw-guess'
+      ? { phase: 'choosing', round: 1, totalRounds: 3, roundDurationMs: 90000 }
+      : { phase: 'playing' } };
+
+    start(game).listeners.click();
+    const firstStart = commands.shift();
+    broadcast(first);
+    assert.equal(node('gamesStopBtn').disabled, false, 'the start broadcast enables stopping before its HTTP response');
+    assert.equal(node('gamesStopBtn').hidden, false);
+    assert.equal(node('gamesRunningBadge').hidden, false);
+    node('gamesStopBtn').listeners.click();
+    const firstStop = commands.shift();
+    assert.equal(firstStop.input.action, 'stop');
+    assert.equal(firstStop.input.sessionId, first.sessionId);
+    broadcast(null);
+    firstStop.reply(null); await flush();
+    firstStart.reply(first); await flush();
+    assert.equal(start(game).disabled, false, 'a late start reply must not resurrect the stopped game');
+    assert.equal(node('gamesStopBtn').disabled, true);
+    assert.equal(node('gamesStopBtn').hidden, true);
+    assert.equal(node('gamesRunningBadge').hidden, true);
+    if (game === 'draw-guess') {
+      assert.equal(messages.length, 0, 'an obsolete start must not prompt the host to choose a word');
+      reads.shift()(null); await flush();
+    }
+
+    start(game).listeners.click();
+    const second = { ...first, sessionId: 'second' };
+    commands.shift().reply(second); await flush();
+    assert.equal(node('gamesStopBtn').disabled, false, 'an uncontested HTTP response still applies without a broadcast');
+    if (game === 'draw-guess') {
+      reads.shift()(hostState(second)); await flush();
+      assert.equal(node('drawWordPicker').open, true, 'a normal start opens the current word choices');
+      assert.equal(messages.length, 1, 'a normal start still prompts the host to choose');
+    }
+    node('gamesStopBtn').listeners.click();
+    const lateStop = commands.shift();
+    broadcast(null);
+    start('number-bomb').listeners.click();
+    const replacement = { sessionId: 'replacement', eventRevision: 1, game: 'number-bomb',
+      mode: 'single', targetName: 'Next opponent', state: { phase: 'playing' } };
+    broadcast(replacement);
+    commands.shift().reply(replacement); await flush();
+    lateStop.reply(null); await flush();
+    assert.equal(start(game).disabled, true, 'a late stop reply must not clear the replacement game');
+    assert.equal(node('gamesStopBtn').disabled, false);
+    assert.ok(node('gamesSessionStatus').textContent.includes(replacement.targetName));
+  });
+}
+
+test('a late draw start preserves a replacement game and a newer phase of its own session', async () => {
+  const { node, start, commands, reads, messages, flush, broadcast } = await createGameCommandFixture();
+  const first = { sessionId: 'first', eventRevision: 1, game: 'draw-guess',
+    state: { phase: 'choosing', round: 1, totalRounds: 3, roundDurationMs: 90000 } };
+  start('draw-guess').listeners.click();
+  const lateStart = commands.shift();
   broadcast(first);
-  assert.equal(node('gamesStopBtn').disabled, false, 'the start broadcast enables stopping before its HTTP response');
-  assert.equal(node('gamesStopBtn').hidden, false);
-  assert.equal(node('gamesRunningBadge').hidden, false);
-  node('gamesStopBtn').listeners.click();
-  const firstStop = commands.shift();
-  assert.equal(firstStop.input.action, 'stop');
   broadcast(null);
-  firstStop.reply(null); await flush();
-  firstStart.reply(first); await flush();
-  assert.equal(start.disabled, false, 'a late start reply must not resurrect the stopped game');
-  assert.equal(node('gamesStopBtn').disabled, true);
-  assert.equal(node('gamesStopBtn').hidden, true);
-  assert.equal(node('gamesRunningBadge').hidden, true);
-
-  start.listeners.click();
-  commands.shift().reply({ ...first, sessionId: 'second' }); await flush();
-  assert.equal(node('gamesStopBtn').disabled, false, 'an uncontested HTTP response still applies without a broadcast');
-  node('gamesStopBtn').listeners.click();
-  const lateStop = commands.shift();
-  broadcast(null);
-  start.listeners.click();
-  const replacement = { ...first, sessionId: 'replacement', mode: 'single', targetName: 'Next opponent' };
+  const replacement = { sessionId: 'replacement', eventRevision: 1, game: 'number-bomb', mode: 'single',
+    targetName: 'Replacement viewer', state: { phase: 'playing' } };
   broadcast(replacement);
-  commands.shift().reply(replacement); await flush();
-  lateStop.reply(null); await flush();
-  assert.equal(start.disabled, true, 'a late stop reply must not clear the replacement game');
-  assert.equal(node('gamesStopBtn').disabled, false);
-  assert.ok(node('gamesSessionStatus').textContent.includes(replacement.targetName));
+  lateStart.reply(first); await flush();
+  assert.ok(node('gamesSessionStatus').textContent.includes(replacement.targetName), 'the late start cannot replace another game');
+  assert.equal(messages.length, 0);
+  reads.shift()(null); await flush();
+
+  broadcast(null);
+  start('draw-guess').listeners.click();
+  const progressingStart = commands.shift();
+  const next = { ...first, sessionId: 'next' };
+  broadcast({ ...next, eventRevision: 2, state: { ...next.state, phase: 'drawing', correct: [], remainingMs: 90000 } });
+  progressingStart.reply(next); await flush();
+  reads.shift()({ game: 'draw-guess', phase: 'drawing', round: 1, word: '苹果' }); await flush();
+  assert.equal(node('drawFinishRoundBtn').disabled, false, 'the newer broadcast keeps the drawing controls active');
+  assert.equal(node('drawWordPicker').open, false);
+  assert.equal(messages.length, 0, 'a host already drawing must not receive the old choose-word prompt');
+});
+
+test('draw start accepts its own broadcast and drops a choose-word prompt after stopping during the host read', async () => {
+  const { node, start, commands, reads, messages, flush, broadcast, hostState } = await createGameCommandFixture();
+  const session = { sessionId: 'draw', eventRevision: 1, game: 'draw-guess',
+    state: { phase: 'choosing', round: 1, totalRounds: 3, roundDurationMs: 90000 } };
+  start('draw-guess').listeners.click();
+  broadcast(session);
+  commands.shift().reply(session); await flush();
+  reads.pop()(hostState(session)); await flush();
+  assert.equal(node('drawWordPicker').open, true, 'a matching start broadcast must not block the word picker');
+  assert.equal(messages.length, 1);
+  reads.shift()(hostState(session)); await flush();
+
+  node('gamesStopBtn').listeners.click();
+  commands.shift().reply(null); await flush();
+  start('draw-guess').listeners.click();
+  const next = { ...session, sessionId: 'next' };
+  commands.shift().reply(next); await flush();
+  node('gamesStopBtn').listeners.click();
+  commands.shift().reply(null); await flush();
+  reads.shift()(hostState(next)); await flush();
+  assert.equal(node('drawWordPicker').open, false, 'stopping while the host read is pending keeps the picker closed');
+  assert.equal(messages.length, 1, 'the completed old host read must not add a choose-word prompt');
 });

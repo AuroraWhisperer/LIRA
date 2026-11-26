@@ -1,49 +1,5 @@
 <section id="giftAssistantPage" class="main-page gift-page">
   <div class="gift-workspace">
-    <div class="gift-controls-grid">
-      <section class="gift-control-panel gift-monitoring-panel">
-        <div class="gift-control-heading">
-          <h2 class="gift-section-title ui-section-title"><label for="giftMonitoringEnabled">监控礼物</label></h2>
-          <lira-help label="监控礼物说明" tooltip-id="giftMonitoringHelp">默认由云端持续监控，关掉软件也会继续收礼。关闭后将停止接收新礼物和自动答谢（历史记录保留，不影响弹幕监控）。</lira-help>
-        </div>
-        <label class="switch-control">
-          <input id="giftMonitoringEnabled" type="checkbox" aria-label="监控礼物" aria-describedby="giftMonitoringHelp" checked />
-          <span class="switch-track" aria-hidden="true"></span>
-        </label>
-      </section>
-
-      <section class="gift-control-panel gift-detection-panel">
-        <div class="gift-control-heading">
-          <h2 class="gift-section-title ui-section-title"><label for="giftDetectToggle">礼物统计</label></h2>
-          <div class="gift-control-detail">
-            <span id="giftSprintStatus" class="pill warn">未开启</span>
-            <lira-help label="礼物统计说明" tooltip-id="giftStatisticsHelp">控制这台电脑是否统计礼物。关闭后暂停统计，不影响加班机和云端接收礼物；如需停止接收新礼物，请关闭「监控礼物」。</lira-help>
-          </div>
-        </div>
-        <label class="switch-control">
-          <input id="giftDetectToggle" type="checkbox" aria-label="礼物统计" aria-describedby="giftStatisticsHelp" checked />
-          <span class="switch-track" aria-hidden="true"></span>
-        </label>
-      </section>
-
-      <section class="gift-control-panel gift-notification-panel">
-        <div class="gift-control-heading">
-          <h2 class="gift-section-title ui-section-title"><label for="enableGiftNotification">礼物提示</label></h2>
-        </div>
-        <label class="switch-control">
-          <input id="enableGiftNotification" type="checkbox" aria-label="礼物提示" checked />
-          <span class="switch-track" aria-hidden="true"></span>
-        </label>
-      </section>
-
-      <section class="gift-control-panel gift-interaction-panel">
-        <div class="gift-control-heading">
-          <h2 class="gift-section-title ui-section-title">查询回复</h2>
-        </div>
-        <button id="giftQuerySettingsLink" class="secondary" type="button">前往弹幕互动设置</button>
-      </section>
-    </div>
-
     <section class="panel gift-recent-panel" data-state="ready">
       <div class="panel-header">
         <div class="gift-recent-heading" id="giftRecentHeading">
@@ -51,8 +7,30 @@
             <img src="/img/admin/gifts/gift-section-icon.webp?v=20260801-01" alt="" />
           </span>
           <h2 class="gift-section-title ui-section-title">最近礼物</h2>
+          <span id="giftSprintStatus" class="pill warn" hidden>统计已暂停</span>
         </div>
-        <div class="actions">
+        <div class="actions gift-recent-actions">
+          <div class="gift-header-controls" role="group" aria-label="礼物提示、统计与监控开关">
+            <label class="switch-control gift-header-switch" data-gift-control="notification">
+              <span class="gift-header-switch-label">礼物提示</span>
+              <input id="enableGiftNotification" type="checkbox" aria-label="礼物提示" aria-describedby="giftControlsHelp" checked />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+            <span class="gift-header-control-divider" aria-hidden="true"></span>
+            <label class="switch-control gift-header-switch" data-gift-control="statistics">
+              <span class="gift-header-switch-label">礼物统计</span>
+              <input id="giftDetectToggle" type="checkbox" aria-label="礼物统计" aria-describedby="giftControlsHelp" checked />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+            <span class="gift-header-control-divider" aria-hidden="true"></span>
+            <label class="switch-control gift-header-switch" data-gift-control="monitoring">
+              <span class="gift-header-switch-label">监控礼物</span>
+              <input id="giftMonitoringEnabled" type="checkbox" aria-label="监控礼物" aria-describedby="giftControlsHelp" checked />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+            <lira-help label="礼物开关说明" tooltip-id="giftControlsHelp"><strong>礼物提示：</strong>收到新礼物时在右上角弹窗提醒。<br /><strong>礼物统计：</strong>控制这台电脑是否记账（暂停时弹窗也会静默，不影响加班机和云端收礼）。<br /><strong>监控礼物：</strong>云端持续收礼与自动答谢总开关，关软件仍生效；关闭后停止接收新礼物（历史记录保留，不影响弹幕监控）。</lira-help>
+          </div>
+          <span class="gift-header-actions-divider" aria-hidden="true"></span>
           <button type="button" id="giftHistoryOpenBtn" class="gift-history-open-btn" title="查看全部礼物记录">
             <span>查看全部</span>
             <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -122,11 +100,11 @@
             aria-expanded="true"
             title="折叠盲盒盈亏"
           >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
               <path
-                d="m7 14 5-5 5 5"
+                d="m6 12 4-4 4 4"
                 stroke="currentColor"
-                stroke-width="2"
+                stroke-width="1.8"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />

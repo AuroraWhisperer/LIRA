@@ -35,6 +35,7 @@ const VERTEX = `
 const FRAGMENT = `
   precision highp float;
   uniform vec2 center;
+  uniform vec2 pixelToCss;
   uniform float radius;
   uniform vec3 east;
   uniform vec3 north;
@@ -43,7 +44,7 @@ const FRAGMENT = `
   uniform sampler2D dayMap;
   uniform sampler2D nightMap;
   void main() {
-    vec2 p = (gl_FragCoord.xy - center) / radius;
+    vec2 p = (gl_FragCoord.xy * pixelToCss - center) / radius;
     float distance = length(p);
     if (distance > 1.0) {
       float halo = exp(-(distance - 1.0) * 65.0) * 0.30;
@@ -105,7 +106,7 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
   const position = gl.getAttribLocation(program, 'position');
   gl.enableVertexAttribArray(position);
   gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
-  const uniforms = Object.fromEntries(['center', 'radius', 'east', 'north', 'front', 'sun', 'dayMap', 'nightMap']
+  const uniforms = Object.fromEntries(['center', 'pixelToCss', 'radius', 'east', 'north', 'front', 'sun', 'dayMap', 'nightMap']
     .map(name => [name, gl.getUniformLocation(program, name)]));
   const anisotropy = gl.getExtension('EXT_texture_filter_anisotropic');
   const textures = images.map((image, index) => {
@@ -150,14 +151,14 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
   const wrapLongitude = value => ((value % 360) + 540) % 360 - 180;
 
   function draw() {
-    if (!active || disposed || contextLost || !width || !height) return;
+    if (!active || disposed || contextLost || !width || !height || !canvas.width || !canvas.height) return;
     const axes = { front: coordinates(lat, lon), east: coordinates(0, lon + 90), north: coordinates(lat + 90, lon) };
-    const pixelRatio = Math.min(devicePixelRatio || 1, 2);
     radius = Math.min(width * 0.43, height * 0.455) * scale;
     const cx = width * 0.5;
     const cy = height * 0.51;
-    gl.uniform2f(uniforms.center, cx * pixelRatio, (height - cy) * pixelRatio);
-    gl.uniform1f(uniforms.radius, radius * pixelRatio);
+    gl.uniform2f(uniforms.pixelToCss, width / canvas.width, height / canvas.height);
+    gl.uniform2f(uniforms.center, cx, height - cy);
+    gl.uniform1f(uniforms.radius, radius);
     for (const key of ['east', 'north', 'front']) gl.uniform3fv(uniforms[key], axes[key]);
     gl.uniform3fv(uniforms.sun, sun);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -185,17 +186,38 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
     }
   }
 
-  function resize() {
-    if (!active || disposed || contextLost) return;
-    width = canvas.clientWidth;
-    height = canvas.clientHeight;
+  let bufferInitialized = false;
+  let bufferResizeTimer = 0;
+
+  function syncBackingBuffer() {
+    clearTimeout(bufferResizeTimer);
+    bufferResizeTimer = 0;
+    if (!active || disposed || contextLost || !width || !height) return;
     const pixelRatio = Math.min(devicePixelRatio || 1, 2);
-    const pixelWidth = Math.round(width * pixelRatio);
-    const pixelHeight = Math.round(height * pixelRatio);
-    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
+    const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
+    if (!bufferInitialized || canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
       canvas.width = pixelWidth;
       canvas.height = pixelHeight;
       gl.viewport(0, 0, pixelWidth, pixelHeight);
+      bufferInitialized = true;
+    }
+  }
+
+  function resize(immediate = false) {
+    if (!active || disposed || contextLost) return;
+    width = canvas.clientWidth;
+    height = canvas.clientHeight;
+    if (!width || !height) return;
+    // Keep the sphere geometrically exact while deferring D3D11 framebuffer reallocation during sidebar/window transitions.
+    if (immediate || !bufferInitialized) {
+      syncBackingBuffer();
+    } else {
+      clearTimeout(bufferResizeTimer);
+      bufferResizeTimer = setTimeout(() => {
+        syncBackingBuffer();
+        startFrame();
+      }, 140);
     }
     startFrame();
   }
@@ -272,7 +294,7 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
     markerLayer.hidden = true;
     onError('地球显示中断，请刷新页面');
   });
-  const observer = new ResizeObserver(resize);
+  const observer = new ResizeObserver(() => resize());
   observer.observe(canvas);
   const labelObserver = new ResizeObserver(entries => {
     for (const entry of entries) {
@@ -291,9 +313,11 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
       if (active === value) return;
       active = value;
       if (active) {
-        resize();
+        resize(true);
         if (rotating || destination) startFrame();
       } else {
+        clearTimeout(bufferResizeTimer);
+        bufferResizeTimer = 0;
         cancelAnimationFrame(animation);
         animation = 0;
         drag = null;
@@ -329,6 +353,8 @@ export async function createGlobe(canvas, markerLayer, onSelect, onRotationChang
     },
     destroy() {
       disposed = true;
+      clearTimeout(bufferResizeTimer);
+      bufferResizeTimer = 0;
       cancelAnimationFrame(animation);
       observer.disconnect();
       labelObserver.disconnect();

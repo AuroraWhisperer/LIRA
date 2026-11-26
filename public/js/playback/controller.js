@@ -323,7 +323,7 @@ export function createPlaybackController(initialOptions = {}) {
   });
   const {
     takeNextPlaybackTrack,
-    takePlaybackQueueTrack,
+    playPlaybackQueueTrack,
     clearPlaybackQueue,
     jumpToPlaylistTrack,
     rebuildPlaybackShuffleOrder,
@@ -460,9 +460,8 @@ export function createPlaybackController(initialOptions = {}) {
     closeTrackMenu: (restoreFocus) => homeHandler.closeTrackMenu(restoreFocus),
     handlePlaybackHomeTrackAction,
     handlePlaybackSearchAction,
-    takePlaybackQueueTrack,
+    playPlaybackQueueTrack,
     jumpToPlaylistTrack,
-    playPlaybackTrack,
     rebuildPlaybackShuffleOrder,
     refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState(),
   });
@@ -484,6 +483,7 @@ export function createPlaybackController(initialOptions = {}) {
     notePlaybackProgress: playbackControls.notePlaybackProgress,
     flushPlaybackStateOnUnload: statePersistence.flushPlaybackStateOnUnload,
     flushPlaybackStateForShutdown: statePersistence.flushPlaybackStateForShutdown,
+    flushWeeklySchedule: initialOptions.flushWeeklySchedule,
     refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState(),
   });
 

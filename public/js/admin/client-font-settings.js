@@ -1,6 +1,5 @@
 import { ensureSavedFontOption, fontValueForStack, registerFontSelect } from '../shared/font-library.js';
-import { findSharedFont } from '../shared/font-catalog.js';
-import { CLIENT_FONT_IDS, DEFAULT_CLIENT_FONT_ID, clientFontById } from '../shared/client-font-theme.js';
+import { CLIENT_FONTS, CLIENT_FONT_SOURCES, DEFAULT_CLIENT_FONT_ID, clientFontById } from '../shared/client-font-theme.js';
 import { applySavedClientFont, prepareClientFont } from '../shared/client-font-runtime.js';
 
 const ORIGINAL_FONT_NAMES = {
@@ -17,7 +16,7 @@ export function initClientFontSettings(documentRef, bridge) {
   const stack = documentRef.defaultView.getComputedStyle(documentRef.documentElement).getPropertyValue('--font-body-original');
   const originalFont = fontValueForStack(select, stack, 'sans-serif');
   const family = originalFont.replace(/^"|"$/g, '');
-  originalOption.textContent = `${ORIGINAL_FONT_NAMES[family] ?? family}（原界面）`;
+  originalOption.textContent = `${ORIGINAL_FONT_NAMES[family] ?? family}（默认）`;
   originalOption.dataset.fontFamily = originalFont;
   const feedback = documentRef.getElementById('clientFontFeedback');
   const setFeedback = (text, state = '') => {
@@ -27,18 +26,35 @@ export function initClientFontSettings(documentRef, bridge) {
   };
   let saved = documentRef.documentElement.dataset.clientFont || DEFAULT_CLIENT_FONT_ID;
   const restoreSelection = () => {
-    const value = clientFontById(saved)?.value ?? DEFAULT_CLIENT_FONT_ID;
+    const font = clientFontById(saved);
+    const value = font?.value ?? DEFAULT_CLIENT_FONT_ID;
     ensureSavedFontOption(select, value);
     select.value = value;
+    const option = select.selectedOptions[0];
+    if (font && option?.dataset.savedLocalFont) option.textContent = font.label.split(' · ')[0];
   };
-  const unregister = registerFontSelect(select, { allowedFonts: { shared: CLIENT_FONT_IDS }, namesOnly: true });
-  window.addEventListener('pagehide', unregister, { once: true });
   restoreSelection();
   select.disabled = !bridge?.setClientFont;
 
+  // Resolve the five local CSS families on demand, alongside the shared previews.
+  select.addEventListener('lira-select-open', () => {
+    const unregister = registerFontSelect(select, { allowedFonts: { shared: CLIENT_FONT_SOURCES.shared }, namesOnly: true });
+    window.addEventListener('pagehide', unregister, { once: true });
+    const firstGroup = select.querySelector('optgroup');
+    for (const font of CLIENT_FONT_SOURCES.local) {
+      if (fontValueForStack(select, font.value, '') !== font.value) continue;
+      const option = documentRef.createElement('option');
+      option.value = font.value;
+      option.textContent = font.label;
+      option.dataset.fontFamily = font.value;
+      select.insertBefore(option, firstGroup);
+    }
+    restoreSelection();
+  }, { once: true });
+
   select.addEventListener('change', async () => {
     if (select.disabled) return;
-    const next = findSharedFont(select.value)?.id ?? select.value;
+    const next = CLIENT_FONTS.find(font => font.value === select.value)?.id ?? select.value;
     select.disabled = true;
     setFeedback('正在准备字体…', 'busy');
     try {

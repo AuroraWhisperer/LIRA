@@ -14,7 +14,8 @@ const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/process
 
 test('progress creates pending, disable ignores it, and old epochs never reopen it', () => {
   const fixture = createFixture();
-  const service = fixture.createService();
+  const updates = [];
+  const service = fixture.createService({ onUpdate: (update) => updates.push(update) });
   const consumer = createOvertimeConsumer({ service });
 
   try {
@@ -29,6 +30,8 @@ test('progress creates pending, disable ignores it, and old epochs never reopen 
 
     service.act('disable');
     assert.equal(fixture.getSettlement(progress.giftEventId).status, 'ignored');
+    assert.equal(updates.at(-1).state.pendingCount, 0);
+    assert.equal(updates.at(-1).state.settlements[0].giftEventId, progress.giftEventId);
     service.act('enable');
     fixture.finalizeGift(progress.giftEventId);
     consumer.handle({ ...progress, phase: 'final' });
@@ -39,6 +42,32 @@ test('progress creates pending, disable ignores it, and old epochs never reopen 
     service.dispose();
     fixture.close();
   }
+});
+
+test('recent settlements follow completion order with a frozen or corrected clock and after reload', (t) => {
+  const fixture = createFixture();
+  let service = fixture.createService();
+  t.after(() => { service.dispose(); fixture.close(); });
+  service.act('enable');
+  service.replaceRules([fixedRule('gift-a', 300)]);
+  const longCombo = fixture.insertProgressGift({ overtimeEpoch: 1 });
+  service.observeGift(longCombo);
+  for (let index = 0; index < 20; index++) {
+    service.finalizeGift(fixture.insertFinalGift({ overtimeEpoch: 1 }));
+  }
+  fixture.clock.advanceWall(-3_600_000);
+  fixture.finalizeGift(longCombo.giftEventId);
+  service.finalizeGift(longCombo);
+  assert.equal(service.getOverview().settlements[0].giftEventId, longCombo.giftEventId);
+  assert.equal(service.getOverview().settlements.length, 20);
+  const next = fixture.insertFinalGift({ overtimeEpoch: 1 });
+  service.finalizeGift(next);
+  assert.equal(service.getOverview().settlements[0].giftEventId, next.giftEventId, 'same timestamp preserves completion order');
+  service.finalizeGift(longCombo);
+  assert.equal(service.getOverview().settlements[0].giftEventId, next.giftEventId, 'duplicate final does not reorder history');
+  service.dispose();
+  service = fixture.createService();
+  assert.equal(service.getOverview().settlements[1].giftEventId, longCombo.giftEventId);
 });
 
 test('running gift settlement counts the time spent writing the adjustment', (t) => {

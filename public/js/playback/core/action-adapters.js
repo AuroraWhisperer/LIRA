@@ -55,7 +55,7 @@ export function createPlaybackActionAdapters({
 
   return {
     loadPlaybackHomeContent: (action) =>
-      homeHandler.loadPlaybackHomeContent(action, () => providerOperations.getAuthState()),
+      homeHandler.loadPlaybackHomeContent(action, () => providerOperations.waitForAuthState()),
     loadPlaybackPlaylistTracks: (index) => homeHandler.loadPlaybackPlaylistTracks(index),
     refreshPlaybackHomeContent: () => homeHandler.refreshPlaybackHomeContent(),
     handlePlaybackHomeBulkAction: (action) => homeHandler.handlePlaybackHomeBulkAction(action, queueCallbacks),

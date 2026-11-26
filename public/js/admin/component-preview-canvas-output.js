@@ -68,19 +68,18 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         await Promise.all(targets.map(({ controller }) => controller.flush()));
         if (JSON.stringify(canvas.getState().draft.document) !== document) throw new Error('场景已变化，请再次保存并应用。');
       }
-      const sharedSource = action === 'source' && item?.appearance.mode === 'shared';
-      const result = await connection.execute(action, sharedSource ? { itemId: item.id } : undefined);
+      const result = await connection.execute(action, action === 'source' && item ? { itemId: item.id } : undefined);
       if (disposed) return;
       if (action === 'source') {
         if (item && !result.itemIds?.includes(item.id)) throw new Error('请先保存并应用此组件，再复制单组件地址。');
-        const url = item?.appearance.mode === 'shared'
-          ? new URL(SCENE_COMPONENTS[item.type].sourceUrl, localOverlayOrigin()).href
+        const url = result.sharedType
+          ? new URL(SCENE_COMPONENTS[result.sharedType].sourceUrl, localOverlayOrigin()).href
           : sceneSourceUrl({ ...result, ...(item ? { item: item.id } : {}) });
         sourceName = item ? item.name : '直播场景';
         source.textContent = url;
         showSource(item ? copyComponent : copy);
         await copyText(url);
-        const size = sharedSource ? result.componentSizes?.[item.type] : item ? result.itemSizes?.[item.id] : result.canvas;
+        const size = result.sharedType ? result.componentSizes?.[result.sharedType] : item ? result.itemSizes?.[item.id] : result.canvas;
         report(`地址已复制；浏览器源尺寸设为 ${size ? `${size.width} × ${size.height}` : '已发布画面的像素尺寸'}。后续点击“保存并应用”即可，地址不变。`, 'success');
       } else report(() => controllers.some(({ controller }) => controller.getState().dirty)
         ? '本次已应用，新修改仍需保存' : '已保存并应用到直播源', 'success');
@@ -95,8 +94,9 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
   copyComponent.addEventListener('click', () => { const item = getSelection?.(); if (item) toggleSource(item); });
   apply.addEventListener('click', () => { void run('publish'); });
   return {
-    render(connected, saving) {
-      copy.disabled = apply.disabled = !connected || saving || busy;
+    render(connected, saving, publishBlocked) {
+      copy.disabled = !connected || saving || busy;
+      apply.disabled = copy.disabled || publishBlocked;
       source.disabled = copy.disabled;
       copyComponent.hidden = !getSelection?.();
       copyComponent.disabled = copy.disabled;

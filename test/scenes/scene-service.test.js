@@ -565,7 +565,8 @@ test('publication freezes all appearances while draft saves, business data and c
   state.color = 'black';
   const draft = { ...saved.document, title: 'unpublished changes' };
   service.save({ id, expectedRevision: 2, document: draft });
-  const publishedSource = { ...source, canvas: output.document.canvas, itemIds: output.document.items.map((item) => item.id),
+  const sharedTypes = Object.fromEntries(saved.document.items.filter(item => item.appearance.mode === 'shared').map(item => [item.id, item.type]));
+  const publishedSource = { ...source, sharedTypes, canvas: output.document.canvas, itemIds: output.document.items.map(item => item.id),
     itemSizes: Object.fromEntries(output.document.items.map(item => [item.id, { width: item.width, height: item.height }])) };
   assert.deepEqual(service.getSource(id), publishedSource);
   assert.deepEqual(service.getOutput({ ...source, version: 0 }).document, output.document);
@@ -577,6 +578,23 @@ test('publication freezes all appearances while draft saves, business data and c
   assert.equal(republished.publishedVersion, 2);
   assert.equal(service.getOutput({ ...source, version: 1 }).document.items[0].appearance.config.color, 'black');
   assert.deepEqual(service.getSource(id), publishedSource);
+});
+
+test('source routing uses the published appearance when the same layer changes type in a later draft', t => {
+  const { ports } = fixture(t);
+  const service = createSceneService({ ...ports, normalizeConfig: (type, config) => type === 'browser' ? config : normalizeConfig(type, config) });
+  const clock = item('clock');
+  const saved = saveItems(service, create(service), [clock]);
+  const id = saved.document.id;
+  service.publish({ id, expectedRevision: saved.revision });
+  const independent = { ...clock, type: 'browser', appearance: { mode: 'independent', config: {
+    url: 'https://example.test/', viewportWidth: 320, viewportHeight: 180 } } };
+  const next = saveItems(service, saved, [independent]);
+  assert.equal(service.getSource(id).sharedTypes[clock.id], 'clock');
+  service.publish({ id, expectedRevision: next.revision });
+  saveItems(service, next, [clock]);
+  assert.equal(service.getSource(id).sharedTypes[clock.id], undefined);
+  assert.deepEqual(service.getSource(id).itemIds, [clock.id]);
 });
 
 test('cross-scene tokens, changed owner, changed server and logout cannot read previous scene', (t) => {
@@ -722,7 +740,7 @@ test('published source survives actual database close/reopen and a new service i
   const expected = service.get(id);
   const published = service.getOutput(source).document;
   const restored = restart();
-  assert.deepEqual(restored.getSource(id), { ...source, canvas: published.canvas, itemIds: published.items.map((item) => item.id),
+  assert.deepEqual(restored.getSource(id), { ...source, sharedTypes: { [published.items[0].id]: 'clock' }, canvas: published.canvas, itemIds: published.items.map((item) => item.id),
     itemSizes: Object.fromEntries(published.items.map(item => [item.id, { width: item.width, height: item.height }])) });
   assert.deepEqual(restored.get(id), expected);
   assert.deepEqual(restored.getOutput(source).document, published);

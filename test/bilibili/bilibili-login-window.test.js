@@ -136,6 +136,18 @@ test('login window removes its cookie listener when initial navigation fails', a
   }
 });
 
+test('successful auto-close wins over the interrupted initial navigation', async t => {
+  t.mock.method(FakeBrowserWindow.prototype, 'loadURL', function () {
+    return new Promise((_resolve, reject) => this.once('closed', () => reject(new Error('navigation interrupted'))));
+  });
+  const completion = open(createAuth({
+    getBilibiliSessionState: async () => ({ loggedIn: true, uid: 123 }),
+    getBilibiliAuthState: async () => ({ loggedIn: true, uid: 123 }),
+  }));
+  FakeBrowserWindow.latest.webContents.session.cookies.emit('changed');
+  assert.equal((await completion).state.uid, 123);
+});
+
 test('login window resolves with a logged-out state when final auth lookup fails', async () => {
   const logs = [];
   const resultPromise = open(

@@ -85,6 +85,27 @@ test('people and detail escape platform and former names while former names rema
   assert.equal(saved.platformName, '<新昵称>');
 });
 
+test('record cards retain the anniversary date and pin active topics, followups and cautions', async t => {
+  const f = fanFixture(t);
+  const p = f.create({ birthday: { calendar: 'lunar', monthDay: '06-06', leapMonth: true } });
+  for (const kind of ['topic', 'followup', 'caution']) {
+    f.record(p.id, kind, { body: `pinned-${kind}`, pinned: true }, { occurredAt: '2026-09-01T04:00:00Z' });
+    f.record(p.id, kind, { body: `new-${kind}` });
+  }
+  f.record(p.id, 'anniversary', { name: '<纪念日>', date: '2026-12-16', annual: true });
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const markup = view.renderDetail(f.detail(p.id));
+  assert.ok(markup.includes(view.dateLabel('2026-12-16')));
+  assert.match(markup, /&lt;纪念日&gt;/);
+  assert.doesNotMatch(markup, /<纪念日>/);
+  const visibleText = markup.replace(/<[^>]*>/g, '');
+  for (const kind of ['topic', 'followup', 'caution'])
+    assert.ok(visibleText.indexOf(`pinned-${kind}`) < visibleText.indexOf(`new-${kind}`));
+  const solar = view.renderDetail({ ...f.detail(p.id), birthday: { calendar: 'solar', monthDay: '06-06' } });
+  const lunar = view.renderDetail({ ...f.detail(p.id), birthday: { calendar: 'lunar', monthDay: '06-06' } });
+  assert.equal(new Set([markup, solar, lunar]).size, 3);
+});
+
 test('people names escape aliases and omit missing or duplicate platform names', async () => {
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const aliased = view.renderPeople([{ id: 'alias', alias: '<小海>', platformName: '海风' }], null, false);
@@ -419,6 +440,42 @@ test('switching membership mode excludes the hidden invalid count from native va
   assert.equal(await page.locator('[name=totalDays]').inputValue(), '1.5');
 });
 
+test('profile lookup respects excluded former names while unbinding requires a surviving name', async t => {
+  const { chromium } = require('playwright');
+  const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+  const server = await startComponentPreviewServer({ parentHtml: '<!doctype html><dialog open><form></form></dialog>' });
+  t.after(() => server.close());
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  const url = `${server.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const f = fanFixture(t);
+  const p = f.create({ formerNames: ['人工排除', '原来名字'] });
+  f.consume([{ name: '平台昵称' }]);
+  const profile = f.run('save', { id: p.id, revision: f.detail(p.id).revision, alias: '', formerNames: ['原来名字'] });
+  await page.evaluate(async profile => {
+    const { profileForm } = await import('/js/admin/fans/forms.js');
+    const form = document.querySelector('form');
+    window.editor = profileForm(profile, { lookupFormerNames: async () => ({ names: ['人工排除', '原来名字', '新名字'] }) });
+    form.innerHTML = window.editor.fields;
+    window.editor.bind(form);
+  }, profile);
+  await page.locator('[data-former-fetch]').click();
+  await page.waitForFunction(() => document.querySelector('[name=formerNames]').value.includes('新名字'));
+  assert.equal(await page.locator('[name=formerNames]').inputValue(), '原来名字\n新名字');
+  const payload = await page.evaluate(() => window.editor.read(document.querySelector('form')));
+  const saved = f.run('save', payload);
+  assert.deepEqual(saved.excludedFormerNames, ['人工排除']);
+  await page.locator('[name=identityValue]').fill('');
+  assert.equal(await page.locator('form').evaluate(form => form.checkValidity()), false);
+  await page.locator('[name=alias]').fill('保留的称呼');
+  assert.equal(await page.locator('form').evaluate(form => form.checkValidity()), true);
+  const unbound = await page.evaluate(() => window.editor.read(document.querySelector('form')));
+  assert.equal(f.run('save', { ...unbound, revision: saved.revision }).alias, '保留的称呼');
+});
+
 test('editing a zero-day baseline preserves zero and keeps the other metric unknown', async t => {
   const f = fanFixture(t);
   const profile = f.create();
@@ -438,12 +495,12 @@ test('editing a zero-day baseline preserves zero and keeps the other metric unkn
 test('membership conflicts retain both resolution choices and escape raw data', async () => {
   const confirmed = {
     id: 'confirmed-membership', kind: 'membership', original: { source: 'manual' },
-    data: { type: 'interval', level: 3, startAt: '2026-08-31T16:00:00.000Z',
-      endAt: '2026-12-31T16:00:00.000Z', decision: 'adopted', reason: '<上次确认>' },
+    data: { type: 'interval', precision: 'instant', level: 3, startAt: '2026-08-31T16:00:00.000Z',
+      endAt: '2026-11-30T12:00:00.123Z', decision: 'adopted', reason: '<上次确认>' },
   };
   const pending = {
     id: 'pending-membership', kind: 'membership', original: { source: 'platform' },
-    data: { type: 'interval', level: 3, startAt: '2026-08-31T16:00:00.000Z',
+    data: { type: 'interval', precision: 'date', level: 3, startAt: '2026-08-31T16:00:00.000Z',
       endAt: '2026-11-30T16:00:00.000Z', decision: 'pending', conflicts: [confirmed.id] },
   };
   const profile = {
@@ -453,6 +510,7 @@ test('membership conflicts retain both resolution choices and escape raw data', 
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const rendered = view.renderDetail(profile, 'membership');
   assert.match(rendered, /&lt;上次确认&gt;/);
+  assert.match(rendered, /2026-11-30 20:00:00\.123/);
   for (const action of ['resolve-adopt', 'resolve-keep']) {
     const buttons = actionTags(rendered, action);
     assert.equal(buttons.length, 1);

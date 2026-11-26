@@ -17,11 +17,16 @@ const labels = new Set(Object.values(SONG_IMPORT_ALIASES).flat());
 const enabledCells = new Set(['是', '可点', '启用', 'true', 'yes', 'y', '1', '否', '不可点', '停用', 'false', 'no', 'n', '0']);
 
 export function hasSongImportHeader(row, table) {
+  const isName = (cell) => SONG_IMPORT_ALIASES.name.includes(cell);
+  // Extra fields cannot disambiguate the ten positional song columns. Keep a
+  // name heading found only beyond those columns available to external tables.
+  if (row.length > 10 && row.findIndex(isName) < 10) {
+    row = row.slice(0, 10);
+  }
   const isLabel = (cell) => labels.has(cell);
   if (row.length !== 10) return row.some(isLabel);
   // A complete set of headings with a missing name must still fail the preview.
   if (Array.from(row.slice(1)).every(isLabel)) return true;
-  const isName = (cell) => SONG_IMPORT_ALIASES.name.includes(cell);
   if (!row.some(isName)) return false;
 
   if (!row[0] && table.every(cells => !cells[0]?.trim())) return true;

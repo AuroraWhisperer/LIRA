@@ -2,20 +2,23 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { createGiftMaintenanceStore } = require('../../src/storage/gift-maintenance-store');
 const { createOvertimeStore } = require('../../src/storage/overtime-store');
+const { migrateOvertimeSettlementOrder } = require('../../src/storage/overtime-settlement-migration');
 const schema = require('../../src/storage/schema');
 
 function createTestGiftDb() {
-  const tempPath = path.join(os.tmpdir(), `test-gift-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
+  const scratchDir = path.resolve(__dirname, '../../tmp');
+  fs.mkdirSync(scratchDir, { recursive: true });
+  const tempPath = path.join(scratchDir, `test-gift-${Date.now()}-${Math.random().toString(36).slice(2)}.db`);
   const db = new DatabaseSync(tempPath);
   db.exec('PRAGMA journal_mode = WAL');
   db.exec(schema.GIFT_TABLE_SCHEMA);
   db.exec(schema.GIFT_INDEX_SCHEMA);
+  migrateOvertimeSettlementOrder(db);
   return { db, tempPath };
 }
 
@@ -103,6 +106,7 @@ test('local retention bounds each transaction and rolls back only the failing ba
   t.after(() => db.close());
   db.exec(schema.GIFT_TABLE_SCHEMA);
   db.exec(schema.GIFT_INDEX_SCHEMA);
+  migrateOvertimeSettlementOrder(db);
   db.exec(`WITH RECURSIVE rows(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM rows WHERE id < 2500)
     INSERT INTO gift_events (id, platform_id, gift_name, created_at, updated_at)
     SELECT id, 'expired-' || id, 'gift', '2020-01-01', '2020-01-01' FROM rows`);
@@ -140,6 +144,7 @@ test('gift deletion rolls back a single ID and all 40000 matches on a final-chun
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(schema.GIFT_TABLE_SCHEMA);
+  migrateOvertimeSettlementOrder(db);
   db.exec(`WITH RECURSIVE rows(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM rows WHERE id < 40000)
     INSERT INTO gift_events (id, platform_id, gift_id, gift_name, uid, user_name, created_at, updated_at)
     SELECT id, 'expired-' || id, 'gift', 'gift', '1', 'viewer', '2020-01-01', '2020-01-01' FROM rows`);

@@ -60,15 +60,33 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   function update() {
     const changes = rowSelection.refresh();
     const count = state.selected.size;
-    if (get('giftHistoryDeselect')) get('giftHistoryDeselect').disabled = count === 0;
+    get('giftHistoryTools')?.classList?.toggle('has-selection', count > 0);
+    const deselectBtn = get('giftHistoryDeselect');
+    if (deselectBtn) {
+      deselectBtn.disabled = count === 0;
+      deselectBtn.hidden = count === 0;
+    }
     const counter = get('giftHistorySelectedCount');
     if (counter) {
-      const suffix = changes === null ? '' : `（本次 +${changes.added} / -${changes.removed}）`;
-      counter.textContent = `已选 ${count} 条${suffix}`;
+      if (typeof document.createElement === 'function' && typeof counter.replaceChildren === 'function') {
+        const nodes = [`已选 ${count} 条`];
+        if (changes !== null) {
+          const delta = document.createElement('span');
+          delta.className = 'gift-history-selection-delta';
+          delta.textContent = `本次 +${changes.added} / -${changes.removed}`;
+          nodes.push(' ', delta);
+        }
+        counter.replaceChildren(...nodes);
+      } else {
+        const suffix = changes === null ? '' : `（本次 +${changes.added} / -${changes.removed}）`;
+        counter.textContent = `已选 ${count} 条${suffix}`;
+      }
     }
-    if (get('giftHistoryExport')) {
-      get('giftHistoryExport').disabled = count === 0;
-      get('giftHistoryExport').textContent = count ? `导出所选 ${count} 条` : '导出所选';
+    const exportBtn = get('giftHistoryExport');
+    if (exportBtn) {
+      exportBtn.disabled = count === 0;
+      const exportLabel = get('giftHistoryExportLabel') || exportBtn;
+      exportLabel.textContent = count ? `导出所选 ${count} 条` : '导出所选';
     }
     const header = get('giftHistorySelectPage');
     const selected = state.items.filter((item) => state.selected.has(item.eventId)).length;
@@ -80,9 +98,11 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
       input.checked = state.selected.has(input.dataset.giftSelect);
       input.closest('tr').classList.toggle('is-selected', input.checked);
     });
-    if (get('giftHistorySelectAll')) {
-      get('giftHistorySelectAll').disabled = !state.viewRevision || !state.total;
-      get('giftHistorySelectAll').textContent = `选择全部${state.partial ? '已同步' : ''}筛选结果（${state.total} 条）`;
+    const selectAllBtn = get('giftHistorySelectAll');
+    if (selectAllBtn) {
+      selectAllBtn.disabled = !state.viewRevision || !state.total;
+      const formattedTotal = Number(state.total || 0).toLocaleString('zh-CN');
+      selectAllBtn.textContent = `全选${state.partial ? '已同步' : ''}筛选结果 (${formattedTotal})`;
     }
   }
 
@@ -164,7 +184,10 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
           result.data.partial ? `已选 ${state.selected.size} 条已同步记录，仍可能有记录待补齐` : '';
         update();
       } catch (error) {
-        if (current === operation) throw error;
+        if (current === operation) {
+          get('giftHistorySelectionNotice').textContent = '';
+          throw error;
+        }
       } finally {
         if (current === operation) cancelSelection();
       }

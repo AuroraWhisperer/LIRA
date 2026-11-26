@@ -36,6 +36,7 @@ export function createProviderOperations(deps) {
   let playbackAuthState = null;
   let playbackProviderHealth = null;
   let playbackProviderRefreshId = 0;
+  let pendingAuthRefresh = null;
 
   /**
    * 刷新选中音乐源的状态（认证 + 健康检查）
@@ -44,13 +45,28 @@ export function createProviderOperations(deps) {
     const platform = playbackState.selectedSource;
     const refreshId = ++playbackProviderRefreshId;
     if (platform === 'wesing') {
+      pendingAuthRefresh = null;
       playbackAuthState = weSingService.getAuthState();
       playbackProviderHealth = weSingService.getProviderHealth();
       renderPlayback();
       return;
     }
-    const [authResult, healthResult] = await Promise.allSettled([
-      providerManager.refreshAuthState({ platform, notify: false }),
+    playbackAuthState = providerManager.getAuthState(platform);
+    playbackProviderHealth = providerManager.getProviderHealth(platform);
+    const authRequest = providerManager.refreshAuthState({ platform, notify: false })
+      .catch(() => null).then(authState => {
+        const result = authState ?? providerManager.getAuthState(platform);
+        if (refreshId === playbackProviderRefreshId && playbackState.selectedSource === platform) {
+          playbackAuthState = result;
+          renderPlayback();
+        }
+        return result;
+      }).finally(() => {
+        if (pendingAuthRefresh?.promise === authRequest) pendingAuthRefresh = null;
+      });
+    pendingAuthRefresh = { platform, promise: authRequest };
+    const [, healthResult] = await Promise.allSettled([
+      authRequest,
       providerManager.checkProviderHealth({
         platform,
         silent: true,
@@ -59,7 +75,6 @@ export function createProviderOperations(deps) {
     ]);
 
     if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
-    playbackAuthState = (authResult.status === 'fulfilled' ? authResult.value : null) ?? providerManager.getAuthState(platform);
     playbackProviderHealth = providerManager.getProviderHealth(platform);
     if (!playbackProviderHealth && healthResult.status === 'rejected') {
       playbackProviderHealth = {
@@ -280,6 +295,8 @@ export function createProviderOperations(deps) {
     showPlaybackLoginPrompt,
     logoutSelectedMusicProvider,
     getAuthState,
+    waitForAuthState: () => pendingAuthRefresh?.platform === playbackState.selectedSource
+      ? pendingAuthRefresh.promise : getAuthState(),
     getProviderHealth,
   };
 }

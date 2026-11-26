@@ -1,5 +1,6 @@
 import {
   BANNER_WIDTH,
+  applyGiftBannerStyle,
   createGiftBanner,
   createGiftArtworkResolver,
   readyGiftImages,
@@ -7,6 +8,7 @@ import {
 import { EXPORT_SCALE, giftExportRowLayout } from '../../shared/gift-banner-layout.js';
 import { getRoomGuardState } from '../../shared/bilibili-room-guard.js';
 import { refreshParameterRange } from '../../shared/parameter-range.js';
+import { createGiftExportStyleEditor } from './export-style.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -33,7 +35,8 @@ function formatSubdirectory(root, directory) {
   const full = String(directory || '');
   if (base && full.startsWith(base)) {
     const rest = full.slice(base.length);
-    if (rest.startsWith('\\') || rest.startsWith('/')) return rest;
+    if (rest.startsWith('\\') || rest.startsWith('/')) return rest.slice(1);
+    if (base.endsWith('\\') || base.endsWith('/')) return rest;
   }
   return full;
 }
@@ -61,11 +64,13 @@ export function createGiftExportPreview({ showPane }) {
   let page = 0;
   let running = false;
   let configuring = false;
+  let pendingChange = null;
   let attempted = false;
   let retry = false;
   let sequence = 0;
   let artworkCatalog;
   let artwork;
+  let styleEditor;
   const status = (text, state = '') => {
     get('giftExportStatus').textContent = text;
     get('giftExportStatus').dataset.state = state;
@@ -122,8 +127,8 @@ export function createGiftExportPreview({ showPane }) {
     if (split) {
       const badge = document.createElement('span');
       badge.className = 'gift-export-split-badge';
-      badge.title = '单张高度上限 6224 px，超过 39 条自动拆分';
-      badge.textContent = '自动拆图 · ≤39条/张';
+      badge.title = '每张长图最多 50 张卡片，超过后自动拆图';
+      badge.textContent = '自动拆图 · ≤50条/张';
       nodes.push(badge);
     }
     get('giftExportFiles').replaceChildren(...nodes);
@@ -141,6 +146,14 @@ export function createGiftExportPreview({ showPane }) {
     const dirNode = get('giftExportDirectory');
     dirNode.textContent = formatSubdirectory(task.root, task.directory);
     dirNode.title = task.directory;
+  }
+
+  function previewStyle(style) {
+    const start = task.files[page].start;
+    const config = { ...style, sheen: false };
+    Array.from(get('giftExportPreview').children).forEach((banner, index) => {
+      applyGiftBannerStyle(banner, task.snapshot.items[start + index], config);
+    });
   }
 
   async function render() {
@@ -165,19 +178,19 @@ export function createGiftExportPreview({ showPane }) {
     const preview = get('giftExportPreview');
     preview.dataset.background = task.background;
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
-    preview.replaceChildren(
-      ...items.map((item) => createGiftBanner(item, { ...task.snapshot.config, sheen: false }, artwork)),
-    );
+    const config = { ...styleEditor.previewConfig(), sheen: false };
+    preview.replaceChildren(...items.map((item) => createGiftBanner(item, config, artwork)));
     renderSpacing(task.rowGap);
     updateSaveLabel();
     await readyGiftImages(preview);
   }
 
-  function reflectSettings() {
+  function reflectSettings(resetStyle = false) {
     setRadioValue('giftExportMode', task.mode);
     setRadioValue('giftExportBackground', task.background);
     setRadioValue('giftExportSort', task.sortBy);
     get('giftExportMergeAcrossDates').checked = task.mergeAcrossDates === true;
+    styleEditor.reflect(task, resetStyle);
   }
 
   function renderSpacing(rowGap) {
@@ -216,7 +229,7 @@ export function createGiftExportPreview({ showPane }) {
   }
 
   function controls() {
-    get('giftExportSave').disabled = running || configuring || (attempted && !retry);
+    get('giftExportSave').disabled = running || configuring || styleEditor.invalid || (attempted && !retry);
     updateSaveLabel();
     get('giftExportSettingsFields').disabled = running || configuring;
     get('giftExportCancel').hidden = !running;
@@ -229,15 +242,27 @@ export function createGiftExportPreview({ showPane }) {
     artworkCatalog = artwork = null;
     running = false;
     configuring = false;
+    pendingChange = null;
     showPane('list');
   }
 
-  async function configure(options) {
+  function configure(options, keepFocus = false) {
+    const request = sequence;
+    const apply = () => request === sequence && applyConfiguration(options, keepFocus);
+    const next = pendingChange ? pendingChange.then(apply) : Promise.resolve(apply());
+    pendingChange = next;
+    next.finally(() => { if (pendingChange === next) pendingChange = null; });
+    return next;
+  }
+
+  async function applyConfiguration(options, keepFocus) {
     if (!task || running || configuring) return;
     const request = sequence;
-    configuring = true;
+    // A price commits on blur. Let the click that moved focus complete while the write settles.
+    configuring = !keepFocus;
     controls();
-    if (options.directoryAction !== 'choose') status('正在更新导出设置…');
+    const styleChange = options.styleSource !== undefined || options.customStyle !== undefined;
+    if (options.directoryAction !== 'choose' && !styleChange) status('正在更新导出设置…');
     try {
       const next = unwrap(
         await window.giftExport.configure({
@@ -249,31 +274,42 @@ export function createGiftExportPreview({ showPane }) {
         }),
       );
       if (request !== sequence) return;
-      // Choosing a folder allocates a fresh directory even when the root stays the same.
+      // Keep the preview state when the picker leaves the batch directory unchanged.
       if (options.directoryAction === 'choose' && next.directory === task.directory) return;
+      const pageSizeChanged = next.files[0].count !== task.files[0].count;
       task = next;
       attempted = false;
       retry = false;
       get('giftExportOpenFolder').hidden = true;
-      if (options.rowGap !== undefined) {
+      if (styleChange) {
+        styleEditor.reflect(next);
+        previewStyle(styleEditor.previewConfig());
+        renderBatchDirectory();
+        renderSpacing(next.rowGap);
+      } else if (options.rowGap !== undefined && !pageSizeChanged) {
         renderBatchDirectory();
         renderSpacing(next.rowGap);
       } else {
-        page = 0;
+        if (options.rowGap === undefined) page = 0;
         await render();
       }
       if (request !== sequence) return;
-      unwrap(await window.giftExport.settings({
-        mode: next.mode, background: next.background, sortBy: next.sortBy, rowGap: next.rowGap,
-        mergeAcrossDates: next.mergeAcrossDates,
-      }));
+      if (!styleChange) {
+        unwrap(await window.giftExport.settings({
+          mode: next.mode, background: next.background, sortBy: next.sortBy, rowGap: next.rowGap,
+          mergeAcrossDates: next.mergeAcrossDates,
+        }));
+      }
       if (request === sequence) previewStatus();
+      return true;
     } catch (error) {
       if (request === sequence) {
-        reflectSettings();
+        reflectSettings(styleChange);
+        if (styleChange) previewStyle(task.snapshot.config);
         if (options.rowGap !== undefined) renderSpacing(task.rowGap);
         status(error.message, 'error');
       }
+      return false;
     } finally {
       if (request === sequence) {
         configuring = false;
@@ -311,7 +347,9 @@ export function createGiftExportPreview({ showPane }) {
   );
   get('giftExportSave')?.addEventListener('click', () =>
     run(async () => {
-      if (!task || running || configuring || (attempted && !retry)) return;
+      const request = sequence;
+      if (pendingChange && (await pendingChange) === false) return;
+      if (!task || request !== sequence || running || configuring || styleEditor.invalid || (attempted && !retry)) return;
       let current = task;
       const roomGuard = getRoomGuardState();
       running = true;
@@ -367,6 +405,7 @@ export function createGiftExportPreview({ showPane }) {
         window.giftExport.cancel(next.id);
         return;
       }
+      styleEditor ??= createGiftExportStyleEditor({ configure, preview: previewStyle, updateControls: controls });
       task = next;
       configuring = false;
       attempted = false;
@@ -375,8 +414,9 @@ export function createGiftExportPreview({ showPane }) {
       get('giftExportOpenFolder').hidden = true;
       previewStatus();
       showPane('export');
+      const imagesReady = render();
       controls();
-      await render();
+      await imagesReady;
     },
   };
 }

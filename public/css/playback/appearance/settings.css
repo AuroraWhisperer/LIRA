@@ -1,6 +1,10 @@
 /* Appearance editor controls and preview framing. */
 .playback-page.active:has(.player-appearance:not([inert])) {
   scrollbar-width: none;
+
+  @media (forced-colors: none) {
+    --workspace-scrollbar-size: 0px;
+  }
 }
 
 .playback-page.active:has(.player-appearance:not([inert]))::-webkit-scrollbar {

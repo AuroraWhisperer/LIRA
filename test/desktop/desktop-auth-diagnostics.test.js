@@ -7,7 +7,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { createFixture: createCloudFixture } = require('../helpers/cloud-sync-controller-fixture');
 
-function controller(auth, login, music = {}) {
+function controller(auth, login, music = {}, onCloudBilibiliIdentityChanged) {
   const filename = require.resolve('../../src/electron/desktop-auth-controller');
   const localRequire = createRequire(filename);
   const module = { exports: {} };
@@ -31,8 +31,37 @@ function controller(auth, login, music = {}) {
     getDataDir: () => 'synthetic-data',
     getMainWindow: () => null,
     writeLog() {},
+    onCloudBilibiliIdentityChanged,
   });
 }
+
+test('cloud writes reconcile live identity when snapshot persistence fails after changing the partition', async t => {
+  let state = { loggedIn: true, uid: 42 };
+  let fail = true;
+  const observed = [];
+  const failure = new Error('synthetic snapshot write failure');
+  const auth = controller({
+    getBilibiliSessionState: async () => state,
+    async replaceBilibiliCookieHeader() {
+      state = { loggedIn: true, uid: 84 };
+      if (fail) throw failure;
+      return state;
+    },
+    async logoutBilibiliAccount() {
+      state = { loggedIn: false, uid: 0 };
+      throw failure;
+    },
+  }, undefined, {}, () => observed.push(state.uid));
+  t.after(() => auth.dispose());
+  const scope = { isCurrent: () => true };
+  await auth.getBilibiliRequestIdentity();
+  await assert.rejects(auth.replaceBilibiliCookieHeader('fixture', scope), error => error === failure);
+  assert.equal((await auth.getBilibiliRequestIdentity()).uid, 84);
+  fail = false;
+  await auth.replaceBilibiliCookieHeader('fixture', scope);
+  await assert.rejects(auth.logoutBilibiliAccount(scope), error => error === failure);
+  assert.deepEqual(observed, [84, 0]);
+});
 
 test('desktop and embedded music providers use the partition session while the UI reads backup state', async (t) => {
   const { buildMusicRuntime } = require('../../src/server/music-runtime');

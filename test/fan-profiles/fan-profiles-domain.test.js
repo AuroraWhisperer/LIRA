@@ -4,6 +4,21 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('../helpers/fan-profile-fixture');
 
+test('saving validates the final name after unbinding or replacing a platform identity', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.consume([{ name: '平台名字' }]);
+  const named = f.run('save', { id: p.id, revision: f.detail(p.id).revision, alias: '' });
+  for (const identity of [null, { ...IDENTITY, value: '900000002' }]) {
+    assert.throws(() => f.run('save', { id: p.id, revision: named.revision, alias: '', identity }));
+    assert.equal(f.detail(p.id).platformName, '平台名字');
+  }
+  const draft = f.run('save', { id: p.id, revision: named.revision, identity: null, alias: '手动称呼' });
+  assert.equal(draft.platformName, '');
+  assert.throws(() => f.run('save', { id: p.id, revision: draft.revision, alias: '' }));
+  assert.equal(f.run('save', { id: p.id, revision: draft.revision, favorite: true }).alias, '手动称呼');
+});
+
 test('short reminder windows match the full prediction while avoiding distant membership summaries', (t) => {
   const { buildReminders } = require('../../src/fans/reminders');
   const { prepareMembership } = require('../../src/fans/membership');
@@ -15,11 +30,13 @@ test('short reminder windows match the full prediction while avoiding distant me
   assert.ok(full.some(item => item.group === 'later'));
   const summarize = prepareMembership(records);
   let summaries = 0;
+  const counted = Object.assign(at => { summaries++; return summarize(at); }, summarize);
+  counted.milestoneAt = (date, at) => { summaries++; return summarize.milestoneAt(date, at); };
   const short = buildReminders(p, records, [], Date.parse(NOW), {}, {
-    daysAhead: 7, summarize: Object.assign(at => { summaries++; return summarize(at); }, summarize),
+    daysAhead: 7, summarize: counted,
   });
   assert.deepEqual(short, full.filter(item => item.group !== 'later'));
-  assert.equal(summaries, 2, 'today is also the day preceding the only candidate milestone');
+  assert.equal(summaries, 3, 'one current membership plus the candidate and its preceding covered day');
   assert.deepEqual(f.run('reminders'), short);
   assert.deepEqual(f.run('list').profiles[0].nextReminder, short.find(item => ['today', 'week'].includes(item.group)));
   assert.ok(f.run('calendar').every(item => item.date <= '2026-09-21'));

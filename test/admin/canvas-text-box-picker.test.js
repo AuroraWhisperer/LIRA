@@ -90,11 +90,12 @@ test('canvas can reuse a configured desktop text box, customize the independent 
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.nodes.some(node => node.text?.includes('新的祝福')));
   assert.deepEqual((await readItems())[0], source, 'customizing the copy preserves the original config and geometry');
   assert.deepEqual((await readItems())[1].appearance.config.nodes.find(node => node.type === 'gift'), source.appearance.config.nodes[1]);
-  await page.getByRole('switch', { name: '横向滚动', exact: true }).check();
+  const scrollMode = page.getByRole('radiogroup', { name: '自动滚动', exact: true });
+  await scrollMode.getByRole('radio', { name: '横向', exact: true }).click();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollMode === 'horizontal');
   await page.getByRole('slider', { name: '滚动速度', exact: true }).fill('85');
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollSpeed === 85);
-  await page.getByRole('switch', { name: '纵向滚动', exact: true }).check();
+  await scrollMode.getByRole('radio', { name: '纵向', exact: true }).click();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollMode === 'vertical');
   assert.equal((await readItems())[0].appearance.config.scrollMode, 'none', 'scrolling belongs to the selected instance');
   assert.equal((await readItems())[0].appearance.config.scrollSpeed, 40, 'speed belongs to the selected instance');

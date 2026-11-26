@@ -1,4 +1,5 @@
 import { DEFAULT_CLIENT_FONT_ID, clientFontById, isClientFontId } from './client-font-theme.js';
+import { fontValueForStack } from './font-library.js';
 
 let channel;
 let generation = 0;
@@ -7,10 +8,11 @@ export async function prepareClientFont(fontId) {
   if (fontId === DEFAULT_CLIENT_FONT_ID) return true;
   const font = clientFontById(fontId);
   if (!font) return false;
-  // Some families split their glyphs across files. Load every face before switching.
-  const faces = [...document.fonts].filter(face => face.family.replace(/^["']|["']$/g, '') === font.family);
-  if (!faces.length) return false;
+  if (font.local) return fontValueForStack(document.documentElement, font.value, '') === font.value;
   try {
+    // Some families split their glyphs across files. Load every face before switching.
+    const faces = [...document.fonts].filter(face => face.family.replace(/^["']|["']$/g, '') === font.family);
+    if (!faces.length) return false;
     await Promise.all(faces.filter(face => face.status !== 'loaded').map(face => face.load()));
     return true;
   } catch {
@@ -24,9 +26,11 @@ export async function applySavedClientFont(fontId, broadcast = false) {
   const root = document.documentElement;
   root.dataset.clientFont = fontId;
   if (broadcast) channel?.postMessage(fontId);
-  if (fontId === DEFAULT_CLIENT_FONT_ID) {
+  const ready = await prepareClientFont(fontId);
+  if (current !== generation) return;
+  if (fontId === DEFAULT_CLIENT_FONT_ID || !ready) {
     root.style.removeProperty('--client-font-family');
-  } else if (await prepareClientFont(fontId) && current === generation) {
+  } else {
     root.style.setProperty('--client-font-family', clientFontById(fontId).value);
   }
 }

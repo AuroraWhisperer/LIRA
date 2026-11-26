@@ -758,6 +758,32 @@ test('scope loading hides old entries, ignores stale results, and failure retrie
   assert.match(ui.people(), /归档观众B/);
 });
 
+test('deleting an expanded profile returns to the remaining list and ignores a late detail reply', async t => {
+  const ui = await archiveUi(t);
+  ui.f.run('save', { id: ui.b.id, revision: ui.f.detail(ui.b.id).revision, archived: false });
+  await ui.click({ fanId: ui.a.id });
+  await ui.click({ fanAction: 'expand' });
+  assert.equal(ui.nodes.get('fanSplit').classList.contains('fan-expanded'), true);
+  const form = ui.nodes.get('fanEditorForm'), editor = ui.nodes.get('fanEditor');
+  const cancel = ui.documentRef.createElement('button');
+  form.querySelector = selector => selector === '[data-fan-action="cancel-edit"]' ? cancel : null;
+  form.elements = { confirm: { checked: true }, suppress: { checked: false } };
+  editor.showModal = () => { editor.open = true; };
+  editor.close = () => { editor.open = false; editor.fire('close'); };
+  const release = holdReply(ui, 'detail');
+  await ui.click({ fanId: ui.a.id });
+  await ui.click({ fanAction: 'delete' });
+  await form.fire('submit', { preventDefault() {} });
+  await ui.flush();
+  release();
+  await ui.flush();
+  assert.equal(ui.nodes.get('fanSplit').classList.contains('fan-expanded'), false);
+  assert.doesNotMatch(ui.detail(), /当前观众A/);
+  assert.match(ui.people(), /归档观众B/);
+  await ui.click({ fanId: ui.b.id });
+  assert.match(ui.detail(), /归档观众B/);
+});
+
 test('archive and restore preserve identity, notes and reminder state with feedback only after save', async (t) => {
   const ui = await archiveUi(t);
   ui.f.run('reminder-state', { profileId: ui.a.id, key: 'birthday:2026', status: 'handled' });

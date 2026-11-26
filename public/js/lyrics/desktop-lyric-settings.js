@@ -53,6 +53,7 @@ export function normalizeDesktopLyricSettings(settings = {}, defaults = {}) {
     translationScale: clamp(numberSetting(values.desktopLyricTranslationScale, 0.65), 0.4, 1),
     karaokeEnabled: karaokeMode !== 'off',
     karaokeMode,
+    wordBounceEnabled: boolSetting(values.desktopLyricWordBounceEnabled, true),
     hidePassedLines: boolSetting(values.desktopLyricHidePassedLines, false),
     traditionalMode: boolSetting(values.desktopLyricTraditionalMode, false),
     interludeOffsetEm: clamp(numberSetting(values.desktopLyricInterludeOffsetEm, 0), -10, 10),

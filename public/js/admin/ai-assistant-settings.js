@@ -50,6 +50,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
     ['amap', document.getElementById('xiaomiAiAmapTestBtn')],
   ];
   const providerInput = document.getElementById('xiaomiAiModelProvider');
+  providerInput.disabled = true;
   const reasoningInput = document.getElementById('xiaomiAiReasoning');
   let autosaveTimer = null;
   let saving = false;
@@ -63,6 +64,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   let accountRevision = 0;
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
+  let modelTestRevision = 0;
   const editedFieldIds = new Set();
   let personaControls;
   const modelPicker = createAiModelPicker({
@@ -79,6 +81,18 @@ function init({ notify = showStackedToast, confirm } = {}) {
     },
   });
 
+  function applyConfig(config) {
+    // Provider, access mode and remembered endpoint are saved as one selection.
+    if (configLoaded && (editedFieldIds.has(providerInput.id) || editedFieldIds.has('xiaomiAiModelAuthMode'))) return;
+    const previousService = JSON.stringify(modelPicker.readService());
+    renderConfig(config, editedFieldIds);
+    personaControls.render(config, editedFieldIds);
+    if (previousService !== JSON.stringify(modelPicker.readService())) {
+      invalidateModelTest();
+      modelPicker.invalidate({ preserveConfig: true });
+    }
+  }
+
   refreshConfig = async () => {
     const requestRevision = configRevision;
     let requestedAccount = accountRevision;
@@ -94,14 +108,12 @@ function init({ notify = showStackedToast, confirm } = {}) {
         config = await readApi('/api/ai/config');
         if (requestedAccount !== accountRevision || requestRevision !== configRevision) return;
       }
-      const previousService = JSON.stringify(modelPicker.readService());
-      renderConfig(config, editedFieldIds);
-      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate({ preserveConfig: true });
-      personaControls.render(config, editedFieldIds);
+      applyConfig(config);
       renderStatus(status);
       if (status.chatgpt && !accountChanged) subscriptionControls.accept(status.chatgpt, statusRead);
       if (!configLoaded) {
         configLoaded = true;
+        providerInput.disabled = false;
         if (dirty && form.checkValidity()) {
           clearTimeout(autosaveTimer);
           setSaveState('等待自动保存…');
@@ -160,10 +172,6 @@ function init({ notify = showStackedToast, confirm } = {}) {
         return true;
       } catch (error) {
         dirty = true;
-        if (submittedEditVersion === editVersion && restoreManualEndpointAfterProviderSave) {
-          restoreManualEndpointAfterProviderSave = false;
-          renderProviderSelection(providerInput?.value);
-        }
         setSaveState(error.message || '保存 AI 配置失败', 'warn');
         return false;
       } finally {
@@ -223,14 +231,12 @@ function init({ notify = showStackedToast, confirm } = {}) {
     },
     acceptConfig(config) {
       configRevision += 1;
-      const previousService = JSON.stringify(modelPicker.readService());
-      renderConfig(config, editedFieldIds);
-      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate({ preserveConfig: true });
-      personaControls.render(config, editedFieldIds);
+      applyConfig(config);
     },
   });
 
   providerInput?.addEventListener('change', () => {
+    invalidateModelTest();
     const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
     const official = ['deepseek', 'kimi', 'openai', 'anthropic', 'gemini', 'doubao'].includes(providerInput.value);
     restoreManualEndpointAfterProviderSave = !official && Boolean(endpointInput?.disabled);
@@ -243,6 +249,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
     void subscriptionControls.refresh();
   });
   document.getElementById('xiaomiAiModelAuthMode')?.addEventListener('change', () => {
+    invalidateModelTest();
     renderProviderSelection(providerInput.value);
     modelPicker.invalidate();
     void subscriptionControls.refresh();
@@ -250,7 +257,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
 
   form.addEventListener('input', (event) => {
     modelPicker.invalidateField(event.target.id);
-    if (event.target.matches('input[type="checkbox"], input[type="file"]')) return;
+    if (event.target.matches('input[type="checkbox"], input[type="file"]') || event.target.id === 'xiaomiAiChatGptProfiles') return;
     if (event.target.id === 'xiaomiAiPersona') return;
     if (event.target.id) editedFieldIds.add(event.target.id);
     scheduleSave();
@@ -303,20 +310,38 @@ function init({ notify = showStackedToast, confirm } = {}) {
   };
   for (const state of replySwitches) state.input.addEventListener('change', () => saveReplySwitch(state));
 
-  form.addEventListener('submit', (event) => {
+  form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    if (!configLoaded) {
+      if (pendingConfigRefreshes) return;
+      initialLoadPromise = refreshConfig();
+      await initialLoadPromise;
+      if (!configLoaded) return;
+      if (!dirty) setSaveState('已读取配置。', 'good');
+    }
     for (const state of replySwitches) {
       if (editedFieldIds.has(state.input.id) && !state.promise) saveReplySwitch(state);
     }
     if (!form.reportValidity()) return;
-    scheduleSave(true);
+    if (dirty) scheduleSave(true);
   });
 
   for (const [provider, button] of providerTestButtons) {
     button.addEventListener('click', () => void runProviderTest(provider, button));
   }
 
+  function invalidateModelTest() {
+    modelTestRevision++;
+    const detail = document.getElementById('aiTestDetail-deepseek');
+    if (detail) {
+      setState(detail, '');
+      providerTestButtons[0][1].disabled = false;
+    }
+  }
+
   async function runProviderTest(provider, button) {
+    const revision = modelTestRevision;
+    const current = () => provider !== 'deepseek' || revision === modelTestRevision;
     const label = providerLabel(provider);
     button.disabled = true;
     let testDetail = document.getElementById(`aiTestDetail-${provider}`);
@@ -332,11 +357,13 @@ function init({ notify = showStackedToast, confirm } = {}) {
       await initialLoadPromise;
       if (!form.reportValidity()) throw codedClientError('FORM_INVALID', '请先修正表单中的网址或数值。');
       if (!(await flushPendingSave())) throw codedClientError('SAVE_FAILED', '配置保存失败，未运行连接测试。');
+      if (!current()) return;
       setState(testDetail, `正在测试 ${label} 连接…`);
       const result = await readApi(`/api/ai/test/${provider}`, {
         method: 'POST',
         body: '{}',
       });
+      if (!current()) return;
       const detail =
         provider === 'deepseek' && result.reply ? `模型 ${result.model} 回复：${result.reply}` : '地址与密钥均可用';
       setState(testDetail, `${label} 连接正常。${detail}`, 'good');
@@ -347,6 +374,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
         message: '测试详情已保留在测试区域',
       });
     } catch (error) {
+      if (!current()) return;
       const message = providerErrorMessage(provider, error);
       setState(testDetail, `${label}：${message}`, 'warn');
       showProviderToast(notify, {
@@ -356,7 +384,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
         message: '请查看测试区域的错误详情',
       });
     } finally {
-      button.disabled = false;
+      if (current()) button.disabled = false;
     }
   }
 
@@ -364,6 +392,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   const subscriptionControls = createSubscriptionControls({ readApi,
     onAccountChange() {
       accountRevision++;
+      invalidateModelTest();
       modelPicker.invalidate();
     },
     async flushPendingSave() {
@@ -383,8 +412,10 @@ function init({ notify = showStackedToast, confirm } = {}) {
     button?.addEventListener('click', async () => {
       button.disabled = true;
       try {
-        await initialLoadPromise;
-        if (!configLoaded || !(await flushPendingSave())) return;
+        if (operation === 'login') {
+          await initialLoadPromise;
+          if (!configLoaded || !(await flushPendingSave())) return;
+        }
         renderDoubaoStatus(await readApi(`/api/ai/doubao/${operation}`, { method: 'POST' }));
       } catch (error) {
         setState(document.getElementById('xiaomiAiDoubaoState'), error.message, 'warn');

@@ -19,12 +19,16 @@ function normalizeLyricTimeline(input) {
   const lines = [];
   let remainingText = MAX_TEXT_BUDGET;
   let remainingWordBytes = MAX_WORD_BYTES;
+  let truncatedAtMs = Number.isFinite(timeline.truncatedAtMs)
+    ? clampNumber(timeline.truncatedAtMs, 0, MAX_TIME_MS) : null;
 
   for (const candidate of candidates) {
-    if (lines.length >= MAX_LINES) break;
     const { index: _index, ...line } = candidate;
     const textSize = line.text.length + line.translation.length + line.roma.length;
-    if (textSize > remainingText) break;
+    if (lines.length >= MAX_LINES || textSize > remainingText) {
+      truncatedAtMs = Math.min(truncatedAtMs ?? MAX_TIME_MS, line.startMs);
+      break;
+    }
     if (line.words) {
       const wordBytes = Buffer.byteLength(JSON.stringify(line.words), 'utf8');
       if (wordBytes <= remainingWordBytes) remainingWordBytes -= wordBytes;
@@ -44,6 +48,7 @@ function normalizeLyricTimeline(input) {
       : [],
     status,
     lines,
+    ...(truncatedAtMs !== null ? { truncatedAtMs } : {}),
   };
 }
 

@@ -103,6 +103,16 @@ export function createPlaybackQueueCoordinator({
     playPlaybackTrack(track, { origin: 'normal', playlistIndex: index, dailySourceKey });
   }
 
+  function playPlaybackQueueTrack(origin, index) {
+    if (origin !== queueManager.getActiveOrigin() || !Number.isInteger(index)) return;
+    const track = queueManager.getActiveQueue()[index];
+    if (!track) return;
+    return playPlaybackTrack(track, {
+      origin,
+      commitQueueTrack: () => queueManager.takeQueueTrack(origin, queueManager.getActiveQueue().indexOf(track)),
+    });
+  }
+
   function queuePlaybackTrack(track, action, options = {}) {
     if (!track) return;
     if (action === 'play') {
@@ -131,7 +141,7 @@ export function createPlaybackQueueCoordinator({
     insertPlaybackTracksNext,
     insertAndPlayPlaybackTrack,
     takeNextPlaybackTrack,
-    takePlaybackQueueTrack: (origin, index) => queueManager.takeQueueTrack(origin, index),
+    playPlaybackQueueTrack,
     clearPlaybackQueue,
     jumpToPlaylistTrack,
     queuePlaybackTrack,

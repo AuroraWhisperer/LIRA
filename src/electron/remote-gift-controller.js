@@ -76,6 +76,7 @@ function createRemoteGiftController(options = {}) {
   let retryNotBefore = 0;
   let retrySourceKey = null;
   let reconcileTimer = null;
+  let notificationSource = null;
 
   function isAuthorized() {
     return !disposed && licenseManager.getState() === licenseManager.LicenseState.AUTHORIZED;
@@ -170,34 +171,41 @@ function createRemoteGiftController(options = {}) {
         return true;
       }
 
-      expectedSyncEpoch = discovery.syncEpoch;
-      latestCursor = discovery.latestCursor;
-      retentionMode = discovery.giftRetentionVersion === 1;
-      if (retentionMode) {
-        if (currentState.bootstrapComplete && !requiresProjectionReplacement(currentState, discovery)) {
-          if (!(await catchUpCurrent())) return false;
-        }
-        const full = !runtime.getGiftRetentionProgress(currentSource.id).active ||
-          requiresProjectionReplacement(currentState, discovery);
-        if (!(await synchronizeRetention(full))) return false;
-      } else if (requiresProjectionReplacement(currentState, discovery)) {
-        currentState = runtime.resetGiftProjectionForRebuild(currentSource.id);
-      }
-      if (!currentState.bootstrapComplete) {
-        const bootstrapped = await bootstrapHistory(discovery);
-        if (!bootstrapped) return false;
-      }
-      startEventStream(generation);
-      if (streamEpochMismatch) return await rebuildAfterStreamMismatch();
-      const caughtUp = await catchUpCurrent();
-      if (!caughtUp) return false;
-      updateLiveState();
-      return true;
+      return await initializeCurrent(discovery, generation);
     } catch (error) {
       return await handleGenerationError(error, generation);
     } finally {
       initializing = false;
     }
+  }
+
+  async function initializeCurrent(discovery, generation) {
+    abortEventStream();
+    legacyMode = false;
+    epochValidated = false;
+    streamEpochMismatch = false;
+    expectedSyncEpoch = discovery.syncEpoch;
+    latestCursor = discovery.latestCursor;
+    retentionMode = discovery.giftRetentionVersion === 1;
+    if (retentionMode) {
+      if (currentState.bootstrapComplete && !requiresProjectionReplacement(currentState, discovery)) {
+        if (!(await catchUpCurrent())) return false;
+      }
+      const full = !runtime.getGiftRetentionProgress(currentSource.id).active ||
+        requiresProjectionReplacement(currentState, discovery);
+      if (!(await synchronizeRetention(full))) return false;
+    } else if (requiresProjectionReplacement(currentState, discovery)) {
+      currentState = runtime.resetGiftProjectionForRebuild(currentSource.id);
+    }
+    if (!currentState.bootstrapComplete) {
+      const bootstrapped = await bootstrapHistory(discovery);
+      if (!bootstrapped) return false;
+    }
+    startEventStream(generation);
+    if (streamEpochMismatch) return await rebuildAfterStreamMismatch();
+    if (!(await catchUpCurrent())) return false;
+    updateLiveState();
+    return true;
   }
 
   async function rebuildCurrentGeneration(generation) {
@@ -363,6 +371,9 @@ function createRemoteGiftController(options = {}) {
           signal: generationController.signal,
         });
         if (!ensureFenceCurrent(fence)) return false;
+        // The existing cursor response also advertises capabilities. Reuse it
+        // to bootstrap an upgraded source before committing any epochless page.
+        if (hasHistoryCapability(page)) return initializeCurrent(page, fence.controllerGeneration);
         if (page.hasMore && page.nextCursor <= previousCursor) {
           throw giftSyncStalledError();
         }
@@ -684,6 +695,38 @@ function createRemoteGiftController(options = {}) {
       clearReconcileTimer();
     }
     publishContext();
+    if (nextState === GiftSyncState.LIVE) {
+      options.onGiftNotificationSource?.(getNotificationSource());
+    } else if (!notificationSource?.isCurrent()) {
+      notificationSource = null;
+      options.onGiftNotificationSource?.(null);
+    }
+  }
+
+  function getNotificationSource() {
+    if (notificationSource?.isCurrent()) return notificationSource;
+    if (legacyMode || !currentState?.bootstrapComplete || !expectedSyncEpoch ||
+        currentState.syncEpoch !== expectedSyncEpoch || streamEpochMismatch) return null;
+    const fence = captureFence();
+    if (!isFenceCurrent(fence)) return null;
+    const syncEpoch = currentState.syncEpoch;
+    const isCurrent = () => isFenceCurrent(fence) && currentState?.syncEpoch === syncEpoch &&
+      expectedSyncEpoch === syncEpoch && !streamEpochMismatch;
+    notificationSource = Object.freeze({
+      sourceId: fence.sourceId,
+      projectionGeneration: fence.projectionGeneration,
+      syncEpoch,
+      isCurrent,
+      async readCursor() {
+        if (!isCurrent()) return null;
+        // The existing no-after endpoint is an atomic source ledger snapshot.
+        // It returns no gift rows and uses the same authorization and cancellation.
+        const page = await licenseManager.getGiftEventsInternal({ limit: 1, signal: generationController.signal });
+        return isCurrent() && hasHistoryCapability(page) && page.syncEpoch === syncEpoch &&
+          Number.isSafeInteger(page.latestCursor) && page.latestCursor >= 0 ? page.latestCursor : null;
+      },
+    });
+    return notificationSource;
   }
 
   function getDisplaySourceKey() {

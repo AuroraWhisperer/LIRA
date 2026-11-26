@@ -81,6 +81,26 @@ test('the first poll snapshot accounts for time in transit, even if the local cl
   }
 });
 
+test('a new poll push crossing a forward clock step retains its voting time', async t => {
+  let elapsed = 0;
+  let wall = 1_800_000_000_000;
+  t.mock.method(performance, 'now', () => elapsed);
+  t.mock.method(Date, 'now', () => wall);
+  const countdown = createPollCountdown();
+  const state = { runtimeId: 'local', revision: 0, session: null };
+  const client = createInteractionClient({ countdown, fetchState: () => state, onState() {} });
+  await client.load();
+  const first = { kind: 'poll', sessionId: 'new', remainingMs: 60_000, serverNowMs: wall };
+  elapsed += 120;
+  wall += 120_120;
+  client.receive({ ...state, revision: 1, session: first });
+  assert.equal(countdown.remainingMs(), 59_880);
+  elapsed += 1000;
+  wall += 1000;
+  client.receive({ ...state, revision: 2, session: { ...first, serverNowMs: wall, remainingMs: 58_880 } });
+  assert.equal(countdown.remainingMs(), 58_880);
+});
+
 test('live poll updates preserve row nodes and scroll position while showing zero and small percentages', async () => {
   const { renderPollRows } = await loadModuleExports(
     path.resolve(__dirname, '../../public/js/shared/interaction-view.js'),

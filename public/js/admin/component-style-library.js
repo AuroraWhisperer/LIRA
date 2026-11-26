@@ -37,7 +37,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
   function redirectImport(target, file, pack) {
     if (onImportTarget) onImportTarget(target, file, pack);
     else editor = openComponentStyleLibrary({ type: target === 'suite' ? undefined : target,
-      suitesOnly: target === 'suite', request, initialFile: file, updatePack: pack });
+      suitesOnly: target === 'suite', request, onUse, actionLabel, initialFile: file, updatePack: pack });
   }
   function report(error) { interacted = true; status.hidden = false; status.textContent = error.message || error; }
   function openImport() {

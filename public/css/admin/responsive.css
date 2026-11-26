@@ -111,7 +111,6 @@
     padding: 12px 12px calc(var(--player-dock-reserve, 102px) + 14px);
   }
 
-  .gift-controls-grid,
   .gift-recent-panel,
   .gift-blindbox-panel,
   .gift-blindbox-mapping-panel {

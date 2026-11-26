@@ -90,13 +90,15 @@ test('a newer time-only update does not reject a background save or accept its s
   assert.equal(f.requests.length, 1);
 });
 
-test('overtime status refuses older state from any response but permits current revisions', async () => {
+test('overtime status refuses older state and preserves the clock anchor for equal revisions', async () => {
   const f = await fixture();
   f.renderState(snapshot(3, 'C', 90000));
   f.renderState(snapshot(2, 'B', 60000));
   assert.equal(f.status.getState().revision, 3);
   assert.equal(f.appearance.controller.getState().saved.path, 'C');
   f.renderState(snapshot(3, 'C', 80000));
+  assert.equal(f.byId('overtimeClockValue').textContent, '90000');
+  f.renderState(snapshot(3, 'C', 80000), { allowRevisionReset: true });
   assert.equal(f.byId('overtimeClockValue').textContent, '80000');
 });
 

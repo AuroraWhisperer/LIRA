@@ -6,12 +6,13 @@ export function createSongEditor({ value, setValue, api, toast, onSaved }) {
   let saving = false;
   // 上一次完整歌库的 ID；新保存、尚未出现在列表里的歌曲不会被当成已删除。
   let completeSongIds = null;
+  const formFields = [
+    'songId', 'songName', 'songArtist', 'songCategory', 'songTags', 'songIsEnabled',
+    'songLanguage', 'songRequestPrice', 'songClip', 'songSourcePlatform', 'songNote',
+  ];
 
   function readSongForm() {
-    return JSON.stringify([
-      'songId', 'songName', 'songArtist', 'songCategory', 'songTags', 'songIsEnabled',
-      'songLanguage', 'songRequestPrice', 'songClip', 'songSourcePlatform', 'songNote',
-    ].map((id) => document.getElementById(id)?.value || ''));
+    return JSON.stringify(formFields.map((id) => document.getElementById(id)?.value || ''));
   }
 
   async function confirmDiscard() {
@@ -134,29 +135,45 @@ export function createSongEditor({ value, setValue, api, toast, onSaved }) {
       document.getElementById('songName')?.focus();
       return;
     }
-    formVersion += 1;
-    setValue('songId', song.id);
-    setValue('songName', song.name);
-    setValue('songArtist', song.artist || '');
-    setValue('songCategory', song.category_name || '默认');
-    setValue('songTags', song.tags || '');
-    setValue('songIsEnabled', song.is_enabled ? 'true' : 'false');
-    setValue('songLanguage', song.language || '');
-    setValue('songRequestPrice', song.request_price ?? '');
-    setValue('songClip', song.song_clip ?? '');
-    setValue('songPricePreset', '');
-    updateSongPricePreview();
-    setValue('songSourcePlatform', song.source_platform || '');
-    setValue('songNote', song.note || '');
-    savedForm = readSongForm();
-    renderSongEditMode(song.name);
+    loadSong(song);
     document.getElementById('songName')?.focus();
   }
 
+  function loadSong(song, preserveDraft = false) {
+    const draft = preserveDraft ? JSON.parse(readSongForm()) : null;
+    const baseline = preserveDraft ? JSON.parse(savedForm) : null;
+    const nextValues = {
+      songId: song.id,
+      songName: song.name,
+      songArtist: song.artist || '',
+      songCategory: song.category_name || '默认',
+      songTags: song.tags || '',
+      songIsEnabled: song.is_enabled ? 'true' : 'false',
+      songLanguage: song.language || '',
+      songRequestPrice: song.request_price ?? '',
+      songClip: song.song_clip ?? '',
+      songSourcePlatform: song.source_platform || '',
+      songNote: song.note || '',
+    };
+    formVersion += 1;
+    // 只回填未修改字段，避免改写草稿输入并移动正在编辑的光标。
+    formFields.forEach((id, index) => {
+      if (!preserveDraft || draft[index] === baseline[index]) setValue(id, nextValues[id]);
+    });
+    savedForm = JSON.stringify(formFields.map((id) => String(nextValues[id] ?? '')));
+    setValue('songPricePreset', '');
+    updateSongPricePreview();
+    renderSongEditMode();
+  }
+
   function reconcileSongs(songs, { complete }) {
+    const editingId = value('songId');
+    if (editingId && !saving) {
+      const current = songs.find(song => String(song.id) === editingId);
+      if (current) loadSong(current, true);
+    }
     if (complete) {
       const ids = new Set(songs.map((song) => String(song.id)));
-      const editingId = value('songId');
       // 清空或替换歌库后，正在编辑的歌曲已不存在时回到添加状态。
       if (editingId && completeSongIds?.has(editingId) && !ids.has(editingId)) resetSongForm();
       completeSongIds = ids;

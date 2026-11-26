@@ -85,10 +85,7 @@ export function createGiftBanner(item, config, catalog = [], resolveAvatarUrl = 
   const root = document.createElement('div');
   root.className = 'gift-banner';
   root.dataset.eventId = item.eventId;
-  applyGiftBannerAppearance(root, config);
-  const colors = GIFT_PALETTE[giftTier(gift, config.thresholds, item.cardTotalCents)];
-  root.style.setProperty('--gift-start', colors[0]);
-  root.style.setProperty('--gift-end', colors[1]);
+  applyGiftBannerStyle(root, item, config);
   const count = String(gift.num);
   const background = document.createElement('div');
   background.className = 'gift-banner-background';
@@ -124,12 +121,8 @@ export function createGiftBanner(item, config, catalog = [], resolveAvatarUrl = 
 
 /** Patch changed display fields in place; return whether the text needs refitting. */
 export function updateGiftBanner(root, item, config, catalog = [], retryAvatar = false, resolveAvatarUrl = giftAvatarSource) {
-  applyGiftBannerAppearance(root, config);
+  applyGiftBannerStyle(root, item, config);
   const gift = item.gift;
-  const colors = GIFT_PALETTE[giftTier(gift, config.thresholds, item.cardTotalCents)];
-  for (const [index, key] of ['--gift-start', '--gift-end'].entries()) {
-    if (root.style.getPropertyValue(key) !== colors[index]) root.style.setProperty(key, colors[index]);
-  }
   let textChanged = false;
   for (const [selector, value] of [
     ['.gift-banner-name', gift.userName],
@@ -164,6 +157,14 @@ export function applyGiftBannerAppearance(root, config) {
 export function giftAvatarSource(value) {
   const token = globalThis.window?.__API_TOKEN__ || '';
   return bilibiliAvatarSource(value, token) || AVATAR_PLACEHOLDER;
+}
+
+export function applyGiftBannerStyle(root, item, config) {
+  applyGiftBannerAppearance(root, config);
+  const colors = GIFT_PALETTE[giftTier(item.gift, config.thresholds, item.cardTotalCents)];
+  for (const [index, key] of ['--gift-start', '--gift-end'].entries()) {
+    if (root.style.getPropertyValue(key) !== colors[index]) root.style.setProperty(key, colors[index]);
+  }
 }
 
 function updateBannerImage(image, source, retry = false) {

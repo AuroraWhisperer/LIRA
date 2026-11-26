@@ -55,13 +55,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function updateComponentSongs() {
-  const category = componentCategory?.trim().toLowerCase();
-  const next = category ? componentSongs.filter(song => {
+  setSongs(songsInCategory(componentSongs, componentCategory));
+  render();
+}
+
+function songsInCategory(items, selection) {
+  const category = selection?.trim().toLowerCase();
+  return category ? items.filter(song => {
     const name = (song.category_name || '').toLowerCase();
     return name === category || name.split(/[/／;；,，、]/).some(part => part.trim() === category);
-  }) : componentSongs;
-  setSongs(next);
-  render();
+  }) : items;
 }
 
 function setSongs(next) {
@@ -139,7 +142,7 @@ async function loadAll() {
       if (expectedLiveStatusRevision !== liveStatusRevision) statePayload.data.liveStatus = state.liveStatus;
       state = statePayload.data;
     }
-    if (songsPayload.ok) setSongs(songsPayload.data);
+    if (songsPayload.ok) setSongs(songsInCategory(songsPayload.data, category));
   } catch (error) {
     console.warn('[overlay-songs] loadAll failed:', error.message || error);
   }
@@ -358,7 +361,7 @@ function sortSongsByLength(items) {
 }
 
 function primarySongArtist(song) {
-  return String(song.artist || song.category_name || '')
+  return String(song.artist || '')
     .split('/', 1)[0]
     .trim();
 }

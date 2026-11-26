@@ -35,7 +35,7 @@ const SHOTS = [
     id: 'D6',
     file: 'gift-export-workspace',
     license: { state: 'authorized' },
-    mustShow: ['.gift-export-merge'],
+    mustShow: ['#giftExportStyleEditor', '#giftExportSave'],
     title: '礼物 PNG 导出预览与保存设置（界面演示）',
     main: 'giftAssistantPage',
     click: '#giftHistoryOpenBtn',
@@ -44,9 +44,16 @@ const SHOTS = [
       await page.locator('#giftHistoryBody input').nth(1).check();
       await page.locator('#giftHistoryExport').click();
       await page.locator('#giftExportPanel').waitFor({ timeout: 5000 });
+      await page.locator('#giftExportStyleSource label', { hasText: '自定义' }).click();
+      await page.locator('#giftExportStyleEditor').waitFor();
+      await page.locator('#giftExportTail-trigger').click();
+      await page.getByRole('option', { name: '折叠飘带', exact: true }).click();
+      await page.locator('#giftExportTexture-trigger').click();
+      await page.getByRole('option', { name: '丝缎流光', exact: true }).click();
+      await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
       await applyCovers(page, [
         { selector: '#giftExportSettingsDirectory', text: '图片\\LIRA\\礼物导出' },
-        { selector: '#giftExportDirectory', text: '\\2026-11-22\\12-30-00-示例批次' },
+        { selector: '#giftExportDirectory', text: '2026-11-26\\1822' },
       ]);
     },
   },

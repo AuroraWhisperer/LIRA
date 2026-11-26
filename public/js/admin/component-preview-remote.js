@@ -18,7 +18,7 @@ export function createRemotePreviewController(initial, send) {
     const current = structuredClone(state);
     if (connectionError) current.error = connectionError;
     for (const command of pending) {
-      if (command.action === 'edit') { Object.assign(current.draft, command.change); current.dirty = true; }
+      if (command.action === 'edit') { Object.assign(current.draft, structuredClone(command.change)); current.dirty = true; }
       if (command.action === 'discard') { current.draft = structuredClone(current.saved); current.dirty = false; }
       if (command.action === 'save') current.saving = true;
     }
@@ -30,7 +30,7 @@ export function createRemotePreviewController(initial, send) {
     const command = { action, ...(change ? { change: structuredClone(change) } : {}) };
     const document = getState().draft.document;
     if (action === 'edit' && change?.document?.id === document?.id && Array.isArray(document?.items)) {
-      command.baseItemIds = document.items.map(item => item.id);
+      command.baseDocument = document;
     }
     pending.push(command);
     notify();

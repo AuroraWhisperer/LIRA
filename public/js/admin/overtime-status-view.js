@@ -21,10 +21,13 @@ export function createOvertimeStatusView({
 
   function renderState(nextState, { allowRevisionReset = false } = {}) {
     if (!nextState || (!allowRevisionReset && Number(nextState.revision) < Number(overtimeState?.revision))) return false;
+    const sameRevision = !allowRevisionReset && overtimeState && Number(nextState.revision) === Number(overtimeState.revision);
     if (nextState.limits) onLimits(nextState.limits);
     overtimeState = { ...overtimeState, ...nextState };
-    anchorRemainingMs = Number(overtimeState.effectiveRemainingMs) || 0;
-    localAnchorMs = performance.now();
+    if (!sameRevision) {
+      anchorRemainingMs = Number(overtimeState.effectiveRemainingMs) || 0;
+      localAnchorMs = performance.now();
+    }
     const statusLabels = {
       disabled: '未开始',
       paused: '已暂停',

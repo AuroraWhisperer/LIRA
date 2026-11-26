@@ -64,6 +64,10 @@ export function createStatePersistence(deps) {
       album: track.album,
       coverUrl: track.coverUrl || '',
       durationMs: track.durationMs,
+      ...(typeof track.playbackTrial === 'boolean' ? {
+        playbackTrial: track.playbackTrial,
+        playbackTrialStartMs: Math.max(0, Number(track.playbackTrialStartMs) || 0),
+      } : {}),
       fileName: track.fileName,
       filePath: track.filePath || '',
       sourceTrackId: track.sourceTrackId,

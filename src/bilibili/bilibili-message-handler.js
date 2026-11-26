@@ -46,7 +46,7 @@ function handleDanmakuMessage(
     return { accepted: false, reason: '不是点歌指令。' };
   }
   settings ??= context.settings();
-  if (command.type === 'request' && settings.songRequestRequireSpace === 'true' && !commandText.startsWith('点歌 ')) {
+  if (!validRequestSpacing(command, commandText, settings)) {
     return { accepted: false, reason: '不是点歌指令。' };
   }
 
@@ -56,7 +56,7 @@ function handleDanmakuMessage(
       return { accepted: false, reason: '观众取消点歌已关闭。', command };
     }
     const ambiguous = source === 'history' &&
-      hasAmbiguousHistoryTarget(context, command.songName, historyCancellation?.unorderedRequests);
+      hasAmbiguousHistoryTarget(context, settings, command.songName, historyCancellation?.unorderedRequests);
     const queueItem = ambiguous ? null : context.cancelQueueItem({
       songName: command.songName,
       requesterUid: uid,
@@ -171,12 +171,18 @@ function handleDanmakuMessage(
 
 // ── 指令解析 ──
 
-function hasAmbiguousHistoryTarget(context, songName, messages = []) {
+function validRequestSpacing(command, text, settings) {
+  return command.type !== 'request' || settings.songRequestRequireSpace !== 'true' || text.startsWith('点歌 ');
+}
+
+function hasAmbiguousHistoryTarget(context, settings, songName, messages = []) {
   const title = toSimplifiedChinese(songName);
   return messages.some(message => {
-    const request = parseDanmakuCommand(message);
+    const text = cleanText(message);
+    const simplified = toSimplifiedChinese(text);
+    const request = parseCommandText(text, simplified);
     if (request?.type === 'random') return true;
-    if (request?.type !== 'request') return false;
+    if (request?.type !== 'request' || !validRequestSpacing(request, simplified, settings)) return false;
     if (!title) return true;
     const song = context.resolveSongRequest?.(request.songName);
     return toSimplifiedChinese(song?.name || request.songName) === title;

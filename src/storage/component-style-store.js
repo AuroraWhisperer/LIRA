@@ -8,7 +8,11 @@ const { activeImports, beginStyleFileUse, endStyleFileUse, inspectStyleRoot, lis
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 
 function hasMultipleCategories(pack) {
-  return new Set(pack.styles.map(style => style.category || style.type)).size > 1;
+  return pack.isSuite === true || new Set(pack.styles.map(style => style.category || style.type)).size > 1;
+}
+
+function suitePackageIds(packages) {
+  return new Set(packages.filter(pack => pack.packageId && hasMultipleCategories(pack)).map(pack => pack.packageId));
 }
 
 function isSuite(pack, packages) {
@@ -64,8 +68,7 @@ function createComponentStyleStore(dataDir) {
     },
     list() {
       const { packages } = read();
-      const suiteIds = new Set();
-      for (const pack of packages) if (pack.packageId && hasMultipleCategories(pack)) suiteIds.add(pack.packageId);
+      const suiteIds = suitePackageIds(packages);
       return packages.filter(pack => !pack.removed).map(pack => {
         const suite = pack.packageId ? suiteIds.has(pack.packageId) : hasMultipleCategories(pack);
         return { ...pack, isSuite: suite,
@@ -97,6 +100,7 @@ function createComponentStyleStore(dataDir) {
         if (same.digest !== pack.digest) throw Object.assign(new Error('同名同版本素材包内容不同，请作者更新版本号后再导入。'), { statusCode: 409 });
         const restored = !!same.removed || same.styles.some(style => style.removed);
         delete same.removed;
+        delete same.restorePending;
         for (const style of same.styles) delete style.removed;
         for (const item of replaced) item.removed = true;
         const restoreFiles = !inspectStyleRoot(directory(same.id));
@@ -125,6 +129,7 @@ function createComponentStyleStore(dataDir) {
       const pack = index.packages.find(item => item.id === id);
       if (!pack) throw Object.assign(new Error('素材包不存在。'), { statusCode: 404 });
       pack.removed = true;
+      delete pack.restorePending;
       write(index);
       return { id };
     },
@@ -137,7 +142,7 @@ function createComponentStyleStore(dataDir) {
         for (const pack of packs) if (!fs.existsSync(directory(pack.id))) {
           renameStyleDirectory(directory(pack.id, true), directory(pack.id)); moved.push(pack.id);
         }
-        index.packages.push(...additions.map(pack => ({ ...pack, removed: true })));
+        index.packages.push(...additions.map(pack => ({ ...pack, removed: true, restorePending: true })));
         write(index);
       } catch (error) {
         for (const id of moved.reverse()) renameStyleDirectory(directory(id), directory(id, true));
@@ -146,7 +151,12 @@ function createComponentStyleStore(dataDir) {
       // If scene persistence fails, hidden packages remain retryable and reclaimable.
       // A later retry reuses stable IDs without replacing any existing scenes/settings.
       const result = commitScenes();
-      for (const pack of packs) if (!pack.removed) delete index.packages.find(item => item.id === pack.id).removed;
+      for (const pack of packs) {
+        const stored = index.packages.find(item => item.id === pack.id);
+        if (!stored.restorePending) continue;
+        delete stored.restorePending;
+        if (!pack.removed) delete stored.removed;
+      }
       write(index);
       return result;
     },
@@ -171,4 +181,4 @@ function createComponentStyleStore(dataDir) {
   };
 }
 
-module.exports = { createComponentStyleStore, listComponentMediaStyleIds };
+module.exports = { createComponentStyleStore, listComponentMediaStyleIds, suitePackageIds };

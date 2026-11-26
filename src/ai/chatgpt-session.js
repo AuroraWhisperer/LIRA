@@ -63,7 +63,9 @@ function createChatGptSession({ persistence, secretCodec, openBrowser, fetchImpl
   async function startLogin({ profileId, newAccount = false } = {}) {
     if (!getStatus().available) throw createPublicError('CHATGPT_UNAVAILABLE', '请在支持系统加密的 LIRA 桌面客户端登录 ChatGPT。');
     if (pending) return getStatus();
-    const existing = newAccount ? null : state.profiles.find(profile => profile.id === (profileId || state.activeId));
+    // Older interrupted first logins can have a registered client but no activeId.
+    const selectedId = profileId || state.activeId || state.profiles.find(profile => profile.clientId && !profile.subject)?.id;
+    const existing = newAccount ? null : state.profiles.find(profile => profile.id === selectedId);
     if (profileId && !existing) throw createPublicError('CHATGPT_ACCOUNT_MISSING', '找不到所选 ChatGPT 账号。');
     const id = existing?.id || randomUUID();
     // Keep the host identity stable even when the first browser login is cancelled.
@@ -76,7 +78,7 @@ function createChatGptSession({ persistence, secretCodec, openBrowser, fetchImpl
         onRegistration(clientId) {
           attempt.signal.throwIfAborted();
           const profile = { ...state.profiles.find(entry => entry.id === id), id, clientId };
-          save({ ...state, profiles: state.profiles.some(entry => entry.id === id)
+          save({ ...state, activeId: state.activeId || id, profiles: state.profiles.some(entry => entry.id === id)
             ? state.profiles.map(entry => entry.id === id ? profile : entry) : [...state.profiles, profile] });
         },
       });
@@ -109,7 +111,10 @@ function createChatGptSession({ persistence, secretCodec, openBrowser, fetchImpl
     lastError = '';
     return getStatus();
   }
-  function logout() {
+  function logout(expectedProfileId) {
+    if (expectedProfileId !== undefined && expectedProfileId !== state.activeId) {
+      throw createPublicError('CHATGPT_ACCOUNT_CHANGED', '当前 ChatGPT 账号已更改，请确认后再退出。');
+    }
     cancelLogin();
     const profile = active();
     if (!profile) return Promise.resolve(getStatus());

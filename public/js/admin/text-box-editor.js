@@ -153,8 +153,14 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
     if (disabled || !atom || !window.getSelection().isCollapsed) return;
     const range = document.createRange(); range.selectNode(atom); select(range);
   });
+  function setDisabled(locked) {
+    disabled = locked;
+    editor.contentEditable = String(!locked);
+    editor.setAttribute('aria-disabled', String(locked));
+  }
   return {
     editor,
+    setDisabled,
     rememberSelection() { const range = currentRange(); if (range) selectionState.savedRange = range.cloneRange(); },
     insertText,
     insertNode(node) {
@@ -169,12 +175,10 @@ export function mountTextBoxEditor(host, { getConfig, onChange, onError }) {
         const range = document.createRange(); range.setStartAfter(inserted); range.collapse(true); select(range);
       }
     },
-    setConfig(config, locked = false) {
-      disabled = locked;
-      editor.contentEditable = String(!locked);
-      editor.setAttribute('aria-disabled', String(locked));
+    setConfig(config, locked = false, force = false) {
+      setDisabled(locked);
       const serialized = contentSignature(config);
-      if (serialized !== previous) {
+      if (force || serialized !== previous) {
         renderTextBox(editor, config, { editable: true });
         previous = serialized;
         selectionState.savedRange = null;

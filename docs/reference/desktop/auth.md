@@ -204,7 +204,7 @@ desktopRuntime.start({
 
 远端网页登录成功后的 Cookie 只通过 DeviceBearer 的 `GET /api/device/bilibili-credentials` 返回给 `licenseManager.getBilibiliCredentialsInternal()`；该方法使用不做响应清洗的 `withAuthorizedSecret`，但仅由 [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 在 Electron 主进程内调用，不注册 IPC，也不进入 preload、渲染进程、本地 HTTP、URL 或日志。主播网页端只能获得登录状态、UID、修订号和二维码状态。
 
-云端导入调用 `replaceBilibiliCookieHeader(dataDir, cookieHeader)`：先拒绝空值、超过 12000 字符、CR/LF/NUL、非法 Cookie 名或缺少 `DedeUserID` / `SESSDATA` / `bili_jct` 的请求头；再清空 `persist:bilibili` 的 Cookie / localStorage / IndexedDB / WebSQL，把解析出的 Cookie 写到 `.bilibili.com`，最后立即调用 `persistBilibiliCookieSnapshot` 生成 `safeStorage` 加密快照。云端解绑调用 `logoutBilibiliAccount`，清除分区、加密快照和遗留明文文件。
+云端导入调用 `replaceBilibiliCookieHeader(dataDir, cookieHeader)`：先拒绝空值、超过 12000 字符、CR/LF/NUL、非法 Cookie 名或缺少 `DedeUserID` / `SESSDATA` / `bili_jct` 的请求头；再清空 `persist:bilibili` 的 Cookie / localStorage / IndexedDB / WebSQL，把解析出的 Cookie 写到 `.bilibili.com`，最后立即调用 `persistBilibiliCookieSnapshot` 生成 `safeStorage` 加密快照。云端解绑调用 `logoutBilibiliAccount`，清除分区、加密快照和遗留明文文件。如果分区已经改变而快照写入或清理失败，账号操作队列会复读实际分区身份。确认 UID 或登录态变化时发送既有刷新事件，设置页重新读取本机状态，云同步仍收到原始失败以便重试。
 
 本地扫码登录和退出由 `cloud-sync-controller.loginBilibili` / `logoutBilibili` 在发起时绑定当前 LIRA 账号和同步生命周期；切换账号或失去授权时会立即取消旧登录窗口，待其落盘结束后再清理残留分区和快照，过期登录结果不会污染新账号的待同步标记（dirty）。登录成功后仍直接从分区读取 Cookie 头上传，不额外保存凭据副本。退出时会先按账号持久化退出意图，再清空本地登录态；若云端 `DELETE` 失败或客户端重启，会持续重试，且在云端确认前禁止重新导入旧云端 Cookie。同一账号后续主动登录成功会覆盖旧退出意图，其他账号不会受其影响（持久格式见 [存储契约](../backend/storage.md#8-云端-scope-的本地落盘)）。应用云端凭据不会触发本地 IPC，也不会引起反向同步。接口传输格式见 [../backend/api.md](../backend/api.md) §0.3，同步调度见 [main.md](main.md) §2.2。
 

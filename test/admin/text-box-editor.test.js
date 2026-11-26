@@ -286,7 +286,7 @@ test('gift chips are indivisible, removable with undo, and media inserts preserv
   const page = await mount(t, [{ type: 'text', text: '开头' }]);
   await page.evaluate(() => Object.defineProperty(crypto, 'randomUUID', { value: undefined }));
   await selectText(page, '开头', 2, 2);
-  await page.getByRole('button', { name: '礼物图片', exact: true }).click();
+  await page.getByRole('button', { name: '礼物', exact: true }).click();
   await page.getByRole('button').filter({ hasText: '测试礼物' }).click();
   await page.getByRole('button', { name: '插入礼物图片', exact: true }).click();
   const chip = page.locator('.text-box-editor [data-text-box-node]');
@@ -301,7 +301,7 @@ test('gift chips are indivisible, removable with undo, and media inserts preserv
   assert.equal(await chip.count(), 1);
   assert.equal((await read(page)).filter(node => node.type === 'gift').length, 1);
   await page.keyboard.press('ArrowRight');
-  await page.getByRole('button', { name: '颜文字 / 表情', exact: true }).click();
+  await page.getByRole('button', { name: '表情', exact: true }).click();
   await page.getByRole('button', { name: '(≧▽≦)', exact: true }).click();
   assert.match(await readText(page), /\(≧▽≦\)/);
   await page.locator('input[type=file]').setInputFiles({ name: '动画.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') });
@@ -343,8 +343,9 @@ async function mountPreview(t) {
 test('scroll switches and background changes preserve long editable text and undo', async (t) => {
   const page = await mountPreview(t);
   const editor = page.getByRole('textbox', { name: '文本框内容' });
-  const horizontal = page.getByRole('switch', { name: '横向滚动' });
-  const vertical = page.getByRole('switch', { name: '纵向滚动' });
+  const stationary = page.getByRole('radio', { name: '静止', exact: true });
+  const horizontal = page.getByRole('radio', { name: '横向', exact: true });
+  const vertical = page.getByRole('radio', { name: '纵向', exact: true });
   const speed = page.getByRole('slider', { name: '滚动速度', exact: true });
   const text = '第一行公告\n第二行内容'.repeat(1000);
   await editor.focus();
@@ -354,15 +355,15 @@ test('scroll switches and background changes preserve long editable text and und
     clipboardData.setData('text/plain', text);
     document.querySelector('.text-box-editor').dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
   }, text);
-  await horizontal.check();
+  await horizontal.click();
   await speed.fill('85');
   await speed.press('ArrowRight');
   assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollSpeed), 86);
-  await vertical.check();
+  await vertical.click();
   assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollMode), 'vertical');
   assert.ok(await page.evaluate(text => window.controller.getState().draft.nodes.map(node => node.text || '').join('') === text, text),
     'switching playback preserves every line in the editable configuration');
-  await vertical.uncheck();
+  await stationary.click();
   assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollMode), 'none');
   await page.evaluate(() => window.controller.edit({ backgroundColor: '#24314dcc' }));
   await editor.focus();

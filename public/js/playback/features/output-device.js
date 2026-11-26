@@ -138,6 +138,8 @@ export function getPlaybackOutput(audio, options = {}) {
         return true;
       } catch (error) {
         if (disposed || request !== revision) return false;
+        const browserSinkId = native?.browserSinkId;
+        if (typeof browserSinkId === 'string') appliedId = browserSinkId;
         if (!save) selected = preference || { ...selected, deviceId };
         const missing = selected.deviceId && !devices.some((device) => device.deviceId === selected.deviceId);
         blocked = selected.deviceId !== (native ? appliedId : audio.sinkId || '') || Boolean(missing) || Boolean(deferredPreference);

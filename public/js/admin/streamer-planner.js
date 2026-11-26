@@ -24,6 +24,8 @@ import {
   renderTodoCalendar,
   renderTodoAgenda,
   renderTodoTasks,
+  renderTaskTitle,
+  renderPlannerSaveState,
   readTodoAction,
 } from './streamer-planner-view.js';
 
@@ -62,7 +64,7 @@ export const todo = (() => {
     updateReminderFields();
   }
 
-  function commit(collection, planner = moduleState.planner, selectedDate) {
+  function commit(collection, planner = moduleState.planner, selectedDate, renderChanges = render) {
     viewCache = null;
     const saved = storage.write(planner);
     if (saved) {
@@ -74,7 +76,7 @@ export const todo = (() => {
       if (collection === 'events') eventsRevision++;
       void reminders.sync(planner.events, editedEvents, eventsRevision);
     }
-    render();
+    renderChanges();
     return saved;
   }
 
@@ -114,7 +116,7 @@ export const todo = (() => {
     return { ...task };
   }
 
-  function updateTask(taskId, patch = {}) {
+  function updateTask(taskId, patch = {}, renderChanges = render) {
     const task = moduleState.planner.tasks.find((item) => item.id === taskId);
     if (!task) return null;
     if (patch.title !== undefined) {
@@ -126,7 +128,7 @@ export const todo = (() => {
     if (STAGES.includes(patch.stage)) task.stage = patch.stage;
     if (patch.done !== undefined) task.done = patch.done === true;
     if (patch.progress !== undefined) task.done = Number(patch.progress) === 100;
-    commit();
+    commit('tasks', moduleState.planner, undefined, renderChanges);
     return { ...task };
   }
 
@@ -450,7 +452,11 @@ export const todo = (() => {
     root.addEventListener('change', (event) => {
       const target = event.target;
       if (target.dataset.taskComplete) updateTask(target.dataset.taskComplete, { done: target.checked });
-      if (target.dataset.taskTitle) updateTask(target.dataset.taskTitle, { title: target.value });
+      if (target.dataset.taskTitle) {
+        // A blur-triggered rename must leave the next pointer target attached.
+        const task = updateTask(target.dataset.taskTitle, { title: target.value }, () => renderPlannerSaveState(storage.getStatus()));
+        if (task) renderTaskTitle(target, task);
+      }
     });
     root.addEventListener('click', (event) => handleAction(readTodoAction(event.target)));
     byId('plannerCalendarGrid').addEventListener('keydown', (event) => {

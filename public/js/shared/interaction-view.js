@@ -40,10 +40,14 @@ export function renderPollRows(container, session) {
   return changed;
 }
 
-function pollSnapshotAge(serverNowMs, receivedAtMs, receivedWallMs, requested) {
+function pollSnapshotAge(serverNowMs, receivedAtMs, receivedWallMs, requested, previous) {
   if (!Number.isFinite(serverNowMs)) return 0;
   const age = receivedWallMs - serverNowMs;
-  if (!requested) return Math.max(0, age);
+  if (!requested) {
+    // A push has no request timestamp. Compare both wall-clock samples on the same monotonic timeline.
+    const priorWallEstimate = previous.wallMs + receivedAtMs - previous.atMs;
+    return Math.max(0, Math.min(age, priorWallEstimate - serverNowMs));
+  }
   const roundTrip = receivedAtMs - requested.atMs;
   if (age >= 0 && age <= roundTrip) return age;
   // A clock adjustment during this local HTTP read cannot make the snapshot older than the read.
@@ -53,16 +57,18 @@ function pollSnapshotAge(serverNowMs, receivedAtMs, receivedWallMs, requested) {
 export function createPollCountdown() {
   let sessionId = null;
   let deadlineMs = 0;
+  let lastClock = { atMs: performance.now(), wallMs: Date.now() };
   return {
-    sync(session, receivedAtMs = performance.now(), receivedWallMs = Date.now(), requested) {
+    sync(session, receivedAtMs = performance.now(), receivedWallMs = Date.now(), requested, previous = lastClock) {
+      if (receivedAtMs >= lastClock.atMs) lastClock = { atMs: receivedAtMs, wallMs: receivedWallMs };
       if (session?.kind !== 'poll') {
         sessionId = null;
         return;
       }
-      if (session.sessionId !== sessionId) {
+      if (session.sessionId !== sessionId || requested) {
         sessionId = session.sessionId;
         const remaining = Number.isFinite(session.remainingMs)
-          ? session.remainingMs - pollSnapshotAge(session.serverNowMs, receivedAtMs, receivedWallMs, requested)
+          ? session.remainingMs - pollSnapshotAge(session.serverNowMs, receivedAtMs, receivedWallMs, requested, previous)
           : (session.endsAt ?? 0) - receivedWallMs;
         deadlineMs = receivedAtMs + Math.max(0, remaining);
       } else if (Number.isFinite(session.remainingMs)) {

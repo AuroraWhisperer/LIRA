@@ -5,7 +5,7 @@ const { createFanRecordStore } = require('./fan-record-store');
 const { pruneFanRestoreSnapshots } = require('./fan-snapshot-retention');
 const { migrateQueueHistory } = require('./queue-history-store');
 
-function compactBackupSongs(backup, at) {
+function compactBackupSongs(scope, backup, at) {
   return {
     ...backup,
     version: 2,
@@ -13,7 +13,7 @@ function compactBackupSongs(backup, at) {
       ...profile,
       records: [
         ...profile.records.filter((record) => record.kind !== 'song'),
-        ...summarizeSongs(profile.records.filter((record) => record.kind === 'song'), at),
+        ...summarizeSongs(profile.records.filter((record) => record.kind === 'song'), at, [scope, profile.id]),
       ],
     })),
   };
@@ -34,14 +34,14 @@ function migrateFanSongRetention(db) {
   const remove = db.prepare("DELETE FROM fan_records WHERE scope = ? AND profile_id = ? AND kind = 'song'");
   for (const profile of profiles) {
     const songs = store.list(profile.scope, profile.profile_id).filter((record) => record.kind === 'song');
-    const summaries = summarizeSongs(songs, at);
+    const summaries = summarizeSongs(songs, at, [profile.scope, profile.profile_id]);
     remove.run(profile.scope, profile.profile_id);
     for (const summary of summaries) store.insert(profile.scope, profile.profile_id, summary, at);
   }
   pruneFanRestoreSnapshots(db);
   const updateSnapshot = db.prepare('UPDATE fan_restore_snapshots SET data = ? WHERE id = ?');
-  for (const snapshot of db.prepare('SELECT id, data FROM fan_restore_snapshots').all()) {
-    updateSnapshot.run(JSON.stringify(compactBackupSongs(JSON.parse(snapshot.data), at)), snapshot.id);
+  for (const snapshot of db.prepare('SELECT id, scope, data FROM fan_restore_snapshots').all()) {
+    updateSnapshot.run(JSON.stringify(compactBackupSongs(snapshot.scope, JSON.parse(snapshot.data), at)), snapshot.id);
   }
   migrateQueueHistory(db);
 }

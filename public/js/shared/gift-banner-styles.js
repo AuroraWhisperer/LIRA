@@ -19,3 +19,13 @@ export const GIFT_BANNER_TEXTURES = Object.freeze({
 });
 
 export const DEFAULT_GIFT_BANNER_APPEARANCE = Object.freeze({ tailStyle: 'slant', textureStyle: 'solid', sheen: false });
+
+export function validGiftBannerStyles(tailStyle, textureStyle) {
+  return typeof tailStyle === 'string' && Object.hasOwn(GIFT_BANNER_TAILS, tailStyle)
+    && typeof textureStyle === 'string' && Object.hasOwn(GIFT_BANNER_TEXTURES, textureStyle);
+}
+
+export function validGiftThresholds(values) {
+  return Array.isArray(values) && values.length === 3 && [0, 1, 2].every(i =>
+    Number.isSafeInteger(values[i]) && values[i] > (i ? values[i - 1] : 0));
+}

@@ -106,6 +106,23 @@
   scrollbar-gutter: stable;
 }
 
+@media (min-height: 680px) and (min-width: 820px) {
+  .client-settings-content:has(> #settingsAppearancePanel:not([hidden])) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  #settingsAppearancePanel:not([hidden]) {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+}
+
 .client-settings-panel {
   width: 100%;
   margin-inline: auto;

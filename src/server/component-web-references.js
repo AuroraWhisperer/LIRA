@@ -17,9 +17,16 @@ function stripWebComments(source, opening, closing) {
 }
 
 function cssReferences(source) {
-  const text = stripWebComments(source, '/*', '*/');
-  return [...text.matchAll(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^\s()"']+))\s*\)|@import\s*(?:"([^"]*)"|'([^']*)')/gi)]
-    .map(match => match.slice(1).find(value => value !== undefined));
+  const references = [];
+  // Remove comments outside quoted strings so they may also separate @import and its path.
+  const text = source.replace(/"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$)|\/\*[\s\S]*?(?:\*\/|$)/g,
+    token => token.startsWith('/*') ? ' ' : token);
+  const tokens = /\burl\(\s*(?:"([^"]*)"|'([^']*)'|([^\s()"']+))\s*\)|@import\s*(?:"([^"]*)"|'([^']*)')|"(?:\\[\s\S]|[^"\\])*(?:"|$)|'(?:\\[\s\S]|[^'\\])*(?:'|$)/gi;
+  for (const match of text.matchAll(tokens)) {
+    const reference = match.slice(1).find(value => value !== undefined);
+    if (reference !== undefined) references.push(reference);
+  }
+  return references;
 }
 
 function javascriptRegexpEnd(source, index) {

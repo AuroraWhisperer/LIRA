@@ -153,6 +153,7 @@ export function createFanTransferUi({ request, openForm, beginIntent, getProfile
         saveLabel: '确认恢复',
         hint: '恢复前会自动备份当前资料。选择替换时，会覆盖对应档案的完整内容。',
         fields: `<p class="fan-field-wide">恢复到当前账号：新增 ${preview.added} 份档案，${preview.updated} 份档案已存在。</p>
+        ${preview.suppressionConflicts?.length ? `<p class="fan-field-wide">备份还包含 ${preview.suppressionConflicts.length} 份本机档案的屏蔽标记：${preview.suppressionConflicts.map(item => html(item.name || item.existingId)).join('、')}。选择保留本机时保持可见；选择替换时将屏蔽这些档案和提醒。</p>` : ''}
         <label class="fan-field fan-field-wide">遇到已有档案<select name="conflicts"><option value="keep">保留本机档案</option><option value="replace">用备份中的档案完整替换</option></select></label>`,
         read: (value) => ({
           backup,

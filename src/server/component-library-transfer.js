@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID, createHash } = require('node:crypto');
-const { createComponentStyleStore } = require('../storage/component-style-store');
+const { createComponentStyleStore, suitePackageIds } = require('../storage/component-style-store');
 const { beginStyleFileUse, endStyleFileUse, listStyleFiles } = require('../storage/component-style-files');
 const { receiveMedia, identifyMedia } = require('./component-media-files');
 const { checkReferences } = require('./component-web-library');
@@ -70,7 +70,9 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
           selected.add(pack.id); dependencies.include(pack); changed = true;
         }
       }
-      const packages = index.packages.filter(pack => selected.has(pack.id));
+      const suites = suitePackageIds(index.packages);
+      const packages = index.packages.filter(pack => selected.has(pack.id)).map(({ restorePending, ...pack }) =>
+        suites.has(pack.packageId) ? { ...pack, isSuite: true } : pack);
       const files = [];
       for (const pack of packages) {
         for (const file of listStyleFiles(store.directory(pack.id))) if (file.name !== 'package.json') {
@@ -149,12 +151,12 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
           else if (createHash('sha256').update(fs.readFileSync(target)).digest('hex') !== file.sha256) throw invalidBackup('已有备份素材与文件内容不符，未覆盖原文件。');
         }
         const documents = manifest.documents.map(({ kind, document }) => ({ ...document,
-          id: transferId(digest, scopeKey, kind, document.id), title: `${document.title.slice(0, 69)}（${kind === 'published' ? '发布备份' : '备份'}）`,
+          id: transferId(digest, scopeKey, kind, document.id),
           items: document.items.map(item => ({ ...item, id: transferId(digest, scopeKey, kind, document.id, item.id),
             appearance: item.appearance.mode === 'independent' ? { ...item.appearance,
               config: mapConfigReferences(item.type, item.appearance.config, mapId) } : item.appearance })) }));
         check();
-        const result = store.restorePackages(packs, () => scenes.restoreBackup(documents, binding));
+        const result = store.restorePackages(packs, () => scenes.restoreBackup(documents, binding, manifest.documents.map(entry => entry.kind)));
         store.removePending(id);
         return { ...result, packages: packs.length, warnings: manifest.warnings };
       } finally {

@@ -446,7 +446,7 @@ async function submitGameResultAction(action) {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, sessionId: session.sessionId }),
     });
     const payload = await response.json();
     if (!gameStream.isCurrent(revision)) return;

@@ -136,7 +136,8 @@ function createGiftProjectionService({ store, settings }, options = {}) {
     const deliverFinal = () => {
       if (detectionPaused || generation !== detectionGeneration) return;
       dispatch(row, 'final');
-      if (onGiftFinalized) onGiftFinalized(row);
+      if (onGiftFinalized) onGiftFinalized(finalizeOptions.remoteDelivery
+        ? { ...row, remote_delivery: finalizeOptions.remoteDelivery } : row);
     };
     if (typeof finalizeOptions.registerAfterCommit === 'function') {
       finalizeOptions.registerAfterCommit(deliverFinal);

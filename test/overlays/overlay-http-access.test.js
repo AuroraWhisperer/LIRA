@@ -455,8 +455,33 @@ test('game overlay rejects drawing after its round or session is replaced', asyn
   assert.equal(choose().accepted, true);
   assert.equal((await post(delayed)).status, 400);
   const current = games.getSession();
+  assert.equal((await post({ ...delayed, sessionId: undefined, round: current.state.round })).status, 400);
+  assert.equal((await post({ ...delayed, sessionId: current.sessionId, round: undefined })).status, 400);
   assert.equal((await post({ ...delayed, sessionId: current.sessionId, round: current.state.round })).status, 200);
   assert.equal(games.getSession().state.canvas.strokes[0].id, delayed.strokeId);
+});
+
+test('admin and overlay result commands target the observed session even after replacement', async t => {
+  const f = await fixture(t);
+  const games = createGameSessionService();
+  f.context.games = games;
+  t.after(() => games.dispose());
+  const old = games.start({ game: 'number-bomb', mode: 'multi' });
+  games.stop();
+  t.mock.method(Math, 'random', () => 0);
+  const current = games.start({ game: 'number-bomb', mode: 'multi' });
+  assert.equal(games.move({ value: 1 }).hit, true);
+  for (const token of [ADMIN, createOverlayToken(ADMIN, 'games')]) {
+    for (const action of ['stop', 'restart']) {
+      for (const sessionId of [undefined, old.sessionId]) {
+        const res = await f.request('/api/games/session', token, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, sessionId }),
+        });
+        assert.equal(res.status, 409, await res.text());
+        assert.equal(games.getSession().sessionId, current.sessionId);
+      }
+    }
+  }
 });
 
 test('game and wheel display controls cannot start/configure games or invoke host answer actions', async (t) => {
@@ -468,7 +493,7 @@ test('game and wheel display controls cannot start/configure games or invoke hos
       headers: { 'Content-Type': 'application/json', Origin: origin },
       body: JSON.stringify(body),
     });
-  for (const action of ['stop', 'restart']) assert.equal((await post('/api/games/session', { action })).status, 200);
+  for (const action of ['stop', 'restart']) assert.equal((await post('/api/games/session', { action, sessionId: 'one' })).status, 200);
   for (const action of ['start', 'reveal-answer', undefined]) {
     assert.equal((await post('/api/games/session', { action, game: 'number-bomb' })).status, 403);
   }
@@ -492,7 +517,7 @@ test('game and wheel display controls cannot start/configure games or invoke hos
   f.context.games.restart = () => {
     throw Object.assign(new Error('internal details'), { statusCode: 409 });
   };
-  const busy = await post('/api/games/session', { action: 'restart' });
+  const busy = await post('/api/games/session', { action: 'restart', sessionId: 'one' });
   assert.equal(busy.status, 409);
   assert.equal((await busy.text()).includes('internal details'), false);
   assert.equal((await post('/api/games/session/move', { value: 42 }, token, 'https://foreign.test')).status, 403);

@@ -7,6 +7,40 @@ const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const fixture = createUiFixture();
 
+test('an interleaved eraser continuation has identical live and restored crossing pixels', async t => {
+  const { createGameSessionService } = require('../../src/games/game-session-service');
+  const { chooseGameWord } = require('../helpers/draw-guess');
+  const { projectOverlayResponse } = require('../../src/server/overlay-projection');
+  const ops = [];
+  const games = createGameSessionService({ broadcast: event => { if (event.type === 'game:draw') ops.push(event.operation); } });
+  t.after(() => games.dispose());
+  games.start({ game: 'draw-guess' });
+  chooseGameWord(games);
+  const snapshot = () => projectOverlayResponse('games', '/api/games/session', games.getSession());
+  const initial = snapshot();
+  const append = (id, color, points) => assert.equal(games.draw({
+    action: 'append', clientId: id, strokeId: id, color, width: 4, points,
+  }).accepted, true);
+  append('eraser', '#ffffff', [{ x: 0.1, y: 0.5 }]);
+  append('pen', '#222034', [{ x: 0.5, y: 0.1 }, { x: 0.5, y: 0.9 }]);
+  append('eraser', '#ffffff', [{ x: 0.9, y: 0.5 }]);
+  const page = await fixture(t, 'games');
+  await page.setContent('<canvas id="drawCanvas" width="100" height="100"></canvas><button id="drawUndoBtn"></button>');
+  const pixels = await page.evaluate(async ({ initial, ops, final }) => {
+    const { createDrawController } = await import('/js/overlays/games-drawing.js');
+    const byId = id => document.getElementById(id);
+    const controller = createDrawController({ byId, canDraw: () => true, getSession: () => initial });
+    const pixel = () => Array.from(byId('drawCanvas').getContext('2d').getImageData(50, 50, 1, 1).data);
+    controller.redrawCanvas(initial.state.canvas);
+    const live = ops.map(op => { controller.applyBroadcast(op); return pixel(); });
+    controller.redrawCanvas(final.state.canvas);
+    return { live, restored: pixel() };
+  }, { initial, ops, final: snapshot() });
+  assert.deepEqual(pixels.live[1], [34, 32, 52, 255]);
+  assert.deepEqual(pixels.live[2], [255, 255, 255, 255]);
+  assert.deepEqual(pixels.restored, pixels.live[2]);
+});
+
 async function setup(t) {
   const page = await fixture(t, 'games');
   await page.setContent(readAdminFragmentHtml('pages/admin/toolbox/games.html'));

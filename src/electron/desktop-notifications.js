@@ -51,14 +51,17 @@ function isValidSettings(value) {
 function createDesktopNotifications({
   dataDir, Notification, getMainWindow, icon, writeLog = () => {},
   onPlannerRemindersChanged = () => {}, fileSystem = fs,
-  now = Date.now,
 }) {
   const filePath = path.join(dataDir, 'desktop-notifications.json');
   let settings = { ...DEFAULT_SETTINGS };
   let pending = Promise.resolve();
   let disposed = false;
-  let giftEnabledAt = now();
-  const notifications = createSystemNotifications({ Notification, getMainWindow, icon, writeLog, scope: 'desktop-notifications' });
+  let giftSource = null;
+  let giftCutoff = null;
+  let giftCutoffPending = null;
+  let giftCutoffGeneration = 0;
+  const notifications = createSystemNotifications({ Notification, getMainWindow, icon, writeLog,
+    scope: 'desktop-notifications', timedOutLimit: 1000 });
   try {
     const stored = JSON.parse(fileSystem.readFileSync(filePath, 'utf8'));
     if (!isValidSettings(stored)) throw new Error('DESKTOP_NOTIFICATIONS_INVALID');
@@ -84,20 +87,59 @@ function createDesktopNotifications({
         return { ok: false, error: 'DESKTOP_NOTIFICATIONS_SAVE_FAILED' };
       }
       const plannerChanged = next.plannerRemindersEnabled !== settings.plannerRemindersEnabled;
-      if (next.largeGiftEnabled && !settings.largeGiftEnabled) giftEnabledAt = now();
+      const giftChanged = next.largeGiftEnabled !== settings.largeGiftEnabled;
+      if (giftChanged) clearGiftCutoff();
       settings = next;
       if (plannerChanged) onPlannerRemindersChanged(settings.plannerRemindersEnabled);
       if (!settings.largeGiftEnabled) notifications.clear();
+      if (giftChanged && settings.largeGiftEnabled) await refreshGiftCutoff();
       return getState();
     });
     pending = operation;
     return operation;
   }
 
+  function clearGiftCutoff() {
+    giftCutoffGeneration += 1;
+    giftCutoff = null;
+    giftCutoffPending = null;
+  }
+
+  function setGiftSource(source) {
+    if (disposed) return Promise.resolve();
+    if (source !== giftSource) {
+      giftSource = source;
+      clearGiftCutoff();
+    }
+    return refreshGiftCutoff();
+  }
+
+  function refreshGiftCutoff() {
+    if (disposed || !settings.largeGiftEnabled || !giftSource?.isCurrent() || giftCutoff !== null) return Promise.resolve();
+    if (giftCutoffPending) return giftCutoffPending;
+    const source = giftSource;
+    const generation = giftCutoffGeneration;
+    giftCutoffPending = Promise.resolve().then(() => source.readCursor()).then((cursor) => {
+      if (!disposed && generation === giftCutoffGeneration && source.isCurrent() &&
+          Number.isSafeInteger(cursor) && cursor >= 0) giftCutoff = cursor;
+    }).catch(() => {
+      // An unavailable source cannot establish a cutoff. The existing gift
+      // reconciliation will offer the source again; no independent retry loop.
+    }).finally(() => {
+      if (generation === giftCutoffGeneration) giftCutoffPending = null;
+    });
+    return giftCutoffPending;
+  }
+
   function notifyGift(item) {
     if (disposed || !settings.largeGiftEnabled || !Notification.isSupported() || item?.detection_status !== 'final') return;
-    // Catch-up after startup or enabling must not notify about earlier gifts.
-    if (!(Date.parse(item.updated_at) >= giftEnabledAt)) return;
+    const delivery = item.remote_delivery;
+    // Compare the source's finalization cursor, never its business timestamp
+    // with the desktop clock or local arrival of a catch-up row.
+    if (giftCutoff === null || !giftSource?.isCurrent() ||
+        delivery?.sourceId !== giftSource.sourceId || delivery.syncEpoch !== giftSource.syncEpoch ||
+        delivery.projectionGeneration !== giftSource.projectionGeneration ||
+        !Number.isSafeInteger(delivery.cursor) || delivery.cursor <= giftCutoff) return;
     const totalCents = Math.round(Number(item.total_price) * 100);
     if (!Number.isSafeInteger(totalCents) || totalCents <= Math.round(settings.largeGiftThresholdRmb * 100)) return;
     notifications.show('LIRA · 大额礼物',
@@ -106,10 +148,13 @@ function createDesktopNotifications({
 
   function dispose() {
     disposed = true;
+    giftSource = null;
+    clearGiftCutoff();
     notifications.clear();
   }
 
-  return { getState, update, notifyGift, dispose, whenIdle: () => pending };
+  return { getState, update, notifyGift, setGiftSource, dispose,
+    whenIdle: async () => { await pending; await giftCutoffPending; } };
 }
 
 module.exports = { createDesktopNotifications, configureNotificationIdentity };

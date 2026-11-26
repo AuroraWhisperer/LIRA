@@ -4,7 +4,7 @@ import { mountComponentStyleLibrary, openComponentStyleLibrary } from './compone
 import { openComponentLibraryManager } from './component-library-manager.js';
 import { loadComponentStyleCss, requestComponentStyles } from './component-style-api.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
-import { fitSceneMediaSize } from '../shared/scene-geometry.js';
+import { createInitialPreviewItem } from './component-preview-definitions.js';
 import { mountResourceStyleSettings } from './component-resource-settings-panel.js';
 import { renderGiftFrameStyleState } from './gift-frame.js';
 import { renderGiftFrameStyles } from './gift-frame-styles.js';
@@ -17,11 +17,8 @@ export async function addStyleToCanvas(style, { previewData, reuseExisting = fal
       && styleKey(item.appearance.config) === styleKey(style.config)),
     createItem(document, component) {
       const media = componentStyleMedia(style.config);
-      const [sourceWidth, sourceHeight] = media ? [media.width, media.height] : component.size(style.config);
-      const [width, height] = fitSceneMediaSize(document.canvas, sourceWidth, sourceHeight);
-      return { id: crypto.randomUUID(), type: style.type, name: style.name,
-        x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
-        width, height, visible: true, locked: false, appearance: { mode: 'independent', config: structuredClone(style.config) } };
+      return createInitialPreviewItem(component, document, { id: crypto.randomUUID(), name: style.name,
+        config: structuredClone(style.config), size: media && [media.width, media.height] });
     },
   });
 }
@@ -113,6 +110,10 @@ export function initComponentStyleLibraries() {
       if (wishes && event.target.matches('input[type="radio"]')) select(null);
     }, { signal: requests.signal });
     const library = mountComponentStyleLibrary(list, { type, request, inline: true,
+      onImportTarget(target, file, pack) {
+        updateEditor = openComponentStyleLibrary({ type: target === 'suite' ? undefined : target, suitesOnly: target === 'suite',
+          initialFile: file, updatePack: pack, request, onUse: addStyleToCanvas });
+      },
       actionLabel: wishes ? '预览样式' : '添加到画布',
       onUse: style => {
         select(style);

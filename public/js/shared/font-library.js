@@ -12,10 +12,10 @@ function fontName(select, label) {
 }
 
 // Resolve the first available face in the authored stack using the same library inventory.
-export function fontValueForStack(select, stack, fallbackValue = '"Microsoft YaHei UI"') {
+export function fontValueForStack(element, stack, fallbackValue = '"Microsoft YaHei UI"') {
   const families = (stack.match(/"(?:[^"\\]|\\.)*"|'[^']*'|[^,]+/g) || [])
     .map(value => value.trim().replace(/^['"]|['"]$/g, ''));
-  const context = select.ownerDocument.createElement('canvas').getContext('2d');
+  const context = element.ownerDocument.createElement('canvas').getContext('2d');
   for (const family of families) {
     const font = findSharedFont(FONT_ALIASES[family] || family);
     if (font) return font.value;

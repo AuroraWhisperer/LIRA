@@ -98,10 +98,11 @@ async function createPlaybackApp(initialState, options = {}) {
         return { ok: true };
       },
       async getAuthState(platform) {
-        return options.authState ?? { platform, loggedIn: false };
+        return typeof options.authState === 'function' ? options.authState(platform)
+          : options.authState ?? { platform, loggedIn: false };
       },
-      async providerHealth() {
-        return { ok: true, message: 'ok' };
+      async providerHealth(platform) {
+        return options.providerHealth?.(platform) ?? { ok: true, message: 'ok' };
       },
       resolveLocalMediaUrls: options.resolveLocalMediaUrls,
       selectLocalFiles: options.selectLocalFiles,

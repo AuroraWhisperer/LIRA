@@ -9,20 +9,22 @@
   --select-control-border-hover: var(--color-control-border-hover, var(--color-border-strong));
   --select-text: var(--text);
   --select-muted: var(--muted);
-  --select-option-text: var(--color-text-secondary, var(--select-muted));
-  --select-option-hover: color-mix(in srgb, var(--select-text) 6%, transparent);
-  --select-selected-fill: color-mix(in srgb, var(--color-primary) 11%, var(--select-surface));
-  --select-selected-edge: color-mix(in srgb, var(--color-primary) 22%, transparent);
-  --select-marker: var(--color-selection-marker, var(--color-primary));
-  --select-marker-glow: none;
-  --select-check-fill: var(--color-primary-fill, var(--color-primary));
-  --select-check-ink: var(--color-on-primary, #fff);
-  --select-ring: color-mix(in srgb, var(--color-primary) 18%, transparent);
-  --select-chevron-well: color-mix(in srgb, var(--select-text) 6%, transparent);
-  --select-highlight: light-dark(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.05));
-  --select-menu-shadow:
+  --select-option-text: var(--client-select-option-text, var(--color-text-secondary, var(--select-muted)));
+  --select-option-hover: var(--client-select-option-hover, color-mix(in srgb, var(--select-text) 6%, transparent));
+  --select-selected-fill: var(--client-select-selected-fill, color-mix(in srgb, var(--color-primary) 11%, var(--select-surface)));
+  --select-selected-edge: var(--client-select-selected-edge, color-mix(in srgb, var(--color-primary) 22%, transparent));
+  --select-marker: var(--client-select-marker, var(--color-selection-marker, var(--color-primary)));
+  --select-marker-glow: var(--client-select-marker-glow, none);
+  --select-check-fill: var(--client-select-check-fill, var(--color-primary-fill, var(--color-primary)));
+  --select-check-ink: var(--client-select-check-ink, var(--color-on-primary, #fff));
+  --select-ring: var(--client-select-ring, color-mix(in srgb, var(--color-primary) 18%, transparent));
+  --select-chevron-well: var(--client-select-chevron-well, color-mix(in srgb, var(--select-text) 6%, transparent));
+  --select-highlight: var(--client-select-highlight, light-dark(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.05)));
+  --select-menu-shadow: var(
+    --client-select-menu-shadow,
     0 1px 2px light-dark(color-mix(in srgb, var(--select-text) 6%, transparent), rgba(0, 0, 0, 0.32)),
-    0 14px 34px -8px light-dark(color-mix(in srgb, var(--select-text) 22%, transparent), rgba(0, 0, 0, 0.6));
+    0 14px 34px -8px light-dark(color-mix(in srgb, var(--select-text) 22%, transparent), rgba(0, 0, 0, 0.6))
+  );
 }
 
 .lira-select,

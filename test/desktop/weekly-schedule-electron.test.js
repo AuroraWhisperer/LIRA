@@ -257,6 +257,134 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
   assert.deepEqual(errors, []);
 });
 
+test('the first calendar or checkbox click after an inline task rename takes effect', async t => {
+  const { page } = await fixture(t);
+  await page.evaluate(async () => {
+    const { other } = await import('/js/admin/toolbox-navigation.js');
+    other.selectFeatureById('otherDailyTodoFeature');
+    (await import('/js/admin/streamer-planner.js')).todo.init();
+  });
+  await page.locator('#plannerTaskTitle').fill('original');
+  await page.locator('#plannerTaskTitle').press('Enter');
+  const edit = page.locator('[data-task-title]').first();
+  await edit.fill('renamed');
+  const day = page.locator('[data-calendar-date][aria-pressed="false"]:not(.is-outside)').first();
+  const date = await day.getAttribute('data-calendar-date');
+  await day.click();
+  assert.equal(await page.locator(`[data-calendar-date="${date}"]`).getAttribute('aria-pressed'), 'true');
+  await edit.fill('completed task');
+  await page.locator('[data-task-complete]').first().click();
+  await page.locator('[data-task-filter="done"]').click();
+  assert.equal(await edit.inputValue(), 'completed task');
+  assert.equal(await page.locator('[data-task-complete]').first().isChecked(), true);
+});
+
+test('scrapbook PNG preserves both time glyphs beside a wrapped event label', { timeout: 45000 }, async t => {
+  const { app, page, directory } = await fixture(t);
+  await page.locator('[data-weekly-layout="scrapbook"]').click();
+  await openGroup(page, '一周安排');
+  const field = key => page.locator(`[data-weekly-field="days.0.${key}"]`);
+  await field('time1').fill('20:00');
+  await field('time2').fill('23:00');
+  await field('highlight').check();
+  await field('highlightLabel').fill('联动');
+  const { filePath } = await exportPng(app, page);
+  const before = path.join(directory, 'short-label.png');
+  await fs.copyFile(filePath, before);
+  await field('highlightLabel').fill('周年纪念·全员特别联动直播');
+  await exportPng(app, page);
+  const regions = await page.locator('.weekly-schedule-art .wsa-day').first().evaluate(row => {
+    const canvas = row.closest('.weekly-schedule-art').getBoundingClientRect();
+    const scale = 1920 / canvas.width;
+    const badge = row.querySelector('.wsa-event-label').getBoundingClientRect();
+    return [...row.querySelectorAll('.wsa-times span')].map(span => {
+      const rect = span.getBoundingClientRect();
+      if (badge.left < rect.right && badge.right > rect.left && badge.top < rect.bottom && badge.bottom > rect.top) {
+        throw new Error(`Label covers ${span.textContent}`);
+      }
+      return { x: Math.round((rect.left - canvas.left) * scale), y: Math.round((rect.top - canvas.top) * scale),
+        width: Math.round(rect.width * scale), height: Math.round(rect.height * scale) };
+    });
+  });
+  assert.equal(regions.length, 2);
+  const visible = await app.evaluate(({ nativeImage }, { before, filePath, regions }) => {
+    const [short, long] = [before, filePath].map(file => nativeImage.createFromPath(file));
+    return regions.every(region => {
+      const pixels = long.crop(region).toBitmap();
+      return pixels.equals(short.crop(region).toBitmap()) && new Set(pixels).size > 12;
+    });
+  }, { before, filePath, regions });
+  assert.ok(visible, 'glyph pixels in each exported time slot survive the longer label');
+});
+
+test('prepare-shutdown waits for the weekly IndexedDB transaction before a single acknowledgement', async t => {
+  const { app, page } = await fixture(t);
+  await app.evaluate(({ ipcMain }) => {
+    global.weeklyScheduleTest.acks = 0;
+    global.weeklyScheduleTest.playbackWrites = 0;
+    ipcMain.handle('playback:flush-ack', () => ++global.weeklyScheduleTest.acks);
+    ipcMain.handle('playback:save-state', () => {
+      ++global.weeklyScheduleTest.playbackWrites;
+      return { saved: true };
+    });
+  });
+  let releaseRestore;
+  const restoreGate = new Promise(resolve => { releaseRestore = resolve; });
+  await page.route('**/api/playback/queue-state?*', async route => {
+    await restoreGate;
+    await route.fulfill({ json: { ok: true, data: { payload: null } } });
+  });
+  await page.evaluate(async () => {
+    const { createPlaybackController } = await import('/js/playback/controller.js');
+    const { flushWeeklySchedule } = await import('/js/admin/weekly-schedule.js');
+    window.__PLAYBACK_SNAPSHOT_WRITER__ = { writerId: 'weekly-shutdown-fixture', generation: 1 };
+    window.playbackInit = createPlaybackController({
+      flushWeeklySchedule() {
+        window.startedWeeklyFlush = true;
+        return flushWeeklySchedule();
+      },
+    }).init();
+    const db = await new Promise(resolve => {
+      const open = indexedDB.open('lira.weeklySchedule');
+      open.onsuccess = () => resolve(open.result);
+    });
+    const blocker = db.transaction('state', 'readwrite');
+    let hold = true;
+    function next() {
+      if (hold) blocker.objectStore('state').get('current').onsuccess = next;
+    }
+    next();
+    window.releaseWeeklyWrite = () => { hold = false; db.close(); };
+    const title = document.querySelector('[data-weekly-field="title"]');
+    title.value = 'pending edit';
+    title.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.send('app:prepare-shutdown'));
+  try {
+    await page.waitForFunction(() => window.startedWeeklyFlush);
+  } finally {
+    releaseRestore();
+  }
+  await page.evaluate(() => window.playbackInit);
+  assert.equal(await app.evaluate(() => global.weeklyScheduleTest.acks), 0);
+  await page.evaluate(() => {
+    const title = document.querySelector('[data-weekly-field="title"]');
+    title.value = 'final edit';
+    title.dispatchEvent(new Event('input', { bubbles: true }));
+    window.releaseWeeklyWrite();
+  });
+  await saved(page);
+  await app.evaluate(async () => {
+    const end = Date.now() + 2000;
+    while (!global.weeklyScheduleTest.acks && Date.now() < end) await new Promise(resolve => setTimeout(resolve, 10));
+  });
+  assert.equal(await app.evaluate(() => global.weeklyScheduleTest.acks), 1);
+  assert.equal(await app.evaluate(() => global.weeklyScheduleTest.playbackWrites), 0);
+  await page.reload();
+  await page.locator('[data-weekly-action="export"]:enabled').waitFor();
+  assert.equal(await page.locator('[data-weekly-field="title"]').inputValue(), 'final edit');
+});
+
 test('magazine PNGs fit long program text and a wrapped badge while keeping both starting hours visible', { timeout: 45000 }, async t => {
   const { app, page, assets, directory } = await fixture(t);
   await page.locator('[data-weekly-layout="magazine"]').click();

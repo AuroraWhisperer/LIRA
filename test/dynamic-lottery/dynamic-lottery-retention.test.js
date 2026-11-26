@@ -123,8 +123,12 @@ test('restart cleanup follows the default selected task and preserves paused pro
   });
   let store = createDynamicLotteryStore(db);
   let drawStore = createLotteryDrawStore(db);
-  const old = task(store, 'a-old');
-  const current = task(store, 'z-current');
+  const old = task(store, 'z-old', 'streamer-1', 10_000);
+  const current = task(store, 'a-current', 'streamer-1', 1_000);
+  const unfinished = task(store, 'z-unfinished', 'streamer-3', 20_000);
+  frozen(store, drawStore, unfinished);
+  const afterRollback = task(store, 'a-after-rollback', 'streamer-3', 500);
+  finish(store, drawStore, afterRollback);
   const otherOld = task(store, 'other-old', 'streamer-2', 1_000);
   const otherCurrent = task(store, 'other-current', 'streamer-2', 2_000);
   finish(store, drawStore, old);
@@ -143,7 +147,7 @@ test('restart cleanup follows the default selected task and preserves paused pro
   });
   store = createDynamicLotteryStore(db);
   drawStore = createLotteryDrawStore(db);
-  assert.equal(runtime.getState().task.id, current.id, 'equal dates use the same descending ID tie break as the UI');
+  assert.equal(runtime.getState().task.id, current.id, 'insertion order survives a clock rollback');
   assert.deepEqual(runtime.getState().result, expectedResult);
   assert.equal(store.getTask(old.id), null);
   assert.ok(store.getTask(otherOld.id), 'maintenance leaves an unselected account untouched');
@@ -159,9 +163,13 @@ test('restart cleanup follows the default selected task and preserves paused pro
   db.close();
   db = openLotteryDatabase(file);
   store = createDynamicLotteryStore(db);
-  assert.deepEqual(store.findCreateReceipt('streamer-1', old.requestId), { inputSignature: 'signature-a-old' });
+  drawStore = createLotteryDrawStore(db);
+  assert.deepEqual(store.findCreateReceipt('streamer-1', old.requestId), { inputSignature: 'signature-z-old' });
   assert.throws(() => task(store, old.id), { code: 'LOTTERY_TASK_CLEARED' });
   assert.equal(store.pruneCompletedHistory(), 0);
+  assert.equal(store.listTasks('streamer-3')[0].id, afterRollback.id);
+  assert.equal(store.getTask(afterRollback.id).status, 'completed');
+  assert.equal(drawStore.getRound(unfinished.id).status, 'frozen');
 });
 
 test('server account scopes isolate history and leave legacy tasks outside automatic recovery and pruning', async t => {

@@ -9,10 +9,8 @@
   overflow: hidden;
   background: var(--surface);
   color: var(--text);
-  caret-color: var(--primary);
   scrollbar-color: var(--border) var(--surface);
 }
-.component-preview-page ::selection { background: var(--color-primary-light); color: var(--text); }
 .component-preview-page button.primary:not(:disabled) { color: var(--color-on-primary); }
 #componentPreviewPage { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 #componentPreviewStatus { padding: var(--spacing-lg); }

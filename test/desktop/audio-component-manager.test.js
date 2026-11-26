@@ -5,11 +5,13 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createHash } = require('node:crypto');
-const { once } = require('node:events');
+const { once, EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
 const test = require('node:test');
 const { createDeflatedZip } = require('../../scripts/component-style-zip');
 const { verifyAudioDirectory, pruneObsoleteAudioVersions } = require('../../src/electron/audio-component-files');
 const { createAudioComponentManager } = require('../../src/electron/audio-component-manager');
+const { createPlaybackOutput } = require('../../src/electron/playback-output');
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const previousId = 'fedcba9876543210fedcba98';
@@ -145,6 +147,51 @@ test('one cold download serves concurrent consumers; subsequent starts and retri
   const offline = f.manager({ fetch: () => { throw new Error('Network must not be used'); } });
   assert.equal(await offline.getExecutable(), paths[0]);
   assert.deepEqual(await fs.readdir(f.root), [f.manifest.id]);
+});
+
+test('worker startup failure does not trigger ready enumeration loops and explicit retry still verifies files', async t => {
+  const f = await fixture(t);
+  await f.populate(f.destination);
+  let checks = 0;
+  const realpath = fs.realpath;
+  t.mock.method(fs, 'realpath', async filename => {
+    if (filename === path.join(f.destination, 'dependency.dll')) checks++;
+    return realpath(filename);
+  });
+  const enumerations = [];
+  let output;
+  const manager = f.manager({ onState(state) {
+    if (state.status === 'ready' && enumerations.length < 4) {
+      enumerations.push(new Promise(resolve => setImmediate(() => resolve(output.invoke('list')))));
+    }
+  } });
+  let launches = 0;
+  let failStart = true;
+  output = createPlaybackOutput({ dataDir: f.dataDir, getExecutable: () => manager.getExecutable(),
+    spawnProcess() {
+      launches++;
+      const worker = new EventEmitter();
+      Object.assign(worker, { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough() });
+      worker.kill = () => worker.emit('exit', 1);
+      worker.stdin.on('finish', () => worker.emit('exit', 0));
+      worker.stdin.on('data', bytes => {
+        const command = JSON.parse(bytes);
+        worker.stdout.write(JSON.stringify({ id: command.id, ok: true, data: [] }) + '\n');
+      });
+      queueMicrotask(() => failStart ? worker.emit('exit', 1) : worker.stdout.write('{"type":"ready"}\n'));
+      return worker;
+    },
+  });
+  t.after(() => output.dispose());
+  await manager.initialize();
+  for (let i = 0; i < enumerations.length; i++) await enumerations[i];
+  assert.equal(enumerations[0] && (await enumerations[0]).ok, false);
+  assert.equal(launches, 1);
+  assert.equal(checks, 2, 'background preparation and the first worker each verify the package');
+  failStart = false;
+  assert.equal((await output.invoke('list')).ok, true);
+  assert.equal(launches, 2);
+  assert.equal(checks, 3, 'an explicit retry must not skip integrity verification');
 });
 
 test('verified background files are checked again when a worker requests its executable', async t => {

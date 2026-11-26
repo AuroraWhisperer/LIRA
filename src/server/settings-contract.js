@@ -53,7 +53,7 @@ function normalizeSettingValue(key, rawValue) {
     catch (_) { return null; }
   }
   if (Object.hasOwn(LYRIC_VISUAL_DEFAULTS, key)) return normalizeLyricVisualSetting(key, rawValue);
-  if (key === 'desktopLyricLineGap') {
+  if (key === 'desktopLyricLineGap' || key === 'desktopLyricWordBounceEnabled') {
     try { return normalizeSceneExtraConfig('lyrics', { [key]: rawValue })[key]; }
     catch (_) { return null; }
   }

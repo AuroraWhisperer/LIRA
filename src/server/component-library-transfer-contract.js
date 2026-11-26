@@ -1,20 +1,15 @@
 'use strict';
 
-const { createHash } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const { validateIndex } = require('../storage/component-style-index');
 const { normalizeSceneDocument } = require('../scenes/scene-contract');
+const { transferId } = require('../scenes/scene-transfer');
 const { normalizeSceneConfig } = require('./scene-components');
 const { SCENE_TYPES } = require('../shared/scene-component-types');
 const { invalidBackup, backupFileName } = require('./component-library-archive');
 
 function checkBackupDocumentCount(documents) {
   if (documents.length > 1000) throw invalidBackup('备份最多支持 1000 份保存布局与发布快照，请减少布局后重试。');
-}
-
-function transferId(...values) {
-  const hex = createHash('sha256').update(JSON.stringify(values)).digest('hex');
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
 }
 
 // Export, preflight and restore use the same owned reference fields. Text, labels
@@ -111,7 +106,8 @@ function validateBackupManifest(manifest, files) {
   const styleIds = new Set();
   const names = new Set();
   for (const pack of manifest.packages) {
-    if (Object.keys(pack).some(key => !['id', 'packageId', 'name', 'version', 'digest', 'createdAt', 'styles', 'bytes', 'removed'].includes(key))
+    if (Object.keys(pack).some(key => !['id', 'packageId', 'name', 'version', 'digest', 'createdAt', 'styles', 'bytes', 'removed', 'isSuite'].includes(key))
+      || pack.isSuite !== undefined && typeof pack.isSuite !== 'boolean'
       || typeof pack.name !== 'string' || !pack.name.trim() || pack.name.length > 80
       || pack.packageId !== undefined && !/^[a-z0-9][a-z0-9.-]{0,79}$/.test(pack.packageId)
       || pack.version !== undefined && !/^\d+\.\d+\.\d+$/.test(pack.version)

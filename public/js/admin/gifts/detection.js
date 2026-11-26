@@ -18,23 +18,26 @@ export const giftDetection = (() => {
     const status = document.getElementById('giftSprintStatus');
     if (status) {
       const message = String(live.message || '');
-      status.title = sprint.enabled ? message : '';
-      if (!sprint.enabled) {
-        status.textContent = '未开启';
-        status.className = 'pill warn';
-      } else if (settings.giftMonitoringEnabled === 'false') {
+      if (settings.giftMonitoringEnabled === 'false') {
         status.textContent = '已停收礼物';
         status.className = 'pill warn';
-        status.title = '监控礼物已关闭，暂不接收新礼物。';
+        status.title = '监控礼物已关闭，暂不接收新礼物与自动答谢。';
+        status.hidden = false;
+      } else if (!sprint.enabled) {
+        status.textContent = '统计已暂停';
+        status.className = 'pill warn';
+        status.title = '本机礼物统计已暂停，不影响加班机和云端接收礼物。';
+        status.hidden = false;
       } else if (isLiveStatusDegraded(live)) {
         status.textContent = '连接恢复中';
         status.className = 'pill warn';
-      } else if (live.connected && !message.includes('历史消息监听中')) {
-        status.textContent = '统计已开启';
-        status.className = 'pill good';
+        status.title = message;
+        status.hidden = false;
       } else {
-        status.textContent = message.includes('历史消息监听中') ? '待开播' : message || '未连接';
-        status.className = 'pill warn';
+        status.textContent = '';
+        status.className = 'pill good';
+        status.title = message;
+        status.hidden = true;
       }
     }
   }

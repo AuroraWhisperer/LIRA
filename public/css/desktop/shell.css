@@ -218,12 +218,11 @@ body.desktop-shell .primary-nav-slot {
 body.desktop-shell .main-page-tab {
   min-height: 30px;
   padding-block: 4px;
-  font-size: var(--type-size-caption);
 }
 
 body.desktop-shell .main-page-tab .tab-icon {
-  width: 18px;
-  height: 18px;
+  width: 1.5em;
+  height: 1.5em;
 }
 
 body.desktop-shell .status-strip {
@@ -264,6 +263,12 @@ body.desktop-shell .panel {
   box-shadow: var(--shadow-sm);
 }
 
+/* Count the reserved scrollbar gutters as part of the workspace's edge padding. */
+body.desktop-shell :is(.song-workspace, .gift-workspace, .playback-page.active) {
+  scrollbar-gutter: stable both-edges;
+  padding-inline: calc(16px - var(--workspace-scrollbar-size, var(--scrollbar-size)));
+}
+
 @media (max-width: 900px) {
   body.desktop-shell {
     overflow: hidden;
@@ -288,16 +293,19 @@ body.desktop-shell .panel {
     min-height: 0;
   }
 
+  body.desktop-shell :is(.song-workspace, .gift-workspace, .other-workspace, .playback-page.active) {
+    scrollbar-gutter: stable both-edges;
+    padding: 12px calc(12px - var(--workspace-scrollbar-size, var(--scrollbar-size)));
+  }
+
   body.desktop-shell :is(.song-workspace, .gift-workspace, .other-workspace) {
     height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    padding: 12px;
   }
 
   body.desktop-shell .playback-page.active {
     overflow: auto;
-    padding: 12px;
   }
 
   body.desktop-shell .other-workspace {

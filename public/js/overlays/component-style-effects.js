@@ -142,7 +142,10 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
         set(root, 'filter', `${original === 'none' ? '' : original + ' '}${filter}`);
       }
       if (surface) for (const element of surface === ':self' ? [root] : root.querySelectorAll(surface)) surfaceEffects(element);
-      if (externalFrame && parameters.outline) set(root, 'outline', `${parameters.outline.width}px solid ${effectColor(parameters.outline)}`);
+      if (externalFrame && parameters.outline) {
+        set(root, 'outline', `${parameters.outline.width}px solid ${effectColor(parameters.outline)}`);
+        set(root, 'outline-offset', `calc(var(--external-frame-outline-inset, 0) * ${parameters.outline.width}px)`);
+      }
       const transform = effectTransform(parameters.transform);
       if (transform) {
         set(root, 'transform-origin', 'top left');

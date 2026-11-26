@@ -233,6 +233,7 @@ const DEFAULT_SETTINGS = {
   desktopLyricShowRoma: 'true',
   desktopLyricKaraokeEnabled: 'true',
   desktopLyricKaraokeMode: 'continuous',
+  desktopLyricWordBounceEnabled: 'true',
   desktopLyricHidePassedLines: 'false',
   desktopLyricTraditionalMode: 'false',
   desktopLyricInterludeOffsetEm: '0',

@@ -1,0 +1,50 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { createFixture, fixedRule } = require('../helpers/overtime-service-fixture');
+const { runAllMigrations } = require('../../src/storage/database-migrations');
+const { migrateOvertimeSettlementOrder } = require('../../src/storage/overtime-settlement-migration');
+
+test('settlement-order migration rolls back on failure and preserves old terminal and pending rows on repeated startup', (t) => {
+  const fixture = createFixture();
+  const service = fixture.createService();
+  t.after(() => { service.dispose(); fixture.close(); });
+  const db = fixture.db.giftDb;
+  service.act('enable');
+  service.replaceRules([fixedRule('gift-a', 300)]);
+  const longCombo = fixture.insertProgressGift({ overtimeEpoch: 1 });
+  service.observeGift(longCombo);
+  service.finalizeGift(fixture.insertFinalGift({ overtimeEpoch: 1 }));
+  fixture.clock.advance(1000);
+  fixture.finalizeGift(longCombo.giftEventId);
+  service.finalizeGift(longCombo);
+  const pending = fixture.insertProgressGift({ overtimeEpoch: 1 });
+  service.observeGift(pending);
+  db.exec(`DROP INDEX idx_overtime_settlements_completion;
+    DROP TRIGGER overtime_settlement_completed;
+    ALTER TABLE overtime_settlements DROP COLUMN settled_order;
+    UPDATE schema_version SET version = 26 WHERE key = 'gift_db';`);
+  const before = db.prepare('SELECT * FROM overtime_settlements ORDER BY id').all();
+  db.exec(`CREATE TEMP TRIGGER fail_migration BEFORE UPDATE ON overtime_settlements
+    BEGIN SELECT RAISE(ABORT, 'migration failed'); END;`);
+  assert.throws(() => runAllMigrations(fixture.db), /migration failed/);
+  assert.equal(db.prepare("SELECT version FROM schema_version WHERE key = 'gift_db'").get().version, 26);
+  assert.deepEqual(db.prepare('SELECT * FROM overtime_settlements ORDER BY id').all(), before);
+  db.exec('DROP TRIGGER fail_migration');
+  runAllMigrations(fixture.db);
+  runAllMigrations(fixture.db);
+  const orders = db.prepare('SELECT settled_order FROM overtime_settlements ORDER BY id').all().map(row => row.settled_order);
+  migrateOvertimeSettlementOrder(db);
+  assert.deepEqual(db.prepare('SELECT settled_order FROM overtime_settlements ORDER BY id').all().map(row => row.settled_order), orders);
+  assert.equal(service.getOverview().settlements[0].giftEventId, longCombo.giftEventId);
+  assert.equal(service.getOverview().pendingCount, 1);
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 600_000);
+  fixture.finalizeGift(pending.giftEventId);
+  service.finalizeGift(pending);
+  assert.equal(service.getOverview().settlements[0].giftEventId, pending.giftEventId);
+  const ignored = fixture.insertProgressGift({ overtimeEpoch: 1 });
+  service.observeGift(ignored);
+  db.prepare("UPDATE overtime_settlements SET status = 'ignored' WHERE gift_event_id = ?").run(ignored.giftEventId);
+  assert.equal(service.getOverview().settlements[0].giftEventId, ignored.giftEventId, 'maintenance terminal writes use the same ordering');
+});

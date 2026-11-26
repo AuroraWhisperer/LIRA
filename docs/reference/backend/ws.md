@@ -14,8 +14,8 @@
 | 握手 | `GET`、HTTP ≥1.1、`Upgrade: websocket`、`Connection` 含 `Upgrade`、版本 13、规范 Base64 编码的 16 字节 key 均通过后，以 key + 魔数 `258EAFA5-E914-47DA-95CA-C5AB0DC85B11` 计算 SHA-1 → Base64 `Sec-WebSocket-Accept`；非法握手返回 400 并销毁连接，不登记 socket | [ws.js](../../../src/server/ws.js) |
 | **Origin 验证**（H06） | 先验证凭据，再检查 Origin。普通 Origin 必须精确匹配 `context.allowedOrigins`；仅已验证的 overlay 额外允许沙箱页面的不透明源（`Origin: null`），Admin 明确拒绝 `null`。已认证的无 Origin 非浏览器客户端保留支持；不匹配返回 403 并销毁连接 | [ws.js](../../../src/server/ws.js) |
 | 鉴权 | 与 HTTP 共用 `resolveRequestPrincipal(context, req, requestUrl)`：Bearer 优先于 `?token=`，显式无效 `Authorization` 不回退。运行时管理凭据解析为 Admin，服务端签名的访问凭证解析为 overlay（`scope`）；空运行时密钥或无效凭据返回 401 | [access-policy.js](../../../src/server/access-policy.js) |
-| 帧上限 | 单帧 `MAX_FRAME_BYTES = 256 KB`，跨分片消息 `MAX_MESSAGE_BYTES = 256 KB`，超限回 close code 1009 | [ws.js:8-9](../../../src/server/ws.js#L8-L9) |
-| 待发送上限 | 每个 socket 的 Node 待发送字节数 + 新帧不得超过 `MAX_PENDING_BYTES = 2 MB`；超限时立即销毁并清理慢客户端，由客户端重连后通过 snapshot 恢复 | [ws.js](../../../src/server/ws.js) |
+| 入站帧/消息上限 | 客户端发往服务端的单帧 `MAX_FRAME_BYTES = 256 KiB`，跨分片消息 `MAX_MESSAGE_BYTES = 256 KiB`，超限回 close code 1009；不作为服务端歌词时间轴的出站帧上限 | [ws.js](../../../src/server/ws.js) |
+| 待发送上限 | 每个 socket 的 Node 待发送字节数 + 新帧不得超过 `MAX_PENDING_BYTES = 2 MiB`；超限时立即销毁并清理慢客户端，由客户端重连后通过 snapshot 恢复 | [ws.js](../../../src/server/ws.js) |
 | 心跳 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping；以 `performance.now()` 单调时钟计时，超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接；心跳定时器 `unref()` | [ws.js](../../../src/server/ws.js) |
 | 客户端消息 | 服务端不执行业务客户端消息。Admin 文本/二进制消息校验重组后丢弃；overlay 业务数据帧（包括 `clear-history`、控制消息和分片起始帧）以 `Close(1008)` 拒绝。两类连接均允许协议 ping/pong/close | [ws.js](../../../src/server/ws.js) |
 | 发送 | 服务端业务消息为 JSON 文本帧；连接初始、合并快照、普通/主题广播和 shutdown 均经统一 `sendWebSocket` 按 socket principal 投影。被 scope 禁止的消息跳过；`topic` 仅作为订阅过滤条件，不扩大权限 | [ws.js](../../../src/server/ws.js)、[overlay-projection.js](../../../src/server/overlay-projection.js) |
@@ -61,7 +61,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `liveStatus` | `liveStatus` 对象 | 直播间连接状态（`connected` / `enabled` / `roomId` / `mode` / `message` / `updatedAt`） |
 | `bilibiliDiagnostics` | `bilibiliDiagnostics` 对象 | Bilibili 诊断信息（最近包/命令/礼物时间戳、解析计数等），见 [bilibili/danmaku.md](bilibili/danmaku.md) |
 | `lyricState` | `lyricState` 对象 | 当前歌词行状态（单行），见 [music/services.md](music/services.md) |
-| `lyricTimeline` | `lyricTimeline` 对象 | 歌词时间轴（全曲），经 `normalizeLyricTimeline` 归一化 |
+| `lyricTimeline` | `lyricTimeline` 对象 | 经 `normalizeLyricTimeline` 归一化的预载歌词；预算、可选截断边界及展示投影限制见[音乐服务 §13.2](music/services.md#132-差异) |
 | `nowPlaying` | `musicRuntime.getNowPlayingState()` | 与歌词共用来源选择的曲目信息和实际播放状态，见 [正在播放展示数据](music/services.md#正在播放展示数据) |
 | `nowPlayingConfig` | `readNowPlayingConfig(settingsStore.getSettings())` | 已保存的本机唱片展示外观，见 [歌曲信息页面](../frontend/overlays.md#歌曲信息now-playing) |
 | `lyricSource` | `musicRuntime.getLyricSource()` | 实际输出来源、跟随偏好、正在播放的来源及 QQ / 网易云 / WeSing 采集状态，仅 Admin；见 [音乐服务 §13](music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs) |
@@ -110,20 +110,20 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `gift:guard-thanks` | `{type,eventId,giftEventId,tier,userName,months,avatarUrl,textMode,style}`（`style` 为 `aurora` / `classic`，预览另含 `preview`；`gift-effects` scope 保留 `style` 但不含 `giftEventId`） | `final` 大航海礼物按风格独立开关或管理端显式预览生成（旧设置兼容与广播顺序见 [bilibili/gift.md](bilibili/gift.md#1-架构总览)） |
 | `gift:effect` | `{type,source,eventId,giftId,effect}`（`effect` 为播放素材和布局展示 DTO） | 礼物特效发布；仅 Admin 与 `gift-effects` scope 接收 |
 | `lyric-state` | `{type:'lyric-state', state}`（含 `generation/sequence` 和默认 1 的 `playbackRate`，字段规则见 [歌词状态](music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)） | `music-runtime` 更新实际输出来源（内置、QQ、网易云、WeSing）状态或切换输出来源时广播 |
-| `lyric-timeline` | `{type:'lyric-timeline', timeline}` | `music-runtime` 接受当前生产者的完整时间轴时广播 |
+| `lyric-timeline` | `{type:'lyric-timeline', timeline}`，与快照 `lyricTimeline` 使用相同归一化及投影规则 | `music-runtime` 的实际输出来源时间轴变化或切换来源时广播 |
 | `now-playing` | `{type:'now-playing', state}`（`state` 与快照 `nowPlaying` 相同） | 当前来源、曲目信息、封面或实际播放状态变化时广播；进度采样不重复发送，仅 Admin 与 `now-playing` scope 接收，详见 [展示数据](music/services.md#正在播放展示数据) |
 | `lyric-source` | `{type:'lyric-source', state:{source,selection,playingSources,qqClient,neteaseClient,weSing}}` | 跟随偏好、实际来源或采集状态变化；仅 Admin，相同快照去重，重连从 `snapshot.lyricSource` 恢复 |
 | `wesing-state` | `{type:'wesing-state', state}` | WeSing 采集状态变化（[server.js:184](../../../src/server.js#L184)） |
-| `overtime:update` | `{type, reason, state, adjustment?}` | 加班机状态变更（[server.js:148-153](../../../src/server.js#L148-L153)），`adjustment` 仅礼物结算时携带 |
+| `overtime:update` | `{type, reason, state, adjustment?}` | 加班机状态变更（[server.js:148-153](../../../src/server.js#L148-L153)），`adjustment` 仅礼物结算时携带，提供 `giftVariantId` 供同 ID 变体匹配。禁用加班机的手动更新同步待结算数、限量数与终态流水 |
 | `gift-catalog:update` | `{type:'gift-catalog:update', snapshot}`（含付费全局目录、`version`、`stale`、来源时间、本地 `imagePath` 及 `assetsUpdatedAt`） | 本地图片扫描完成后广播；目录元数据变化及同版本缺图修复均可触发。Admin 去重包含图片 ID/路径与资源时间，按 ID 更新图片，不替换房间成员、礼物事件或规则结算 |
 | `shutdown` | `{type:'shutdown', reason:'manual'}` | 服务关闭前（`webSocketHub.stop` 的 `shutdownPayload`，见 §1） |
-| `game:update` | `{type:'game:update', session}` | 开局、换回合与非画猜游戏变化的完整公开会话；停止时 `session=null`。会话含 `sessionId` / `eventRevision`；画猜含完整画布和最近 500 条弹幕，答案公布前 `revealedAnswer` 为空 |
-| `game:draw` | `{type:'game:draw', sessionId, eventRevision, round, operation, revision}` | 画笔/清空/撤销操作及画布修订号；`eventRevision` 为所有游戏事件共用的会话序号。前端绘图请求携带 `sessionId` / `round`，服务端过期校验见 [绘图 API](api.md)；自有乐观回声通常跳过，快照后重放正常应用 |
+| `game:update` | `{type:'game:update', session}` | 开局、换回合与非画猜游戏变化的完整公开会话；停止时 `session=null`。会话含 `sessionId` / `eventRevision`；画猜含完整画布和最近 500 条弹幕。每笔 `segments[]` 记录各次追加的画布 `revision` 和坐标结束下标 `end`（不含）。重绘按所有笔画的片段修订号排序，续段从该笔上一段的末点连线，答案公布前 `revealedAnswer` 为空 |
+| `game:draw` | `{type:'game:draw', sessionId, eventRevision, round, operation, revision}` | 画笔/清空/撤销操作及画布修订号；`eventRevision` 为所有游戏事件共用的会话序号。前端绘图请求携带 `sessionId` / `round`，服务端过期校验见 [绘图 API](api.md)；本页按广播顺序确认操作。收到先到的远端操作时，先更新已确认画布，再重放仍待确认的本地操作 |
 | `game:patch` | `{type:'game:patch', sessionId, eventRevision, round, item?, avatar?, state?, restartBlocked?}` | 聊天立即发 `item`；头像后补仅发 `avatar={uid,avatarUrl}`；答对比分按 40ms 窗口合并发送不含 `canvas` 的公开 `state`，回合状态/可用性变化立即发送最新 `state` 并取消待发批次。省略字段保留现值，不重传聊天历史。Admin 读取 `state`，`games` overlay 处理全部增量；HTTP 快照不等待比分批次 |
 | `wheel:update` | `{type:'wheel:update', state}` | 独立转盘配置或抽取状态变更；管理端与 `/wheel` 透明浏览器源接收，不受 `game:update` 会话互斥影响 |
 | `interaction:update` | `{type:'interaction:update', state:{runtimeId, revision, session}}`（仅 Admin 与 `interactions` scope 可见） | 投票/评分的公开状态变化；HTTP 与 WS 使用同一公开状态，合并与恢复规则见下方“类别 3 互动结果” |
 
-**礼物身份扩展字段**：Admin 完整消息的礼物身份扩展沿用现有外层结构，overlay 仍只接收 §2.1 允许的展示字段。`state.overtime.rules` 与 `overtime:update` 中的完整规则携带 `giftIdentity` 与 `bindingStatus`；`gift-catalog:update` 携带完整身份与 schema 3 关系；最近礼物原始行保留 `gift_variant_id` / `blind_box_variant_id` 供界面匹配对应图片，不通过当前 ID 回填历史。字段与迁移语义见 [加班机契约](overtime.md) 及 [礼物身份规范](../../../specs/gift-identity-overtime.md)。
+**礼物身份扩展字段**：Admin 完整消息的礼物身份扩展沿用现有外层结构，overlay 仍只接收 §2.1 允许的展示字段。`state.overtime.rules` 与 `overtime:update` 中的完整规则携带 `giftIdentity` 与 `bindingStatus`；加班叠加层使用规则的 `bindingStatus` 和 `giftIdentity.variantId` 展示已确认的规则并标记命中项。`gift-catalog:update` 携带完整身份与 schema 3 关系；最近礼物原始行保留 `gift_variant_id` / `blind_box_variant_id` 供界面匹配对应图片，不通过当前 ID 回填历史。字段与迁移语义见 [加班机契约](overtime.md) 及 [礼物身份规范](../../../specs/gift-identity-overtime.md)。
 
 ### 3.1 `snapshot` 的 reason 枚举
 
@@ -172,6 +172,8 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `rules` | 规则集替换 | `overtime-service.js:142` |
 | `finished` | 倒计时归零 | `overtime-service.js:377` |
 | `quantity-limit` | 完整礼物因随机自动执行次数超限保留 `pending`；`state` 附 `pendingCount/quantityLimitedCount`，不改 `revision`/倒计时，不携带成功 `adjustment` | [overtime-service.js](../../../src/overtime/overtime-service.js) 的 `finalizeGift` |
+
+在当前管理页连接上，`quantity-limit` 与已接收的机器修订相同时，`StateService` 只合并 `pendingCount` 和 `quantityLimitedCount`。两者都须为非负安全整数，且超限数不能超过待结算总数。计数有变化才通知面板。旧修订或同修订的其他 `reason` 仍按重复消息丢弃。
 
 详见 [overtime.md](overtime.md)。
 

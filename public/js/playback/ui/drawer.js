@@ -114,7 +114,7 @@ export class Drawer {
    * @param {string} title - 标题（可选）
    * @param {boolean} canGoBack - 是否可以返回上一层
    */
-  renderContent(items, itemType, action = '', title = '', canGoBack = false) {
+  renderContent(items, itemType, action = '', title = '', canGoBack = false, canRemove = false) {
     if (this.backBtn) this.backBtn.style.display = canGoBack ? '' : 'none';
     if (!this.bodyEl) return;
 
@@ -138,7 +138,7 @@ export class Drawer {
       this.renderPlaylists(items);
       this.updateActions(false, action);
     } else {
-      this.renderTracks(items, action);
+      this.renderTracks(items, action, canRemove);
       this.updateActions(true, action);
     }
   }
@@ -160,10 +160,10 @@ export class Drawer {
    * @param {Array} tracks - 轨道数组
    * @param {string} action - 操作类型
    */
-  renderTracks(tracks, action = '') {
+  renderTracks(tracks, action = '', canRemove = false) {
     if (!this.bodyEl) return;
 
-    const html = tracks.map((track, index) => UIComponents.renderHomeTrackRow(track, index, 'home', action)).join('');
+    const html = tracks.map((track, index) => UIComponents.renderHomeTrackRow(track, index, 'home', action, canRemove)).join('');
 
     this.bodyEl.innerHTML = html;
   }

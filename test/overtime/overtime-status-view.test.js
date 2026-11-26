@@ -48,6 +48,10 @@ test('admin overtime clock schedules displayed boundaries and preserves updates,
   assert.equal(timers.size, 1, 'a new anchor replaces the old timer');
   advance(500);
   assert.equal(value(), '00:00:07');
+  advance(2000);
+  view.renderState({ revision: 2, status: 'running', effectiveRemainingMs: 7500, pendingCount: 1 });
+  assert.equal(value(), '00:00:05', 'equal-revision receipts merge summaries without rewinding the clock');
+  assert.equal(view.getState().pendingCount, 1);
   render(3, 7000, 'paused');
   assert.equal(timers.size, 0);
   advance(5000);

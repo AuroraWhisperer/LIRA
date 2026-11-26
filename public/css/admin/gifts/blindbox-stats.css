@@ -2,61 +2,10 @@
 .gift-blindbox-panel {
   overflow: hidden;
   padding: 0;
-  border-color: var(--color-border-light);
-  border-radius: 12px;
-  background: linear-gradient(180deg, var(--surface) 0%, var(--color-bg-tertiary) 100%);
-  box-shadow: 0 8px 24px light-dark(color-mix(in srgb, var(--text) 6%, transparent), rgba(0, 0, 0, 0.36));
-}
-
-.gift-blindbox-panel > .panel-header {
-  cursor: pointer;
-  position: relative;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gift-blindbox-panel > .panel-header::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary) 10%, transparent) 0%,
-    color-mix(in srgb, var(--primary) 4%, transparent) 50%,
-    transparent 100%
-  );
-  opacity: 0;
-  transition: opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
-}
-
-.gift-blindbox-panel > .panel-header:hover {
-  background: linear-gradient(
-    to right,
-    color-mix(in srgb, var(--primary) 6%, transparent),
-    color-mix(in srgb, var(--primary) 2%, transparent)
-  );
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--primary) 15%, transparent) inset,
-    0 6px 20px -2px color-mix(in srgb, var(--primary) 25%, transparent),
-    0 3px 10px -2px color-mix(in srgb, var(--primary) 15%, transparent);
-  transform: translateY(-2px);
-}
-
-.gift-blindbox-panel > .panel-header:hover::before {
-  opacity: 1;
-}
-
-.gift-blindbox-panel > .panel-header:active {
-  transform: translateY(0);
-  transition-duration: 100ms;
-}
-
-.blind-stats-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  user-select: none;
-  pointer-events: none;
+  border: 1px solid var(--color-border-default);
+  border-radius: 14px;
+  background: var(--color-bg-primary);
+  box-shadow: 0 8px 22px light-dark(color-mix(in srgb, var(--text) 5.5%, transparent), rgba(0, 0, 0, 0.36));
 }
 
 .blind-stats-heading-icon {
@@ -65,9 +14,11 @@
   width: 38px;
   height: 38px;
   flex: 0 0 38px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 14%, var(--color-border-light));
   border-radius: 11px;
-  background: linear-gradient(145deg, var(--surface), var(--color-primary-light));
-  color: var(--color-primary-text);
+  background: linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--color-accent) 8%, var(--surface)));
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--color-accent) 8%, transparent);
+  color: var(--color-primary-text, var(--color-accent));
 }
 
 .blind-stats-heading-icon svg {
@@ -76,12 +27,13 @@
 }
 
 .blind-stats-heading .gift-section-title {
-  flex: 1;
   margin: 0;
+  color: var(--text);
   font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-section-title);
   letter-spacing: var(--type-tracking-tight);
+  transition: color 140ms ease;
 }
 
 .gift-blind-stats-summary {

@@ -250,6 +250,8 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 分页加载可使用[音乐服务的加载会话](services.md#62-首页内容getmusichomecontentmusic-catalog-servicejs)：同次加载仅定位一次喜欢歌单，客户端接口的完整返回在该会话内切片；公开接口仍按上游实际分页。
 
+只有确认的曲目数组才写入加载会话。客户端响应缺少 `songlist` 时走已有公开接口回退，最终业务失败或仍缺少曲目数组时报错，不把失败缓存为空收藏；歌单已定位成功后，曲目读取失败可在同一会话重试。桌面重新加载会生成新的加载会话。明确返回的空数组仍是合法结果。
+
 1. `getLoginCookieHeader` 校验登录，取得本次请求的 Cookie。
 2. 使用该 Cookie 调用 `getCreatedPlaylists({ limit: 500, includeLiked: true })`，只选系统目录 `dirId === '201'`。即使自建歌单也叫「我喜欢」，读写别名 `liked` 都只指向系统目录。
 3. 定位成功后，读取详情或发出写入请求前重新核对当前 UIN。找不到系统目录则报错，请求在读取曲目或修改歌单前结束。
@@ -274,6 +276,8 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 响应 `data[callKey].data.v_playlist[]`;模块级错误(code 非 0)经 `readQQModuleData` 统一抛"读取我的歌单失败"。
 
+客户端缺少 `v_playlist` 数组也触发网页回退；网页业务 code 非零或缺少 `data.disslist` 数组时报错。明确空数组保持成功，不额外回退。
+
 **路径 B(回退):旧版 Web API** — `GET c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss`,`hostuin=<QQ号>`、`sin=0`、`size=Math.max(limit, 50)`、`g_tk`、`loginUin` 等,响应 `data.data.disslist[]`。
 
 结果经 `mapQQPlaylist` 映射（见 §8.2）。`includeLiked === false` 时排除系统目录 201，再取前 `limit` 项。`limit` 为 1–500，默认 200。
@@ -285,6 +289,8 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 - 客户端:`PlaylistFavRead.GetPlaylistFavInfo`,param `{ uin }`,响应 `data[callKey].data.v_list[]`
 - 回退:`GET c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg`,`ct=20`、`cid=205360956`、`userid=<QQ号>`、`reqtype=3`(3 = 收藏歌单)、`sin=0`、`ein=<limit>`、`g_tk`;响应 `data.data.cdlist[]`
 
+客户端缺少 `v_list` 数组时回退；网页业务失败或缺少 `data.cdlist` 数组时报错，明确空数组正常返回。
+
 ### 7.10 歌单详情([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 **路径 A（客户端 API）**　Cookie 提供 uin 与 `qm_keyst` 或 `qqmusic_key` 时调用 `DissInfoForPc.uniform_get_Dissinfo`。参数为 `{ disstid: Number(id), host_uin: Number(uin), login_uin: Number(uin) }`。上游返回完整的 `data[callKey].data.songlist[]`，Provider 按原始 `offset/limit` 切片。失败时使用路径 B，下个歌单仍可尝试客户端接口。缺少必需凭据时直接使用路径 B。
@@ -293,6 +299,8 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 - **分页参数添加条件:仅当 `limit <= 100 || offset > 0`** 才附加 `song_begin=<offset>` 与 `song_num=<limit>`([qq-provider.js](../../../../src/music/providers/qq-provider.js))——即 limit > 100 且 offset = 0 时不带分页,服务端返回全部歌曲再本地截断
 - 响应 `data.cdlist[0].songlist[]`(**cdlist 在顶层**,不是 `data.data` 下),`slice(0, limit)` 映射
+
+客户端缺少曲目数组按失败回退；公开接口业务失败或缺少曲目数组时报错，明确空数组正常返回。成员检查沿用该读取结果，失败不会被报告为“不包含歌曲”。
 
 `limit` clamp 1-5000 默认 1000;`offset` clamp 0-200000。
 

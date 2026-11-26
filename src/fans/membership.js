@@ -54,6 +54,10 @@ function prepareMembership(records) {
       },
     }));
   const merged = prepareIntervals(intervals);
+  const splitDays = new Set();
+  for (let i = 1; i < merged.length; i++) {
+    if (merged[i - 1].endDay - 1 === merged[i].startDay) splitDays.add(merged[i].startDay);
+  }
   const orderedIntervals = intervals.slice().sort((a, b) => b.end - a.end);
   const observationsByTime = adopted
     .filter((r) => r.data.type === 'observation')
@@ -79,7 +83,9 @@ function prepareMembership(records) {
     const unknownRenewal = observations[0] && (!latest || Date.parse(observations[0].data.observedAt) >= latest.end);
     const bases = baselines.filter((r) => r.day <= currentDay);
     const totalBaseline = bases.find((r) => r.record.data.totalDays !== null);
-    const continuousBaseline = bases.find((r) => r.record.data.continuousDays !== null);
+    let cycleId = active.sort((a, b) => a.start - b.start)[0]?.record.data.cycleId || null;
+    const continuousBaseline = bases.find(r => r.record.data.continuousDays !== null &&
+      (r.day !== currentDay || !splitDays.has(currentDay) || r.record.data.cycleId === cycleId));
     const totalBase = totalBaseline?.record;
     const continuousBase = continuousBaseline?.record;
     const segment = merged.find((r) => r.start <= at && at < r.end);
@@ -92,12 +98,12 @@ function prepareMembership(records) {
         : null;
     let continuousDays = segment ? currentDay - segment.startDay + 1 : null;
     let continuousAsOf = segment ? today : null;
-    let cycleId = active.sort((a, b) => a.start - b.start)[0]?.record.data.cycleId || null;
     if (continuousBase) {
       const base = continuousBase.data;
       const extensionStart = dayStart(base.asOf) + DAY_MS;
       const extension = merged.find(
-        (r) => r.start <= extensionStart && r.end > extensionStart,
+        (r) => r.start <= extensionStart && r.end > extensionStart &&
+          (!splitDays.has(continuousBaseline.day) || r.record.data.cycleId === base.cycleId),
       );
       if (today === base.asOf || (extension && extension.end > at && extension.start <= at)) {
         continuousDays = base.continuousDays + countCoveredDays(extension ? [extension] : [], at, continuousBaseline.day);
@@ -142,6 +148,32 @@ function prepareMembership(records) {
   }
   summarizeAt.milestoneDates = (earliest, latest, now, snoozedRules) =>
     membershipMilestoneDates(merged, baselines, earliest, latest, now, snoozedRules);
+  summarizeAt.milestoneAt = (date, now) => {
+    const start = dayStart(date);
+    const end = start + DAY_MS;
+    const at = date === dayOf(now) ? Number(now) : end - 1;
+    const covered = merged.filter(segment => segment.start < end && segment.end > start);
+    const summary = summarizeAt(at);
+    const continuousByCycle = new Map();
+    function remember(sample, segment) {
+      if (sample.continuousAsOf === date)
+        continuousByCycle.set(sample.cycleId, { days: sample.continuousDays, startsToday: segment?.start >= start });
+    }
+    // Each disjoint segment that ended today contributes its own last valid
+    // instant. A later cycle can already be active at the normal cutoff.
+    for (const segment of covered) {
+      if (segment.start > at) break;
+      remember(segment.end > at ? summary : summarizeAt(segment.end - 1), segment);
+    }
+    if (!continuousByCycle.size) remember(summary);
+    const last = [...continuousByCycle].at(-1);
+    if (last) {
+      summary.cycleId = last[0];
+      summary.continuousDays = last[1].days;
+      summary.continuousAsOf = date;
+    }
+    return { ...summary, continuousByCycle };
+  };
   return summarizeAt;
 }
 
@@ -267,12 +299,13 @@ function conflictingBaselines(a, b) {
 
 function membershipConflicts(candidate, records, excludeId, { independentBaselines = false } = {}) {
   const data = candidate.data;
-  if (data.type === 'first' || (data.type === 'observation' && data.status !== 'inactive')) return [];
+  if ((data.type === 'first' && !independentBaselines) || (data.type === 'observation' && data.status !== 'inactive')) return [];
   const adopted = records.filter((r) => r.kind === 'membership' && r.id !== excludeId && r.data.decision === 'adopted' && !r.data.excluded);
   const intervals = adopted.filter(r => r.data.type === 'interval');
   const conflicts = data.type === 'baseline' ? intervalsExceedingBaseline(data, intervals).map(r => r.id) : [];
   for (const record of adopted) {
     const other = record.data;
+    if (data.type === 'first' && other.type === 'first' && data.date !== other.date) conflicts.push(record.id);
     if (independentBaselines && conflictingBaselines(data, other)) conflicts.push(record.id);
     if (data.type === 'interval' && other.type === 'interval' && candidate.original.source !== record.original.source) {
       const overlaps = data.startAt < other.endAt && other.startAt < data.endAt;

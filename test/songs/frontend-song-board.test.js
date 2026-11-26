@@ -163,6 +163,7 @@ test('song board records preserve names and group by the leading artist', async 
     ['heading', 'song', 'song'],
   );
   assert.equal(artistRecords[0].label, 'Lead');
+  assert.equal(songModule.buildSongRecords([{ id: 3, name: 'Third', category_name: 'OST' }], 'artist')[0].label, '未知歌手');
   assert.doesNotMatch(source, /insertAdjacentHTML|\.innerHTML\s*=/, 'song names render as text');
 });
 

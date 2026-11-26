@@ -128,8 +128,10 @@ export function createPlaybackControls(deps) {
   }
 
   function replacementStartTime(audio, current, replacement) {
-    if (!audio.src || audio.dataset.trackId !== current.id) return playbackState.restoredTime;
-    const position = audio.readyState !== 0 && Number.isFinite(audio.currentTime)
+    const hasCurrentAudio = audio.src && audio.dataset.trackId === current.id;
+    // Legacy snapshots only saved excerpt seconds, without the original song offset.
+    if (!hasCurrentAudio && !Object.hasOwn(current, 'playbackTrial')) return playbackState.restoredTime;
+    const position = hasCurrentAudio && audio.readyState !== 0 && Number.isFinite(audio.currentTime)
       ? audio.currentTime : playbackState.restoredTime;
     const offsetChange = PlaybackUtils.getPlaybackLyricOffsetMs(current) - PlaybackUtils.getPlaybackLyricOffsetMs(replacement);
     return Math.max(0, position + offsetChange / 1000);
@@ -190,7 +192,7 @@ export function createPlaybackControls(deps) {
     // Queue insertions can move this entry while its stream resolves.
     const playlistEntry = Number.isInteger(options.playlistIndex)
       ? playbackState.normalQueueTracks[options.playlistIndex] : null;
-    const requestGeneration = invalidatePlaybackRequests();
+    const requestGeneration = invalidatePlaybackRequests(undefined, { keepLyrics: true });
     playRequestSource = track.source;
     if (!options.isRetry) playRequested = true;
 
@@ -227,7 +229,10 @@ export function createPlaybackControls(deps) {
       renderPlayback();
       return false;
     }
+    const resumeAt = options.resumeRestored || options.isRetry
+      ? replacementStartTime(audio, playbackState.current, streamTrack) : 0;
     Object.assign(track, streamTrack);
+    if (options.commitQueueTrack && !options.commitQueueTrack()) return false;
     if (options.commitCollection) track = options.commitCollection();
 
     if (!options.isRetry) {
@@ -239,9 +244,8 @@ export function createPlaybackControls(deps) {
       if (!queueManager.jumpToPlaylistTrack(playlistIndex, options.dailySourceKey)) return false;
     }
     if (options.consumeHistory) stateActions.takePrevious();
-    if (!options.resumeRestored) {
-      stateActions.setRestoredTime(options.isRetry ? replacementStartTime(audio, playbackState.current, track) : 0);
-    }
+    stateActions.setRestoredTime(resumeAt);
+    lyricRequestGeneration += 1;
     stateActions.beginTrack(track, options);
     audioRequestGeneration = requestGeneration;
     audio.dataset.trackId = track.id;
@@ -411,13 +415,17 @@ export function createPlaybackControls(deps) {
     const previousTrack = playbackState.normalQueueTracks[playlistIndex] || historyTrack;
     if (previousTrack) {
       await playPlaybackTrack(previousTrack, {
-        fromHistory: true,
+        fromHistory: Boolean(historyTrack),
         consumeHistory: Boolean(historyTrack),
         playlistIndex,
         origin: playlistIndex >= 0 ? 'normal' : 'history',
       });
     } else if (playbackState.current) {
+      stateActions.setRestoredTime(0);
       audio.currentTime = 0;
+      renderPlaybackProgress();
+      syncPlaybackLyricWindow(true);
+      savePlaybackState();
     }
   }
 

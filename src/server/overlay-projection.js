@@ -49,7 +49,7 @@ const SETTING_KEYS = {
     desktopLyricStrokeColor desktopLyricStrokeEnabled desktopLyricStrokeWidth desktopLyricTextAlign
     desktopLyricTextColor desktopLyricSungColor
     desktopLyricTimeOffsetMs desktopLyricTraditionalMode desktopLyricTranslateX
-    desktopLyricTranslateY desktopLyricTranslationOpacity desktopLyricTranslationScale desktopLyricVisibleLines`,
+    desktopLyricTranslateY desktopLyricTranslationOpacity desktopLyricTranslationScale desktopLyricVisibleLines desktopLyricWordBounceEnabled`,
   danmaku: 'danmakuOverlayStyle danmakuFullscreenDurationSeconds',
   'gift-effects': 'giftEffectDanmakuEnabled',
   interactions: `interactionOverlayTitle interactionOverlayHint interactionRatingRules interactionTextColor
@@ -97,7 +97,8 @@ const QUEUE_REQUEST_RESULT = fields('id accepted requesterName songName reason e
 const OVERTIME = {
   ...fields('revision status serverNowMs effectiveRemainingMs'),
   background: fields('path fit'),
-  rules: [{ ...fields('enabled giftId giftName imagePath mode displayText fixedSeconds'), fixedEffect: EFFECT }],
+  rules: [{ ...fields('enabled bindingStatus giftId giftName imagePath mode displayText fixedSeconds'),
+    giftIdentity: fields('variantId'), fixedEffect: EFFECT }],
 };
 const LYRIC_STATE = {
   ...fields('trackTitle lineText translation currentMs durationMs progress playing playbackRate locked generation sequence status'),
@@ -105,7 +106,7 @@ const LYRIC_STATE = {
   words: [fields('text startMs endMs')],
 };
 const LYRIC_TIMELINE = {
-  ...fields('trackTitle status'),
+  ...fields('trackTitle status truncatedAtMs'),
   artists: [true],
   lines: [{ ...fields('startMs endMs text translation roma'), words: [fields('text startMs endMs')] }],
 };
@@ -122,7 +123,7 @@ const DRAW_STATE = {
   scores: [fields('name score')],
   canvas: {
     ...fields('revision totalPoints'),
-    strokes: [{ ...fields('id color width'), points: [POINT] }],
+    strokes: [{ ...fields('id color width'), points: [POINT], segments: [fields('revision end')] }],
   },
 };
 const GAME_STATES = {
@@ -268,7 +269,7 @@ const EVENT_SCHEMAS = {
       ...fields('reason'),
       state: OVERTIME,
       adjustment: {
-        ...fields('mode aggregate quantity appliedDeltaSeconds netSeconds giftId giftName applicationCount'),
+        ...fields('mode aggregate quantity appliedDeltaSeconds netSeconds giftId giftVariantId giftName applicationCount'),
         effect: EFFECT,
       },
     },

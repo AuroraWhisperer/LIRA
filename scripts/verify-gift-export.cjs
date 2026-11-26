@@ -14,6 +14,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+const { servePageOrAsset } = require('../src/server/page-assets');
 const { createGiftExportController } = require('../src/electron/gift-export-controller');
 const { createGiftExportRuntime } = require('../src/server/gift-export-runtime');
 const scratch = path.resolve(__dirname, '../tmp');
@@ -27,36 +28,21 @@ app.setPath('sessionData', profilePath);
 app.setPath('crashDumps', crashPath);
 app.on('window-all-closed', () => {});
 app.commandLine.appendSwitch('force-device-scale-factor', process.env.GIFT_TEST_DPI || '1');
+app.commandLine.appendSwitch('force-max-texture-size', '4096');
 const publicDir = path.resolve(__dirname, '../public');
 const requestedAssets = new Set();
 const server = http.createServer((req, res) => {
-  const pathname = new URL(req.url, 'http://localhost').pathname;
+  const url = new URL(req.url, 'http://localhost');
+  const { pathname } = url;
   requestedAssets.add(pathname);
   if (pathname === '/api/bilibili/avatar') {
+    const row = /\/row-(\d+)\.webp$/.exec(url.searchParams.get('url'));
+    const color = row ? `rgb(${Number(row[1])},100,200)` : '#3264c8';
     res.setHeader('Content-Type', 'image/svg+xml');
-    res.end(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52"><rect width="52" height="52" fill="#3264c8"/></svg>',
-    );
+    res.end(`<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52"><rect width="52" height="52" fill="${color}"/></svg>`);
     return;
   }
-  const file = path.join(publicDir, pathname === '/gift-export' ? 'pages/overlays/gift-export.html' : pathname);
-  if (!file.startsWith(publicDir + path.sep) || !fs.existsSync(file)) {
-    res.writeHead(404);
-    res.end();
-    return;
-  }
-  res.setHeader(
-    'Content-Type',
-    {
-      '.html': 'text/html',
-      '.js': 'text/javascript',
-      '.css': 'text/css',
-      '.svg': 'image/svg+xml',
-      '.webp': 'image/webp',
-      '.png': 'image/png',
-    }[path.extname(file)] || 'application/octet-stream',
-  );
-  res.end(fs.readFileSync(file));
+  return servePageOrAsset(publicDir, req, res, url, 'synthetic-export-session');
 });
 
 (async () => {
@@ -94,12 +80,25 @@ const server = http.createServer((req, res) => {
     gift: { userName: '观众A', giftId: 'flower', giftName: '小花花', num: 100, unitPrice: 0.1, avatarUrl,
       createdAt: `2026-09-${day}T12:00:00Z` },
   }));
+  // The last 13 records repeat senders from the first 39.
+  const batchItems = Array.from({ length: 52 }, (_, index) => {
+    const sender = index % 39 + 1;
+    return {
+      eventId: `batch-${index + 1}`,
+      gift: {
+        userName: `测试观众${sender}`, giftName: '舰长', giftId: 'guard-3', coinType: 'guard',
+        num: 1, unitPrice: 1, guardLevel: [3, 2, 1, 0][(sender - 1) % 4],
+        avatarUrl: `https://i0.hdslb.com/bfs/face/row-${sender}.webp`,
+      },
+    };
+  });
   const cardRuntime = createGiftExportRuntime({
     getServices: () => ({
       gifts: {
-        getSelection: ({ historical, crossDate }) => ({
-          viewRevision: 'fixture', items: crossDate ? flowers : historical ? historicalItems : cardItems,
-        }),
+        getSelection: ({ historical, crossDate, count }) => {
+          const items = historical ? historicalItems : crossDate ? flowers : cardItems;
+          return { viewRevision: 'fixture', items: count ? batchItems.slice(0, count) : items };
+        },
         getViewRevision: () => 'fixture',
       },
       overtimeGiftCatalog: { getGlobalSnapshot: () => ({ gifts: [] }) },
@@ -126,6 +125,9 @@ const server = http.createServer((req, res) => {
       return { ok: true, items: [{ eventId: 'historical-guard', avatarUrl }] };
     },
     cardGroups: async ({ eventIds }) => {
+      if (eventIds[0] === batchItems[0].eventId) {
+        return { ok: true, partial: false, groups: batchItems.slice(39).map((item, i) => [batchItems[i].eventId, item.eventId]) };
+      }
       assert.deepEqual(eventIds, flowers.map(item => item.eventId));
       return { ok: true, groups: [eventIds], partial: false };
     },
@@ -142,27 +144,7 @@ const server = http.createServer((req, res) => {
       getSetting: () => '',
       getGiftViewRevision: () => 'fixture',
       mergeGiftExport: cardRuntime.mergeGiftExport,
-      prepareGiftExport: (selection) =>
-        selection.merge || selection.historical || selection.crossDate
-          ? cardRuntime.prepareGiftExport(selection)
-          : {
-              viewRevision: 'fixture',
-              config: { thresholds: [10000, 50000, 100000] },
-              catalog: [],
-              items: Array.from({ length: selection.count || 2 }, (_, i) => i + 1).map((id) => ({
-                eventId: String(id),
-                gift: {
-                  userName: '中文测试昵称很长时保持头像和数量完整',
-                  giftName: '舰长',
-                  giftId: 'guard-3',
-                  coinType: 'guard',
-                  unitPrice: 1,
-                  num: 3000,
-                  guardLevel: [3, 2, 1, 0][(id - 1) % 4],
-                  avatarUrl,
-                },
-              })),
-            },
+      prepareGiftExport: cardRuntime.prepareGiftExport,
     },
   });
   try {
@@ -218,23 +200,31 @@ const server = http.createServer((req, res) => {
     assert.equal(singlePng.readUInt32BE(20), 144);
     assert.equal(nativeImage.createFromBuffer(singlePng).toBitmap()[3], 255);
     console.log('PASS: combined transparent and separate white PNGs');
-    const long = await controller.prepare({ count: 40 });
-    assert.equal(long.files.length, 2);
-    const longResult = await controller.save({ id: long.id, roomGuard: { roomId: '123', count: 1001 } });
-    assert.equal(longResult.ok, true, longResult.error);
-    assert.equal(longResult.saved, 2);
+    for (const [count, cards, rowGap, expectedPages, mode = 'combined'] of [
+      [30, 30, 16, 1], [52, 39, 16, 1], [50, 50, 32, 1], [51, 51, 0, 2], [30, 30, 16, 30, 'separate'],
+    ]) {
+      const { id } = await controller.prepare({ count });
+      const long = await controller.configure({ id, mode, background: 'transparent', rowGap, mergeAcrossDates: cards < count });
+      const result = await controller.save({ id, roomGuard: { roomId: '123', count: 1001 } });
+      assert.equal(result.ok, true, result.error);
+      assert.equal(long.snapshot.items.length, cards);
+      assert.equal(result.saved, expectedPages);
+      for (const file of long.files) {
+        const png = fs.readFileSync(path.join(result.directory, file.fileName));
+        const stride = png.readUInt32BE(16);
+        assert.equal(stride, 856);
+        assert.equal(png.readUInt32BE(20), file.count * 144 + (file.count - 1) * rowGap);
+        assert.ok(png.readUInt32BE(20) <= 8768);
+        const pixels = nativeImage.createFromBuffer(png).toBitmap();
+        for (let row = 0; row < file.count; row++) {
+          const offset = ((row * (144 + rowGap) + 72) * stride + 72) * 4;
+          assert.deepEqual([...pixels.subarray(offset, offset + 4)], [200, 100, (file.start + row) % 39 + 1, 255], `card ${file.start + row + 1}`);
+        }
+      }
+      console.log(`PASS: ${count} records, all ${cards} cards at ${rowGap}px spacing across ${result.saved} PNG(s) with a 4096px texture limit`);
+    }
     assert.ok(requestedAssets.has('/img/admin/gifts/bilibili-guard-captain-thousand.webp'));
     assert.ok(requestedAssets.has('/img/overlays/danmaku-harbor/captain-frame.png'));
-    const tall = fs.readFileSync(path.join(longResult.directory, '礼物_001.png'));
-    assert.equal(tall.readUInt32BE(20), 6224);
-    assert.ok(
-      nativeImage
-        .createFromBuffer(tall)
-        .toBitmap()
-        .subarray(width * 6080 * 4)
-        .some((v, i) => i % 4 === 3 && v > 0),
-    );
-    console.log('PASS: 40 records split into 6224px and 144px images; last row visible');
     requestedAssets.clear();
     const original = await controller.prepare({ merge: true });
     assert.deepEqual(original.snapshot.items.map(item => item.gift.num), [2, 3]);

@@ -6,6 +6,7 @@ function decodeScene(row) {
     revision: row.revision,
     isPreset: row.is_preset !== 0,
     publishedVersion: row.published_version,
+    publishedSharedIds: JSON.parse(row.published_shared_ids || '[]'),
     publishedDocument: row.published_json === null ? null : JSON.parse(row.published_json),
     capability: {
       version: row.capability_version,
@@ -125,7 +126,7 @@ function createSceneStore(db) {
             return null;
           }
           if (replacement && !this.publish({ scope, id: output.document.id, expectedRevision: output.revision,
-            document: replacement.document, componentSizes: replacement.componentSizes })) throw new Error('Output changed');
+            document: replacement.document, componentSizes: replacement.componentSizes, sharedIds: replacement.sharedIds })) throw new Error('Output changed');
           db.prepare('UPDATE component_canvas SET active_scene_id = ? WHERE owner_scope = ?').run(replacement?.id || null, scope);
         }
         if (binding?.outputId === id) {
@@ -147,7 +148,7 @@ function createSceneStore(db) {
       return row ? { width: row.width, height: row.height } : null;
     },
 
-    publish({ scope, id, expectedRevision, document, componentSizes = {}, preset }) {
+    publish({ scope, id, expectedRevision, document, componentSizes = {}, sharedIds, preset }) {
       db.exec('SAVEPOINT publish_component_scene');
       try {
         if (preset && !db.prepare(`SELECT 1 FROM component_scenes AS source
@@ -156,6 +157,11 @@ function createSceneStore(db) {
           WHERE source.owner_scope = ? AND source.id = ? AND source.revision = ? AND source.is_preset = 1
             AND output.id = ? AND output.published_version = ?`)
           .get(scope, preset.id, preset.revision, id, preset.expectedPublishedVersion)) {
+          db.exec('RELEASE publish_component_scene');
+          return null;
+        }
+        if (sharedIds && !db.prepare('UPDATE component_scenes SET published_shared_ids = ? WHERE owner_scope = ? AND id = ? AND revision = ?')
+          .run(JSON.stringify(sharedIds), scope, id, expectedRevision).changes) {
           db.exec('RELEASE publish_component_scene');
           return null;
         }

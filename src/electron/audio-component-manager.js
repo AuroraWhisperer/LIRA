@@ -26,7 +26,8 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     const { signal } = controller;
     signal.throwIfAborted();
     if (platform !== manifest.platform || arch !== manifest.arch) throw new Error('AUDIO_PLATFORM_UNSUPPORTED');
-    publish({ status: 'checking', error: '', totalBytes: 0, downloadedBytes: 0 });
+    // A ready notification starts device enumeration; intact rechecks must not start another worker.
+    if (state.status !== 'ready') publish({ status: 'checking', error: '', totalBytes: 0, downloadedBytes: 0 });
     await ensureAudioRoot(dataDir);
     await pruneAudioPreparations(dataDir, root, manifest.entry, signal).catch(() => {});
     if (await verifyAudioDirectory(directory, manifest, signal)) return path.join(directory, manifest.entry);
@@ -40,6 +41,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     }
     if (bundledDirectory && await verifyAudioDirectory(bundledDirectory, manifest, signal))
       return path.join(bundledDirectory, manifest.entry);
+    if (state.status === 'ready') publish({ status: 'checking', error: '', totalBytes: 0, downloadedBytes: 0 });
     if (!canDownload()) throw new Error('AUDIO_AUTHORIZATION_REQUIRED');
     if (await audioImageBusy(directory, manifest.entry)) throw new Error('AUDIO_COMPONENT_IN_USE');
     const staging = await fs.mkdtemp(path.join(root, '.prepare-'));
@@ -100,7 +102,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     task = prepare().then(filename => {
       controller.signal.throwIfAborted();
       executable = filename;
-      publish({ status: 'ready', error: '' });
+      if (state.status !== 'ready') publish({ status: 'ready', error: '' });
       obsoleteCleanup ??= pruneObsoleteAudioVersions(dataDir, root, manifest, path.dirname(filename), controller.signal).catch(() => {});
       return filename;
     }).catch(error => {

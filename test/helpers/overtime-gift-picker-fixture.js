@@ -26,7 +26,7 @@ async function createFixture({
 } = {}) {
   const document = createFakeDocument();
   const clock = createClock();
-  const window = { AdminApp: {} };
+  const window = Object.assign(new EventTarget(), { AdminApp: {} });
   const state = {
     fetchCalls: [],
     apiCalls: [],
@@ -66,6 +66,7 @@ async function createFixture({
   return {
     clock,
     namespace,
+    window,
     state,
     document,
     elements: {
@@ -81,6 +82,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts, clock })
   const context = vm.createContext({
     setTimeout: clock.setTimeout,
     clearTimeout(id) { state.timerClears++; clock.clearTimeout(id); },
+    AbortController,
     console,
     document,
     window,
@@ -98,7 +100,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts, clock })
           },
         });
       if (url === '/api/overtime')
-        return state.readOverview ? state.readOverview() : Promise.resolve({
+        return state.readOverview ? state.readOverview(options) : Promise.resolve({
           ok: true,
           payload: { ok: true, data: { settlements: [] } },
         });

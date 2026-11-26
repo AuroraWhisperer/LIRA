@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { normalizeClientThemeId } = require('../shared/client-theme');
+const { getClientTheme: resolveClientTheme } = require('../shared/client-theme');
 const { DEFAULT_CLIENT_FONT_ID, isClientFontId } = require('../../public/js/shared/client-font-theme.js');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 const { composeComponentPreviewHtml } = require('./component-preview-page');
@@ -82,12 +82,22 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
         '<script type="module" src="/js/shared/font-library-loader.js"></script>\n</head>'));
     }
     if (isAdminPage || relativePath === 'pages/component-preview.html' || relativePath === 'pages/gift-audit.html') {
-      const themeId = normalizeClientThemeId(getClientTheme?.());
+      const theme = resolveClientTheme(getClientTheme?.());
       const saved = getClientFont?.();
       const fontId = isClientFontId(saved) ? saved : DEFAULT_CLIENT_FONT_ID;
-      body = Buffer.from(body.toString('utf8').replace(/<html\b([^>]*)>/i, (_tag, attributes) =>
-        `<html${attributes.replace(/\sdata-client-theme\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')} data-client-theme="${themeId}" data-client-font="${fontId}">`)
-        .replace('</head>', '<script type="module" src="/js/shared/client-font-runtime.js"></script>\n</head>'));
+      const cleanedHtml = body.toString('utf8').replace(/<html\b([^>]*)>/i, (_tag, attributes) => {
+        const stripped = attributes.replace(
+          /\sdata-client-(?:theme(?:-mode|-surface)?|font)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi,
+          '',
+        );
+        return `<html${stripped} data-client-theme="${theme.id}" data-client-theme-mode="${theme.mode}" data-client-theme-surface="${theme.surface}" data-client-font="${fontId}">`;
+      });
+      body = Buffer.from(
+        cleanedHtml.replace(
+          '</head>',
+          '<script type="module" src="/js/shared/client-theme-runtime.js"></script>\n<script type="module" src="/js/shared/client-font-runtime.js"></script>\n</head>',
+        ),
+      );
     }
     if (isAdminPage && req.method === 'GET' && beginPlaybackSnapshotSession) {
       const writer = beginPlaybackSnapshotSession();

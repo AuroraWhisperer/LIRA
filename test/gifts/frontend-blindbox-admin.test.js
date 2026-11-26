@@ -61,7 +61,7 @@ test('blind box calendar fits each month while keeping its weekday positions', a
   }
 });
 
-async function createAnalysisHarness({ autoResolve = false, filters = {} } = {}) {
+async function createAnalysisHarness({ autoResolve = false, filters = {}, startAt = new Date(2026, 10, 26, 12) } = {}) {
   const elements = new Map();
   const optionCounts = { created: 0 };
   const element = (id = '') => {
@@ -80,6 +80,11 @@ async function createAnalysisHarness({ autoResolve = false, filters = {} } = {})
     return node;
   };
   const clock = createClock();
+  const start = startAt.getTime();
+  class ClockDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [start + clock.now()])); }
+    static now() { return start + clock.now(); }
+  }
   const requests = [];
   const window = {};
   const [{ giftAnalysis }, { eventBus }, { stateService }] = await loadModuleExports([
@@ -100,6 +105,7 @@ async function createAnalysisHarness({ autoResolve = false, filters = {} } = {})
       querySelector: () => null, querySelectorAll: () => [],
     },
     ...clock,
+    Date: ClockDate,
     fetch: (url, { signal }) => {
       const request = Promise.withResolvers();
       requests.push({ url, signal, ...request });
@@ -125,6 +131,21 @@ async function createAnalysisHarness({ autoResolve = false, filters = {} } = {})
       await new Promise(setImmediate);
     } };
 }
+
+test('today analysis refreshes at each local midnight and closes its timer', async () => {
+  const { giftAnalysis, clock, requests } = await createAnalysisHarness({ autoResolve: true, startAt: new Date(2026, 10, 26, 23, 59, 59) });
+  giftAnalysis.open();
+  await new Promise(setImmediate);
+  clock.tick(1000);
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 2);
+  clock.tick(24 * 60 * 60 * 1000);
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 3);
+  giftAnalysis.close();
+  clock.tick(24 * 60 * 60 * 1000);
+  assert.equal(requests.length, 3);
+});
 
 test('open blind box analysis refreshes throughout continuous gift traffic and stops after closing', async () => {
   const filters = { viewers: Array.from({ length: 1000 }, (_, i) => ({ value: `uid:${i}`, label: `Viewer ${i}` })) };

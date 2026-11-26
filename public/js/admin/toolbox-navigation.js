@@ -260,11 +260,20 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     }
   }
 
+  let pendingPanelFrame = 0;
+
+  function cancelPendingPanel() {
+    if (!pendingPanelFrame) return;
+    window.cancelAnimationFrame?.(pendingPanelFrame);
+    pendingPanelFrame = 0;
+  }
+
   /**
    * 根据按钮声明的面板 ID 切换内容，不依赖任何具体功能模块。
    */
-  function selectFeature(root, featureId) {
+  function selectFeature(root, featureId, { deferPanel = false } = {}) {
     if (!root) return false;
+    cancelPendingPanel();
 
     const { buttons, panels } = getFeatureElements(root);
     const targetButton = buttons.find(
@@ -285,7 +294,7 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
     if (!selectedButton) return false;
 
     const selectedId = selectedButton.dataset.otherFeature;
-    selectionMotion.transition(
+    const animated = selectionMotion.transition(
       root,
       selectedButton,
       () => {
@@ -298,17 +307,30 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
       },
       { animate: moduleState.initialized },
     );
-    panels.forEach((panel) => {
-      const isActive = panel.id === selectedId;
-      panel.classList.toggle('active', isActive);
-      panel.hidden = !isActive;
-    });
     storeSelectedFeature(selectedId);
-    moduleState.onFeatureSelected?.(selectedId);
 
-    if (selectedId === 'otherDanmakuFeature') {
-      moduleState.danmakuTool?.refresh({ reconnectIfDisconnected: true });
-      if (moduleState.initialized) moduleState.aiAssistantSettings?.refresh();
+    const commitPanel = () => {
+      panels.forEach((panel) => {
+        const isActive = panel.id === selectedId;
+        panel.classList.toggle('active', isActive);
+        panel.hidden = !isActive;
+      });
+      moduleState.onFeatureSelected?.(selectedId);
+
+      if (selectedId === 'otherDanmakuFeature') {
+        moduleState.danmakuTool?.refresh({ reconnectIfDisconnected: true });
+        if (moduleState.initialized) moduleState.aiAssistantSettings?.refresh();
+      }
+    };
+
+    // Let the compositor claim the spring indicator on frame 0 before heavy panels lay out on frame 1.
+    if (deferPanel && animated && typeof window?.requestAnimationFrame === 'function') {
+      pendingPanelFrame = window.requestAnimationFrame(() => {
+        pendingPanelFrame = 0;
+        commitPanel();
+      });
+    } else {
+      commitPanel();
     }
 
     return true;
@@ -338,7 +360,7 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
 
     event.preventDefault();
     const nextButton = availableButtons[nextIndex];
-    selectFeature(root, nextButton.dataset.otherFeature);
+    selectFeature(root, nextButton.dataset.otherFeature, { deferPanel: true });
     nextButton.focus();
   }
 
@@ -477,12 +499,13 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
 
     buttons.forEach((button) => {
       button.addEventListener('click', () => {
-        selectFeature(root, button.dataset.otherFeature);
+        selectFeature(root, button.dataset.otherFeature, { deferPanel: true });
       });
       button.addEventListener('keydown', (event) => {
         handleFeatureKeydown(root, button, event);
       });
     });
+    window.addEventListener?.('pagehide', cancelPendingPanel, { once: true });
 
     moduleState.danmakuTool?.init({ reconnectBilibili: options.reconnectBilibili });
     moduleState.aiAssistantSettings?.init();

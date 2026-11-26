@@ -9,7 +9,7 @@ import { mountComponentStyleInspector } from './component-style-inspector.js';
 import { componentSaveMessage } from './component-config-controller.js';
 import { sharedControllerAppearance } from '../shared/scene-shared-appearance.js';
 
-export function mountSceneEditorInspector(host, { model, components, getSelection, report, requestStyles, sharedAppearance }) {
+export function mountSceneEditorInspector(host, { model, components, getSelection, report, requestStyles, sharedAppearance, rejectedTextEdits, onValidityChange }) {
   let key = '';
   let panel = null;
   let stylePanel = null;
@@ -53,9 +53,10 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     host.replaceChildren();
   }
   function render(force = false) {
-    const selected = model.getSnapshot().items.filter((item) => getSelection().has(item.id));
+    const document = model.getSnapshot();
+    const selected = document.items.filter((item) => getSelection().has(item.id));
     const item = selected.length === 1 ? selected[0] : null;
-    const nextKey = item ? `${item.id}:${item.type}:${item.appearance.mode}:${item.locked}:${item.appearance.config?.cssStyle?.id || item.appearance.config?.mediaStyle?.id || item.appearance.config?.resourceStyle?.id || ''}` : `count:${selected.length}`;
+    const nextKey = item ? `${document.id}:${item.id}:${item.type}:${item.appearance.mode}:${item.locked}:${item.appearance.config?.cssStyle?.id || item.appearance.config?.mediaStyle?.id || item.appearance.config?.resourceStyle?.id || ''}` : `count:${selected.length}`;
     if (key !== nextKey) {
       key = nextKey;
       clear();
@@ -89,7 +90,8 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
         : createSceneItemController(model, item.id, component.controller, sharedAppearance);
       host.append(geometry, target, parameters);
       stylePanel = mountComponentStyleInspector(parameters, { item, model, component, request: requestStyles, report });
-      panel = component.createPanel(parameters, controller, report);
+      panel = component.createPanel(parameters, controller, item.type === 'text-box'
+        ? { rejectedEdits: rejectedTextEdits.forScene(document.id), itemId: item.id, onValidityChange } : report);
       autoSavesAppearance = Boolean(sharedAppearance?.getState(item));
       const shared = autoSavesAppearance || Object.keys(sharedControllerAppearance(item.type,
         item.appearance.config || {}, component.controller.getState().draft)).length;
@@ -133,5 +135,5 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     target.hidden = false;
   }
   const unsubscribe = model.subscribeSnapshot(() => render());
-  return { render, dispose() { unsubscribe(); clear(); } };
+  return { render, discardPendingEdit: () => panel?.discardPendingEdit?.(), dispose() { unsubscribe(); clear(); } };
 }

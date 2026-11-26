@@ -609,28 +609,113 @@
   letter-spacing: -0.01em;
 }
 
-.gift-export-color-tip {
-  margin: auto 0 0;
-  padding: 2px 3px 0;
+#giftExportStyleHeading,
+.gift-export-style-selects label {
+  margin: 0;
+}
+
+#giftExportStyleSummary {
+  padding-block: 9px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.gift-export-palette {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gift-export-palette .gift-tier-swatch,
+.gift-export-tier-inputs .gift-tier-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.gift-export-style-selects,
+#giftExportTiers {
+  border-top: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.gift-export-style-selects {
+  padding: 9px 15px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gift-export-style-selects label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: var(--type-size-caption);
+  color: var(--muted);
+}
+
+#giftExportTiers summary {
   display: flex;
   align-items: center;
-  gap: 7px;
-  color: var(--color-text-muted, var(--muted));
-  font-size: var(--type-size-micro);
-  line-height: var(--type-leading-caption);
+  gap: 9px;
+  padding: 9px 15px;
+  cursor: pointer;
+  list-style: none;
 }
 
-.gift-export-color-tip svg {
-  width: 14px;
-  height: 14px;
-  color: var(--primary);
-  opacity: 0.72;
-  flex-shrink: 0;
+#giftExportTiers .gift-export-palette {
+  margin-left: auto;
 }
 
-.gift-export-color-tip strong {
+#giftExportTiers summary::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border: solid var(--muted);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(-45deg);
+}
+
+#giftExportTiers[open] summary::after {
+  transform: rotate(45deg);
+}
+
+.gift-export-tier-inputs {
+  display: grid;
+  gap: 5px;
+  padding: 0 15px 12px;
+  font-size: var(--type-size-caption);
+}
+
+.gift-export-tier-heading {
   color: var(--muted);
-  font-weight: var(--type-weight-medium);
+  font-size: var(--type-size-micro);
+  text-align: right;
+}
+
+.gift-export-tier-inputs label {
+  display: grid;
+  grid-template-columns: auto 1fr minmax(65px, 42%);
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+}
+
+.gift-export-tier-inputs input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.gift-export-tier-inputs input[readonly] {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+#giftExportTierError {
+  margin: 0;
+  padding: 0 15px 10px;
+  color: var(--danger);
+  font-size: var(--type-size-caption);
 }
 
 .gift-export-actions {

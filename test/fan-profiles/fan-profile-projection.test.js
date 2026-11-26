@@ -17,7 +17,9 @@ function fixture() {
     return { prepareMembership(records) {
       counts.preparations++;
       const raw = prepareMembership(records);
-      return Object.assign(at => { counts.summaries++; return raw(at); }, raw);
+      const counted = Object.assign(at => { counts.summaries++; return raw(at); }, raw);
+      counted.milestoneAt = (date, at) => { counts.summaries++; return raw.milestoneAt(date, at); };
+      return counted;
     } };
   }, module);
   const project = module.exports.createFanProfileProjection();

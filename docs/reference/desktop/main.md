@@ -97,6 +97,7 @@
 - **状态机、来源隔离与防护校验**：依据 [ADR-0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection.md)，同步进度存储在 SQLite `gift_sync_state` 表中（替代旧 JSON 游标文件）。`remote-gift-controller.js` 仅在 `AUTHORIZED` 时运行，维护 `SOURCE_SWITCHING` / `BOOTSTRAPPING` / `CATCHING_UP` / `LIVE` / `OFFLINE` / `LEGACY_PARTIAL` / `ERROR` 状态与取消逻辑；来源标识、历史分页与错误分类纯规则分由 [remote-gift-recovery-rules.js](../../../src/electron/remote-gift-recovery-rules.js) 和 [remote-gift-history.js](../../../src/electron/remote-gift-history.js) 提供。每个异步任务在 `await` 前后和写入事务前均核对四字段防护校验（`{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}`），拦截过期写入。切换授权主体时，主进程先冻结本地礼物 API、递增控制器代次、中止 HTTP/SSE 并等待 `whenIdle()`，再解析并开放新来源分区；清库复用同一静默排空流程，并在 SQLite 事务内递增投影代次（完整时序见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)）。
 - **历史恢复、即时投影与 10 秒补拉**：
   - 启动先探测远端历史能力与同步纪元（`sync epoch`）：不支持历史接口的旧服务端明确进入 `LEGACY_PARTIAL`（不把基线数据当作完整历史）；支持历史接口时先完成历史分页或游标追平，再建立主进程 SSE 并追平窗口内事件。可重试错误按有界指数退避恢复，同批通知合并为一次游标追平。
+  - `LEGACY_PARTIAL` 的既有补拉响应也检查历史能力；同一来源升级后复用该响应进入正常历史/保留汇总初始化，再建立 SSE、验证纪元并追平。成功后通知模块取得新的定稿边界，历史及建界期间保持静默；不增加能力轮询，失败重试和四字段防护校验沿用现有路径。
   - 礼物 SSE 原始 JSON 仅在 `license/gift-protocol.js` 中经 `normalizeProcessedGiftEvent` 做传输字段白名单校验并生成含整数分金额的标准事件对象；`remote-gift-controller.js` 调用 `canonicalizeProcessedGiftEvent` 处理内部对象，不能再套用原始接口白名单拦截派生字段。
   - 实时进度（`progress`）仅在 `LIVE` 状态直接投影；在干净 `LIVE`、历史初始化已完成、SSE 纪元已校验且游标连续时，最终记录（`final`）经 `commitGiftCatchUpPage` 原子提交记录与游标并执行下游调用方，无需逐条补拉；乱序、断线、初始化中或纪元未校验时统一以 HTTP 拉取为准。
   - 进入 `LIVE` 或 `LEGACY_PARTIAL` 后，控制器每 **10 秒**经串行队列补拉一次最终游标以覆盖 SSE 静默丢通知场景（结束后重新计时，不叠加慢请求；SSE 提交不刷新 `syncedAt` 或重置该 10 秒定时器）。SSE 断开按 1–60 秒退避重连，停止时取消 HTTP、SSE 与定时器。设备令牌、来源摘要输入、引导令牌和远端句柄仅留主进程，日志不输出分页令牌或完整礼物响应。
@@ -158,13 +159,13 @@
 
 ### 礼物 PNG 导出
 
-`gift-export-controller.js` 从运行时获取冻结记录、配置与目录（默认保存至系统图片目录 `LIRA/礼物导出/日期/时间-随机标识`，更改根目录仅走原生对话框），任务目录独占创建，PNG 以 `wx` 防覆盖。隐藏沙箱窗口固定加载 `/gift-export`（无 Node/preload，拒绝导航与新窗口），保存时将冻结的配置、礼物目录和预览中的舰队人数一次传给渲染窗口，建立图片索引，再按预览顺序 `capturePage` 输出 2× PNG（单行基础 `428×72` / 2× `856×144`，默认间隔 `16px`，双条合图可调至 `0–32px`，合图每张最多 39 条，支持透明/白色背景及合图/逐条）。取消、来源失效、导航或关闭均销毁窗口并保留已落盘文件（IPC 与合并配置见 [preload.md](preload.md#6-礼物导出任务与取消)）。
+`gift-export-controller.js` 从运行时获取冻结记录、配置与目录。默认根目录为系统图片目录下的 `LIRA/礼物导出`，更改根目录仅走原生对话框。任务子目录按北京时间命名，如 `2026-11-26/1822`，同一分钟重名时依次使用 `1822-02`、`1822-03`。保存时独占创建预览中的任务目录，PNG 以 `wx` 防覆盖。隐藏沙箱窗口固定加载 `/gift-export`（无 Node/preload，拒绝导航与新窗口），保存时将当前预览生效的静态外观、冻结的礼物目录和预览中的舰队人数一次传给渲染窗口，建立图片索引，再按预览顺序输出 2× PNG。长图沿卡片边界分段截图，校验每段尺寸后拼成一张 PNG。`capturePage` 遇到 `UnknownVizError` 时在下一帧重试该段一次。导出规格为单行基础 `428×72` / 2× `856×144`，默认间隔 `16px`，相邻卡片间距可调至 `0–32px`，合图每张最多 50 条，支持透明/白色背景及合图/逐条。取消、来源失效、导航或关闭均销毁窗口并保留已落盘文件（IPC 与合并配置见 [preload.md](preload.md#6-礼物导出任务与取消)）。
 
 ### 周表 PNG 导出
 
 [weekly-schedule-export-controller.js](../../../src/electron/weekly-schedule-export-controller.js) 通过受限 IPC 桥接收主窗口模板数据（字段与图片限额见 [preload.md](preload.md#25-dailybotsfanprofiles-与-giftexport)），与编辑器共用 [renderer.js](../../../public/js/admin/weekly-schedule/renderer.js)。系统保存对话框默认建议当前可执行文件同级的 `周表/主播或模板名_周一日期.png`。若无法创建该目录，对话框仍使用同一文件名，由用户选择保存位置。取消即结束本次导出。
 
-两类导出通过注入的 `nativeImage` 将截图缩放到目标像素尺寸，末尾编码一次 PNG。仅有高分屏表示且逻辑尺寸正好等于目标时，从原始位图恢复物理尺寸。行宽有歧义时由 Chromium 缩放整幅原图。写盘前，各控制器检查至少 24 字节的 Buffer、PNG 签名及目标宽高，失败时返回本项导出的尺寸错误。周表最终文件固定为 `1920×1080` 像素。各自的任务、取消、保存对话框和文件写入策略仍由各控制器负责。 [编码与尺寸检查](../../../src/electron/png-size.js)
+两类导出通过注入的 `nativeImage` 将截图缩放到目标像素尺寸，末尾编码一次 PNG。仅有高分屏表示且逻辑尺寸正好等于目标时，从原始位图恢复物理尺寸。行宽有歧义时由 Chromium 缩放整幅原图。写盘前，各控制器检查至少 24 字节的 Buffer、PNG 签名及目标宽高，失败时返回本项导出的尺寸错误。礼物图片写盘时若只写入部分字节，本次失败的文件会删除，先前已导出的图片继续保留。周表最终文件固定为 `1920×1080` 像素。各自的任务、取消、保存对话框和文件写入策略仍由各控制器负责。 [编码与尺寸检查](../../../src/electron/png-size.js)
 
 隐藏导出窗口画布固定 `1920×1080`，启用沙箱、上下文隔离与 `webSecurity`，无 Node/preload，运行在非持久化内存分区 `lira-weekly-schedule-export` 中，拒绝权限、导航、重定向与新窗口，仅允许固定导出页、同源静态资源与本机 data/blob 图片（首次 `loadURL` 经请求头携带本次管理凭据，不改动主 `session`）。加载后调用 `setContentSize` 恢复 `1920×1080` 内容区，待字体、图片解码与两次动画帧完成且校验视口完整、文字无溢出后执行 `capturePage` 并核验 PNG 头像素尺寸（仅对 Chromium `UnknownVizError` 在下一帧重试一次）。同一控制器仅允许一项任务，主 frame 导航、窗口销毁或释放时取消任务并销毁隐藏窗口，落盘采用同目录独占临时文件原子重命名。验证见 [weekly-schedule-export.test.js](../../../test/desktop/weekly-schedule-export.test.js) 与 [weekly-schedule-electron.test.js](../../../test/desktop/weekly-schedule-electron.test.js)。
 
@@ -253,14 +254,15 @@ sequenceDiagram
 
 同步排空失败直接进入失败终结，超时后的迟到完成不再进入停服；启动中的 Cookie 恢复、`runtime.start` 与授权 `bootstrap` 在每次 `await` 后检查关闭状态，防止关闭已开始后继续初始化后续资源。
 
-**播放状态冲刷握手（[playback-flush.js](../../../src/electron/playback-flush.js)）**：
+**播放状态与周表共用的退出握手**（[playback-flush.js](../../../src/electron/playback-flush.js)）
 
 ```text
 Main: requestPlaybackFlush(mainWindow, 2000)
   ├─ mainWindow.webContents.send('app:prepare-shutdown')                   [playback-flush.js:22]
-  ├─ Renderer: 保存成功或无待存内容 → invoke('playback:flush-ack')           [ipc/music-ipc.js]
+  ├─ Renderer: 并行保存播放状态和已打开周表的待写修改
+  ├─ 两项均保存成功或无待存内容 → invoke('playback:flush-ack') 一次          [ipc/music-ipc.js]
   ├─ ack → finish('ack')
-  └─ 2s 超时 → finish('timeout') 兜底                                      [playback-flush.js:20]
+  └─ 2s 内未获确认 → finish('timeout')，继续关闭                            [playback-flush.js:20]
 ```
 
 `requestPlaybackFlush`（[playback-flush.js:5-27](../../../src/electron/playback-flush.js#L5-L27)）采用并发复用机制：已有进行中的冲刷任务时，新请求直接返回；主窗口已销毁或当前已加载本机 `/license` 时返回 `{status:'skipped'}`；`acknowledgePlaybackFlush` 由 `playback:flush-ack` 处理器调用（渲染进程侧逻辑见 [preload.md](preload.md) §3）。
@@ -290,6 +292,8 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 粉丝事实接口正常时每 15 秒继续读取已提交游标。未授权、首次设置未完成或旧服返回 404 时停止自动轮询。配置、备份恢复、授权主体变化及系统唤醒可重新探测，手动档案操作独立可用。大航海每日更新关闭时，页面直接读取当前通知。开启后按北京时间 00:10 定时，启动或唤醒补查本日、当前房间的执行记录。[粉丝档案控制器](../../../src/electron/fan-profile-controller.js)
 
+关闭每日自动同步或恢复设置时，使当前自动名单任务代次失效并中止其请求；旧任务不得导入名单或写入当日成功标记。重新开启后，尚未完成的当日同步等待取消任务排空，再读取新名单。手动同步仍独立于自动开关，并沿用并发互斥、账号/房间检查及退出排空规则；设置与返回字段见 [preload.md §5](preload.md#5-粉丝档案-action-与-dto)。
+
 ### 电音助手生命周期
 
 授权后的组件准备在后台执行。先核对全目录的清单、类型与大小，再对每个清单文件复核真实路径并以最多 4 路、256 KiB 分块计算完整 SHA-256。同尺寸的损坏文件也会触发修复。已有安装、旧版迁移和下载后的发布共用完整性要求。
@@ -306,7 +310,11 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 `playback-output.js` 惰性启动同一已打包音频组件的 `--playback-output` 模式（不加载分离模型、不开放端口），与电音助手分进程运行以便进程采集区分原声与处理后输出（主进程将可采集 worker PID 传给助手；ASIO 绕过 Windows 混音，不支持进程回送）。
 
+新工作程序启动前，`audio-component-manager.getExecutable()` 复用正在进行的准备任务；否则重新校验组件文件。组件已为 `ready` 且本地包完整时，复验不会重复发布 `checking/ready`，避免设备枚举在工作程序启动失败后自触发重试。没有可用完整包、需要修复时仍发布准备状态，显式重试仍执行完整校验。组件 `ready` 只表示文件准备完成；工作程序启动和设备打开分别等待各自确认。
+
 `PlaybackOutputs` 负责真实接口枚举与输出创建（DirectSound 按端点 GUID，WaveOut 每次由 `waveOutMessage` 重查索引，ASIO 仅列已安装驱动并校验声道/采样率；DirectSound 停止前先锁住并脱离数据源再释放资源）。`PlaybackOutputContext` 从标准包的 UTF-8 Base64 直接解码到复用的 PCM 缓冲区。携带 JSON 转义的包先反转义，再执行相同的帧长与采样校验。输出等待设备首次读取确认打开，PCM 缓冲上限 500ms，两端有界排队并校验流代次与序号；普通命令最多排队 4 条，队列满仍保留额外 1 条停止槽位（同代次重复 `stop` 合并，新 `open` 切换代次后独立排队）。超时、设备失联、溢出、页面重载、主 frame 导航、崩溃或退出均停止输出（数据目录 `<dataDir>/playback-output`，不落盘 PCM）。Windows 启动启用 `disable-renderer-backgrounding` 且主窗口设 `backgroundThrottling: false` 以保证隐藏窗口的 PCM 时钟稳定。
+
+原生桥的输入是固定格式的 PCM，包大小及对齐校验见 [preload.md](preload.md#内置播放输出)，渲染端格式与浏览器 sink 保留条件见 [播放参考 §8.3](../frontend/playback.md#83-内置播放器输出)。传输格式不保证物理设备采用相同采样率或位深：WASAPI 使用共享模式，ASIO 在驱动不支持输入采样率时重采样，仅剩单个输出声道时下混；没有可用格式则打开失败。
 
 为使媒体元素接入 Web Audio，`audio-media-cors.js` 仅对主窗口主 frame、精确本地源、已知音乐 CDN 的 `GET` 媒体响应补 CORS 头；`local-media` 开启标准 CORS 支持但仍逐文件验证允许列表，不关闭 `webSecurity`。IPC 载荷见 [preload.md](preload.md#内置播放输出)。
 
@@ -320,13 +328,13 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 ### 本机客户端外观
 
-[client-appearance.js](../../../src/electron/client-appearance.js) 在创建运行时与主窗口前读取 `dataDir/client-appearance.json`。自选字体时保存 `fontId`。系统默认 `system` 省略此字段，沿用 `{ themeId }` 记录。旧字体组合取有效的 `fonts.han` 作为整个界面的字族，在下次成功保存外观时写入新格式。合法配色由 [client-theme.js](../../../src/shared/client-theme.js) 统一定义，默认 `terracotta` 暖陶。两项分别校验，读取时遇到无效值就使用该项默认值。保存串行调用 [atomic-file.js](../../../src/electron/atomic-file.js) 的 `writeAtomicFileAsync`，以队列中已提交的另一项合成新记录，采用同目录独占临时文件、刷盘后原子替换（`EPERM` / `EBUSY` 按 50/100/150/200ms 最多重试 4 次），关停前移除写入 IPC 并等待已接受写入完成。外观独立于账号、云同步与浏览器缓存。运行时获得只读 `getClientTheme()` 和 `getClientFont()`。主窗口原生底色取统一配色目录对应页面底（与 `desktop/palettes.css` 一致，梅雾和紫岚按浅色、深色分别保存主题 ID，原生底色取对应页面渐变的起色），主 frame 导航时重新选择，登录页固定 `#f7f3ef`，不修改 `nativeTheme`。
+[client-appearance.js](../../../src/electron/client-appearance.js) 在创建运行时与主窗口前读取 `dataDir/client-appearance.json`。自选字体时保存 `fontId`。系统默认 `system` 省略此字段，沿用 `{ themeId }` 记录。旧字体组合取有效的 `fonts.han` 作为整个界面的字族，在下次成功保存外观时写入新格式。合法配色由 [shared/client-theme.js](../../../public/js/shared/client-theme.js) 唯一定义（[src/shared/client-theme.js](../../../src/shared/client-theme.js) 复导出），默认 `terracotta` 暖陶，支持别名映射解析。两项分别校验，读取时遇到无效值就使用该项默认值。保存串行调用 [atomic-file.js](../../../src/electron/atomic-file.js) 的 `writeAtomicFileAsync`，以队列中已提交的另一项合成新记录，采用同目录独占临时文件、刷盘后原子替换（`EPERM` / `EBUSY` 按 50/100/150/200ms 最多重试 4 次），关停前移除写入 IPC 并等待已接受写入完成。外观独立于账号、云同步与浏览器缓存。运行时获得只读 `getClientTheme()` 和 `getClientFont()`。主窗口原生底色取统一配色目录对应页面底（与 `desktop/palettes.css` 一致，浅/深配对主题分别保存独立主题 ID，渐变主题原生底色取对应页面渐变起色），主 frame 导航时重新选择，登录页固定 `#f7f3ef`，不修改 `nativeTheme`。
 
 ### 本机系统通知
 
 [desktop-notifications.js](../../../src/electron/desktop-notifications.js) 启动时读取 `dataDir/desktop-notifications.json`（独立于云设置的日程通知开关、礼物通知开关与人民币门槛，修改串行调用 `atomic-file.js` 的异步原子替换与文件锁重试；字段默认值与受限桥见 [preload.md](preload.md#25-dailybotsfanprofiles-与-giftexport)）。
 
-日程定时与通知归属 [planner-reminder-controller.js](../../../src/electron/planner-reminder-controller.js)（关闭开关取消定时器与通知但保留日程，重开仅恢复未来日程）。Windows 日程横幅超时后仍可从通知中心撤回；按日程容量保留最近 1000 个超时句柄，先撤回最早的一条再释放超额句柄。大额礼物通知复用 `src/server.js` 结算后的 `onGiftFlushed` 回调（仅在当前授权有效时触发，单次 `final` 的 `total_price` 按整数分严格大于门槛才通知，以 `updated_at` 排除启动/重开前旧礼物）。
+日程定时与通知归属 [planner-reminder-controller.js](../../../src/electron/planner-reminder-controller.js)（关闭开关取消定时器与通知但保留日程，重开仅恢复未来日程）。Windows 日程和大额礼物横幅超时后仍可从通知中心撤回。两类提醒各保留最近 1000 个超时句柄，达到上限时先撤回最早的一条。大额礼物通知复用 `src/server.js` 结算后的 `onGiftFlushed` 回调（仅在当前授权有效时触发，单次 `final` 的 `total_price` 按整数分严格大于门槛才通知）。启用、加载已启用设置或切换来源时，通过既有礼物接口读取当前来源的最新定稿游标；仅通知同一来源、同步纪元和投影代次内，成功提交且游标严格大于该边界的最终礼物。本机时钟与礼物业务时间不参与截止比较；边界确认前保持静默且不补发。边界依据服务器定稿顺序，较早开始、稍后定稿的连击仍可能通知，完整语义与恢复限制见 [礼物启用边界](../backend/bilibili/gift.md#24-桌面大额礼物通知的启用边界)。
 
 Windows 启动由 `configureNotificationIdentity` 设置应用身份（安装版 `com.aurorawhisperer.lira`，开发版追加 `.development`），并在检测到开发快捷方式 `Electron.lnk` 与生产身份冲突时仅修正该快捷方式的 AUMID。两类提醒均使用 Electron `Notification`，各自通过 [system-notifications.js](../../../src/electron/system-notifications.js) 管理独立通知集合及清理：点击恢复并聚焦主窗口，关闭开关或退出时释放通知；失败仅记固定错误码，不记正文也不重试。日程与礼物触发规则仍分别归各控制器，设置写入纳入退出排空。
 

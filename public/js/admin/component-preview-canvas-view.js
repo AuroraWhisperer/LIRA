@@ -4,6 +4,7 @@ import { previewElement, previewToolbarIcon } from './component-preview-elements
 import { createSceneDocumentModel } from './scene-document-model.js';
 import { mountSceneEditorStage } from './scene-editor-stage.js';
 import { mountSceneEditorInspector } from './scene-editor-inspector.js';
+import { createRejectedTextBoxEdits } from './rejected-text-box-edits.js';
 import { mountPreviewCanvasSettings } from './component-preview-canvas-settings.js';
 import { enhanceSelects } from '../shared/select-menu.js';
 import { mountComponentPreviewPicker } from './component-preview-picker.js';
@@ -26,6 +27,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     throw new Error('场景中的组件尚未连接，请从客户端重新打开。');
   }
   const model = createSceneDocumentModel(initial);
+  const rejectedTextEdits = createRejectedTextBoxEdits();
   const sharedTypes = new Set();
   let selected = null;
   let inspector = null;
@@ -167,6 +169,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       variant: 'destructive', confirmLabel: '放弃修改', cancelLabel: '继续编辑', initialFocus: 'cancel',
     });
     if (!confirmed || closed) return;
+    rejectedTextEdits.forScene(model.getSnapshot().id).clear();
+    inspector?.discardPendingEdit?.();
     stage.cancelGesture();
     sharedAppearance.discardAll();
     for (const { controller } of controllers.filter(isDiscardTarget)) {
@@ -174,8 +178,11 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       if (state.dirty || state.error) controller.discard();
     }
     inspector?.render?.(true);
+    renderStatus();
   });
   function validateInputs() {
+    const rejection = rejectedTextEdits.messageFor(model.getSnapshot());
+    if (rejection) { renderStatus(); return false; }
     stage.cancelGesture();
     layerView.cancelDrag();
     const invalid = [...inspectorHost.querySelectorAll('input, select, textarea')].find((input) => input.willValidate && !input.validity.valid);
@@ -255,6 +262,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     setInspectorOpen(true);
   }
   function select(id) {
+    if (selected === id && model.getItemSnapshot(id)?.type === 'text-box') return;
     selected = id;
     inspector?.dispose();
     inspectorHost.replaceChildren();
@@ -264,7 +272,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       const parameters = previewElement('div', 'preview-canvas-parameters');
       inspectorHost.append(parameters);
       inspector = mountSceneEditorInspector(parameters, { model, components,
-        getSelection: () => new Set([selected]), report, requestStyles: canvasConnection?.requestComponentStyles, sharedAppearance });
+        getSelection: () => new Set([selected]), report, requestStyles: canvasConnection?.requestComponentStyles, sharedAppearance,
+        rejectedTextEdits, onValidityChange: renderStatus });
       const actions = previewElement('div', 'preview-canvas-item-actions');
       const center = button(actions, '居中', () => edit((document) => {
         const item = document.items.find((entry) => entry.id === selected);
@@ -311,16 +320,17 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     }
     // Publication failures may add the owner title to an error already announced by its controller.
     reportedErrors = new Set(failures.flatMap(({ title, error }) => [error, `${title}：${error}`]));
-    status.classList.toggle('has-error', failures.length > 0 || Boolean(recoveryState?.pending));
-    status.textContent = failures.length ? [...errors].map(([error, titles]) =>
+    const rejection = rejectedTextEdits.messageFor(model.getSnapshot());
+    status.classList.toggle('has-error', Boolean(rejection) || failures.length > 0 || Boolean(recoveryState?.pending));
+    status.textContent = rejection || (failures.length ? [...errors].map(([error, titles]) =>
       titles.length === states.length ? error : `${titles.join('、')}：${error}`).join('\n')
       : (recoveryState?.pending ? recoveryState.message : '') || (typeof message === 'function' ? message() : message) || recoveryState?.message
-        || (saving ? '正在保存…' : dirty.length ? '未保存' : '');
+        || (saving ? '正在保存…' : dirty.length ? '未保存' : ''));
     if (!canvasController) status.textContent += ' 此旧链接仅保存组件参数；保存布局请从客户端重新打开。';
-    if (save) save.disabled = saving || !dirty.length || dirty.some((state) => !state.loaded);
+    if (save) save.disabled = Boolean(rejection) || saving || !dirty.length || dirty.some((state) => !state.loaded);
     const discardStates = [...states.filter(isDiscardTarget), ...sharedStates];
     discard.disabled = discardStates.some((state) => state.saving) || outputBusy
-      || (!discardStates.some((state) => state.dirty || state.error) && !recoveryState?.pending);
+      || (!rejection && !discardStates.some((state) => state.dirty || state.error) && !recoveryState?.pending);
     const canvasState = states.find(state => state.id === 'canvas');
     const connected = !canvasController || canvasState.loaded;
     const hasScene = canvasState?.presets?.length !== 0;
@@ -330,7 +340,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     canvasButton.disabled = !connected || !hasScene || outputBusy || Boolean(recoveryState?.pending);
     stage?.setEmptyMessage(hasScene ? '添加组件，开始编排直播画面。' : '暂无场景，请从顶部“场景操作”新建场景。');
     // Publishing drains shared autosaves; disabling here can swallow an in-progress click.
-    output?.render(connected && hasScene && !recoveryState?.pending && !outputBusy, controllerSaving);
+    output?.render(connected && hasScene && !recoveryState?.pending && !outputBusy, controllerSaving, Boolean(rejection));
     presets?.render(outputBusy || Boolean(recoveryState?.pending), canvasState);
   }
   if (recovery) subscriptions.push(recovery.subscribe(renderStatus));

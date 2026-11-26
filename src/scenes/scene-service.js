@@ -122,7 +122,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
       return { ...item, appearance: { mode: 'independent', config: defaults.get(item.type) } };
     });
     const document = normalizeSceneDocument({ ...record.document, id: outputId, items }, { normalizeConfig });
-    return { document, componentSizes };
+    return { document, componentSizes, sharedIds: record.document.items.filter(item => item.appearance.mode === 'shared').map(item => item.id) };
   }
 
   function publish(input, canvas = false) {
@@ -137,12 +137,12 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
         throw new SceneError('SCENE_INVALID_VERSION', 400, '画布发布版本无效。');
       }
       if (canvas && input.expectedPublishedVersion !== output.publishedVersion) throw conflict();
-      const { document, componentSizes } = publication(record, output.document.id, input.expectedDefaults);
+      const { document, componentSizes, sharedIds } = publication(record, output.document.id, input.expectedDefaults);
       assertCurrent();
       const stored = browserSources.encode(document, owner.scope);
       assertCurrent();
       return confirm(store.publish({ scope: owner.scope, id: output.document.id, expectedRevision: output.revision,
-        document: stored, componentSizes, ...(canvas ? { preset: { id, revision: expectedRevision,
+        document: stored, componentSizes, sharedIds, ...(canvas ? { preset: { id, revision: expectedRevision,
           expectedPublishedVersion: input.expectedPublishedVersion } } : {}) }), output.document);
     });
     onOutputChanged({ id: result.document.id });
@@ -157,6 +157,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
     ...createSceneTransfer({ withOwner, store, browserSources, issueCapability: capabilities.issue, normalizeConfig, getDefaultConfig, getSharedAppearances }),
 
     visitAssetReferences(visit) {
+      output.visitAssetReferences(visit);
       store.visitDocuments((document, scope) => visit(browserSources.decodeDocument(document, scope)));
     },
 
@@ -197,9 +198,9 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
           const next = store.list(owner.scope).find(entry => entry.document.id !== id);
           const selected = next ? browserSources.decode(next, owner.scope)
             : { document: { ...record.document, title: '暂无场景', items: [] } };
-          const { document, componentSizes } = publication(selected, binding.outputId);
+          const { document, componentSizes, sharedIds } = publication(selected, binding.outputId);
           replacement = { id: next?.document.id || null, revision: next?.revision,
-            document: browserSources.encode(document, owner.scope), componentSizes };
+            document: browserSources.encode(document, owner.scope), componentSizes, sharedIds };
         }
         assertCurrent();
         const deleted = store.delete({ scope: owner.scope, id, expectedRevision, expectedCanvas: binding, replacement });
@@ -244,6 +245,8 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
         const record = readStored(owner.scope, id);
         const published = record.publishedDocument;
         return { id, token: capabilities.decode(owner.scope, id, record.capability),
+          sharedTypes: Object.fromEntries((published?.items || []).filter(item => record.publishedSharedIds.includes(item.id))
+            .map(item => [item.id, item.type])),
           itemIds: published?.items.map((item) => item.id) || [],
           canvas: published ? { ...published.canvas } : null,
           itemSizes: Object.fromEntries((published?.items || []).map(item => [item.id,

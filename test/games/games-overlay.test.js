@@ -243,7 +243,7 @@ test('result actions and late winner profiles follow the current game session', 
   assert.equal(nodes.get('gameResultExit').disabled, true);
   assert.equal(nodes.get('gameResultNext').disabled, true);
   assert.equal(actions.length, 1, 'one click sends one action');
-  assert.deepEqual(JSON.parse(actions[0].options.body), { action: 'stop' });
+  assert.deepEqual(JSON.parse(actions[0].options.body), { action: 'stop', sessionId: 'synthetic-game' });
   assert.equal(actions[0].options.headers.Authorization, 'Bearer result-test-token');
   actions[0].resolve(null);
   await stop;
@@ -251,7 +251,7 @@ test('result actions and late winner profiles follow the current game session', 
 
   receive('number-bomb', { ...state, winner: 'host' });
   const restart = click('gameResultNext');
-  assert.deepEqual(JSON.parse(actions[1].options.body), { action: 'restart' });
+  assert.deepEqual(JSON.parse(actions[1].options.body), { action: 'restart', sessionId: 'synthetic-game' });
   actions[1].resolve(null, false);
   await restart;
   assert.equal(nodes.get('gameResultActionStatus').hidden, false);

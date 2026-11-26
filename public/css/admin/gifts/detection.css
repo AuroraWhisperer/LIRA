@@ -1,8 +1,4 @@
 /* ---- 礼物检测 ---- */
-.gift-detection-panel legend {
-  margin-bottom: 8px;
-}
-
 .gift-detect-head {
   display: flex;
   align-items: center;

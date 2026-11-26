@@ -10,6 +10,8 @@
 
 结算时匹配同一真实礼物 ID 冻结的 `gift_variant_id`，未知或其他身份均不匹配。规则快照冻结 `giftIdentity`，已有的 `applied` / `ignored` 记录及历史同步不重新结算。服务端设备接口的三种交付请求会主动协商身份字段，旧版 DTO 仍可按身份未知读取；大航海别名兼容不变。
 
+播出与桌面预览均保留规则的 `bindingStatus` 和 `giftIdentity.variantId`，只显示启用且不待重选的票券。单笔结算携带 `adjustment.giftVariantId`，按礼物 ID 与 variant 定位票券，避免同平台 ID 的其他身份被高亮；合并动画仍不逐票高亮。
+
 加班机是一个**单进程内领域模块**，不新增进程、框架或外部服务：礼物统计与加班机作为两个并列消费者，共享同一个礼物投影服务（[ADR-0006](../../architecture/adr/0006-shared-gift-detection-core.md)）；三张表与 `gift_events` 同库（`gift-data.db`），使结算能在单一 SQLite 事务内完成（[ADR-0004](../../architecture/adr/0004-reuse-monolith-and-gift-db.md)）。
 
 ### 1.1 模块布局
@@ -112,7 +114,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明字�
 | --- | --- | --- |
 | `enable` | 置 `enabled`、`epoch+1`、`status='paused'`（**启用后保持暂停，须手动开始**）；已启用则 no-op | [overtime-service.js:85-93](../../../src/overtime/overtime-service.js#L85-L93) |
 | `disable` | 折算剩余时间后置 `disabled`、`status='paused'`，`saveStateAndIgnorePending` 将全部 `pending` 置为 `ignored` | [95-102](../../../src/overtime/overtime-service.js#L95-L102)、[overtime-store.js](../../../src/storage/overtime-store.js) |
-| `start` | 未启用抛错（`overtime must be enabled before start.`）；`remainingMs > 0` → `running`，否则保持 `finished` | [104-111](../../../src/overtime/overtime-service.js#L104-L111) |
+| `start` | 旧的无参数动作仍要求先启用；可同时提交 `enable: true`、`rules` 和替换初始时长，整体成功后开始倒计时（§6.1） | [overtime-service.js](../../../src/overtime/overtime-service.js) |
 | `pause` | `remainingMs <= 0` 时归 `finished`，否则 `paused`（时间冻结） | [113-119](../../../src/overtime/overtime-service.js#L113-L119) |
 | `reset` | `remainingMs = initialSeconds * 1000`，归零时 `finished`，否则 `paused` | [121-127](../../../src/overtime/overtime-service.js#L121-L127) |
 | `setTime` | 写入 `remainingSeconds` 后强制 `paused`（归零时 `finished`）；`initialSeconds` 仅改重置基准 | [64-74](../../../src/overtime/overtime-service.js#L64-L74) |
@@ -253,11 +255,15 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明字�
 
 | 操作 | 语义 | 出处 |
 | --- | --- | --- |
-| `getOverview()` | 快照 + `pendingCount` + 最近 20 条 `applied` / `ignored` 结算（`limit` 钳制 1–100） | [overtime-service.js:56-62](../../../src/overtime/overtime-service.js#L56-L62)、[overtime-store.js](../../../src/storage/overtime-store.js) |
+| `getOverview()` | 快照 + `pendingCount` / `quantityLimitedCount` + 按终结顺序倒序的最近 20 条 `applied` / `ignored` 结算（`limit` 钳制 1–100） | [overtime-service.js](../../../src/overtime/overtime-service.js)、[overtime-store.js](../../../src/storage/overtime-store.js) |
 | `setTime({initialSeconds?, remainingSeconds?})` | 改重置基准或当前时间；后者强制 `paused` | [overtime-service.js:64-74](../../../src/overtime/overtime-service.js#L64-L74) |
-| `act({action})` | `start` / `pause` / `reset` / `enable` / `disable`（§2.2） | [76-83](../../../src/overtime/overtime-service.js#L76-L83) |
+| `act(action, options?)` | `start` / `pause` / `reset` / `enable` / `disable`（§2.2）；路由将请求体作为第二参数传入 | [overtime-service.js](../../../src/overtime/overtime-service.js) |
 | `setBackground({path?, fit?})` | 背景配置，`commit('config')` | [129-136](../../../src/overtime/overtime-service.js#L129-L136) |
 | `replaceRules({rules})` | 规则整表替换，`commit('rules')` | [138-144](../../../src/overtime/overtime-service.js#L138-L144) |
+
+管理页开始操作以一次 `POST /api/overtime/action` 提交 `action: 'start'`、`enable: true` 和尚未保存的 `rules`。需要替换剩余时长时同时提交 `initialSeconds` 与决定替换时的 `expectedRevision`（非负安全整数）。服务在写入前检查修订号；期间若礼物或其他操作已改变状态，返回 HTTP 409，时间、规则与启用状态均不改变，管理页刷新后由用户重试。正常提交复用 `replaceRulesAndState` 事务，保存规则、替换时长、启用并开始一次提交；事务后收到的礼物按新规则结算。旧 `/time`、单独规则保存和无附加参数的动作仍保留原语义。
+
+最近结算使用 `settled_order`，存储触发器在 `pending` 转终态的同一事务内取当前最大值加一，覆盖结算、禁用及维护清理入口。重放终态不重新排序，时钟回拨、冻结或重启不改变已保存顺序。[giftDb v27 迁移](../../../src/storage/overtime-settlement-migration.js) 为旧终态按 `updated_at, id` 回填，旧 pending 保持 0；历史记录原本未保存精确终结顺序，迁移只能采用这一确定性回填。
 
 ### 6.2 发布契约
 
@@ -288,7 +294,13 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明字�
 }
 ```
 
-计时本身不每秒广播，仅在人工操作、礼物结算、配置变化、自然归零与连接建立时同步；客户端以 `serverNowMs` 抵消传输时延后用本地时钟插值，已连接状态下仅接受 `revision` 递增的增量，重连快照无条件接受。
+计时本身不每秒广播，仅在人工操作、礼物结算、配置变化、自然归零与连接建立时同步。管理页以收到的 `effectiveRemainingMs` 建立单调时钟锚点，叠加层还用 `serverNowMs` 估算传输时延。同一连接中，只有更高 `revision` 的机器状态才能重设锚点。重连快照建立新基线。
+
+管理页同修订的回执可补充概览。超限礼物写入后，同修订的 `quantity-limit` 广播只更新待结算和超限两项计数，面板沿用原倒计时、规则及最近结算记录。关闭加班机成功后的广播及动作响应携带完整概览，立即移除已终结的待结算数并显示忽略记录。重连时管理页重读概览，早于已显示修订的读取不会覆盖当前记录。
+
+管理页同一时刻只读一次 `GET /api/overtime`。如果读取期间有更高修订的轻量状态到达，而返回的概览仍落后，管理页为最新修订再读一次。这次读取同样按修订判断。例如，重连后的“只启用收礼”和“重置”先后赶在两次响应前，最后一次读取会补回离线期间被忽略的礼物和待结算数。一批礼物结算共用在途请求，较新的完整概览也能直接结束协调。若管理页在读取期间已收到同修订的计数，响应只补齐尚缺的记录，保留刚收到的计数。
+
+读取失败，或请求期间修订未前进而服务仍返回旧概览时，管理页保留上次确认的显示，等待下次重连、礼物结算刷新或页面重开。重连取消上一连接的读取，页面卸载和应用关闭也会取消在途请求。协调由这些事件驱动。
 
 本机场景输出在同一次响应内复用加班机快照，同时投影倒计时数据与公共背景外观，避免外观读取再次获取规则。下一次响应重新读取快照，`serverNowMs` 和剩余时间继续更新；用于复用的内部读取上下文不进入响应。
 

@@ -249,15 +249,23 @@ ManifestDPIAware true
   CreateDirectory "$R0"
   ClearErrors
   StrCmp "$EXEPATH" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}" liraInstallerCached
-  ${IfNot} ${isUpdated}
-  ${AndIf} ${FileExists} "$R0\current.blockmap"
-    ${StdUtils.HashFile} $R1 "SHA2-256" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
-    StrLen $R2 $R1
-    ${If} $R2 == 64
-      ${StdUtils.HashFile} $R2 "SHA2-256" "$EXEPATH"
-      StrCmp $R1 $R2 liraInstallerCached
+  ${If} ${FileExists} "$R0\current.blockmap"
+    ; An updater-promoted map may have survived an interrupted earlier download.
+    ; A manual reinstall of the identical package can leave the existing cache alone.
+    ${IfNot} ${isUpdated}
+      ${StdUtils.HashFile} $R1 "SHA2-256" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
+      StrLen $R2 $R1
+      ${If} $R2 == 64
+        ${StdUtils.HashFile} $R2 "SHA2-256" "$EXEPATH"
+        StrCmp $R1 $R2 liraInstallerCached
+      ${EndIf}
     ${EndIf}
     Delete "$R0\current.blockmap"
+    ${If} ${isUpdated}
+    ${AndIf} ${FileExists} "$R0\current.blockmap"
+      ; The updater may already have replaced the map paired with the old installer.
+      Delete "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
+    ${EndIf}
     IfFileExists "$R0\current.blockmap" liraInstallerCached
   ${EndIf}
   CopyFiles /SILENT "$EXEPATH" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"

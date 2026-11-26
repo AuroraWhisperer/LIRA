@@ -17,6 +17,7 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
   const statesByKey = new Map(states.map((state) => [state.key, state]));
   const result = [];
   const resultKeys = new Set();
+  const reachedContinuous = new Set();
   const summarize = options.summarize || prepareMembership(records);
   const membership = options.membership || summarize(now);
   const accompany = getGuardAccompany(profile, now);
@@ -101,7 +102,7 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
         `followup:${record.id}`,
         record.data.reviewDate,
         record.kind === 'caution' ? '相处提醒待复查' : '约定待跟进',
-        '手动设置',
+        `手动设置 · ${record.data.body || ''}`,
       );
     }
   }
@@ -126,17 +127,20 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
         membership.expiry.source === 'platform' ? '平台确认' : '手动确认',
         7,
       );
-    if ((membership.totalDays !== null || membership.continuousDays !== null) && profile.milestoneReminders !== false)
-      addMilestones();
   }
+  const continuousHistory = states.filter(state => state.key.startsWith('continuous:') && ['handled', 'ignored'].includes(state.status));
+  if ((membership.totalDays !== null || membership.continuousDays !== null) &&
+      ((membership.status !== 'pending' && profile.milestoneReminders !== false) || continuousHistory.length)) addMilestones();
 
   if (accompany && !accompany.stale && !accompany.inactive && profile.milestoneReminders !== false) {
     const observedDate = dayOf(accompany.observedAt);
     for (const threshold of accompanySettings(settings).accompanyMilestones) {
       // A snapshot establishes only that day's count, never an unknown past achievement date.
-      if (threshold < accompany.days) continue;
-      const date = addDays(observedDate, threshold - accompany.days);
-      add(`accompany:${accompany.roomId}:${threshold}`, date, `陪伴满 ${threshold} 天`,
+      const key = `accompany:${accompany.roomId}:${threshold}`;
+      const state = statesByKey.get(key);
+      if (threshold < accompany.days && state?.status !== 'snoozed') continue;
+      const date = threshold < accompany.days ? state.date : addDays(observedDate, threshold - accompany.days);
+      add(key, date, `陪伴满 ${threshold} 天`,
         `B 站陪伴天数 · ${observedDate} 同步${threshold > accompany.days ? ' · 按持续陪伴估算' : ''}`, 3,
         { predicted: threshold > accompany.days, threshold, metric: 'accompany' });
     }
@@ -163,26 +167,34 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
       /^(total|continuous):/.test(state.key) && ['handled', 'ignored'].includes(state.status));
     // Search revised crossing dates by metric and threshold. add() checks the
     // full occurrence key, including the continuous cycle, before admitting an old date.
-    const snoozedRules = new Set(states.filter(state => state.status === 'snoozed' && state.until >= earliest)
+    const snoozedRules = new Set(states.filter(state => ['handled', 'ignored'].includes(state.status) ||
+      (state.status === 'snoozed' && state.until >= earliest))
       .map(state => state.key.replace(/^continuous:.+:/, 'continuous:')));
-    const summaries = new Map([[today, membership]]);
+    const summaries = new Map();
     function at(date) {
-      if (!summaries.has(date)) summaries.set(date, summarize(date));
+      if (!summaries.has(date)) summaries.set(date, summarize.milestoneAt(date, now));
       return summaries.get(date);
+    }
+    for (const state of continuousHistory) {
+      if (!state.date || state.date > today) continue;
+      const savedDate = at(state.date);
+      const threshold = Number(state.key.split(':').at(-1));
+      for (const [cycleId, { days }] of savedDate.continuousByCycle) {
+        if (state.key === `continuous:${cycleId}:${threshold}` && days >= threshold) reachedContinuous.add(state.key);
+      }
     }
     for (const date of summarize.milestoneDates(earliest, hasMilestoneHistory ? horizon : latest, now, snoozedRules)) {
       const current = at(date);
       const previous = at(addDays(date, -1));
-      for (const type of ['total', 'continuous']) {
-        const value = current[`${type}Days`];
-        const prior = previous[`${type}Days`];
+      function check(type, cycleId, value, prior) {
         for (const threshold of MEMBERSHIP_MILESTONES) {
           // A newly entered baseline establishes today's count, not the dates
           // when smaller milestones were reached in the unknown past.
           if (value > threshold && baselineDates[type].has(date)) continue;
           if (value === null || value < threshold || (prior !== null && prior >= threshold)) continue;
-          if (type === 'continuous' && current.continuousAsOf !== date) continue;
-          const key = type === 'total' ? `total:${threshold}` : `continuous:${current.cycleId}:${threshold}`;
+          const key = type === 'total' ? `total:${threshold}` : `continuous:${cycleId}:${threshold}`;
+          if (type === 'continuous' && date <= today) reachedContinuous.add(key);
+          if (profile.milestoneReminders === false || membership.status === 'pending') continue;
           if (resultKeys.has(key)) continue;
           add(
             key,
@@ -193,6 +205,12 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
             { predicted: date > today, threshold, metric: type },
           );
         }
+      }
+      check('total', null, current.totalDays, previous.totalDays);
+      for (const [cycleId, { days, startsToday }] of current.continuousByCycle) {
+        const prior = previous.continuousByCycle.get(cycleId)?.days ??
+          (startsToday && previous.cycleId !== cycleId ? null : previous.continuousDays);
+        check('continuous', cycleId, days, prior);
       }
     }
   }
@@ -211,6 +229,10 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
       revisedBelowThreshold: Boolean(revised),
     });
     resultKeys.add(state.key);
+  }
+  for (const item of result) {
+    if (item.key.startsWith('continuous:') && ['handled', 'ignored'].includes(item.status))
+      item.revisedBelowThreshold = !reachedContinuous.has(item.key);
   }
   return result.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.key.localeCompare(b.key));
 }

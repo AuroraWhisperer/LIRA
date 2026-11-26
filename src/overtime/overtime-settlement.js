@@ -33,6 +33,7 @@ function resolveGiftSettlement({ giftEventId, gift, rule, currentState, updatedA
   const adjustment = {
     giftEventId,
     giftId: String(gift.gift_id || ''),
+    giftVariantId: rule.giftIdentity?.variantId || '',
     giftName: String(gift.gift_name || ''),
     quantity,
     quantityMode: rule.quantityMode,

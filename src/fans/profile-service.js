@@ -402,7 +402,6 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             throw createPublicError('档案已更新，请重新打开后核对；未保存的输入仍保留。');
           const patch = profilePatch(input);
           requireAllowedIdentity(scope, patch.identity);
-          if (!patch.alias && !previous.alias && !previous.platformName) throw createPublicError('请填写常用称呼。');
           const profile = { ...previous, ...patch };
           if (identityKey(profile.identity) !== identityKey(previous.identity)) {
             delete profile.guardRoster;
@@ -414,6 +413,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             profile.platformObservedAt = '';
             profile.avatar = '';
           }
+          if (!profile.alias && !profile.platformName) throw createPublicError('请填写常用称呼。');
           if (patch.nameHistory) {
             const retained = new Set(patch.nameHistory.map(item => item.name));
             profile.excludedFormerNames = [...new Set([

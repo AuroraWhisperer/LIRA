@@ -1,14 +1,20 @@
 import { createWeeklyScheduleEditor } from './weekly-schedule/editor.js';
 import { toast } from '../shared/toast.js';
 
+let editor;
+
+export function flushWeeklySchedule() {
+  return editor?.flush() ?? true;
+}
+
 export function initWeeklySchedule() {
   const root = document.getElementById('weeklyScheduleEditor');
   if (!root) return;
-  let editor;
   let disposed = false;
   window.addEventListener('pagehide', () => {
     disposed = true;
     editor?.dispose();
+    editor = null;
   }, { once: true });
   void createWeeklyScheduleEditor(root).then(instance => {
     if (disposed) instance.dispose();

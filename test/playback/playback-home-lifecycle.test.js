@@ -14,6 +14,55 @@ const { createPlaybackApp, flushAsyncWork, closestTarget } = require('../helpers
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+for (const dismissed of [false, true]) {
+  test(`first liked click after switching platform waits for auth, not health (dismissed: ${dismissed})`, async () => {
+    const auth = Promise.withResolvers();
+    const health = Promise.withResolvers();
+    const reads = [];
+    const app = await createPlaybackApp({ selectedSource: 'qq' }, {
+      sourceTabs: ['qq', 'netease'], homeAction: 'liked',
+      authState: platform => platform === 'qq' ? { platform, loggedIn: false } : auth.promise,
+      providerHealth: platform => platform === 'netease' ? health.promise : { ok: true },
+      loadHome: request => { reads.push(request.platform); return { tracks: [] }; },
+    });
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('source-tab-netease', 'click');
+    const opening = app.emitHomeAction();
+    if (dismissed) await app.emit('playbackDrawerClose', 'click');
+    auth.resolve({ platform: 'netease', loggedIn: true });
+    await flushAsyncWork();
+    assert.deepEqual(reads, dismissed ? [] : ['netease']);
+    health.resolve({ ok: true });
+    await opening;
+  });
+}
+
+for (const dirId of ['', '12']) {
+  test(`QQ playlist removal requires a writable directory (${dirId || 'readonly'})`, async () => {
+    const app = await createPlaybackApp({ selectedSource: 'qq' }, {
+      homeAction: 'personalized', authState: { platform: 'qq', loggedIn: true },
+      loadHome: ({ action }) => action === 'playlist-tracks'
+        ? { tracks: [{ id: 'qq:song', sourceTrackId: 'song', source: 'qq', title: 'Song' }] }
+        : { playlists: [{ id: '100', dirId, title: 'Playlist' }] },
+    });
+    await app.init();
+    await flushAsyncWork();
+    await app.emitHomeAction();
+    await flushAsyncWork();
+    await app.emit('playbackDrawerBody', 'click', {
+      target: closestTarget({ playbackPlaylistIndex: '0' }, 'playback-playlist-index'),
+    });
+    await flushAsyncWork();
+    assert.equal(app.element('playbackDrawerBody').innerHTML.includes('data-playback-home-track-action="remove"'), Boolean(dirId));
+    if (dirId) return;
+    await app.emit('playbackDrawerBody', 'click', {
+      target: closestTarget({ playbackHomeTrackAction: 'remove', playbackHomeTrackIndex: '0' }, 'playback-home-track-action'),
+    });
+    assert.equal(app.confirmations().length, 0, 'read-only targets cannot enter the delete flow');
+  });
+}
+
 test('playlist details expose navigation back to the list and reset it when opening a root', async () => {
   const app = await createPlaybackApp({ current: null, selectedSource: 'qq' }, {
     homeAction: 'created-playlists', authState: { platform: 'qq', loggedIn: true },

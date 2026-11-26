@@ -17,6 +17,7 @@
 }
 
 .playback-workspaces {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
@@ -31,6 +32,34 @@
   block-size: 0;
   padding-block: 0;
   overflow: clip;
+}
+
+/* One-shot post-startup paint compiles the turntable, gradient and blur shaders ahead of the first switch. */
+.playback-page:not(.active):has(.player-appearance[inert][data-gpu-warmup]) {
+  display: block;
+  position: fixed;
+  inset: var(--topbar-height, 58px) 0 auto;
+  height: 0;
+  padding: 8px 16px 0;
+  overflow: visible;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.playback-page:not(.active):has(.player-appearance[inert][data-gpu-warmup]) > :not(.playback-workspaces),
+.playback-page:not(.active):has(.player-appearance[inert][data-gpu-warmup]) .playback-music-workspace {
+  display: none;
+}
+
+.playback-workspaces > .player-appearance[inert][data-gpu-warmup] {
+  position: absolute;
+  inset: 0 0 auto;
+  block-size: min(720px, calc(100dvh - var(--topbar-height, 58px)));
+  padding-block: 12px 28px;
+  overflow: clip;
+  opacity: 0.004;
+  pointer-events: none;
+  z-index: -1;
 }
 
 .playback-music-workspace {

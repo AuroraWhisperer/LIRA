@@ -130,6 +130,51 @@ test('a late account selection acknowledgement cannot undo a later selection', a
   assert.equal(f.elements.get('xiaomiAiModelMenu').popoverOpen, true);
 });
 
+test('a lost subscription switch acknowledgement locks logout until the active profile is confirmed', async t => {
+  const { createChatGptFixture } = require('../helpers/chatgpt-fixture');
+  const backend = await createChatGptFixture(t);
+  await backend.login();
+  const a = backend.session.getStatus().activeId;
+  await backend.login({ newAccount: true });
+  const b = backend.session.getStatus().activeId;
+  backend.session.selectAccount(a);
+  let statusAvailable = false;
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' },
+    request(url, options) {
+      if (url === '/api/ai/status') return aiResponse({ chatgpt: backend.session.getStatus() });
+      if (url === '/api/ai/chatgpt/status') {
+        if (!statusAvailable) throw new Error('status unavailable');
+        return aiResponse(backend.session.getStatus());
+      }
+      if (url === '/api/ai/chatgpt/select') {
+        backend.session.selectAccount(JSON.parse(options.body).profileId);
+        throw new Error('switch acknowledgement lost');
+      }
+      if (url === '/api/ai/chatgpt/logout') return backend.session.logout(JSON.parse(options.body).profileId).then(aiResponse);
+    } });
+  t.after(() => f.pagehide());
+  const profiles = f.elements.get('xiaomiAiChatGptProfiles');
+  const logout = f.elements.get('xiaomiAiChatGptLogout');
+  profiles.value = b;
+  f.fire(profiles.id, 'change', { target: profiles });
+  await flushAiTasks();
+  assert.equal(backend.session.getStatus().activeId, b);
+  assert.equal(logout.disabled, true);
+  await f.fire(logout.id, 'click');
+  assert.equal(f.calls.some(call => call.url.endsWith('/logout')), false);
+  statusAvailable = true;
+  await f.advance(3000);
+  assert.equal(profiles.value, b);
+  assert.equal(logout.disabled, false);
+  // A second desktop view changes the session after this view read B.
+  backend.session.selectAccount(a);
+  await f.fire(logout.id, 'click');
+  assert.ok(backend.session.getStatus().profiles.every(profile => profile.loggedIn));
+  assert.equal(profiles.value, a);
+  await f.fire(logout.id, 'click');
+  assert.deepEqual(backend.session.getStatus().profiles.filter(profile => profile.loggedIn).map(profile => profile.id), [b]);
+});
+
 test('a failed later poll still allows a full refresh to supply the account status', async () => {
   const full = Promise.withResolvers();
   const status = { available: true, ready: true, activeId: 'A' };
@@ -232,6 +277,24 @@ test('saving an official model alias immediately displays the accepted ID and ef
   await f.advance(700);
   assert.equal(f.elements.get('xiaomiAiModel').value, 'deepseek-flash');
   assert.equal(f.elements.get('xiaomiAiReasoningEffortControl').hidden, false);
+});
+
+test('a committed model change restores the off switch when the next model supports none', async () => {
+  const config = { model: 'forced', reasoningEnabled: false, modelEndpoint: { provider: 'custom',
+    protocol: 'chat_completions', reasoningMode: 'effort', reasoningEfforts: ['low'],
+    reasoningState: { mode: 'enabled', canDisable: false, effort: 'low' } } };
+  const f = await createAiSettingsFixture({ config, request(url, options) {
+    if (url === '/api/ai/config' && options.method === 'PUT') return aiResponse({ ...f.publicConfig,
+      model: JSON.parse(options.body).model, modelEndpoint: { ...config.modelEndpoint, reasoningEfforts: ['none', 'low'],
+        reasoningState: { mode: 'disabled', canDisable: true, effort: 'none' } } });
+  } });
+  const toggle = f.elements.get('xiaomiAiReasoning');
+  assert.equal(toggle.checked, true);
+  f.input('xiaomiAiModel', 'optional');
+  await f.advance(700);
+  assert.equal(toggle.checked, false);
+  assert.equal(toggle.disabled, false);
+  assert.equal(f.saves()[0].reasoningEnabled, undefined);
 });
 
 test('an API profile with a saved key needs a model ID to show ready', async () => {
@@ -689,6 +752,122 @@ for (const outcome of ['successful', 'failed']) {
     assert.equal(store.getPublicConfig().trigger, 'edited');
   });
 }
+
+test('retrying a rejected custom-provider change restores the stored URL and protocol', async t => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
+  const customUrl = 'https://saved.test/v1';
+  store.updateConfig({ modelProvider: 'custom', deepseekResponsesUrl: customUrl, modelApiProtocol: 'chat_completions' });
+  const config = store.updateConfig({ modelProvider: 'openai' });
+  const f = await createAiSettingsFixture({ config, request(url, options) {
+    if (url !== '/api/ai/config' || options.method !== 'PUT') return;
+    return aiResponse(store.updateConfig(JSON.parse(options.body)));
+  } });
+  f.input('xiaomiAiTrigger', 'overly-long-trigger');
+  const provider = f.elements.get('xiaomiAiModelProvider');
+  provider.value = 'custom';
+  f.fire(provider.id, 'change');
+  f.fire('xiaomiAiForm', 'change', { target: provider });
+  await flushAiTasks();
+  assert.equal(store.getConfig().modelProvider, 'openai');
+  assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, true);
+  f.input('xiaomiAiTrigger', 'fixed');
+  await f.advance(700);
+  assert.equal(store.getPublicConfig().deepseekResponsesUrl, customUrl);
+  assert.equal(store.getPublicConfig().modelApiProtocol, 'chat_completions');
+  assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, false);
+});
+
+test('a late settings read during provider save preserves queued subscription access', async () => {
+  const read = Promise.withResolvers(), save = Promise.withResolvers();
+  let holding = false, first = true;
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'deepseek' }, request(url, options) {
+    if (url !== '/api/ai/config') return;
+    if (!options.method && holding) return read.promise;
+    if (options.method === 'PUT' && first) { first = false; return save.promise; }
+    if (options.method === 'PUT') return aiResponse({ ...f.publicConfig, ...JSON.parse(options.body) });
+  } });
+  holding = true;
+  const refresh = f.api.refresh();
+  const provider = f.elements.get('xiaomiAiModelProvider');
+  const mode = f.elements.get('xiaomiAiModelAuthMode');
+  for (const [input, value] of [[provider, 'openai'], [mode, 'subscription']]) {
+    input.value = value;
+    f.fire(input.id, 'change');
+    f.fire('xiaomiAiForm', 'change', { target: input });
+  }
+  read.resolve(aiResponse(f.publicConfig));
+  await refresh;
+  assert.equal(mode.value, 'subscription');
+  save.resolve(aiResponse({ ...f.publicConfig, modelProvider: 'openai' }));
+  await flushAiTasks();
+  assert.equal(f.saves().at(-1).modelAuthMode, 'subscription');
+});
+
+test('Doubao logout discards the session even when a draft cannot be saved', async () => {
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'doubao' }, request(url, options) {
+    if (url === '/api/ai/config' && options.method === 'PUT') throw new Error('save failed');
+    if (url === '/api/ai/doubao/logout') return aiResponse({ loggedIn: false });
+  } });
+  f.input('xiaomiAiTrigger', 'draft');
+  await f.advance(700);
+  await f.fire('xiaomiAiDoubaoLogout', 'click');
+  assert.equal(f.calls.filter(call => call.url === '/api/ai/doubao/logout').length, 1);
+  assert.equal(f.saves().length, 1);
+});
+
+test('failed settings flush restores the active subscription selection before logout', async () => {
+  const gate = Promise.withResolvers();
+  const status = { available: true, loggedIn: true, ready: true, activeId: 'A',
+    profiles: ['A', 'B'].map(id => ({ id, label: id, loggedIn: true })) };
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' }, request(url, options) {
+    if (url === '/api/ai/status') return aiResponse({ chatgpt: status });
+    if (url === '/api/ai/config' && options.method === 'PUT') return gate.promise;
+    if (url === '/api/ai/chatgpt/logout') return aiResponse({ ...status, loggedIn: false });
+  } });
+  f.input('xiaomiAiTrigger', 'unsaved');
+  const profiles = f.elements.get('xiaomiAiChatGptProfiles');
+  profiles.value = 'B';
+  f.fire(profiles.id, 'change', { target: profiles });
+  const logout = f.elements.get('xiaomiAiChatGptLogout');
+  assert.equal(logout.disabled, true);
+  gate.reject(new Error('cannot save draft'));
+  await flushAiTasks();
+  assert.equal(profiles.value, 'A');
+  assert.equal(logout.disabled, false);
+  await f.fire(logout.id, 'click');
+  assert.deepEqual(f.calls.filter(call => call.url.includes('/chatgpt/')).map(call => call.url), ['/api/ai/chatgpt/logout']);
+});
+
+test('changing access clears completed diagnostics and discards late API results', async () => {
+  const api = Promise.withResolvers();
+  let tests = 0;
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai' }, request(url, options) {
+    if (url === '/api/ai/config' && options.method === 'PUT') return aiResponse({ ...f.publicConfig, ...JSON.parse(options.body) });
+    if (url === '/api/ai/test/deepseek') return ++tests === 1 ? api.promise : aiResponse({ reply: 'subscription' });
+  } });
+  f.fire('xiaomiAiTestBtn', 'click');
+  await flushAiTasks();
+  const mode = f.elements.get('xiaomiAiModelAuthMode');
+  const switchTo = async value => {
+    mode.value = value;
+    f.fire(mode.id, 'change');
+    f.fire('xiaomiAiForm', 'change', { target: mode });
+    await flushAiTasks();
+  };
+  await switchTo('subscription');
+  f.fire('xiaomiAiTestBtn', 'click');
+  await flushAiTasks();
+  api.resolve(aiResponse({ reply: 'obsolete API response' }));
+  await flushAiTasks();
+  const detail = f.elements.get('aiTestDetail-deepseek');
+  assert.match(detail.textContent, /subscription/);
+  await switchTo('api');
+  assert.equal(detail.textContent, '');
+  assert.equal(tests, 2);
+});
 
 test('AI custom endpoint can be cleared and saved', async () => {
   const f = await createAiSettingsFixture();

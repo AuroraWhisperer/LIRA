@@ -8,6 +8,7 @@ const {
 const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
+const { migrateOvertimeSettlementOrder } = require('./overtime-settlement-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
 const { migrateGiftRetention, migrateExactLocalGiftArchives } = require('./gift-retention-migration');
 const { migrateGiftRetentionTiers } = require('./gift-retention-tiers-migration');
@@ -156,6 +157,12 @@ function getMigrationPlan(options = {}) {
         const update = db.prepare("UPDATE songs SET name_initial = 'H', name_pinyin = 'H' WHERE id = ?");
         for (const song of candidates.all()) {
           if (getInitial(song.name) === 'H') update.run(song.id);
+        }
+      },
+      // v23：保存发布时使用共享固定地址的图层。
+      (db) => {
+        if (!db.prepare('PRAGMA table_info(component_scenes)').all().some(column => column.name === 'published_shared_ids')) {
+          db.exec("ALTER TABLE component_scenes ADD COLUMN published_shared_ids TEXT NOT NULL DEFAULT '[]'");
         }
       },
     ] },
@@ -433,6 +440,8 @@ function getMigrationPlan(options = {}) {
           ON gift_events(source_id, datetime(created_at, 'subsec') DESC, id DESC)
           WHERE source_id IS NOT NULL AND total_price > 0 AND detection_status = 'final';
       `),
+      // v27: terminal settlement order is independent of registration and wall clocks.
+      migrateOvertimeSettlementOrder,
     ] },
 
     { name: 'musicDb', key: 'music_db', steps: [

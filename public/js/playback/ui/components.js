@@ -272,7 +272,7 @@ export function renderPendingRow(item, index) {
  * @param {string} action - 当前 action（用于判断是否显示电台按钮）
  * @returns {string} HTML 字符串
  */
-export function renderHomeTrackRow(track, index, context, action = '') {
+export function renderHomeTrackRow(track, index, context, action = '', canRemove = false) {
   const dataPrefix = context === 'search' ? 'playback-search' : 'playback-home-track';
 
   if (context === 'home') {
@@ -280,7 +280,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
       <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
         ${renderTrackRowMain(track)}
         <div class="queue-actions">
-          ${renderTrackMenu(track, index, action)}
+          ${renderTrackMenu(track, index, action, canRemove)}
         </div>
       </div>
     `;

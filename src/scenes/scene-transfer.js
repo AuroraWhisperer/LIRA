@@ -1,7 +1,12 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
-const { SceneError, normalizeSceneDocument } = require('./scene-contract');
+const { SceneError, normalizeSceneDocument, MAX_SCENE_BYTES } = require('./scene-contract');
+
+function transferId(...values) {
+  const hex = createHash('sha256').update(JSON.stringify(values)).digest('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
 
 function createSceneTransfer({ withOwner, store, browserSources, issueCapability, normalizeConfig, getDefaultConfig, getSharedAppearances }) {
   const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -27,15 +32,25 @@ function createSceneTransfer({ withOwner, store, browserSources, issueCapability
         return { documents, binding: hash([owner.scope, owner.epoch]), scopeKey: hash(owner.scope), assertCurrent };
       });
     },
-    restoreBackup(documents, binding) {
+    restoreBackup(documents, binding, kinds) {
       return withOwner((owner, assertCurrent) => {
         if (binding !== hash([owner.scope, owner.epoch])) throw new SceneError('SCENE_OWNER_CHANGED', 409, '账号状态已变化，请重新选择备份。');
         const existing = []; const entries = [];
-        for (const input of documents) {
+        for (const [index, input] of documents.entries()) {
           const document = normalizeSceneDocument(input, { normalizeConfig });
-          if (store.get(owner.scope, document.id)) { existing.push(document.id); continue; }
+          let record = store.get(owner.scope, document.id);
+          // A deleted preset may still own the fixed output URL. Keep that output
+          // intact and reuse a separate preset ID on subsequent restores.
+          if (record?.isPreset === false) {
+            document.id = transferId('preset', document.id);
+            record = store.get(owner.scope, document.id);
+          }
+          if (record) { existing.push(document.id); continue; }
           const { capability } = issueCapability(owner.scope, document.id, 1);
-          entries.push({ scope: owner.scope, document: browserSources.encode(document, owner.scope), capability });
+          const stored = browserSources.encode(document, owner.scope);
+          const title = `${Array.from(stored.title).slice(0, 69).join('')}（${kinds?.[index] === 'published' ? '发布备份' : '备份'}）`;
+          const named = { ...stored, title };
+          entries.push({ scope: owner.scope, document: Buffer.byteLength(JSON.stringify(named)) <= MAX_SCENE_BYTES ? named : stored, capability });
         }
         assertCurrent();
         store.createBatch(entries);
@@ -45,4 +60,4 @@ function createSceneTransfer({ withOwner, store, browserSources, issueCapability
   };
 }
 
-module.exports = { createSceneTransfer };
+module.exports = { createSceneTransfer, transferId };

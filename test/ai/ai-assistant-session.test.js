@@ -50,6 +50,37 @@ for (const change of ['room', 'disconnect', 'account', 'same-account-login']) {
   });
 }
 
+for (const boundary of ['model response', 'city lookup']) {
+  test(`changing rooms during ${boundary} stops new weather charges and model followups`, async t => {
+    const gate = Promise.withResolvers();
+    let calls = 0, charges = 0;
+    const weather = require('../../src/ai/tools/qweather-tool').createQWeatherTool({
+      quotaStore: { consume() { charges++; return { allowed: true }; } },
+      async fetchImpl() {
+        await gate.promise;
+        return Response.json({ code: '200', location: [{ name: '北京', id: '1' }] });
+      },
+    });
+    const f = await createSessionFixture(t, { async createResponse() {
+      calls++;
+      if (boundary === 'model response') await gate.promise;
+      return { text: '', functionCalls: [{ name: 'get_weather', callId: 'w', arguments: { location: '北京' } }], usage: {} };
+    } }, false, { config: { modelProvider: 'deepseek', functionCallingEnabled: true, weatherEnabled: true,
+      qweatherApiHost: 'https://weather.test', qweatherApiKey: 'fixture' }, tools: { qweather: weather } });
+    f.ask();
+    try {
+      await waitUntil(() => boundary === 'model response' ? calls === 1 : charges === 1);
+      f.settings.roomId = '200';
+      await f.runtime.reconnect();
+    } finally { gate.resolve(); }
+    await f.waitForIdle();
+    assert.equal(calls, 1);
+    assert.equal(charges, boundary === 'city lookup' ? 1 : 0);
+    assert.equal(f.sent.length, 0);
+    assert.equal(f.contexts.length, 0);
+  });
+}
+
 test('AI ingress excludes the authenticated sending account and marked welcomes while keeping viewer greetings', async (t) => {
   let timerId = 0;
   const timers = new Map();

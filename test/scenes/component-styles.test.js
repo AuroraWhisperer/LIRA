@@ -3,6 +3,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const fs = require('node:fs');
+const http = require('node:http');
+const { once } = require('node:events');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { crc32 } = require('node:zlib');
@@ -415,10 +417,14 @@ test('exported Moonlit ZIP installs eight native styles, validates resources and
     assert.equal((await f.request('remove', { id: style.id })).status, 200);
     for (const src of [resource.preview, ...Object.values(resource.resources)]) {
       referencedMedia.add(path.posix.basename(src));
-      const response = await fetch(`${f.origin}${src}`, { method: 'HEAD' });
-      assert.equal(response.status, 200, src);
-      if (src.endsWith('.svg')) assert.match(response.headers.get('content-security-policy'), /sandbox; default-src 'none'/);
-      if (src.endsWith('.woff2')) assert.equal(response.headers.get('content-type'), 'font/woff2');
+      // Node's HTTP agent reuses the connection across the suite's sequential HEAD requests.
+      const request = http.request(`${f.origin}${src}`, { method: 'HEAD' });
+      const [response] = await once(request.end(), 'response');
+      response.resume();
+      await once(response, 'end');
+      assert.equal(response.statusCode, 200, src);
+      if (src.endsWith('.svg')) assert.match(response.headers['content-security-policy'], /sandbox; default-src 'none'/);
+      if (src.endsWith('.woff2')) assert.equal(response.headers['content-type'], 'font/woff2');
     }
   }
   assert.deepEqual(new Set(fs.readdirSync(installed).filter(name => name !== 'package.json')), referencedMedia,

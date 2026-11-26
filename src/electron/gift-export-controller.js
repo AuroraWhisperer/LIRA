@@ -5,11 +5,14 @@ const { createPublicError } = require('../shared/public-error');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { pngHasSize, encodeExportPng } = require('./png-size');
-const { BANNER_WIDTH, EXPORT_SCALE, DEFAULT_EXPORT_GAP, giftExportRowLayout } = require('../../public/js/shared/gift-banner-layout.js');
+const { pngHasSize, normalizeExportImage } = require('./png-size');
+const { readGiftExportStyle, configureGiftExportStyle, giftExportConfig } = require('./gift-export-style');
+const { BANNER_WIDTH, BANNER_HEIGHT, EXPORT_SCALE, DEFAULT_EXPORT_GAP, giftExportRowLayout } = require('../../public/js/shared/gift-banner-layout.js');
 const { giftCardSettledCents } = require('../../public/js/shared/gift-card-model.js');
 
-const MAX_ROWS_PER_IMAGE = 39; // 39 × 144 + 38 × 16 = 6224 pixels.
+const MAX_ROWS_PER_IMAGE = 50;
+const MAX_EXPORT_HEIGHT = 8768;
+const MAX_CAPTURE_HEIGHT = 1024;
 const EXPORT_WIDTH = BANNER_WIDTH * EXPORT_SCALE;
 
 function isValidRowGap(value) {
@@ -27,9 +30,10 @@ function validateExportLayout(count, mode) {
   }
 }
 
-function exportLayout(count, mode) {
+function exportLayout(count, mode, rowGap = DEFAULT_EXPORT_GAP) {
   validateExportLayout(count, mode);
-  const rows = mode === 'separate' ? 1 : MAX_ROWS_PER_IMAGE;
+  const rowsByHeight = Math.floor((MAX_EXPORT_HEIGHT + rowGap) / (BANNER_HEIGHT * EXPORT_SCALE + rowGap));
+  const rows = mode === 'separate' ? 1 : Math.min(MAX_ROWS_PER_IMAGE, rowsByHeight);
   return Array.from({ length: Math.ceil(count / rows) }, (_, index) => ({
     start: index * rows,
     count: Math.min(rows, count - index * rows),
@@ -123,6 +127,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       id: randomUUID(),
       snapshot,
       originalSnapshot: snapshot,
+      style: readGiftExportStyle(runtime.getSetting('giftExportStyle')),
       mergeAcrossDates: false,
       abort: new AbortController(),
       root: directory,
@@ -130,23 +135,27 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       running: false,
       cancelled: false,
     };
-    setDirectory(task);
     return configure({ id: task.id, mode, background, sortBy, rowGap, mergeAcrossDates });
   }
 
-  function setDirectory(current) {
+  async function nextDirectory(root, previousDirectory) {
     const local = new Date(Date.now() + 28800000).toISOString();
-    current.directory = path.join(
-      current.root,
-      local.slice(0, 10),
-      `${local.slice(11, 19).replaceAll(':', '-')}-${randomUUID().slice(0, 8)}`,
-    );
+    const dayDirectory = path.join(root, local.slice(0, 10));
+    const time = local.slice(11, 16).replace(':', '');
+    // Keep the picker usable when the saved location is offline. Save claims the previewed path with mkdir.
+    const entries = new Set(await fs.readdir(dayDirectory).catch(() => []));
+    for (let batch = 1; ; batch += 1) {
+      const name = batch === 1 ? time : `${time}-${String(batch).padStart(2, '0')}`;
+      const directory = path.join(dayDirectory, name);
+      if (!entries.has(name) && directory !== previousDirectory) return directory;
+    }
   }
 
   function describe(current) {
     return {
       id: current.id,
-      snapshot: current.snapshot,
+      snapshot: { ...current.snapshot, config: giftExportConfig(current) },
+      styleSource: current.style.source,
       root: current.root,
       directory: current.directory,
       mode: current.mode,
@@ -154,7 +163,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       sortBy: current.sortBy,
       rowGap: current.rowGap,
       mergeAcrossDates: current.mergeAcrossDates,
-      files: exportLayout(current.snapshot.items.length, current.mode),
+      files: exportLayout(current.snapshot.items.length, current.mode, current.rowGap),
       custom: current.root !== defaultRoot(),
     };
   }
@@ -179,14 +188,15 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
 
   async function configureTask(current, {
     mode, background, sortBy = current.sortBy, rowGap = current.rowGap,
-    mergeAcrossDates = current.mergeAcrossDates, directoryAction, remember,
+    mergeAcrossDates = current.mergeAcrossDates, styleSource, customStyle, directoryAction, remember,
   }) {
     if (typeof mergeAcrossDates !== 'boolean') throw createPublicError('合并选项无效。');
     validateExportLayout(current.snapshot.items.length, mode);
     validateOrderAndGap(sortBy, rowGap);
     if (!['transparent', 'white'].includes(background)) throw createPublicError('背景参数无效。');
     if (directoryAction && !['default', 'choose'].includes(directoryAction)) throw createPublicError('保存位置参数无效。');
-    let root;
+    const style = configureGiftExportStyle(current.style, styleSource, customStyle, current.originalSnapshot.config);
+    let root = current.root;
     let directoryCancelled = false;
     if (directoryAction === 'choose') {
       const result = await dialog.showOpenDialog(getMainWindow(), {
@@ -199,7 +209,8 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       if (!directoryCancelled) root = result.filePaths[0];
     } else if (directoryAction === 'default') root = defaultRoot();
     if (directoryCancelled && mode === current.mode && background === current.background
-      && sortBy === current.sortBy && rowGap === current.rowGap && mergeAcrossDates === current.mergeAcrossDates) {
+      && sortBy === current.sortBy && rowGap === current.rowGap && mergeAcrossDates === current.mergeAcrossDates
+      && style === current.style) {
       return describe(current);
     }
     if (mergeAcrossDates && !current.mergedSnapshot) {
@@ -207,8 +218,22 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       assertCurrent(current);
       current.mergedSnapshot = merged;
     }
-    if (root !== undefined) current.root = root;
-    if (root !== undefined || current.attempted) setDirectory(current);
+    let directory = current.directory;
+    if (!directory || root !== current.root || current.attempted) {
+      directory = await nextDirectory(root, current.directory);
+      assertCurrent(current);
+    }
+    if (remember === true) {
+      const hasStyle = styleSource !== undefined || customStyle !== undefined;
+      const rememberRoot = !directoryCancelled && (directoryAction || !hasStyle);
+      runtime.rememberGiftExport({
+        directory: rememberRoot ? (root === defaultRoot() ? '' : root) : undefined,
+        style: hasStyle ? style : undefined,
+      });
+    }
+    current.directory = directory;
+    current.root = root;
+    current.style = style;
     if (mergeAcrossDates !== current.mergeAcrossDates || sortBy !== current.sortBy) {
       const snapshot = mergeAcrossDates ? current.mergedSnapshot : current.originalSnapshot;
       current.snapshot = sortBy === 'amount'
@@ -225,7 +250,6 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       current.completed = false;
       current.attempted = false;
     }
-    if (remember === true && !directoryCancelled) runtime.setGiftExportDirectory(current.root === defaultRoot() ? '' : current.root);
     return describe(current);
   }
 
@@ -242,10 +266,10 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       await fs.mkdir(path.dirname(current.directory), { recursive: true });
       await fs.mkdir(current.directory); // Exclusive task directory; never reuse an existing one.
       assertCurrent(current);
-      const files = exportLayout(current.snapshot.items.length, current.mode);
+      const files = exportLayout(current.snapshot.items.length, current.mode, current.rowGap);
       renderWindow = new BrowserWindow({
         width: EXPORT_WIDTH,
-        height: giftExportRowLayout(files[0].count, current.rowGap).height,
+        height: Math.min(MAX_CAPTURE_HEIGHT, giftExportRowLayout(files[0].count, current.rowGap).height),
         useContentSize: true,
         show: false,
         transparent: true,
@@ -268,7 +292,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       await bounded(win.loadURL(new URL('/gift-export', getBaseUrl()).href));
       assertCurrent(current);
       await bounded(win.webContents.executeJavaScript(`window.initializeGiftExport(${JSON.stringify({
-        config: current.snapshot.config,
+        config: giftExportConfig(current),
         catalog: current.snapshot.catalog,
         roomGuard: guardAppearance,
       })})`));
@@ -285,20 +309,18 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
         );
         assertCurrent(current);
         if (!Number.isSafeInteger(width) || width < EXPORT_WIDTH || width > 8192) throw createPublicError('图片尺寸验证失败。');
-        win.setContentSize(width, height);
-        await bounded(
-          win.webContents.executeJavaScript(
-            'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
-          ),
-        );
-        assertCurrent(current);
-        const image = await bounded(
-          win.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true, stayAwake: true }),
-        );
-        const png = encodeExportPng(image, width, height, nativeImage);
+        const png = await captureGiftPng(win, { width, height, gap }, nativeImage, () => assertCurrent(current));
         if (!pngHasSize(png, width, height)) throw createPublicError('图片尺寸验证失败。');
         assertCurrent(current);
-        await fs.writeFile(path.join(current.directory, file.fileName), png, { flag: 'wx' });
+        const filename = path.join(current.directory, file.fileName);
+        const handle = await fs.open(filename, 'wx');
+        try {
+          try { await handle.writeFile(png); }
+          finally { await handle.close(); }
+        } catch (error) {
+          await fs.unlink(filename);
+          throw error;
+        }
         current.saved += 1;
         onProgress({
           id: current.id,
@@ -353,6 +375,38 @@ function createGiftExportController({ app, BrowserWindow, dialog, nativeImage, s
       cancel();
     },
   };
+}
+
+async function captureGiftPng(win, { width, height, gap }, nativeImage, assertCurrent) {
+  // Stay below the texture limit and keep animated artwork within a single capture.
+  const rowPitch = BANNER_HEIGHT * EXPORT_SCALE + gap;
+  const viewportHeight = Math.min(height, Math.floor(MAX_CAPTURE_HEIGHT / rowPitch) * rowPitch);
+  win.setContentSize(width, viewportHeight);
+  const bitmap = height > viewportHeight ? Buffer.alloc(width * height * 4) : null;
+  for (let top = 0; top < height; top += viewportHeight) {
+    const stripHeight = Math.min(viewportHeight, height - top);
+    const capture = async () => {
+      await bounded(win.webContents.executeJavaScript(`window.positionGiftExport(${top})`));
+      assertCurrent();
+      return bounded(win.webContents.capturePage(
+        { x: 0, y: 0, width, height: stripHeight }, { stayHidden: true, stayAwake: true },
+      ));
+    };
+    const image = await capture().catch(error => {
+      // Chromium may reject the first readback of a new offscreen frame.
+      if (error.message !== 'UnknownVizError') throw error;
+      assertCurrent();
+      return capture();
+    });
+    assertCurrent();
+    const strip = normalizeExportImage(image, width, stripHeight, nativeImage);
+    if (!strip) throw createPublicError('图片尺寸验证失败。');
+    if (!bitmap) return strip.toPNG({ scaleFactor: 1 });
+    const pixels = strip.toBitmap({ scaleFactor: 1 });
+    if (pixels.length !== width * stripHeight * 4) throw createPublicError('图片尺寸验证失败。');
+    pixels.copy(bitmap, top * width * 4);
+  }
+  return nativeImage.createFromBitmap(bitmap, { width, height }).toPNG();
 }
 
 async function bounded(promise) {

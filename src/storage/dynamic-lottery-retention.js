@@ -5,7 +5,7 @@
 function pruneCompletedTasks(db, { streamerId, keepLatest = false, keepId = null } = {}) {
   const rows = db.prepare(`SELECT * FROM (
     SELECT id, streamer_id, request_id, rules_json, status, updated_at_ms,
-      ROW_NUMBER() OVER (PARTITION BY streamer_id ORDER BY created_at_ms DESC, id DESC) AS position
+      ROW_NUMBER() OVER (PARTITION BY streamer_id ORDER BY rowid DESC) AS position
     FROM lottery_tasks ${streamerId === undefined ? '' : 'WHERE streamer_id = ?'}
   ) WHERE status IN ('completed', 'exhausted') AND id IS NOT ? ${keepLatest ? 'AND position > 1' : ''}`)
     .all(...(streamerId === undefined ? [] : [streamerId]), keepId);

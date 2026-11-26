@@ -526,3 +526,24 @@ test('canvas resize, shared size updates, automatic height and undo preserve par
     assert.doesNotThrow(() => validateSceneDocument(alignSceneItems(document, document.items.map(item => item.id), alignment)));
   }
 });
+
+test('renaming a layer with trailing spaces keeps undo after the normalized save', async () => {
+  const [{ createSceneDocumentModel }] = await modules;
+  const model = createSceneDocumentModel(fixture());
+  model.edit(document => { document.items[0].name = '新时钟 '; });
+  assert.equal(model.getDocument().items[0].name, '新时钟');
+  assert.equal(model.undo(), true);
+  assert.equal(model.getDocument().items[0].name, '时钟');
+});
+
+test('a late preview move preserves a concurrent caption edit and rejects conflicting position edits', async () => {
+  const [{ mergeSceneEdit }] = await modules;
+  const base = fixture();
+  const move = structuredClone(base); move.items[0].x += 10;
+  const desktop = structuredClone(base); desktop.items[1].name = '新的字幕';
+  const merged = mergeSceneEdit(base, move, desktop);
+  assert.equal(merged.items[0].x, move.items[0].x);
+  assert.equal(merged.items[1].name, desktop.items[1].name);
+  desktop.items[0].x++;
+  assert.throws(() => mergeSceneEdit(base, move, desktop));
+});

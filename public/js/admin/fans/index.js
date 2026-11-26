@@ -94,9 +94,8 @@ function createFanUi() {
     },
     onSuppressed: removeProfileSelection,
     reload: load,
-    async onDeleted() {
-      state.profile = null;
-      updateMarkup(detailNode, '<p class="fan-empty lira-content-state">档案已删除。</p>');
+    async onDeleted(id) {
+      removeProfileSelection(id);
       await load();
     },
   });

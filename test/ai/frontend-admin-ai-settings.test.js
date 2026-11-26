@@ -42,6 +42,27 @@ test('AI initial load preserves edits and blocks saving before configuration arr
   for (const [id, value] of Object.entries(edits)) assert.equal(f.elements.get(id).value, id.endsWith('Key') ? '' : value);
 });
 
+test('retry reloads failed initial status and saves the preserved draft exactly once', async () => {
+  const retryStatus = Promise.withResolvers();
+  let reads = 0;
+  const f = await createAiSettingsFixture({ request(url) {
+    if (url === '/api/ai/status') {
+      if (++reads === 1) throw new Error('status offline');
+      return retryStatus.promise;
+    }
+  } });
+  assert.equal(f.elements.get('xiaomiAiModelProvider').disabled, true);
+  f.input('xiaomiAiTrigger', '新名字');
+  for (let i = 0; i < 2; i++) f.fire('xiaomiAiForm', 'submit', { preventDefault() {} });
+  assert.equal(reads, 2);
+  assert.equal(f.saves().length, 0);
+  retryStatus.resolve(aiResponse({ queued: 0 }));
+  await flushAiTasks();
+  await f.advance(700);
+  assert.equal(f.elements.get('xiaomiAiModelProvider').disabled, false);
+  assert.deepEqual(f.saves().map(save => save.trigger), ['新名字']);
+});
+
 test('conversation idle minutes preserve an existing 61s setting and autosave edits', async () => {
   const f = await createAiSettingsFixture({ config: { contextTtlSeconds: 61 } });
   f.input('xiaomiAiTrigger', '小猫');

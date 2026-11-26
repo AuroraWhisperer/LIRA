@@ -276,6 +276,21 @@ test('queue notice colors follow local rules for built-in and resource appearanc
     'global notice colors are saved by song request settings, not a resource library patch');
 });
 
+test('the first welcome parameter edit applies to both danmaku layers using a resource style', t => {
+  const ctx = context(t); const store = createComponentStyleStore(ctx.system.dataDir);
+  const pack = randomUUID(); const id = randomUUID(); const preset = COMPONENT_RESOURCE_PRESETS['moonlit-danmaku'];
+  const src = `/component-media/${pack}/${'a'.repeat(64)}.webp`;
+  const resourceStyle = { id, preset: 'moonlit-danmaku', width: 480, height: 800, preview: src,
+    resources: Object.fromEntries(preset.resources.map(key => [key, src])) };
+  const config = normalizeSceneConfig('danmaku', { ...preset.config, fullscreenDurationSeconds: 6, layout: null, resourceStyle });
+  store.stage({ id: pack, styles: [{ id, type: 'danmaku', name: '弹幕', config }] }); store.install(pack);
+  const owner = createSceneSharedAppearance(ctx);
+  const key = `resource:${id}`;
+  owner.patch('danmaku', config, { styleParameters: { [key]: { showEntryMessages: false } } });
+  const second = createSceneSharedAppearance(ctx).read('danmaku', structuredClone(config));
+  assert.equal(second.styleParameters[key].showEntryMessages, false);
+});
+
 test('installed style parameters follow the library, survive removal and never replace resource identities', t => {
   const ctx = context(t);
   const store = createComponentStyleStore(ctx.system.dataDir);

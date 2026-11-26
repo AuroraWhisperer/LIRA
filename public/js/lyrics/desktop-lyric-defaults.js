@@ -25,6 +25,7 @@ export const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
   desktopLyricTranslationScale: '0.65',
   desktopLyricKaraokeEnabled: 'true',
   desktopLyricKaraokeMode: 'continuous',
+  desktopLyricWordBounceEnabled: 'true',
   desktopLyricHidePassedLines: 'false',
   desktopLyricTraditionalMode: 'false',
   desktopLyricInterludeOffsetEm: '0',

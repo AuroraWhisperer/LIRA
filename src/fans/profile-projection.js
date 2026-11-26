@@ -39,6 +39,7 @@ function createFanProfileProjection() {
         asOf: data.asOf, date: data.date, cycleId: data.cycleId,
         name: data.name, annual: data.annual, advanceDays: data.advanceDays,
         reviewDate: data.reviewDate, completed: data.completed,
+        body: ['followup', 'caution'].includes(kind) ? data.body : undefined,
       },
       original: { source: original?.source },
     }));
@@ -52,7 +53,7 @@ function createFanProfileProjection() {
         lastAbsentAt: profile.guardRoster.lastAbsentAt },
     };
     // Compare actual inputs: restore, rollback and imported revisions may reuse
-    // a revision or timestamp. Identity observation times and note bodies do not
+    // a revision or timestamp. Identity observation times and unrelated note bodies do not
     // affect reminders and must not retain private history in this working set.
     const signature = JSON.stringify([snapshot, inputs, states, accompanySettings(settings)]);
     let entry = cache.get(profile.id);
@@ -60,12 +61,13 @@ function createFanProfileProjection() {
       const [snapshot, evidence, reminderStates, config] = JSON.parse(signature);
       const raw = prepareMembership(evidence);
       const membership = raw(at);
-      const summaries = new Map([[dayOf(at), membership]]);
+      const summaries = new Map();
       const summarize = date => {
-        if (!summaries.has(date)) summaries.set(date, raw(date));
+        if (!summaries.has(date)) summaries.set(date, raw.milestoneAt(date, at));
         return summaries.get(date);
       };
       summarize.milestoneDates = raw.milestoneDates;
+      summarize.milestoneAt = summarize;
       entry = { signature, at, until: nextMembershipChange(evidence, at), membership, windows: new Map(),
         readReminders: window => buildReminders(snapshot, evidence, reminderStates, at, config,
           { daysAhead: window, summarize, membership }) };

@@ -53,6 +53,20 @@ async function openHistory(t) {
 
 const selected = (page) => page.evaluate(() => [...historyState.selected].sort());
 
+test('failed select-all clears its activity and preserves the previous selection', async (t) => {
+  const page = await openHistory(t);
+  await page.locator('[data-gift-select="gift-0"]').check();
+  await page.locator('#giftHistorySelectAll').click();
+  const pending = await page.locator('#giftHistorySelectionNotice').textContent();
+  await page.evaluate(async () => {
+    finishSelection({ ok: false, status: 500, json: async () => ({ ok: false, error: 'Synthetic selection failure' }) });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  assert.notEqual(await page.locator('#giftHistorySelectionNotice').textContent(), pending);
+  assert.equal(await page.locator('#giftHistoryCancelSelect').isHidden(), true);
+  assert.deepEqual(await selected(page), ['gift-0']);
+});
+
 async function dragRows(page, from, to, startSelector = 'td:last-child') {
   const rows = page.locator('#giftHistoryBody tr');
   await rows.nth(from).locator(startSelector).hover();

@@ -8,10 +8,11 @@
 
 **粉丝档案（`fans/`）**：
 
-- **模块分工**：`fans/index.js` 管理选中项、请求上下文、页面生命周期及选择代次与过期结果校验；`editor.js` 负责表单弹窗、提交锁定与分步确认；`profile-actions.js` 组合档案与记录的编辑删除、会员纠正、特别关注、归档与屏蔽，通过回调通知入口更新选中项或移除列表项；`forms.js` 负责字段读取，`view.js` 仅做转义后的界面展示，`transfer-ui.js` 负责备份导出、恢复点、认领与合并的多步预览。保存失败时保留输入，请求/选择代次用于过滤晚到的响应；合并草稿预览复用编辑器的操作代次，关闭或重开表单后自动丢弃旧请求的成功或失败结果，不覆盖新草稿。返回档案列表与切换档案/归档范围同样推进选择代次，返回前发出的详情 IPC 晚到时不得重新打开详情。档案仅在百宝箱中查看和编辑，点歌队列不提供快捷入口；私人资料不写入 `StateService` 或旧版全局变量。
-- **编辑器、头像与曾用名**：提交时先读取表单快照，再禁用字段区域；保存失败恢复原输入，旧步骤响应不能关闭或解锁新步骤。恢复点和屏蔽名单在异步读取前记录操作意图，返回后仅当前意图可打开弹窗。编辑弹窗头部仅显示紧凑分段标签（标题保留为无障碍名称），手动新建填写可选 B 站 UID 后失焦即经受限桌面桥只读预览昵称与头像（改动或清空 UID 立即清除预览，晚到或已关闭弹窗的结果不回填），已有 `open_id` 档案只读显示开放平台账号，不提供 UID/`open_id` 切换；生日历法注明公历（阳历）与农历（俗称阴历），农历提示手填今年对应阳历日期。档案详情头像直径跟随姓名与 UID 两行总高度（不含一句话印象），复用 `shared/bilibili-avatar.js` 与 `/api/bilibili/avatar` 代理（收藏集原图取 WebP 缩略图，缺失或失败时隐藏）。基本资料的曾用名以胶囊统一展示，不区分来源或日期，默认位置取服务端 `formerName`，其余经原生 `details` 展开并限高滚动；「替换」复用编辑器保存默认值，「补充」调用受限 IPC，新建表单查询结果仅留草稿；`fans/former-name-batch.js` 维护设置页批量调度、间隔计时器及停止/退出清理（规格见 [fan-profiles.md](../../../specs/fan-profiles.md)）。IPC 载荷与生命周期见 [preload.md](../desktop/preload.md#5-粉丝档案-action-与-dto)。
+- **模块分工**：`fans/index.js` 管理选中项、请求上下文、页面生命周期及选择代次与过期结果校验；`editor.js` 负责表单弹窗、提交锁定与分步确认；`profile-actions.js` 组合档案与记录的编辑删除、会员纠正、特别关注、归档与屏蔽，通过回调通知入口更新选中项或移除列表项；`forms.js` 负责字段读取，`view.js` 仅做转义后的界面展示，`transfer-ui.js` 负责备份导出、恢复点、认领与合并的多步预览。保存失败时保留输入，请求/选择代次用于过滤晚到的响应；合并草稿预览复用编辑器的操作代次，关闭或重开表单后自动丢弃旧请求的成功或失败结果，不覆盖新草稿。返回档案列表与切换档案/归档范围同样推进选择代次，返回前发出的详情 IPC 晚到时不得重新打开详情。删除成功清空对应档案的选中及展开状态并使旧详情请求失效，不清除已切换到的其他档案。档案仅在百宝箱中查看和编辑，点歌队列不提供快捷入口；私人资料不写入 `StateService` 或旧版全局变量。
+- **编辑器、头像与曾用名**：提交时先读取表单快照，再禁用字段区域；保存失败恢复原输入，旧步骤响应不能关闭或解锁新步骤。恢复点和屏蔽名单在异步读取前记录操作意图，返回后仅当前意图可打开弹窗。编辑弹窗头部仅显示紧凑分段标签（标题保留为无障碍名称），手动新建填写可选 B 站 UID 后失焦即经受限桌面桥只读预览昵称与头像（改动或清空 UID 立即清除预览，晚到或已关闭弹窗的结果不回填），已有 `open_id` 档案只读显示开放平台账号，不提供 UID/`open_id` 切换；清空或改绑 UID 后须填写可保留的常用称呼，领域层在清除旧身份资料后校验最终名称。生日历法注明公历（阳历）与农历（俗称阴历），农历提示手填今年对应阳历日期；详情区分公历、农历与农历闰月。档案详情头像直径跟随姓名与 UID 两行总高度（不含一句话印象），复用 `shared/bilibili-avatar.js` 与 `/api/bilibili/avatar` 代理（收藏集原图取 WebP 缩略图，缺失或失败时隐藏）。基本资料的曾用名以胶囊统一展示，不区分来源或日期，默认位置取服务端 `formerName`，其余经原生 `details` 展开并限高滚动；「替换」复用编辑器保存默认值，「补充」调用受限 IPC，新建表单查询结果仅留草稿，同 UID 的编辑器查询也遵守人工移除名单 `excludedFormerNames`；`fans/former-name-batch.js` 维护设置页批量调度、间隔计时器及停止/退出清理（规格见 [fan-profiles.md](../../../specs/fan-profiles.md)）。IPC 载荷与生命周期见 [preload.md](../desktop/preload.md#5-粉丝档案-action-与-dto)。
+- **记录与依据展示**：纪念日卡片分别显示目标日期、每年重复标记与记录日期；提前天数的表单说明区分详情可处理时间与列表/日历展示窗口。未收起的话题、跟进与注意事项置顶优先，同组保持原日期顺序。跟进/复查提醒与日历保留各自正文作为依据。会员冲突中的精确区间以北京时间显示起止毫秒和「不含截止时刻」，日期区间仍说明包含末日；采用规则见[粉丝档案持久化契约](../../../specs/fan-profiles.md#持久化契约)。
 - **轮询、提醒与通知**：粉丝面板同时观察子面板 `hidden` 与百宝箱主页面 `active` 状态，仅两者均可见时每 30 秒轮询。提醒子页继续更新提醒和页头状态，回到档案子页时补读当前详情。搜索、筛选与清空筛选先重取本机列表，复用已有的全局提醒和同源有效的到期结果。换源、过期或上次读取失败时，再补读到期状态。页面释放时清理观察器和定时器。「特别关注」保存绑定点击时的档案与选择代次，保存成功刷新列表星标与排序，仅在仍展示原档案时更新详情。档案提醒横幅点击「不再显示」仅写本机 `localStorage.liraFanReminderSummaryHidden=true`（不按账号保存、不改提醒状态接口或日历投影，存储不可用时当前页仍生效）。手动同步与自动更新通知共用 `fans/view.js` 的 `rosterUpdateNotices`（成功/跳过/失败分别对应 `success`/`info`/`warning` toast，无跳过或失败不生成对应条，单次最多 3 条且不显示「跳过 0 位」；自动整次失败仅发一条 `error` toast）；`fans/editor.js` 在关闭同步表单后读取 `notices`，最近一次手动结果保留在同步状态左侧的 `lira-help#fanRosterHelp`（`fanRosterResult` 在无结果或切换账号时隐藏并清空）。
-- **点歌汇总、到期提示与投影缓存**：音乐页由 `fans/view.js` 直接展示领域返回的每首歌曲汇总（`data.count` 与 `data.recentDates` 最近三个不同北京时间日期，按最新点歌排序，日期以 ` · ` 分隔；近 30 天次数与曲风取自 `musicStats`），不再提供逐次展开、歌曲编辑或旧流水导入；「补记一次点歌」仅填歌名、歌手、曲风、北京时间与说明，规则见[点歌汇总展示](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。`fans/index.js` 在本机列表显示后经 IPC `guard-expiry` 异步读取安全标记并拒绝过期响应，`fans/view.js` 将标记与身份图标置于行右侧居中（见[到期提示](../../../specs/fan-profiles.md#b-站到期提示2026-10-12)，不写入 `StateService`、备份或日历）。列表与提醒页的近期日期筛选由 `src/fans/profile-service.js` 负责（读取 `reminders.js` 日期分组，不再显示「之后」分组；列表、近期提醒和日历共用未来七天计算结果，日历再筛选未来三天，详情保留一年预测）。会员里程碑计算（`src/fans/membership-milestones.js`）与当前账号档案工作集投影缓存（`src/fans/profile-projection.js`）在服务端按需增量更新、随账号切换释放，并在北京时间跨日、会员区间变更、时钟倒退或派生输入变化时重新计算，返回副本防止污染缓存。
+- **点歌汇总、到期提示与投影缓存**：音乐页由 `fans/view.js` 直接展示领域返回的每首歌曲汇总（`data.count` 与 `data.recentDates` 最近三个不同北京时间日期，按最新点歌排序，日期以 ` · ` 分隔；近 30 天次数与曲风取自 `musicStats`），不再提供逐次展开、歌曲编辑或旧流水导入；「补记一次点歌」仅填歌名、歌手、曲风、北京时间与说明，规则见[点歌汇总展示](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。`fans/index.js` 在本机列表显示后经 IPC `guard-expiry` 异步读取安全标记并拒绝过期响应，`fans/view.js` 将标记与身份图标置于行右侧居中（见[到期提示](../../../specs/fan-profiles.md#b-站到期提示2026-10-12)，不写入 `StateService`、备份或日历）。列表与提醒页的近期日期筛选由 `src/fans/profile-service.js` 负责（读取 `reminders.js` 日期分组，不再显示「之后」分组；列表、近期提醒和日历共用未来七天计算结果，日历再筛选未来三天，详情保留一年预测）。会员里程碑计算（`src/fans/membership-milestones.js`）与当前账号档案工作集投影缓存（`src/fans/profile-projection.js`）在本机领域层按需增量更新、随账号切换释放，并在北京时间跨日、会员区间变更、时钟倒退或派生输入变化时重新计算，返回副本防止污染缓存。投影输入包含跟进/注意事项的正文；日期里程碑使用 `membership.js` 的 `milestoneAt`，与当前在舰状态的精确时刻判断分开，达标历史与修订规则见[持久化契约](../../../specs/fan-profiles.md#持久化契约)。
 
 **状态分发、顶栏与礼物面板边界**：
 
@@ -49,9 +50,11 @@
 | `interactive-tour.js` | `interactive-tour-config.js` / `interactive-tour-position.js` | 门面负责引导生命周期；步骤配置和定位计算不访问全局状态 |
 | `topbar-status.js` / `interactive-tour-config.js` / `gifts/detection.js` / `danmaku-tool.js` | `live-status-presentation.js` | 共用既有直播状态的降级判定；辅助模块只读取状态，不访问 DOM 或发起请求 |
 
+加班机将开始时的规则、启用状态和用户修改的时长一次提交。提交期间到账的新礼物会推进修订，旧时长遇到冲突后重新读取余额供用户确认。同修订的迟到回执沿用当前倒计时起点。重连后重新读取待结算数与最近结算。
+
 加班机礼物选择与图片索引的身份 key 由 `overtime-gift-picker.js` 内部维护，选择 key 与图片 key 保留不同语义，不单独导出选择器的行节点解析。
 
-AI 配置读取记录开始时的写入代次；表单、开关或角色成功保存后，早先读取的晚到结果和错误不再回填界面，后续刷新仍正常读取新配置。AI 预设删除和恢复默认前先临时关闭原生编辑对话框，确认结束后重新打开；取消或失败保留未保存草稿。豆包 / ChatGPT 账号状态仅在百宝箱主页面激活、弹幕互动面板可见且文档未隐藏时每 3 秒轮询，切走或隐藏时停止，恢复时立即刷新；若页面切换时已有在途的完整配置与状态请求，直接复用该次结果而不额外查询账号。登录、退出与切换平台的刷新不变，OAuth 与会话由独立后端模块处理；页面释放时清理定时器、可见性监听和观察器，已有在途读取完成后不重启轮询。
+AI 平台选择等候首次配置和状态加载。失败后可重试加载两者并保留草稿，切换接入方式会清除上一方式的连接测试结果。AI 配置读取记录开始时的写入代次；表单、开关或角色成功保存后，早先读取的晚到结果和错误不再回填界面，后续刷新仍正常读取新配置。AI 预设删除和恢复默认前先临时关闭原生编辑对话框，确认结束后重新打开；取消或失败保留未保存草稿。豆包 / ChatGPT 账号状态仅在百宝箱主页面激活、弹幕互动面板可见且文档未隐藏时每 3 秒轮询，切走或隐藏时停止，恢复时立即刷新；若页面切换时已有在途的完整配置与状态请求，直接复用该次结果而不额外查询账号。登录、退出与切换平台的刷新不变，OAuth 与会话由独立后端模块处理；页面释放时清理定时器、可见性监听和观察器，已有在途读取完成后不重启轮询。
 
 ## 1. 页面结构
 
@@ -123,7 +126,7 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 | `Events.STATE_LOADED` | `app.js`（接 `stateService`）→ `state-renderer` | 普通快照按 `changedKeys` 更新视图。连接基线通过 `isConnectionSnapshot` 单独标记，即使字段相同也交付给需要重新校时的消费者 |
 | `Events.SONG_UPDATED` | `app.js`（接 `stateService`）→ `songs.renderSongs` | 歌库列表/筛选器重渲染；`complete` 表示本次请求为不带筛选的完整歌库 |
 | `Events.GIFT_RECEIVED` | `stateService` → 盲盒摘要与分析 | 礼物、清空、`gift:source` 与 `connect` 快照使统计失效；订阅方按 `reason` 决定合并刷新或取消旧来源请求 |
-| `Events.OVERTIME_UPDATED` | `stateService`（`overtime:update`）→ `overtime.js` | 加班机面板增量刷新（带 `revision` 修订号去重） |
+| `Events.OVERTIME_UPDATED` | `stateService`（`overtime:update`）→ `overtime.js` | 机器状态按 `revision` 递增交付。同修订的 `quantity-limit` 只把有变化的计数合入共享状态，交付面板的 `state` 仅含 `revision`、`pendingCount` 和 `quantityLimitedCount` |
 | `Events.GIFT_CATALOG_UPDATED` | `stateService`（`gift-catalog:update`）→ `overtime.js` / `gifts/artwork-catalog.js` / `gifts/blindbox.js` | 图片扫描完成后按精确 ID 刷新本地图片，去重包含图片路径和 `assetsUpdatedAt`；不得覆盖当前直播间成员，不触发歌库或礼物事件重载 |
 | `CustomEvent` `app:lyric-state` / `app:lyric-timeline` / `app:lyric-source` / `app:wesing-state` / `app:settings-state` | `stateService` → 各页面 `window.addEventListener` | 歌词跟随与外部客户端状态、WeSing 面板、直播歌词预览、设置自动保存就绪信号 |
 
@@ -141,13 +144,13 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 - **数量上限、时长与样式**：普通结果最多同时 3 条、礼物最多 6 条，按窗口实际剩余高度调度（错误/操作优先，超额瞬时礼物淘汰）。成功短提示默认 2600ms，警告/错误至少 6000ms，带操作至少 8000ms；系统开启「减弱动态效果」时关闭通知位移动画。背景、文字与操作样式由 `admin/toasts/system.css` 维护：卡片按内容自适应宽度（进度卡带 `<progress>` 时锁定紧凑宽度，带操作项时经 `.toast-has-action` 启用右侧竖线分隔操作区），带副文/进度/操作的卡片自动附带语义或业务图标，仅标题无副文/操作的提示走单行紧凑样式（单行纯文本省略末尾中文句号，多句/多行/富卡片保留原标点），进度类通知可通过 `meta` 在标题行右侧展示百分比；独立 `gift-audit` 页面复用控制器但保持独立 CSS。
 - **业务通知规则**：最近礼物与盲盒映射共用 `gifts/blindbox-theme.js` 与 `css/admin/gifts/blindbox-themes.css` 的固定盒型配色（不随客户端主题切换，未匹配用紫色，波仔盲盒 `36062` 为草绿色）。礼物通知经 `gifts/artwork-catalog.js` 的 `getGiftToastArtwork` 按 `gift_variant_id` 复用本地 WebP（40×40px 异步解码，失败显示 `gift-toast-fallback.svg`）。`utils.api(url, body, { notifyError: false })` 允许业务 `catch` 独占错误反馈；字段就地错误由 `shared/field-feedback.js` 关联 `aria-describedby`/`aria-invalid`。各业务状态提示遵循「正常保存静默更新页面状态、失败/冲突/连续故障按需提醒、重试成功原位更新」原则（含播放快照连续两次保存失败、电台连续补歌失败、粉丝档案定时更新静默、动态抽奖仅提醒当前/运行中任务等）。公共字体与礼物图片下载进度见 §10。
 
-**客户端设置与主题状态机**（视觉规范与十三套色板定义见 [pages.md](pages.md#客户端设置与外观)）：
+**客户端设置与主题状态机**（视觉规范与二十四套色板定义见 [pages.md](pages.md#客户端设置与外观)）：
 
-- 客户端配色目录由 `src/shared/client-theme.js` 唯一维护主题 ID、显示名称、明暗分组（`mode`）、默认项和原生窗口底色；`src/server/admin-page.js` 展开设置页浅色/深色选项模板，`admin/client-appearance.js` 直接读取生成的单选项。点选立即保存，保存期间禁用选项且不接受第二次请求，主进程确认保存后才更新根主题属性，失败回滚原选择。
-- `shared/client-font-theme.js` 定义可独立绘制中英数的客户端字体 ID。`admin/client-font-settings.js` 通过一个共享选择器列出本机已就绪的候选，加载所选字族的全部分片并保存成功后应用。`shared/client-font-runtime.js` 将同一个字族用于正文、标题与控件，并通知同一浏览器会话内已打开的工具。其他浏览器打开工具页时读取已保存的字体。冷启动时先用系统字体，资源就绪后自动恢复所选字体。
+- 客户端配色目录由 [shared/client-theme.js](../../../public/js/shared/client-theme.js)（ESM 单一真源，[src/shared/client-theme.js](../../../src/shared/client-theme.js) 以 CJS 薄壳复导出）唯一维护 24 套主题的 ID、显示名称、明暗分组（`mode`）、六大色系分类（`category`）、表面材质（`surface`）、日夜配对族（`family`）、色温（`temperature`）、默认项和原生窗口底色；`src/server/admin-page.js` 基于共享 `<template data-client-theme-option-template>` 与分类模板安全转义展开设置页色系胶囊和浅色/深色选项，`admin/client-appearance.js` 读取生成的单选项并维护明暗×色系联动筛选、交叉计数、空结果恢复、已选主题隐藏定位以及色板区无滚动条柔和边缘渐隐。点选立即保存，保存期间禁用非当前选项且不接受第二次请求，主进程确认保存后通过 [shared/client-theme-runtime.js](../../../public/js/shared/client-theme-runtime.js) 原子更新 `data-client-theme` / `data-client-theme-mode` / `data-client-theme-surface` 并经 `BroadcastChannel('lira-client-theme')` 同步同会话内已打开的工具页，失败回滚原选择。
+- `shared/client-font-theme.js` 定义可独立绘制中英数的客户端字体 ID。首次打开界面字体菜单时，`admin/client-font-settings.js` 启用共享字体预览，并用默认正文字体的 CSS 字宽检测逐项确认五个系统候选，以中文名显示可用项。`shared/client-font-runtime.js` 先加载共享字体的全部分片或确认所选系统字族可用，再将已保存的字族应用于正文、标题与控件，并通知同一会话内已打开的工具。工具页所在设备缺少该字体时使用默认排版。共享字体在冷启动后就绪时会自动恢复。
 - 「百宝箱 → 设置」由 [client-settings.js](../../../public/js/admin/client-settings.js) 管理「外观主题」「声音与通知」「账号与连接」「系统与关于」四个页签的切换、方向键/Home/End 导航及旧更新页迁移；「系统与关于」中的更新和本地维护由 `desktop.js` 编排，资源检查由 `desktop-resource-integrity.js` 维护状态、订阅与视图，`settings-license.js` 让「用户协议」「隐私政策」共用原生 `dialog` 读取 `/pages/admin/toolbox/user-agreement.txt` 与 `privacy-policy.txt`（按文档缓存、过滤晚到读取，同意门槛见[构建参考](../engineering/build.md)）。
 - [desktop-notification-settings.js](../../../public/js/admin/desktop-notification-settings.js) 管理「声音与通知」中的系统通知开关与大额礼物门槛（经受限 `desktopNotifications` 桥自动保存、保存中禁用、失败回滚，契约见 [preload](../desktop/preload.md#25-dailybotsfanprofiles-与-giftexport)）。
-- 桌面色板由 `css/desktop/palettes.css` 维护（绑定短别名与长名令牌，`css/desktop/theme.css` 引入色板并保留公共几何；`--client-*` 变量适配礼物/盲盒/粉丝身份色与全屏背景，直播画面与客户端内直播预览区保持原有配色；页面布局按 `--player-dock-reserve` 预留底部空间）。
+- 桌面色板由 `css/desktop/palettes.css` 维护（三层纯令牌架构：Tier 0 默认值与重置、Tier 1 暗色与渐变共享基类、Tier 2 单主题覆写，不含组件选择器；`css/desktop/theme.css` 引入色板并保留公共几何；`--client-select-*` 由 `components/select-menu.css` 消费，`--client-*` 变量适配礼物/盲盒/粉丝身份色与全屏背景，直播画面与客户端内直播预览区保持原有配色；页面布局按 `--player-dock-reserve` 预留底部空间）。
 
 ## 3. 启动时序
 
@@ -195,6 +198,8 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 ### 4.2 `songs.js`（歌库）
 
 `songs.js` 负责列表渲染、菜单和行操作。[song-editor.js](../../../public/js/admin/song-editor.js) 独立负责编辑草稿、正在编辑的歌曲提示、价格输入、保存代次与放弃确认：同一编辑器只允许一个在途保存，保存及列表刷新完成前禁用提交，保存失败恢复提交并保留草稿；保存期间继续输入保留新草稿，切换歌曲后的旧保存结果不能重置当前表单。删除成功后，仅在表单仍编辑被删歌曲时重置（等待删除期间已切换歌曲则保留新草稿）；清空或替换歌库后，若不带筛选的完整歌库里已没有正在编辑的歌曲同样重置（刚保存、尚未出现在列表中的新歌不按删除处理，筛选结果缺项也不清空编辑器）。
+
+没有保存请求在途时，同 ID 歌曲的列表刷新按字段与上一次已知歌库基线比较：未修改字段采用最新值，已修改字段保留草稿及输入选区，最新歌库值成为下一次比较的基线。因此只改备注再保存不会撤销已收到的导入价格或可点状态；同一字段也有本地修改时，保留本地草稿供用户保存或放弃。
 
 - **渲染与列显隐**：`/api/songs` 列表包含首字母、歌名、歌手、曲风、标签、语言、可点状态、点歌价格和核对备注。歌手、曲风、标签和语言固定显示；仅点歌价格和核对备注在当前列表或筛选结果中整列为空（含纯空白）时隐藏列头和单元格，有内容时恢复（数值 `0` 不当作空值）。首字母、歌名、状态和操作始终保留，空列表提示跨八个固定列。歌名下可展开歌切纯文本。行操作包括编辑（载入表单）、入队（`/api/queue/add`，`source=admin`）和删除（`dangerConfirm` + `/api/songs/delete`）。
 - **价格与歌切**：始终显示自由文本输入，编辑完整回填 `request_price`/`song_clip`，保存传 `requestPrice`/`songClip`；显式空值清空，表单重置清除 ID、价格、歌切和快捷状态。价格快捷填写为免费/舰长/提督/总督/可编辑 SC 文本，显示 UTF-16 码元长度，超过 1000 通过输入有效性阻止提交（历史超长回填不截断）。停用说明歌曲不出现在公开歌单；保存反馈仅确认本地成功，网页更新以云端同步结果为准。验收见 [点歌资料规范](../../../specs/song-request-metadata.md)。
@@ -258,7 +263,7 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 礼物姬中特效 1 · 林间花信的开关、金额阈值与画布模拟预览 | `/api/settings`、`app:settings-state` |
 | [gift-guard-thanks.js](../../../public/js/admin/gift-guard-thanks.js) | 礼物姬「大航海感谢」开关、默认动画文字与画布预览入口 | `/api/settings`、`app:settings-state` |
 
-- **礼物历史跨页框选与导出**：礼物历史按 `eventId` 跨页保留选择。普通框选替换本页选区，按住 Ctrl 从礼物行或勾选框起拖可追加；拖动时的新增条数以按下鼠标时的选区为准，缩小选框重新计算，松手确认、中断恢复原选择。「导出所选」将选中记录 ID 传给桌面导出预览（见[礼物历史框选](../../../public/js/admin/gifts/history-selection.js)）。预览右侧记忆输出方式、图片背景、排序、词条间距、合并同种礼物和保存文件夹。卡片先按合并设置成卡，再按时间或总金额降序分页。当前长图恰好有两张卡片时，拖动间距会即时更新画面和 PNG 尺寸，松手保存。预览显示原始选择条数、卡片数和 PNG 数，导出期间禁用设置。见[桌面导出接口](../desktop/preload.md#6-礼物导出任务与取消)。
+- **礼物历史跨页框选与导出**：礼物历史按 `eventId` 跨页保留选择。普通框选替换本页选区，按住 Ctrl 从礼物行或勾选框起拖可追加；拖动时的新增条数以按下鼠标时的选区为准，缩小选框重新计算，松手确认、中断恢复原选择。「导出所选」将选中记录 ID 传给桌面导出预览（见[礼物历史框选](../../../public/js/admin/gifts/history-selection.js)）。预览右侧记忆输出方式、图片背景、排序、词条间距、合并同种礼物、卡片样式和保存文件夹。「卡片样式」默认跟随滚动礼物，也可就地选择导出专用的外形、纹理和金额分界。修改样式时直接更新当前页的卡片。卡片先按合并设置成卡，再按时间或总金额降序分页。当前长图有两张或更多卡片时，拖动间距会即时更新当前页的画面和尺寸，松手后保存设置并刷新导出预览。预览显示原始选择条数、卡片数和 PNG 数，导出期间禁用设置。见[桌面导出接口](../desktop/preload.md#6-礼物导出任务与取消)。
 - **今日盲盒盈亏与分析工作区刷新**：今日盲盒盈亏仅在礼物主页可见、面板展开且未打开分析工作区时读取汇总与前 10 位观众；隐藏时取消在途读取并保留刷新标记，恢复可见后补读一次，旧响应不能覆盖恢复后的结果。盲盒分析仅在工作区打开时响应收礼事件，将持续事件合并为每轮最多一次的 500ms 延迟刷新（事件不反复推迟已排定任务，已有读取先完成、期间的新事件在完成后补刷新）；手动筛选与翻页取消旧请求，关闭工作区停止刷新。观众和盲盒下拉仅在选项值、名称或顺序改变时重建。礼物来源变化或连接恢复时，两处立即清除旧结果并使旧请求失效，分析同步清除观众、盒型、日期和分页筛选（可见摘要与已打开分析重新读取，隐藏摘要待可见后补读，关闭的分析不主动请求）。
 
 ## 6. 组件与百宝箱
@@ -266,7 +271,7 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 **组件与百宝箱导航**：
 
 - [组件页面](../../../public/pages/admin/live-components/page.html)通过既有组装器组合各项设置面板：`#components` 默认选中弹幕姬；弹幕画面片段独立于百宝箱的发送、AI 与机器人回复片段。`createFeatureNavigation` 为组件页与百宝箱建立独立实例，分别用 `admin.liveComponentsSelectedFeature` 与 `admin.toolboxSelectedFeature` 记住选中项（旧百宝箱缓存若指向已迁移组件则回落到首个可用工具）。
-- `toolbox-navigation.js` 仅负责功能导航（侧栏折叠、分组与子导航折叠、方向键/WAI-ARIA tab 模式、localStorage 记忆），[toolbox-selection-motion.js](../../../public/js/admin/toolbox-selection-motion.js) 负责桌面百宝箱侧栏的选中卡片弹性滑移与图标方向性变色协同；[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html) 按互动娱乐、主播工具（分组 ID `streamer-work`）、应用支持三组呈现。桌面百宝箱侧栏共用一个带图标底槽的选中卡片，切换时按物理阻尼弹簧滑向目标行并随滑移抵达触发新旧 SVG 图标的同向扫色与微回弹（连续改选保留速度平滑转向，系统开启「减弱动态效果」或处于交互引导时直接定位）。
+- `toolbox-navigation.js` 仅负责功能导航（侧栏折叠、分组与子导航折叠、方向键/WAI-ARIA tab 模式、localStorage 记忆），[toolbox-selection-motion.js](../../../public/js/admin/toolbox-selection-motion.js) 负责桌面百宝箱侧栏的选中卡片弹性滑移与图标方向性变色协同；[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html) 按互动娱乐、主播工具（分组 ID `streamer-work`）、应用支持三组呈现。桌面百宝箱侧栏共用一个带图标底槽的选中卡片，切换时按物理阻尼弹簧滑向目标行并随滑移抵达触发新旧 SVG 图标的同向扫色与微回弹（连续改选保留速度平滑转向，用户点击或方向键切入且启动弹簧动效时将右侧面板显隐延后一帧以优先提交合成器滑移，程序化选择及系统开启「减弱动态效果」或处于交互引导时同步直接定位）。
 - **实时榜单**：由 `app.js` 在首次切到组件标签时按需加载 `admin/live-rankings.js`。[live-rankings-client.js](../../../public/js/admin/live-rankings-client.js) 合并管理页与画布预览的订阅，每 500ms 拉取一次管理快照；所有订阅退出后停止轮询，画布订阅同时受编辑页连接状态和榜单图层可见性约束。呈现、滚动与配置契约见[实时榜单](overlays.md#实时榜单)。
 - **弹幕投票与观众评分**：分别由 `livePollFeature`、`liveRatingFeature` 承载，片段位于 `public/pages/admin/live-components/interactions.html`，由 `public/js/admin/interactions.js` 按需初始化一次。切换入口复用同一编辑器、外观草稿与状态订阅，保留两类表单的未提交内容；另一种互动占用会话时提示返回对应组件结束或关闭结果。共同文本校验与布局估算由 `shared/interaction-rules.js` 负责，同步代次由 `interaction-client.js` 负责，安全文本结果行由 `interaction-view.js` 负责；后台人数轮询随面板可见性启停，投票与评分进行中与小游戏互斥（结果可同时保留展示），完整展示规则见 [overlays.md](overlays.md#投票与评分-interactions)。
 
@@ -327,7 +332,7 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 
 - **共享外观协同**：`scene-item-controller.js` 整合场景配置与各组件共享外观模块，`canvas-shared-appearance.js` 按组件与样式缓存公共草稿、合并轮询并串行保存本地修改。内置时钟、点歌板、弹幕、加班机的画布参数进入桌面控制器草稿，随「保存并应用」生效；其余由 `sharedAppearance` 管理的公共字段通过受限画布入口自动保存（发布流程会等待共享自动保存完成）。共享外观按组件及样式键合并拉取（键变化立即刷新并在在途请求结束后补读，纯几何/名称/排序变化不重置 750ms 间隔，无外部共享模块时停止轮询）；重复快照仍推进权威代次，防止过期响应覆盖最新状态。
 - **参数分组与精度兼容**：画布顶部「位置与尺寸」可独立折叠；`scene-extra-parameter-layout.js` 为歌词、展示板、礼物、互动和开播组织语义分组（歌词常用组默认展开，普通直播歌词新建尺寸 960×360）。共享表单兼容百分比精度、900 字重、歌词两端对齐及 50ms 时间偏移；弹幕参数保留未确认输入，确认后同步另一端共享草稿。
-- **资源样式设置与导入呈现**：LIRA 配套资源样式在时钟、弹幕、许愿和点歌板选中后由 `component-resource-settings-panel.js` 展示原生参数、自动保存与模拟预览（样式变更或面板重显时核对，连续聚焦合并，相同列表保留卡片节点）；通过 `restrictResourceStyle` 限制套装预设可选样式。导入样式按用途呈现：按礼物事件播放的效果页（全屏礼物感谢、大航海感谢）将导入样式与内置效果并列为完整设置卡片/条目；仅选择外观的页面（时钟、弹幕、点歌板、礼物许愿、开播动画）以缩略图选择，选中后展示参数。
+- **资源样式设置与导入呈现**：导入弹幕资源的欢迎消息开关写入该样式的 `styleParameters`。即使首次设置，使用同一资源的图层也会读取相同的开关值。LIRA 配套资源样式在时钟、弹幕、许愿和点歌板选中后由 `component-resource-settings-panel.js` 展示原生参数、自动保存与模拟预览（样式变更或面板重显时核对，连续聚焦合并，相同列表保留卡片节点）；通过 `restrictResourceStyle` 限制套装预设可选样式。导入样式按用途呈现：按礼物事件播放的效果页（全屏礼物感谢、大航海感谢）将导入样式与内置效果并列为完整设置卡片/条目；仅选择外观的页面（时钟、弹幕、点歌板、礼物许愿、开播动画）以缩略图选择，选中后展示参数。
 
 **添加组件、本机样式库、套装与素材管理**：
 
@@ -352,6 +357,8 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 
 ### 周表生成器
 
+正常退出桌面应用时，已打开的周表编辑器立即保存待写修改，跳过平时的 300ms 防抖。若同一版本已在写入，编辑器等待该 IndexedDB 事务提交。等待期间又有修改时，编辑器继续保存最新版本，再向播放器的退出处理器报告结果。见[桌面关闭时序](../desktop/main.md#7-关闭序列与播放状态冲刷)。
+
 入口为「百宝箱 → 主播工具 → 周表生成器」，`otherWeeklyScheduleFeature` 由 toolbox 按需加载 [weekly-schedule.js](../../../public/js/admin/weekly-schedule.js)。[editor.js](../../../public/js/admin/weekly-schedule/editor.js) 负责编辑与保存状态、异步素材代次和预览；[model.js](../../../public/js/admin/weekly-schedule/model.js) 统一字段、日期和模板操作；[renderer.js](../../../public/js/admin/weekly-schedule/renderer.js) 与 [weekly-schedule-art.css](../../../public/css/admin/toolbox/weekly-schedule-art.css) 为编辑器和内部导出页提供同一 1920×1080 成品画布。
 
 十种版式为活页手账、星夜来信、复古放送单、横向七日表、杂志封面、国风卷轴、留白刊物、花笺信札、午夜剧场、晴窗画廊，通过几何示意卡选择（不自动覆盖配色、字体或底纹）。编辑区分为外观、排期、素材、模块（页签支持方向键与 Home/End），共用七天主题/备注/双时段、休息/活动标记、周一日期、三种星期写法、标题/主播名、二十套配色与自定义实色、十一内置图标及自定义图标；日期框在编辑时保留正在输入的日号，离开后显示该周的周一。「将周一时间应用整周」确认后只复制两个时间字段。立绘、Q 版、Logo、背景、二维码、三张榜单头像和自定义图标上传后存于模板，点选画布或「正在调整」可按 1920×1080 像素坐标调整；[image-interaction.js](../../../public/js/admin/weekly-schedule/image-interaction.js) 负责画布点选、拖动、等比缩放、旋转与方向键微调（1px / Shift 10px）。「大屏编辑」将同一编辑器提升至 popover 层（需要共享确认框时暂退 popover 层，结束后恢复大屏与焦点）。
@@ -375,7 +382,7 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 - **模块与离线城市目录**：入口为「百宝箱 → 主播工具 → 世界地图」，[world-clock.html](../../../public/pages/admin/toolbox/world-clock.html) 由 Admin 组装器组合；[world-clock/index.js](../../../public/js/admin/world-clock/index.js) 在启动时初始化，负责已选城市、添加/移除、筛选、12/24 小时切换与唯一计时器；[city-picker.js](../../../public/js/admin/world-clock/city-picker.js) 负责添加城市弹窗的搜索、每批 100 项分页与分钟显示（弹窗高上限 480px，结果区上限 280px）。启动用 [base-cities.js](../../../public/js/admin/world-clock/base-cities.js) 的小城市表恢复天气任务。保存了扩展城市时启动读取完整目录，否则在面板首次显示时读取；地球也在首次显示时加载。默认 7 城为北京、新加坡、东京、伦敦、洛杉矶、达拉斯、纽约；[cities.js](../../../public/js/admin/world-clock/cities.js) 与 [city-catalog.js](../../../public/js/admin/world-clock/city-catalog.js) 提供 6,442 座离线城市（整合 Natural Earth `ca96624a56bd078437bca8184e78163e5039ad19` 与 GeoNames 2026-10-21 导出，校正布拉格 `Europe/Prague`、澳门 `Asia/Macau`、怀唐伊 `Pacific/Chatham`，中国大陆新增城市统一用北京时间；更新脚本为 `scripts/generate-world-clock-cities.js`）。
 - **时区、右键菜单与拖拽排序**：[time.js](../../../public/js/admin/world-clock/time.js) 基于运行时 IANA 时区自动处理夏令时（达拉斯用 `America/Chicago`，日期差以北京时间为基准）。右键卡片或聚焦后按 `Shift+F10` 打开原生 Popover 菜单移除城市。本机偏好保存在 `localStorage.admin.worldClock`（`ids`、`format`、`selectedId`、`customOrder`）。未自定义顺序时按当前 UTC 偏移自动排序；[city-drag.js](../../../public/js/admin/world-clock/city-drag.js) 支持移动 5px 开始拖动（减弱动态效果时取消让位动画）及 `Alt+↑/↓` 键盘排序，首次调整后置 `customOrder: true`。
 - **天气刷新**：[temperature.js](../../../public/js/admin/world-clock/temperature.js) 经[世界时钟温度](../backend/api.md#25-世界时钟温度world-clock)管理天气请求：软件启动立即刷新一次，此后按电脑本地时区的整点在后台刷新（例如在加尔各答 08:50 启动，下次为 09:00）。每批并发 2 个，在途批次不重叠，切页/筛选不触发，仅 `pagehide` 销毁时取消。后台结果写入城市缓存，显示时补齐，单城更新只刷新对应行。失败不弹 toast，保留旧值并标 `*`；无温度显示 `—°C`。
-- **WebGL 地球与可见性节能**：[globe.js](../../../public/js/admin/world-clock/globe.js) 负责透明背景 WebGL 地球（缩放 0.75–3×，优先 8192×4096 日图，GPU 纹理边长不足或高清日图加载失败时使用随包的 2048×1024 日图，夜图单独加载一次，启用 mipmap 三线性与最高 8× 各向异性过滤，[影像来源](../../../public/img/admin/world-clock/README.md)）、城市标记防遮挡标注、CSS 锚点详情卡（点击右侧标记打开，Esc 或关闭收起）与本地 `stars.svg` 独立星空层。仅在功能面板、百宝箱主页面与文档均可见时每秒更新时间，离屏/失焦/弹窗打开时暂停星空与地球重绘，`pagehide` 释放定时器与 GPU 资源；减弱动态效果时直接完成定位并保留静态星空。
+- **WebGL 地球与可见性节能**：[globe.js](../../../public/js/admin/world-clock/globe.js) 负责透明背景 WebGL 地球（缩放 0.75–3×，优先 8192×4096 日图，GPU 纹理边长不足或高清日图加载失败时使用随包的 2048×1024 日图，夜图单独加载一次，启用 mipmap 三线性与最高 8× 各向异性过滤，[影像来源](../../../public/img/admin/world-clock/README.md)）、城市标记防遮挡标注、CSS 锚点详情卡（点击右侧标记打开，Esc 或关闭收起）与本地 `stars.svg` 独立星空层。仅在功能面板、百宝箱主页面与文档均可见时每秒更新时间，连续尺寸变化（如侧栏收放）期间通过 CSS 像素比例映射保持球体与标记精准对齐并防抖重建 WebGL 帧缓冲，离屏/失焦/弹窗打开时暂停星空与地球重绘，`pagehide` 释放定时器与 GPU 资源；减弱动态效果时直接完成定位并保留静态星空。
 
 ### 6.1 PK 算分
 
@@ -399,7 +406,7 @@ topbar: 品牌 Logo + 主页面 Tab（点歌 / 播放 / 礼物 / 组件 / 百宝
 - **`component-config-controller.js` 竞争确认机制**：组件设置统一按字段编辑代次保留保存期间的新修改（含改回原值），串行写入并合并快照中的未编辑字段。保存期间若收到与 HTTP 回执不一致的权威快照，控制器经 `confirm`（默认复用 `read`）补读确认，不按通道抵达顺序盲目覆盖；点歌板、歌单板与时钟的确认适配器共用 `StateService.reloadState()` 排序（被后继读取取代时等待后继结果）。正常保存和自身广播回声不增加确认请求；若提交字段已被后续写入覆盖，则保留最新配置、返回 `false` 并提示确认，不误报「已应用」。
 - **各表单保存节奏**。歌单板和礼物动效卡片为 180ms，周表生成器为 300ms，点歌规则和直播歌词为 500ms，日常设置、点歌板主题和定时弹幕为 600ms。共享 `createAutosave` 的 `delay` 默认 600ms，点歌规则传入 500ms 并在输入法组词结束后调度。AI 互动助手为 700ms，仅在编辑代次仍匹配时解除草稿保护。账号登录页提交时保存。[settings-autosave.js](../../../public/js/admin/settings-autosave.js)
 - **跨模块请求代次与清空恢复**：
-  - `games.js` 将开始/结束纳入会话请求代次（不回退更高 `eventRevision`）；`games-wheel.js` 在 WS 重连时补读独立转盘状态并按代次保护转动回执；`games-draw-admin.js` 私有题词读取按代次与会话/局次/阶段过滤；[games-word-picker.js](../../../public/js/admin/games-word-picker.js) 仅负责选词 dialog 交互。
+  - `games.js` 将数字炸弹、五子棋与画猜的开始/结束统一纳入会话请求代次（不回退更高 `eventRevision`）；`games-draw-admin.js` 通过入口注入的 `startSession` 开局，私有题词读取按代次与会话/局次/阶段过滤，读取后仅在原会话仍处于该轮选词阶段时提示选词；`games-wheel.js` 在 WS 重连时补读独立转盘状态并按代次保护转动回执；[games-word-picker.js](../../../public/js/admin/games-word-picker.js) 仅负责选词 dialog 交互。
   - 数字炸弹和五子棋决出结果后，管理页显示胜方或和棋，主播仍可结束当前会话。进入新的画猜会话时展开主持卡片，同一会话内保留主播的展开或收起选择。添加转盘选项时保留已有输入，只给新行填写默认份数。
   - [ai-model-picker.js](../../../public/js/admin/ai-model-picker.js) 维护查询代次、服务签名与原生 Popover 模型菜单（复用 `select-menu-position.js`）；服务字段或账号变化时使旧请求失效。
   - `danmaku-tool.js` 发送成功只清除仍与本次提交一致的草稿，发送状态仅接受最新读取代次；输入框使用 `field-sizing: content` 自动增高，超过 40 字自动分段发送。

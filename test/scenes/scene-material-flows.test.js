@@ -23,9 +23,9 @@ async function setup(t, canvas = { width: 1920, height: 1080 }) {
     assert.equal((await fetch(url)).status, 200);
     await editor.goto(url);
   }
-  async function openOutput(id = fixture.service.getCanvas().outputId) {
+  async function openOutput(id = fixture.service.getCanvas().outputId, itemId) {
     const source = fixture.service.getSource(id);
-    const url = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+    const url = `${fixture.origin}/scene?id=${source.id}${itemId ? `&item=${itemId}` : ''}#token=${source.token}`;
     assert.equal((await fetch(url)).status, 200);
     const page = await browser.newPage();
     page.setDefaultTimeout(5000);
@@ -93,10 +93,46 @@ test('a reloaded published text box initializes again at the same output version
   assert.equal(fixture.service.get(saved.document.id).publishedVersion, 1);
 });
 
+test('text image preparation keeps the old output on delay and failure, then commits a decoded image', { timeout: 20000 }, async t => {
+  const { fixture, scene, openOutput } = await setup(t);
+  const item = layer('text-box', createTextBoxDefaults(), 600, 120);
+  const document = { ...scene.document, items: [item] };
+  function publishNodes(nodes) {
+    item.appearance.config.nodes = nodes;
+    const saved = fixture.service.save({ id: document.id, expectedRevision: fixture.service.get(document.id).revision, document });
+    fixture.service.publish({ id: document.id, expectedRevision: saved.revision });
+    fixture.notify();
+  }
+  publishNodes([{ type: 'text', text: '旧字幕' }]);
+  const page = await openOutput(document.id);
+  const old = page.frameLocator('.scene-version:not(.is-staging) iframe').getByText('旧字幕');
+  await old.waitFor();
+  const png = await image(page, 8, 8);
+  const path = `/scene-text-images/${randomUUID()}.png`;
+  const blocked = Promise.withResolvers();
+  const pending = Promise.withResolvers();
+  await page.route(`**${path}`, async route => {
+    pending.resolve(); await blocked.promise;
+    await route.fulfill({ status: 503, body: '' });
+  });
+  publishNodes([{ type: 'image', name: '新图', src: path }]);
+  await pending.promise;
+  assert.ok(await old.isVisible());
+  blocked.resolve();
+  await page.locator('#sceneStatus').filter({ hasText: /失败|上一版本/ }).waitFor({ state: 'attached' });
+  assert.ok(await old.isVisible());
+  const next = `/scene-text-images/${randomUUID()}.png`;
+  await page.route(`**${next}`, route => route.fulfill({ contentType: 'image/png', body: png }));
+  publishNodes([{ type: 'image', name: '完成', src: next }]);
+  const ready = page.frameLocator('.scene-version:not(.is-staging) iframe').getByAltText('完成');
+  await ready.waitFor();
+  assert.equal(await ready.evaluate(image => image.naturalWidth), 8);
+});
+
 test('first browser-source publication retains the editor scale and rotation', async t => {
   const { fixture, scene, editor, openEditor, openOutput } = await setup(t);
   const item = layer('browser', { url: `${fixture.origin}/preview-test-host`, viewportWidth: 800, viewportHeight: 600,
-    styleParameters: { browser: { transform: { rotateZ: 10 } } } }, 400, 300);
+    styleParameters: { browser: { transform: { rotateZ: 10 }, outline: { width: 12 } } } }, 400, 300);
   fixture.service.save({ id: scene.document.id, expectedRevision: scene.revision, document: { ...scene.document, items: [item] } });
   await openEditor();
   const matrix = node => {
@@ -111,6 +147,10 @@ test('first browser-source publication retains the editor scale and rotation', a
   await publish(editor);
   const output = await openOutput();
   assert.deepEqual(await output.locator('.scene-version iframe').evaluate(matrix), expected);
+  const single = await openOutput(scene.document.id, item.id);
+  const outline = frame => [getComputedStyle(frame).outlineWidth, getComputedStyle(frame).outlineOffset];
+  assert.deepEqual(await single.locator('.scene-version iframe').evaluate(outline), ['12px', '-12px']);
+  assert.deepEqual(await output.locator('.scene-version iframe').evaluate(outline), ['12px', '0px']);
 });
 
 test('updating a clock package in the feature library adds the new card to the canvas exactly once', async t => {
@@ -139,6 +179,27 @@ test('updating a clock package in the feature library adds the new card to the c
   const items = fixture.service.get(scene.document.id).document.items;
   assert.deepEqual(items.map(item => [item.type, item.width, item.height]), [['clock', 320, 180]]);
   assert.match(items[0].name, /2\.0\.0/);
+});
+
+test('correcting a desktop clock import adds the background once at canvas size', async t => {
+  const { fixture, scene, desktop, editor, openEditor } = await setup(t);
+  await openEditor();
+  await desktop.evaluate(async () => {
+    const host = document.createElement('section'); host.id = 'otherClockFeature';
+    const list = document.createElement('div'); list.className = 'clock-style-options'; host.append(list); document.body.append(host);
+    (await import('/js/admin/component-style-client.js')).initComponentStyleLibraries();
+  });
+  const manifest = { schemaVersion: 1, id: 'test.corrected-bg', name: '背景', version: '1.0.0',
+    styles: [{ type: 'background', name: '小背景', file: 'bg.png', width: 320, height: 180 }] };
+  const zip = createDeflatedZip(new Map([['lira-pack.json', Buffer.from(JSON.stringify(manifest))], ['bg.png', await image(desktop, 320, 180)]]));
+  await desktop.locator('#otherClockFeature input[accept=".zip"]').setInputFiles({ name: 'bg.zip', mimeType: 'application/zip', buffer: zip });
+  await desktop.getByRole('button', { name: /前往.*导入/ }).click();
+  await desktop.getByRole('dialog', { name: '确认添加样式' }).getByRole('button', { name: '添加样式' }).click();
+  await desktop.getByRole('button', { name: /添加到画布：.*小背景/ }).click();
+  await editor.locator('.scene-editor-item.is-selected[data-component="background"]').waitFor();
+  await publish(editor);
+  const items = fixture.service.get(scene.document.id).document.items;
+  assert.deepEqual(items.map(({ x, y, width, height }) => [x, y, width, height]), [[0, 0, 1920, 1080]]);
 });
 
 async function giftStyle(f) {

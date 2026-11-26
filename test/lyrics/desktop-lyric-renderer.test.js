@@ -5,11 +5,17 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { FakeNode } = require('../helpers/fake-dom');
+const { normalizeLyricTimeline } = require('../../src/music/lyric-timeline');
+const { projectWebSocketPayload } = require('../../src/server/overlay-projection');
+const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
+const { buildMusicRuntime } = require('../../src/server/music-runtime');
+const { routes } = require('../../src/server/routes/playback-routes');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 
 async function createLiveRenderer({ advanced = false, layer, reducedMotion = false } = {}) {
   const animations = [];
+  const wordMotions = [];
   const frames = new Map();
   let frameId = 0;
   let visibilityCallback;
@@ -44,6 +50,7 @@ async function createLiveRenderer({ advanced = false, layer, reducedMotion = fal
         play() { this.playState = 'running'; }, pause() { this.playState = 'paused'; },
         cancel() { this.cancelled = true; } };
       if (frames[0].clipPath) animations.push(animation);
+      if (element.className === 'desktop-lyric-preview-word') wordMotions.push(animation);
       return animation;
     };
     return element;
@@ -79,12 +86,96 @@ async function createLiveRenderer({ advanced = false, layer, reducedMotion = fal
     frames.clear();
     callbacks.forEach((callback) => callback(now));
   };
-  return { renderer: desktopLyricRenderer, animations, elements, advance, frames,
+  return { renderer: desktopLyricRenderer, animations, wordMotions, elements, advance, frames,
     setVisible: isIntersecting => visibilityCallback([{ isIntersecting }]), state: {
     currentMs: 1200, durationMs: 10000, playing: true, generation: 1, sequence: 1, status: 'ready',
     lineText: '第一句', words: [{ text: '第一句', startMs: 0, endMs: 5000 }],
   } };
 }
+
+for (const [delivery, budget] of [['snapshot', 'lines'], ['event', 'text'], ['scene', 'lines']]) {
+  test(`bounded lyric ${budget} preload through ${delivery} falls back to live lines and restores preloaded rows after seek`, async (t) => {
+    const { renderer, elements, state } = await createLiveRenderer({ advanced: true });
+    t.after(() => renderer.dispose());
+    renderer.applySettings({ advancedLyricEnabled: 'true' });
+    const lines = Array.from({ length: 502 }, (_, i) => ({ startMs: i * 1000, endMs: (i + 1) * 1000,
+      text: `Line ${i + 1}${budget === 'text' ? 'x'.repeat(220) : ''}` }));
+    // Both the HTTP route and music runtime normalize the publication.
+    const timeline = normalizeLyricTimeline(normalizeLyricTimeline({ status: 'ready', lines }));
+    const principal = { type: 'overlay', scope: 'lyrics' };
+    let deliveredTimeline;
+    if (delivery === 'snapshot') {
+      deliveredTimeline = projectWebSocketPayload(principal, { type: 'snapshot', state: { lyricTimeline: timeline } }).state.lyricTimeline;
+    } else if (delivery === 'event') {
+      deliveredTimeline = projectWebSocketPayload(principal, { type: 'lyric-timeline', timeline }).timeline;
+    } else {
+      const getDisplay = createSceneExtraDisplay({ displayPorts: {} });
+      deliveredTimeline = getDisplay('lyrics', () => ({ lyricTimeline: timeline })).lyricTimeline;
+    }
+    renderer.updateLyricTimeline(deliveredTimeline);
+    for (const [step, i] of [timeline.lines.length - 1, timeline.lines.length, 501, 1].entries()) {
+      renderer.updateLyricState({ ...state, sequence: step + 2,
+        currentMs: lines[i].startMs, durationMs: 502000, lineText: lines[i].text, words: [], discontinuity: true });
+      const active = elements.get('desktopLyricPreviewTimeline').children.find(row => row.classList.contains('is-active'));
+      assert.equal(active?.querySelector('.desktop-lyric-preview-row-text')?.textContent, lines[i].text);
+      assert.ok(elements.get('advancedLyricPreviewStage').textContent.includes(lines[i].text));
+    }
+  });
+}
+
+test('live lyric fallback updates repeated text translations without rebuilding unchanged samples', async (t) => {
+  const { renderer, elements } = await createLiveRenderer({ advanced: true });
+  t.after(() => renderer.dispose());
+  renderer.applySettings({ advancedLyricEnabled: 'true', advancedLyricShowTranslation: 'true' });
+  const runtime = buildMusicRuntime({ dataDir: {}, settingsStore: { getSettings: () => ({}) },
+    runtimeOptions: { weSingPlatform: 'linux' },
+    webSocketHub: { broadcast(message) {
+      const delivered = projectWebSocketPayload({ type: 'overlay', scope: 'lyrics' }, message);
+      if (delivered?.type === 'lyric-timeline') renderer.updateLyricTimeline(delivered.timeline);
+      if (delivered?.type === 'lyric-state') renderer.updateLyricState(delivered.state);
+    } },
+  });
+  t.after(() => runtime.stop());
+  const context = { playbackLyrics: { publish: runtime.publishLyricState, publishTimeline: runtime.publishLyricTimeline } };
+  let now = 10000;
+  const { LyricService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/lyric-service.js'), {
+    Date: class extends Date { static now() { return now; } },
+    fetch: async (url, options) => {
+      let status;
+      let response;
+      await routes[`POST ${url}`](context, { body: async () => JSON.parse(options.body) }, {
+        writeHead(value) { status = value; }, end(value) { response = value; },
+      });
+      return new Response(response, { status });
+    },
+  });
+  const service = new LyricService();
+  const lines = Array.from({ length: 504 }, (_, i) => ({ startMs: i * 1000,
+    text: i >= 501 ? 'chorus' : `Line ${i}`, translation: i === 503 ? '' : `translation ${i}` }));
+  const track = { id: 'translation-fixture', source: 'local', title: 'Translation fixture', lyrics: { lines } };
+  const publish = async (seconds) => {
+    now += 1000;
+    await service.syncWindow(track, { currentTime: seconds, duration: 504, paused: false });
+  };
+  const activeRow = () => elements.get('desktopLyricPreviewTimeline').children.find(row => row.classList.contains('is-active'));
+  let generation;
+  for (const i of [499, 500, 501, 502, 503]) {
+    await publish(i);
+    generation ??= runtime.getLyricState().generation;
+    assert.equal(runtime.getLyricState().generation, generation);
+    assert.equal(runtime.getLyricState().translation, lines[i].translation);
+    assert.equal(activeRow()?.textContent, lines[i].text + lines[i].translation);
+    const advanced = elements.get('advancedLyricPreviewStage').textContent;
+    assert.ok(advanced.includes(lines[i].text + lines[i].translation));
+    if (i === 503) assert.ok(!advanced.includes('translation'), 'an empty translation removes the previous one');
+    const row = activeRow();
+    await publish(i + 0.25);
+    assert.equal(activeRow(), row, 'clock-only samples retain the rendered row');
+  }
+  assert.equal(runtime.getLyricTimeline().truncatedAtMs, 500000);
+  await publish(1);
+  assert.equal(activeRow()?.textContent, lines[1].text + lines[1].translation);
+});
 
 test('joining scripts and combining marks remain intact during karaoke', async () => {
   for (const mode of ['continuous', 'discrete']) {
@@ -391,6 +482,28 @@ test('slow frames reduce decoration without interrupting continuous word fill', 
   renderer.updateLyricState({ ...state, currentMs: 1920, sequence: 2, playing: false });
   assert.equal(animation.playState, 'paused', 'pause must still stop the preserved highlight');
   assert.equal(animation.currentTime, 1920);
+});
+
+test('basic word bounce can be switched mid-word independently of highlighting', async t => {
+  const { renderer, animations, wordMotions, state, setVisible } = await createLiveRenderer();
+  t.after(() => renderer.dispose());
+  renderer.updateLyricState(state);
+  const [bounce] = wordMotions;
+  const [highlight] = animations;
+  assert.equal(bounce.playState, 'running');
+
+  renderer.applySettings({ desktopLyricWordBounceEnabled: 'false' });
+  assert.equal(bounce.cancelled, true);
+  setVisible(false);
+  setVisible(true);
+  assert.equal(wordMotions.length, 1, 'restoring full effects respects the saved preference');
+  assert.equal(highlight.cancelled, false);
+  assert.equal(highlight.playState, 'running');
+
+  renderer.applySettings({ desktopLyricWordBounceEnabled: 'true' });
+  const [, resumed] = wordMotions;
+  assert.equal(resumed?.playState, 'running');
+  assert.equal(resumed.currentTime, state.currentMs);
 });
 
 for (const mode of ['continuous', 'discrete']) {

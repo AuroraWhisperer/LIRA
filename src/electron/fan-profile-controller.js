@@ -41,6 +41,8 @@ function createFanProfileController({
   const startedAt = now();
   let automaticTimer = null;
   let automaticOperation = null;
+  let automaticGeneration = 0;
+  let automaticRosterController = null;
   let expiryJob = null;
   const expiryOperations = new Set();
   let identityPreviewJob = null;
@@ -238,8 +240,11 @@ function createFanProfileController({
     const roomId = String(getRoomId() || '');
     if (!/^[1-9]\d{0,19}$/.test(roomId)) throw createPublicError('请先在连接设置中填写直播间号。');
     const controller = new AbortController();
+    const generation = automaticGeneration;
     rosterAbortController = controller;
+    if (automaticDate) automaticRosterController = controller;
     function canImport() {
+      if (automaticDate && generation !== automaticGeneration) return false;
       if (!same(captured) || controller.signal.aborted)
         throw createPublicError('登录状态已变化，本次名单没有导入，请重新打开档案。');
       if (String(getRoomId() || '') !== roomId) throw createPublicError('直播间已变化，本次名单没有导入，请重新同步。');
@@ -273,10 +278,12 @@ function createFanProfileController({
       if (!canImport()) return null;
       return response(captured, service.importGuardRoster(captured.scope, snapshot, automaticDate, refresh, roomId));
     } catch (error) {
+      if (automaticDate && generation !== automaticGeneration) return null;
       if (typeof error.publicMessage === 'string' && error.publicMessage) throw error;
       throw createPublicError('大航海名单读取失败，本次没有导入，请检查网络后重试。');
     } finally {
       rosterAbortController = null;
+      if (automaticRosterController === controller) automaticRosterController = null;
     }
   }
 
@@ -316,11 +323,14 @@ function createFanProfileController({
 
   function runAutomaticUpdate() {
     if (disposed) return Promise.resolve();
-    if (!automaticOperation)
+    if (!automaticOperation) {
+      const generation = automaticGeneration;
       automaticOperation = updateAutomatically().finally(() => {
         automaticOperation = null;
+        if (generation !== automaticGeneration && current?.rosterEnabled) return runAutomaticUpdate();
         scheduleAutomaticUpdate();
       });
+    }
     return automaticOperation;
   }
 
@@ -376,6 +386,10 @@ function createFanProfileController({
     const data = service.execute(captured.scope, action === 'open' ? 'list' : action, payload);
     if (['configure', 'restore', 'restore-snapshot'].includes(action)) {
       clearAutomaticTimer();
+      if (action !== 'configure' || data.autoSyncGuardRoster !== true) {
+        automaticGeneration++;
+        automaticRosterController?.abort();
+      }
       captured.rosterEnabled = action === 'configure' ? data.autoSyncGuardRoster === true : undefined;
       if (!captured.rosterEnabled) {
         captured.automaticAttempt = null;

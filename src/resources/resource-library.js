@@ -23,15 +23,16 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
   const sharedFiles = files.filter(file => !isLegacyResource(file.path));
   const available = new Map();
   const assetWaiters = new Map();
+  const blocked = new Set();
   const invalidObjects = new Set();
   const versionChecks = new Map();
   const listeners = new Set();
+  const controller = new AbortController();
   let installed = readIndex();
   let scanId = 0;
   let lastCompletedScan = 0;
   let pending = null;
   let downloadingFiles = null;
-  let controller = null;
   let checked = false;
   let closed = false;
   let writes = Promise.resolve();
@@ -62,22 +63,28 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     try {
       const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
       if (index.version !== 1 || !index.files || typeof index.files !== 'object') return {};
-      return Object.fromEntries(files.filter(file => {
-        const entry = index.files[file.path];
-        return entry && /^[a-f0-9]{64}$/.test(entry.sha256) && Number.isSafeInteger(entry.size)
-          && entry.size > 0 && entry.size <= MAX_ASSET_BYTES;
-      }).map(file => [file.path, { sha256: index.files[file.path].sha256, size: index.files[file.path].size }]));
+      const valid = entry => entry && /^[a-f0-9]{64}$/.test(entry.sha256) && Number.isSafeInteger(entry.size)
+        && entry.size > 0 && entry.size <= MAX_ASSET_BYTES;
+      return Object.fromEntries(files.flatMap(({ path }) => {
+        const entry = index.files[path];
+        if (!valid(entry)) return [];
+        const previous = entry.previous;
+        return [[path, { sha256: entry.sha256, size: entry.size,
+          ...(valid(previous) && { previous: { sha256: previous.sha256, size: previous.size } }) }]];
+      }));
     } catch { return {}; }
   }
 
   async function matches(filename, entry) {
+    const { signal } = controller;
+    signal.throwIfAborted();
     try {
       const { size } = await fs.promises.stat(filename);
       if (size <= 0 || size > MAX_ASSET_BYTES || (entry.size !== undefined && size !== entry.size)) return false;
       const hash = createHash('sha256');
-      for await (const chunk of fs.createReadStream(filename)) hash.update(chunk);
+      for await (const chunk of fs.createReadStream(filename, { signal })) hash.update(chunk);
       return hash.digest('hex') === entry.sha256;
-    } catch { return false; }
+    } catch { signal.throwIfAborted(); return false; }
   }
 
   function wakeAsset(name) {
@@ -89,6 +96,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
   }
 
   function canStillPublish(key) {
+    if (blocked.has(key)) return false;
     // Different packages can publish the same immutable object.
     return !downloadingFiles || downloadingFiles.has(key) || downloadingFiles.values().some(object => object === key);
   }
@@ -99,7 +107,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     wakeAsset(objectName(file));
   }
 
-  async function scan(signal, blocked) {
+  async function scan(signal) {
     for (const file of files) {
       signal.throwIfAborted();
       const cached = { ...file, ...installed[file.path] };
@@ -111,12 +119,8 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
           await fs.promises.rename(`${filename}.pending`, filename);
           valid = true;
         } catch (error) {
-          blocked.add(file.path);
           reportFailure(error, 'publish', file.path);
-          const previous = available.get(file.path);
-          if (previous && await matches(previous.filename, previous.file)) markAvailable(previous.file, previous.filename);
-          else available.delete(file.path);
-          continue;
+          blocked.add(file.path);
         }
       }
       if (valid) {
@@ -125,11 +129,15 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
       } else {
         invalidObjects.add(filename);
         available.delete(file.path);
-        delete installed[file.path];
-        if (publicDir) {
-          const source = path.join(publicDir, file.path);
-          if (await matches(source, file)) markAvailable(file, source);
+        const previous = cached.previous ? { ...file, ...cached.previous } : file;
+        const fallback = path.join(directory, objectName(previous));
+        if (fallback !== filename && await matches(fallback, previous)) {
+          markAvailable(previous, fallback);
+        } else if (publicDir && await matches(path.join(publicDir, file.path), file)) {
+          markAvailable(file, path.join(publicDir, file.path));
         }
+        if (blocked.has(file.path)) wakeAsset(file.path);
+        else delete installed[file.path];
       }
     }
   }
@@ -145,7 +153,9 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
           if (temporary !== `${filename}.pending`) await fs.promises.rename(temporary, `${filename}.pending`);
           promoting.add(filename);
         }
-        next[file.path] = { sha256: file.sha256, size: file.size };
+        const previous = available.get(file.path)?.file;
+        next[file.path] = { sha256: file.sha256, size: file.size,
+          ...(previous && previous.sha256 !== file.sha256 && { previous: { sha256: previous.sha256, size: previous.size } }) };
       }
       await atomicWrite(indexPath, JSON.stringify({ version: 1, files: next }));
       installed = next;
@@ -164,13 +174,13 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
   async function fetchWithRateLimit(url, options) {
     const { signal } = options;
     while (true) {
-      const now = Date.now();
+      const now = performance.now();
       requestStarts = requestStarts.filter(started => now - started < 1000);
       // Leave headroom under the CDN's current 10 requests/second setting.
       if (requestStarts.length < 8) {
         // An awaited reservation can expire before its actual fetch starts.
         try { return fetch(url, options); }
-        finally { requestStarts.push(Date.now()); }
+        finally { requestStarts.push(performance.now()); }
       }
       await delay(Math.max(1, 1000 - (now - requestStarts[0])), undefined, { signal });
     }
@@ -182,9 +192,8 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     if (checked && !force) return Promise.resolve(getState());
     checked = true;
     scanId++;
-    controller = new AbortController();
     const signal = controller.signal;
-    const blocked = new Set();
+    blocked.clear();
     let phase = 'cache';
     pending = (async () => {
       publish({ status: 'checking', total: 0, completed: 0, failed: 0, currentFont: '',
@@ -193,7 +202,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
       pruneManagedFiles(dataDir, directory, { maxAgeMs: 86400000, keep, matches: name =>
         /^[a-f0-9]{64}\.(?:zip|[a-z0-9]+\.pending)$/.test(name) ||
         /^(?:index\.json|[a-f0-9]{64}\.[a-z0-9]+)\.[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.tmp$/.test(name) });
-      await scan(signal, blocked);
+      await scan(signal);
       lastCompletedScan = scanId;
       phase = 'manifest';
       const manifest = await readManifest({ origin, fetch: fetchWithRateLimit, signal, timeoutMs: manifestTimeoutMs });
@@ -317,7 +326,6 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     }).finally(() => {
       pending = null;
       downloadingFiles = null;
-      controller = null;
       for (const name of assetWaiters.keys()) wakeAsset(name);
     });
     return pending;
@@ -348,7 +356,10 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
         // A sibling can publish the requested digest before this path is ready. Verify the public bytes.
         let check = versionChecks.get(filename);
         if (!check) {
-          check = matches(filename, { sha256: hash }).finally(() => versionChecks.delete(filename));
+          check = matches(filename, { sha256: hash }).catch(error => {
+            if (!closed) throw error;
+            return false;
+          }).finally(() => versionChecks.delete(filename));
           versionChecks.set(filename, check);
         }
         if (await check) return filename;
@@ -368,7 +379,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
 
   async function close() {
     closed = true;
-    controller?.abort();
+    controller.abort();
     await pending;
     await writes;
     listeners.clear();

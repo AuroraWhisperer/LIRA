@@ -153,11 +153,11 @@ async function openLoginWindow({
   try {
     await loginWindow.loadURL(config.loginUrl);
   } catch (error) {
-    onEvent('navigation-failed');
     cleanup();
     if (!loginWindow.isDestroyed()) loginWindow.destroy();
-    await completion;
-    if (signal?.aborted) return completion;
+    const result = await completion;
+    if (signal?.aborted || (loginCloseRequested && result.state.loggedIn)) return result;
+    onEvent('navigation-failed');
     throw error;
   }
 

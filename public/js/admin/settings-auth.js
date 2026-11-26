@@ -146,5 +146,7 @@ export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm 
     }
   });
 
+  const unsubscribe = windowRef.bilibiliAuth.onIdentityChanged?.(refreshAuthState);
+  if (unsubscribe) windowRef.addEventListener('pagehide', unsubscribe, { once: true });
   void refreshAuthState();
 }

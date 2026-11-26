@@ -312,17 +312,18 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
   documentRef.fonts?.addEventListener('loadingdone', refreshTypography);
 
   let chassisPrepared = false;
+  function prepareChassis() {
+    if (chassisPrepared || settings.layout === 'lyrics' || typeof Image !== 'function') return Promise.resolve();
+    chassisPrepared = true;
+    const chassis = new Image();
+    chassis.src = '/img/playback/player-turntable-chassis.webp';
+    return chassis.decode().catch(() => {});
+  }
   const observer = new ResizeObserver(() => {
     const width = playerRoot.clientWidth;
     const height = playerRoot.clientHeight;
     if (!width || !height || !preview.clientWidth) return;
-    if (!chassisPrepared && settings.layout !== 'lyrics') {
-      // Decode the CSS artwork when the playback page gets its size, ahead of the first switch.
-      chassisPrepared = true;
-      const chassis = new Image();
-      chassis.src = '/img/playback/player-turntable-chassis.webp';
-      void chassis.decode().catch(() => {});
-    }
+    void prepareChassis();
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     preview.style.aspectRatio = `${width} / ${height}`;
@@ -332,6 +333,46 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
   });
   observer.observe(preview);
   observer.observe(playerRoot);
+
+  // Warm the GPU shaders once after the startup cover clears, before the first workspace switch.
+  const view = documentRef.defaultView || (typeof window !== 'undefined' ? window : null);
+  let warmupFrame = 0;
+  let warmupTimer;
+  let startupObserver;
+  const finishWarmup = () => {
+    if (warmupFrame && view?.cancelAnimationFrame) view.cancelAnimationFrame(warmupFrame);
+    warmupFrame = 0;
+    clearTimeout(warmupTimer);
+    startupObserver?.disconnect();
+    startupObserver = null;
+    delete panel.dataset.gpuWarmup;
+  };
+  const startWarmup = async () => {
+    if (!panel.isConnected || !panel.inert || typeof view?.requestAnimationFrame !== 'function') return;
+    await prepareChassis();
+    warmupFrame = view.requestAnimationFrame(() => {
+      warmupFrame = 0;
+      if (!panel.isConnected || !panel.inert) return;
+      panel.dataset.gpuWarmup = '1';
+      warmupFrame = view.requestAnimationFrame(() => {
+        warmupFrame = 0;
+        warmupTimer = setTimeout(finishWarmup, 360);
+      });
+    });
+  };
+  const rootEl = documentRef.documentElement;
+  if (rootEl?.classList?.contains('admin-starting') && typeof MutationObserver === 'function') {
+    startupObserver = new MutationObserver(() => {
+      if (!rootEl.classList.contains('admin-starting')) {
+        startupObserver?.disconnect();
+        startupObserver = null;
+        void startWarmup();
+      }
+    });
+    startupObserver.observe(rootEl, { attributes: true, attributeFilter: ['class'] });
+  } else {
+    void startWarmup();
+  }
   const background = playerRoot.querySelector('.player-fs-bg');
   const previewBackground = canvas.querySelector('.player-fs-bg');
   const vinylDisc = playerRoot.querySelector('.player-fs-vinyl-disc');
@@ -348,6 +389,7 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
   visualObserver.observe(vinylDisc, { attributes: true, attributeFilter: ['class'] });
   visualObserver.observe(tonearm, { attributes: true, attributeFilter: ['class'] });
   window.addEventListener('pagehide', () => {
+    finishWarmup();
     observer.disconnect();
     visualObserver.disconnect();
     clearTimeout(layoutTimer);

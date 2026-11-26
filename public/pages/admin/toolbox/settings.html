@@ -19,102 +19,133 @@
     <div class="client-settings-content">
       <section id="settingsAppearancePanel" class="client-settings-panel client-settings-panel--gallery" role="tabpanel" aria-labelledby="settingsAppearanceTab">
         <section id="clientAppearance" aria-labelledby="clientAppearanceTitle">
-          <div class="client-settings-card client-appearance-console">
-            <div class="client-appearance-console-theme">
-              <div class="client-appearance-active">
-                <span class="client-appearance-swatches" aria-hidden="true"><i></i><i></i><i></i></span>
-                <div class="client-appearance-active-copy">
-                  <strong id="clientThemeCurrentName" class="client-appearance-current-name">暖陶</strong>
-                  <span id="clientThemeCurrentMode" class="client-appearance-current-mode">浅色</span>
-                  <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
+          <div class="client-appearance-header">
+            <div class="client-settings-card client-appearance-console">
+              <div class="client-appearance-console-theme">
+                <div class="client-appearance-active">
+                  <span class="client-appearance-swatches" aria-hidden="true"><i></i><i></i><i></i></span>
+                  <div class="client-appearance-active-copy">
+                    <strong id="clientThemeCurrentName" class="client-appearance-current-name">{{client-theme-default-name}}</strong>
+                    <span id="clientThemeCurrentMode" class="client-appearance-current-mode">{{client-theme-default-mode-label}}</span>
+                    <span id="clientThemeCurrentCategory" class="client-appearance-current-category">{{client-theme-default-category-label}}</span>
+                    <span class="client-appearance-feedback" data-client-theme-feedback role="status" aria-live="polite"></span>
+                  </div>
+                </div>
+                <span class="client-appearance-palette-chips" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              </div>
+
+              <span class="client-appearance-console-divider" aria-hidden="true"></span>
+
+              <div class="client-font-settings">
+                <div class="client-font-preview" aria-label="界面字体示例">
+                  <span class="client-font-sample">示例文本 Sample Text 123</span>
+                  <span id="clientFontFeedback" class="client-font-feedback" role="status" aria-live="polite"></span>
+                </div>
+                <div class="client-font-select-box">
+                  <label class="sr-only" for="clientFont">界面字体</label>
+                  <select id="clientFont" aria-describedby="clientFontFeedback" data-select-search data-select-font-preview data-select-ungrouped>
+                    <option value="system">默认字体</option>
+                  </select>
                 </div>
               </div>
-              <span class="client-appearance-palette-chips" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             </div>
 
-            <span class="client-appearance-console-divider" aria-hidden="true"></span>
-
-            <div class="client-font-settings">
-              <div class="client-font-preview" aria-label="界面字体示例">
-                <span class="client-font-sample">直播间 · Live 09:30</span>
-                <span id="clientFontFeedback" class="client-font-feedback" role="status" aria-live="polite"></span>
-                <span class="client-font-sample-meta" aria-hidden="true">Aa 123</span>
-              </div>
-              <div class="client-font-select-box">
-                <label class="sr-only" for="clientFont">界面字体</label>
-                <select id="clientFont" aria-describedby="clientFontFeedback">
-                  <option value="system">原界面字体</option>
-                </select>
+            <div class="client-appearance-toolbar">
+              <h3 id="clientAppearanceTitle" class="client-appearance-section-title">主题色板</h3>
+              <div id="clientThemeFilters" class="client-appearance-filters" role="group" aria-label="明暗筛选">
+                <button type="button" data-client-theme-filter="all" aria-pressed="true">全部 <span>{{client-theme-count-all}}</span></button>
+                <button type="button" data-client-theme-filter="light" aria-pressed="false">浅色 <span>{{client-theme-count-light}}</span></button>
+                <button type="button" data-client-theme-filter="dark" aria-pressed="false">深色 <span>{{client-theme-count-dark}}</span></button>
               </div>
             </div>
-          </div>
 
-          <div class="client-appearance-toolbar">
-            <h3 id="clientAppearanceTitle" class="client-appearance-section-title">主题色板</h3>
-            <div id="clientThemeFilters" class="client-appearance-filters" role="group" aria-label="明暗筛选">
-              <button type="button" data-client-theme-filter="all" aria-pressed="true">全部 <span>{{client-theme-count-all}}</span></button>
-              <button type="button" data-client-theme-filter="light" aria-pressed="false">浅色 <span>{{client-theme-count-light}}</span></button>
-              <button type="button" data-client-theme-filter="dark" aria-pressed="false">深色 <span>{{client-theme-count-dark}}</span></button>
-            </div>
-          </div>
-
-          <div class="client-appearance-groups">
-            <div class="client-appearance-group" data-client-theme-group="light">
-              <span class="client-appearance-group-label">日间浅色</span>
-              <fieldset class="client-appearance-choices" aria-label="日间浅色">
-                <template data-client-theme-option="light">
-                  <label class="client-appearance-choice">
-                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" data-client-theme-mode="{{client-theme-mode}}" {{client-theme-checked}} />
-                    <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
-                      <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
-                      <span class="client-appearance-preview-layout">
-                        <span class="client-appearance-preview-sidebar"><i></i><i></i><i></i></span>
-                        <span class="client-appearance-preview-content">
-                          <i></i>
-                          <span class="client-appearance-preview-card">
-                            <span class="client-appearance-preview-lines"><i></i><i></i></span>
-                            <b></b>
-                          </span>
-                        </span>
-                      </span>
-                      <span class="client-appearance-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-                    </span>
-                    <span class="client-appearance-choice-heading">
-                      <span class="client-appearance-choice-name">{{client-theme-name}}</span>
-                      <span class="client-appearance-choice-dots" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true"><i></i><i></i></span>
-                    </span>
-                  </label>
-                </template>
-              </fieldset>
+            <div id="clientThemeCategoryFilters" class="client-appearance-categories" role="group" aria-label="色系分类筛选">
+              <button type="button" class="client-appearance-category-pill" data-client-theme-category-filter="all" aria-pressed="true">
+                <span class="client-appearance-category-dot" data-category-swatch="all" aria-hidden="true"></span>
+                <span class="client-appearance-category-label">全部色系</span>
+                <span class="client-appearance-category-count">{{client-theme-count-all}}</span>
+              </button>
+              <template data-client-theme-category-option>
+                <button type="button" class="client-appearance-category-pill" data-client-theme-category-filter="{{client-theme-category-id}}" aria-pressed="false">
+                  <span class="client-appearance-category-dot" data-category-swatch="{{client-theme-category-id}}" aria-hidden="true"></span>
+                  <span class="client-appearance-category-label">{{client-theme-category-label}}</span>
+                  <span class="client-appearance-category-count">{{client-theme-category-count}}</span>
+                </button>
+              </template>
             </div>
 
-            <div class="client-appearance-group" data-client-theme-group="dark">
-              <span class="client-appearance-group-label">夜间深色</span>
-              <fieldset class="client-appearance-choices" aria-label="夜间深色">
-                <template data-client-theme-option="dark">
-                  <label class="client-appearance-choice">
-                    <input type="radio" name="clientTheme" value="{{client-theme-id}}" data-client-theme-name="{{client-theme-name}}" data-client-theme-mode="{{client-theme-mode}}" {{client-theme-checked}} />
-                    <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true">
-                      <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
-                      <span class="client-appearance-preview-layout">
-                        <span class="client-appearance-preview-sidebar"><i></i><i></i><i></i></span>
-                        <span class="client-appearance-preview-content">
-                          <i></i>
-                          <span class="client-appearance-preview-card">
-                            <span class="client-appearance-preview-lines"><i></i><i></i></span>
-                            <b></b>
-                          </span>
-                        </span>
+            <div id="clientThemeActiveHiddenHint" class="client-appearance-active-hidden" hidden>
+              <span>当前使用：<strong data-active-hidden-name>{{client-theme-default-name}}</strong></span>
+              <button type="button" class="client-appearance-text-btn" data-client-theme-reveal>定位到当前主题</button>
+            </div>
+            <span id="clientThemeFilterStatus" class="sr-only" role="status" aria-live="polite"></span>
+          </div>
+
+          <div id="clientThemeScroll" class="client-appearance-scroll" data-scroll-top="false" data-scroll-bottom="false">
+            <template data-client-theme-option-template>
+              <label
+                class="client-appearance-choice"
+                data-client-theme-card="{{client-theme-id}}"
+                data-client-theme-mode="{{client-theme-mode}}"
+                data-client-theme-category="{{client-theme-category}}"
+                data-client-theme-surface="{{client-theme-surface}}"
+                data-client-theme-family="{{client-theme-family}}"
+                data-client-theme-temperature="{{client-theme-temperature}}"
+              >
+                <input
+                  type="radio"
+                  name="clientTheme"
+                  value="{{client-theme-id}}"
+                  data-client-theme-name="{{client-theme-name}}"
+                  data-client-theme-mode="{{client-theme-mode}}"
+                  data-client-theme-category="{{client-theme-category}}"
+                  data-client-theme-category-label="{{client-theme-category-label}}"
+                  data-client-theme-surface="{{client-theme-surface}}"
+                  {{client-theme-checked}}
+                />
+                <span class="client-appearance-preview" data-client-theme-preview="{{client-theme-id}}" data-client-theme-mode="{{client-theme-mode}}" aria-hidden="true">
+                  <span class="client-appearance-preview-toolbar"><i></i><i></i><i></i></span>
+                  <span class="client-appearance-preview-layout">
+                    <span class="client-appearance-preview-sidebar"><i></i><i></i><i></i></span>
+                    <span class="client-appearance-preview-content">
+                      <i></i>
+                      <span class="client-appearance-preview-card">
+                        <span class="client-appearance-preview-lines"><i></i><i></i></span>
+                        <b></b>
                       </span>
-                      <span class="client-appearance-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
                     </span>
-                    <span class="client-appearance-choice-heading">
-                      <span class="client-appearance-choice-name">{{client-theme-name}}</span>
-                      <span class="client-appearance-choice-dots" data-client-theme-preview="{{client-theme-id}}" aria-hidden="true"><i></i><i></i></span>
-                    </span>
-                  </label>
-                </template>
-              </fieldset>
+                  </span>
+                  <span class="client-appearance-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                </span>
+                <span class="client-appearance-choice-heading">
+                  <span class="client-appearance-choice-name">{{client-theme-name}}</span>
+                  <span class="client-appearance-choice-dots" data-client-theme-preview="{{client-theme-id}}" data-client-theme-mode="{{client-theme-mode}}" aria-hidden="true"><i></i><i></i></span>
+                </span>
+              </label>
+            </template>
+
+            <div id="clientThemeGroups" class="client-appearance-groups">
+              <div class="client-appearance-group" data-client-theme-group="light">
+                <span class="client-appearance-group-label">日间浅色</span>
+                <fieldset class="client-appearance-choices" aria-label="日间浅色">
+                  <template data-client-theme-option="light"></template>
+                </fieldset>
+              </div>
+
+              <div class="client-appearance-group" data-client-theme-group="dark">
+                <span class="client-appearance-group-label">夜间深色</span>
+                <fieldset class="client-appearance-choices" aria-label="夜间深色">
+                  <template data-client-theme-option="dark"></template>
+                </fieldset>
+              </div>
+            </div>
+
+            <div id="clientThemeEmptyState" class="client-appearance-empty" hidden>
+              <p class="client-appearance-empty-title" data-empty-message>当前筛选条件下暂无匹配的主题</p>
+              <div class="client-appearance-empty-actions">
+                <button type="button" class="secondary client-appearance-empty-btn" data-client-theme-empty-switch-mode>查看全部明暗</button>
+                <button type="button" class="secondary client-appearance-empty-btn" data-client-theme-empty-reset>重置筛选</button>
+              </div>
             </div>
           </div>
         </section>

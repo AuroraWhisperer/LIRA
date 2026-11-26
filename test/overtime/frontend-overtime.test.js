@@ -6,11 +6,11 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createFixture, deferred, flush } = require('../helpers/overtime-gift-picker-fixture');
-const { createFixture: createServiceFixture } = require('../helpers/overtime-service-fixture');
+const { createFixture: createServiceFixture, fixedRule } = require('../helpers/overtime-service-fixture');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('a later overview supersedes an earlier settlement list only when it succeeds', async () => {
+test('a failed overview leaves the last successfully read settlement list visible', async () => {
   const reads = [];
   const { namespace: { eventBus, Events }, state } = await createFixture({
     readOverview() {
@@ -22,17 +22,15 @@ test('a later overview supersedes an earlier settlement list only when it succee
   const update = revision => eventBus.emit(Events.OVERTIME_UPDATED, { state: { revision }, adjustment: {} });
   const success = (...settlements) => ({ payload: { ok: true, data: { settlements } } });
   update(1);
-  reads[1].resolve({ payload: { ok: false, error: 'offline' } });
-  await flush();
   reads[0].resolve(success('甲'));
+  await flush();
+  assert.equal(reads.length, 2);
+  reads[1].resolve({ payload: { ok: false, error: 'offline' } });
   await flush();
   assert.deepEqual(state.settlements, ['甲']);
 
   update(2);
-  update(3);
-  reads[3].resolve(success('丙', '乙', '甲'));
-  await flush();
-  reads[2].resolve(success('乙', '甲'));
+  reads[2].resolve(success('丙', '乙', '甲'));
   await flush();
   assert.deepEqual(state.settlements, ['丙', '乙', '甲']);
 });
@@ -112,11 +110,10 @@ test('one start saves the duration and rules once, then pause and resume preserv
     initialState: { overtime: service.getSnapshot() },
     parsedDuration: 7200,
     async apiImpl(url, body) {
-      if (url.endsWith('/rules')) {
+      if (body.action === 'start') {
         await saving.promise;
-        return { data: service.replaceRules(body.rules) };
       }
-      return { data: url.endsWith('/time') ? service.setTime(body) : service.act(body.action) };
+      return { data: url.endsWith('/time') ? service.setTime(body) : service.act(body.action, body) };
     },
   });
   await fixture.document.getElementById('overtimeRules').dispatchEvent('input');
@@ -128,7 +125,7 @@ test('one start saves the duration and rules once, then pause and resume preserv
   await starting;
   assert.equal(service.getSnapshot().status, 'running');
   assert.equal(service.getSnapshot().effectiveRemainingMs, 7200000);
-  assert.equal(fixture.state.apiCalls.filter(({ url }) => url.endsWith('/rules')).length, 1);
+  assert.equal(fixture.state.apiCalls.filter(({ body }) => Array.isArray(body.rules)).length, 1);
   assert.equal(fixture.state.apiCalls.filter(({ body }) => body.action === 'start').length, 1);
   backend.clock.advance(25000);
   await primary.dispatchEvent('click');
@@ -137,7 +134,7 @@ test('one start saves the duration and rules once, then pause and resume preserv
   await primary.dispatchEvent('click');
   assert.equal(service.getSnapshot().status, 'running');
   assert.equal(service.getSnapshot().effectiveRemainingMs, remaining);
-  assert.equal(fixture.state.apiCalls.filter(({ url }) => url.endsWith('/time')).length, 1);
+  assert.equal(fixture.state.apiCalls.filter(({ url }) => url.endsWith('/time')).length, 0);
   assert.equal(fixture.state.confirmationCalls.length, 0);
 });
 
@@ -153,13 +150,239 @@ test('a failed rule save prevents start and a cancelled replacement preserves th
   await primary.dispatchEvent('click');
   assert.equal(fixture.state.lastError, failure);
   assert.equal(fixture.state.apiCalls.length, 1);
-  assert.equal(fixture.state.apiCalls[0].url, '/api/overtime/rules');
+  assert.equal(fixture.state.apiCalls[0].url, '/api/overtime/action');
   fixture.state.parsedDuration = 7200;
   fixture.state.confirmImpl = async () => false;
   await primary.dispatchEvent('click');
   assert.equal(fixture.state.confirmationCalls.length, 1);
   assert.equal(fixture.state.apiCalls.length, 1, 'cancelling cannot change time or start');
 });
+
+test('a gift settling while start is in flight is preserved and retry resumes the accumulated time', async (t) => {
+  const backend = createServiceFixture();
+  let frontend;
+  const service = backend.createService({ onUpdate: (update) => frontend?.namespace.eventBus.emit(frontend.namespace.Events.OVERTIME_UPDATED, update) });
+  t.after(() => { service.dispose(); backend.close(); });
+  service.setTime({ initialSeconds: 60, remainingSeconds: 0 });
+  service.act('enable');
+  service.replaceRules([fixedRule('gift-a', 300)]);
+  const gate = deferred();
+  frontend = await createFixture({
+    initialState: { overtime: service.getSnapshot() }, parsedDuration: 60,
+    readOverview: async () => ({ payload: { ok: true, data: service.getOverview() } }),
+    async apiImpl(url, body) {
+      await gate.promise;
+      return { data: url.endsWith('/time') ? service.setTime(body) : url.endsWith('/rules') ? service.replaceRules(body.rules) : service.act(body.action, body) };
+    },
+  });
+  const start = frontend.document.getElementById('overtimeStartBtn');
+  const pending = start.dispatchEvent('click');
+  service.finalizeGift(backend.insertFinalGift({ overtimeEpoch: 1 }));
+  gate.resolve();
+  await pending;
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 300_000);
+  assert.equal(frontend.state.lastError?.statusCode, 409);
+  await start.dispatchEvent('click');
+  assert.equal(service.getSnapshot().status, 'running');
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 300_000);
+  service.finalizeGift(backend.insertFinalGift({ overtimeEpoch: 1 }));
+  assert.equal(service.getSnapshot().effectiveRemainingMs, 600_000, 'a gift after start settles normally');
+});
+
+test('disabling and reconnecting reconcile pending counts and terminal settlements', async (t) => {
+  const backend = createServiceFixture();
+  let frontend;
+  let connected = true;
+  const service = backend.createService({ onUpdate: update => {
+    if (connected) frontend?.namespace.eventBus.emit(frontend.namespace.Events.OVERTIME_UPDATED, update);
+  } });
+  t.after(() => { service.dispose(); backend.close(); });
+  service.act('enable');
+  const pending = backend.insertProgressGift({ overtimeEpoch: 1 });
+  service.observeGift(pending);
+  frontend = await createFixture({ initialState: { overtime: service.getOverview() },
+    readOverview: async () => ({ payload: { ok: true, data: service.getOverview() } }),
+  });
+  const count = () => Number(frontend.document.getElementById('overtimePendingCount').textContent.match(/\d+/)[0]);
+  assert.equal(count(), 1);
+  service.act('disable');
+  await flush();
+  assert.equal(count(), 0);
+  assert.equal(frontend.state.settlements[0].status, 'ignored');
+  connected = false;
+  service.act('enable');
+  const another = backend.insertProgressGift({ overtimeEpoch: 2 });
+  service.observeGift(another);
+  frontend.namespace.eventBus.emit(frontend.namespace.Events.STATE_LOADED, {
+    state: { overtime: service.getSnapshot() }, isConnectionSnapshot: true,
+  });
+  await flush();
+  assert.equal(count(), 1);
+  service.act('disable');
+  frontend.namespace.eventBus.emit(frontend.namespace.Events.STATE_LOADED, {
+    state: { overtime: service.getSnapshot() }, isConnectionSnapshot: true,
+  });
+  await flush();
+  assert.equal(count(), 0);
+  assert.equal(frontend.state.settlements[0].giftEventId, another.giftEventId);
+});
+
+async function createOverviewReplay(t) {
+  const backend = createServiceFixture();
+  let send;
+  const service = backend.createService({ onUpdate: update => send?.({ type: 'overtime:update', ...update }) });
+  t.after(() => { service.dispose(); backend.close(); });
+  service.act('enable');
+  const gift = backend.insertProgressGift({ overtimeEpoch: service.getCurrentEpoch() });
+  service.observeGift(gift);
+  const reads = [];
+  const frontend = await createFixture({
+    initialState: { overtime: service.getOverview() },
+    readOverview(options) {
+      const read = { ...deferred(), data: service.getOverview(), signal: options?.signal };
+      reads.push(read);
+      return read.promise;
+    },
+    apiImpl: async (url, body) => ({ data: service.act(body.action, body) }),
+  });
+  const deliver = async (index, data = reads[index].data) => {
+    reads[index].resolve({ payload: { ok: true, data } });
+    await flush();
+  };
+  const count = () => Number(frontend.document.getElementById('overtimePendingCount').textContent.match(/\d+/)[0]);
+  await deliver(0);
+  assert.equal(count(), 1);
+  service.act('disable');
+  assert.equal(backend.getSettlement(gift.giftEventId).status, 'ignored');
+  const { eventBus, Events } = frontend.namespace;
+  const { StateService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/state.js'), {
+    WebSocket: EventTarget, window: frontend.window, location: { protocol: 'http:', host: 'fixture.test' },
+  }, { moduleFixtures: new Map([[path.join(ROOT_DIR, 'public/js/shared/event-bus.js'), { eventBus, Events }]]) });
+  const admin = new StateService();
+  admin.connectSocket();
+  send = payload => admin.ws.dispatchEvent(new MessageEvent('message', { data: JSON.stringify(payload) }));
+  const reconnect = (overtime = service.getSnapshot()) => send({ type: 'snapshot', reason: 'connect', state: { overtime } });
+  reconnect();
+  return { backend, service, frontend, gift, reads, deliver, count, reconnect };
+}
+
+test('enable and then reset each overtake an overview and the host recovers the ignored gift', async t => {
+  const { frontend, service, gift, reads, deliver, count } = await createOverviewReplay(t);
+  await frontend.document.getElementById('overtimeEnableBtn').dispatchEvent('click');
+  await deliver(1);
+  await frontend.document.getElementById('overtimeResetBtn').dispatchEvent('click');
+  await deliver(2);
+  assert.deepEqual(reads.map(r => r.data.revision), [1, 2, 3, 4]);
+  await deliver(3);
+  assert.deepEqual(frontend.state.apiCalls.map(call => call.body.action), ['enable', 'reset']);
+  assert.equal(count(), service.getOverview().pendingCount);
+  assert.equal(count(), 0);
+  assert.equal(frontend.state.settlements[0].giftEventId, gift.giftEventId);
+  assert.equal(frontend.state.settlements[0].status, 'ignored');
+  assert.equal(reads.length, 4);
+});
+
+test('a burst of settled gifts shares one outstanding read and a full disable broadcast satisfies it', async t => {
+  const { backend, service, frontend, gift, reads, deliver, count, reconnect } = await createOverviewReplay(t);
+  service.act('enable');
+  service.replaceRules([fixedRule('gift-a', 5)]);
+  const applied = [];
+  for (let i = 0; i < 8; i++) {
+    const final = backend.insertFinalGift({ overtimeEpoch: service.getCurrentEpoch() });
+    service.finalizeGift(final);
+    applied.unshift(final.giftEventId);
+  }
+  assert.equal(reads.length, 2, 'all eight adjustment broadcasts join the reconnect request');
+  await deliver(1);
+  await deliver(2);
+  assert.equal(reads.length, 3);
+  assert.equal(count(), 0);
+  assert.deepEqual(frontend.state.settlements.map(row => row.giftEventId), [...applied, gift.giftEventId]);
+  assert.equal(frontend.state.settlements[0].status, 'applied');
+
+  const pending = backend.insertProgressGift({ overtimeEpoch: service.getCurrentEpoch() });
+  service.observeGift(pending);
+  reconnect();
+  service.act('disable');
+  await deliver(3);
+  assert.equal(frontend.state.settlements[0].giftEventId, pending.giftEventId);
+  assert.equal(frontend.state.settlements[0].status, 'ignored');
+  assert.equal(count(), 0);
+  assert.equal(reads.length, 4, 'the full broadcast covers this request');
+});
+
+test('a same-revision overview fills in the ignored row while preserving newer quantity-limit counts', async t => {
+  const { backend, service, frontend, gift, reads, deliver, count } = await createOverviewReplay(t);
+  service.act('enable');
+  service.replaceRules([{ giftId: 'gift-a', giftName: 'A', mode: 'random', quantityMode: 'item', enabled: true,
+    outcomes: [{ operation: 'add', value: 1, weight: 1 }, { operation: 'subtract', value: 1, weight: 1 }] }]);
+  await deliver(1);
+  const limited = backend.insertFinalGift({ overtimeEpoch: service.getCurrentEpoch(), num: 100001 });
+  assert.throws(() => service.finalizeGift(limited), { code: 'OVERTIME_QUANTITY_LIMIT' });
+  assert.equal(service.getSnapshot().revision, reads[2].data.revision);
+  assert.equal(reads[2].data.pendingCount, 0);
+  await deliver(2);
+  assert.equal(reads.length, 3);
+  assert.equal(count(), service.getOverview().pendingCount);
+  assert.match(frontend.document.getElementById('overtimePendingCount').textContent, /1 笔数量超限/);
+  assert.equal(frontend.state.settlements[0].giftEventId, gift.giftEventId);
+  assert.equal(frontend.state.settlements[0].status, 'ignored');
+});
+
+test('reconnect discards the prior connection’s pending overview even when its revision is higher', async t => {
+  const { service, frontend, reads, deliver, count, reconnect } = await createOverviewReplay(t);
+  service.act('enable');
+  await deliver(1);
+  reconnect({ revision: 0, pendingCount: 0, settlements: [] });
+  assert.equal(reads[2].signal.aborted, true);
+  await deliver(2);
+  assert.deepEqual(frontend.state.settlements, []);
+  await deliver(3, { revision: 0, pendingCount: 2, settlements: [] });
+  assert.equal(count(), 2);
+  assert.equal(reads.length, 4);
+});
+
+test('failed and persistently historical overviews stop until the next reconciliation trigger', async t => {
+  const { service, frontend, gift, reads, deliver, count, reconnect } = await createOverviewReplay(t);
+  service.act('enable');
+  await deliver(1);
+  service.act('reset');
+  reads[2].reject(new Error('offline'));
+  await flush();
+  frontend.clock.tick(60000);
+  await flush();
+  assert.equal(reads.length, 3);
+  assert.equal(frontend.state.lastError.message, 'offline');
+  assert.equal(count(), 1);
+  assert.deepEqual(frontend.state.settlements, []);
+  reconnect();
+  await deliver(3, reads[1].data);
+  assert.equal(reads.length, 4, 'a historical response alone cannot start another GET');
+  reconnect();
+  await deliver(4);
+  assert.equal(count(), 0);
+  assert.equal(frontend.state.settlements[0].giftEventId, gift.giftEventId);
+  assert.equal(reads.length, 5);
+});
+
+for (const exit of ['shutdown', 'pagehide']) {
+  test(`overtime ${exit} cancels the superseded read and ignores late settlement work`, async t => {
+    const { service, frontend, reads, deliver, count, reconnect } = await createOverviewReplay(t);
+    service.act('enable');
+    await deliver(1);
+    service.act('reset');
+    if (exit === 'shutdown') frontend.namespace.eventBus.emit('app:shutdown');
+    else frontend.window.dispatchEvent(new Event('pagehide'));
+    assert.equal(reads[2].signal?.aborted, true);
+    await deliver(2);
+    reconnect();
+    service.act('disable');
+    assert.equal(reads.length, 3);
+    assert.equal(count(), 1);
+    assert.deepEqual(frontend.state.settlements, []);
+    assert.equal(frontend.state.lastError, undefined);
+  });
+}
 
 function readOvertimeAdminSource() {
   return fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js'), 'utf8');

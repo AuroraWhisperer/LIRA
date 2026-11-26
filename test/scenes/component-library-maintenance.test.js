@@ -64,6 +64,8 @@ test('cleanup rechecks references and authorization and never trusts stale inven
   const f = fixture(t); const pack = await f.install();
   f.store.removePack(pack.id);
   assert.ok(f.maintenance.inventory().reclaimableBytes > 0);
+  f.references.push({ nodes: [{ type: 'text', text: `/component-web/${pack.id}/example` }] });
+  assert.ok(f.maintenance.inventory().reclaimableBytes > 0);
   f.references.push({ resourceStyle: { id: pack.styles[0].id } });
   assert.throws(() => f.maintenance.cleanup([pack.id], () => {}), { statusCode: 409 });
   f.references.length = 0;
@@ -164,4 +166,46 @@ test('all account drafts and publications are decoded for retention; active prev
   previews.open({ component: 'canvas', state: { draft: { document: scene.document }, saved: { document: scene.document },
     generation: 2, loaded: true, presets: [{ id: randomUUID(), title: '后台未保存预设', dirty: true }] } });
   assert.throws(() => draftMaintenance.cleanup([pack.id], () => {}), { statusCode: 503 });
+});
+
+test('cleanup holds old and staged packages across preparation until readers stop renewing the old receipt', async t => {
+  const f = fixture(t);
+  const first = await f.install(); const second = await f.install('2.0.0');
+  f.store.removePack(second.id);
+  const canvas = await startCanvasOutputFixture({ dataDir: f.dataDir, notifications: true }); t.after(() => canvas.close());
+  const service = canvas.service;
+  const scene = service.create({ title: '切换', canvas: { width: 800, height: 600 } });
+  const document = { ...scene.document, items: [{ id: randomUUID(), type: 'browser', name: '网页', x: 0, y: 0,
+    width: 800, height: 600, visible: true, locked: false, appearance: { mode: 'independent', config: {
+      url: `/component-web/${first.id}/scene.html`, viewportWidth: 800, viewportHeight: 600 } } }] };
+  let time = Date.now(); t.mock.method(Date, 'now', () => time);
+  function publish(doc) {
+    const saved = service.save({ id: document.id, expectedRevision: service.get(document.id).revision, document: doc });
+    service.publish({ id: document.id, expectedRevision: saved.revision });
+  }
+  publish(document);
+  const source = service.getSource(document.id);
+  const active = await service.getOutput(source);
+  document.items[0].appearance.config.url = `/component-web/${second.id}/scene.html`;
+  publish(document);
+  const maintenance = createComponentLibraryMaintenance({ dataDir: f.dataDir, visitReferences: v => service.visitAssetReferences(v) });
+  const receipt = new URLSearchParams({ id: source.id, version: active.version, projection: active.projection });
+  const signal = AbortSignal.timeout(12000);
+  const response = await fetch(`${canvas.origin}/api/scene/events?${receipt}`, {
+    headers: { Authorization: `Bearer ${source.token}` }, signal });
+  assert.equal(response.status, 200);
+  const reader = response.body.getReader();
+  try {
+    await reader.read(); // ready
+    // No further output polls: only server-side SSE heartbeats renew the old projection.
+    for (let i = 0; i < 3; i++) {
+      time += 30000;
+      const { value } = await reader.read();
+      assert.match(new TextDecoder().decode(value), /: heartbeat/);
+      for (const pack of [first, second]) assert.throws(() => maintenance.cleanup([pack.id], () => {}), { statusCode: 409 });
+    }
+  } finally { await reader.cancel(); }
+  time += 61000;
+  assert.ok(maintenance.cleanup([first.id], () => {}).freedBytes > 0);
+  assert.throws(() => maintenance.cleanup([second.id], () => {}), { statusCode: 409 });
 });

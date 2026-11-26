@@ -57,9 +57,9 @@ Windows 兼容旧版本的进程归属校验由 [local-process-owner.js](../../.
 
 ### 客户端外观 HTML 快照
 
-`createServerRuntime({ getClientTheme, getClientFont })` 将主进程提供的只读外观回调传入 [runtime-transport.js](../../../src/server/runtime-transport.js) 与 [page-assets.js](../../../src/server/page-assets.js)。每次生成管理页（`/`、`/admin`、`/settings`、`/songs`）、组件预览（含静态 HTML 别名）或已授权 `/pages/gift-audit.html` 响应时，在 `<html>` 写入经过白名单校验的 `data-client-theme` 和 `data-client-font`。配色随首帧生效，客户端字体在所选字族的本机资源就绪后应用。缺少回调或值非法时，配色使用 `terracotta`（暖陶），字体使用 `system`。模板与管理页片段缓存保持无请求状态，响应维持 `Cache-Control: no-store`。
+`createServerRuntime({ getClientTheme, getClientFont })` 将主进程提供的只读外观回调传入 [runtime-transport.js](../../../src/server/runtime-transport.js) 与 [page-assets.js](../../../src/server/page-assets.js)。每次生成管理页（`/`、`/admin`、`/settings`、`/songs`）、组件预览（含静态 HTML 别名）或已授权 `/pages/gift-audit.html` 响应时，在 `<html>` 写入经过白名单校验的 `data-client-theme`、`data-client-theme-mode`、`data-client-theme-surface` 和 `data-client-font`，并在 `<head>` 注入 `/js/shared/client-theme-runtime.js` 与 `/js/shared/client-font-runtime.js`。配色随首帧生效，客户端字体在所选字族的本机资源就绪后应用。缺少回调或值非法时，配色使用 `terracotta`（暖陶，浅色实底），字体使用 `system`。模板与管理页片段缓存保持无请求状态，响应维持 `Cache-Control: no-store`。
 
-该属性仅用于外观呈现，不授予权限；原有 `gift-audit` 授权检查保持不变，不注入管理员令牌。不向 `license`、`scene` 或任何叠加层注入主题，也不新增写 API、服务端通知或轮询。同一浏览器会话内已打开的工具通过 `BroadcastChannel` 接收新的字体选择，其他会话在下次请求页面时读取已保存的外观。主进程存储与生命周期见 [desktop/main.md](../desktop/main.md)。
+该属性仅用于外观呈现，不授予权限；原有 `gift-audit` 授权检查保持不变，不注入管理员令牌。不向 `license`、`scene` 或任何叠加层注入主题，也不新增写 API、服务端通知或轮询。同一浏览器会话内已打开的工具分别通过 `BroadcastChannel` 实时接收新的配色与字体选择，其他会话在下次请求页面时读取已保存的外观。主进程存储与生命周期见 [desktop/main.md](../desktop/main.md)。
 
 ## 3. 环境变量
 

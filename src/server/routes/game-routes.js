@@ -7,6 +7,7 @@ const prefixes = ['/api/games', '/api/wheel'];
 
 const routes = {
   async 'GET /api/games/viewers'(context, request, res) {
+    const roomId = viewerRoomId(context);
     try {
       await context.games.refreshViewers();
     } catch (error) {
@@ -15,7 +16,8 @@ const routes = {
       }
       console.warn('[Games] Online rank refresh failed; using known viewer candidates.');
     }
-    sendJson(res, 200, { ok: true, data: context.games.listViewers() });
+    if (roomId !== viewerRoomId(context)) throw createPublicError('直播间已变更，请重新刷新观众。', 409);
+    sendJson(res, 200, { ok: true, roomId, data: context.games.listViewers() });
   },
   'GET /api/games/draw-guess/categories'(context, request, res) {
     sendJson(res, 200, {
@@ -39,13 +41,16 @@ const routes = {
     try {
       const body = await request.body();
       if (body.action === 'stop') {
-        context.games.stop();
+        context.games.stop(body.sessionId ?? null);
         sendJson(res, 200, { ok: true, data: null });
         return;
       }
       if (body.action === 'restart') {
-        sendJson(res, 200, { ok: true, data: context.games.restart() });
+        sendJson(res, 200, { ok: true, data: context.games.restart(body.sessionId ?? null) });
         return;
+      }
+      if (Object.hasOwn(body, 'viewerRoomId') && body.viewerRoomId !== viewerRoomId(context)) {
+        throw createPublicError('直播间已变更，请重新选择观众。', 409);
       }
       sendJson(res, 200, {
         ok: true,
@@ -58,14 +63,16 @@ const routes = {
   },
   async 'POST /api/games/session/move'(context, request, res) {
     const body = await request.body();
-    const result = context.games.move({ value: body.value }, 'host');
+    const value = body.value?.action ? { ...body.value, sessionId: body.value.sessionId ?? null } : body.value;
+    const result = context.games.move({ value }, 'host');
     sendJson(res, result.accepted ? 200 : 400, {
       ok: result.accepted,
       ...(result.accepted ? { data: result.session } : { error: result.reason || '落子无效。' }),
     });
   },
   async 'POST /api/games/session/draw'(context, request, res) {
-    const result = context.games.draw(await request.body());
+    const body = await request.body();
+    const result = context.games.draw({ ...body, sessionId: body.sessionId ?? null });
     sendJson(res, result.accepted ? 200 : 400, {
       ok: result.accepted,
       ...(result.accepted ? { data: { revision: result.revision } } : { error: result.reason || '绘画操作无效。' }),
@@ -95,6 +102,11 @@ const routes = {
     }
   },
 };
+
+function viewerRoomId(context) {
+  const status = context.bilibili?.liveStatus;
+  return status?.connected && status.roomId ? String(status.roomId) : '';
+}
 
 function normalizeSessionInput(input = {}) {
   const game = String(input.game || '');

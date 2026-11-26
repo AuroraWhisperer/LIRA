@@ -104,7 +104,12 @@ function createGameSessionService(options = {}) {
     return publicSessionRaw();
   }
 
-  function stop() {
+  function assertCurrentSession(sessionId) {
+    if (!session || sessionId !== session.sessionId) throw createPublicError('游戏场次已变更，请刷新后重试。', 409);
+  }
+
+  function stop(sessionId = session?.sessionId) {
+    assertCurrentSession(sessionId);
     cancelDrawGuessTimer();
     cancelScoreUpdate();
     session = null;
@@ -114,7 +119,8 @@ function createGameSessionService(options = {}) {
     return null;
   }
 
-  function restart() {
+  function restart(sessionId = session?.sessionId) {
+    assertCurrentSession(sessionId);
     assertCanCollect();
     if (!session || session.game === 'draw-guess' || !session.state.winner) {
       throw createPublicError('当前游戏尚未结算。', 409);
@@ -156,6 +162,9 @@ function createGameSessionService(options = {}) {
     const isStreamer = danmaku.isStreamer === true;
     if (!isStreamer) touchViewer(danmaku);
     if (!session) return { accepted: false };
+    if (danmaku.source === 'history' && !(danmaku.messageTimestamp >= Date.parse(session.startedAt))) {
+      return { accepted: false };
+    }
     if (session.game === 'draw-guess') {
       materializeDrawGuessDeadline();
       const item = normalizeGameDanmaku(danmaku);
@@ -180,8 +189,7 @@ function createGameSessionService(options = {}) {
     materializeDrawGuessDeadline();
     if (!session || session.game !== 'draw-guess') return { accepted: false, reason: '你画我猜尚未开始。' };
     if (
-      (input.sessionId && input.sessionId !== session.sessionId) ||
-      (input.round !== undefined && input.round !== session.state.round)
+      (Object.hasOwn(input, 'sessionId') || Object.hasOwn(input, 'round')) && !matchesDrawRound(input)
     ) {
       return { accepted: false, reason: '画笔所属回合已经结束。' };
     }
@@ -321,15 +329,18 @@ function createGameSessionService(options = {}) {
     scoreTimer = null;
   }
 
+  function matchesDrawRound(target) {
+    return target.sessionId === session.sessionId && target.round === session.state.round;
+  }
+
   function controlDrawGuess(input, player) {
     if (player !== 'host') return { accepted: false, reason: '只有主播可以控制回合。' };
     const action = String(input.value?.action || input.action || '').trim();
+    const command = input.value || input;
+    if ((action === 'choose-word' || Object.hasOwn(command, 'sessionId') || Object.hasOwn(command, 'round')) &&
+        !matchesDrawRound(command)) return { accepted: false, reason: '操作所属回合已经结束。' };
     if (action === 'choose-word') {
-      const choice = input.value || input;
-      if (choice.sessionId !== session.sessionId || choice.round !== session.state.round) {
-        return { accepted: false, reason: '选词所属回合已经结束，请重新选择。' };
-      }
-      const result = drawGuess.chooseDrawGuessWord(session.state, choice.word, monotonicNow());
+      const result = drawGuess.chooseDrawGuessWord(session.state, command.word, monotonicNow());
       if (!result.accepted) return result;
       session.state = result.state;
       scheduleDrawGuessTimer();

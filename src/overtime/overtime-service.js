@@ -110,11 +110,11 @@ function createOvertimeService(options = {}) {
     return getSnapshot();
   }
 
-  function act(input) {
+  function act(input, options = {}) {
     const action = validateAction(input);
     if (action === 'enable') return enable();
     if (action === 'disable') return disable();
-    if (action === 'start') return start();
+    if (action === 'start') return start(options);
     if (action === 'pause') return pause();
     return reset();
   }
@@ -130,20 +130,42 @@ function createOvertimeService(options = {}) {
   }
 
   function disable() {
-    if (!state.enabled) return getSnapshot();
+    if (!state.enabled) return getOverview();
     const nextState = materialize();
     nextState.enabled = false;
     nextState.status = 'paused';
     commit('manual', nextState, { ignorePending: true });
-    return getSnapshot();
+    return getOverview();
   }
 
-  function start() {
-    if (!state.enabled) throw createPublicError('overtime must be enabled before start.');
+  function start(input = {}) {
+    const replacing = Object.hasOwn(input, 'initialSeconds');
+    const time = replacing ? validateTimeInput({ initialSeconds: input.initialSeconds }) : {};
+    if (replacing && (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0)) {
+      throw createPublicError('expectedRevision is required when replacing start time.');
+    }
+    if (replacing && input.expectedRevision !== state.revision) {
+      throw createPublicError('加班状态已变化，请确认当前剩余时间后重试。', 409);
+    }
+    if (input.enable !== undefined && typeof input.enable !== 'boolean') {
+      throw createPublicError('enable must be a boolean.');
+    }
+    if (!state.enabled && !input.enable) throw createPublicError('overtime must be enabled before start.');
+    const rules = Object.hasOwn(input, 'rules') ? validateRules(migrateRuleImages(input.rules), {
+      allowedRemoteImageOrigins: options.allowedRemoteImageOrigins,
+    }) : undefined;
     const nextState = materialize();
+    if (!nextState.enabled) {
+      nextState.enabled = true;
+      nextState.enableEpoch += 1;
+    }
+    if (replacing) {
+      nextState.initialSeconds = time.initialSeconds;
+      nextState.remainingMs = time.initialSeconds * 1000;
+    }
     if (nextState.remainingMs <= 0) nextState.status = 'finished';
     else nextState.status = 'running';
-    commit('manual', nextState);
+    commit('manual', nextState, { rules });
     return getSnapshot();
   }
 
@@ -340,7 +362,7 @@ function createOvertimeService(options = {}) {
       clearRetryTimer();
       recoveryAfterId = 0;
     }
-    onUpdate({ reason, state: getSnapshot() });
+    onUpdate({ reason, state: options.ignorePending ? getOverview() : getSnapshot() });
   }
 
   function recoverSettlements() {

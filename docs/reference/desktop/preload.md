@@ -178,7 +178,7 @@
 | `fan-profiles:invoke` | `fanProfiles.invoke({action,contextId?,payload?})` | `{ok:true,contextId,data,syncStatus,roomId,accountName}`；失败见 §5 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js) / [fans/index.js](../../../public/js/admin/fans/index.js)、[automatic-update.js](../../../public/js/admin/fans/automatic-update.js) |
 | `gift-export:settings` | `giftExport.settings(options?)` | `{ok:true,data:{mode,background,sortBy,rowGap,mergeAcrossDates,directory,custom}}` | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) / [export-preview.js](../../../public/js/admin/gifts/export-preview.js) |
 | `gift-export:prepare` | `giftExport.prepare(selection)` | `{ok:true,data:ExportTask}` | 同上 |
-| `gift-export:configure` | `giftExport.configure({id,mode,background,sortBy?,rowGap?,mergeAcrossDates?,directoryAction?,remember?})` | `{ok:true,data:ExportTask}` | 同上 |
+| `gift-export:configure` | `giftExport.configure({id,mode,background,sortBy?,rowGap?,mergeAcrossDates?,styleSource?,customStyle?,directoryAction?,remember?})` | `{ok:true,data:ExportTask}` | 同上 |
 | `gift-export:save` | `giftExport.save(id, roomGuard?)` → `{id,roomGuard?}` | **直接**返回 `{ok:true,saved,directory}` 或 `{ok:false,cancelled,saved,directory,error}`；启动前异常可仅 `{ok:false,error}` | 同上 |
 | `gift-export:cancel` | `giftExport.cancel(id?)`，原始 `id` | `{ok:true,data:undefined}`；不匹配的非空 `id` 不取消当前任务 | 同上 |
 | `gift-export:open-folder` | `giftExport.openFolder(id)` → `{id}` | `{ok:true,data:{ok:true}}`，要求该任务已保存 `≥ 1` 张 | 同上 |
@@ -193,7 +193,7 @@
   - `agenda` 上限为 50 × 1024² 个 UTF-16 码元，逐行解析，每行最多 4376 个码元，包含正文的最大 JSON 转义开销。投影比工作台已保存的 v3 JSON 更小。当前 [Electron 43.8.3 的 DOM 存储配额](https://github.com/electron/electron/blob/v43.8.3/patches/chromium/dom_storage_limits.patch) 为每个 origin 100 MiB，由键和值共享。
   - 主进程分别按采样时刻和接收时区统计仍需投递的未来提醒。任一集合超过 1000 条即返回 `PLANNER_REMINDERS_LIMIT`，保留上次有效排程。定时器与唤醒检查按当前时区的日历时间投递。应用启动跳过历史，管理页重载保留仍在日历上的待补送项。相同 ID 与本地分钟在本次运行内只投递一次，删除或改期在下次检查前生效。
   - 旧数组仍按接收时刻处理，最多 1000 项，每项仅含 `{id,title,detail,remindAt}`，沿用固定毫秒截止时间。旧数组过长、载荷非法或额外字段均返回 `PLANNER_REMINDERS_INVALID`。参数个数错误返回 `IPC_ARGUMENTS_INVALID`，控制器已停止返回 `PLANNER_REMINDERS_STOPPED`。
-- **系统通知设置（`desktopNotifications`）**：`DesktopNotificationSettings` 仅含 `plannerRemindersEnabled`（布尔，默认 `true`）、`largeGiftEnabled`（布尔，默认 `false`）、`largeGiftThresholdRmb`（数值，默认 `1000`，非负、最多两位小数且换算整数分为安全整数，采用严格大于比较）。`update` 接受至少一项的部分修改，拒绝额外字段、空对象及非法金额（`DESKTOP_NOTIFICATIONS_INVALID` / `DESKTOP_NOTIFICATIONS_SAVE_FAILED` / `DESKTOP_NOTIFICATIONS_STOPPED` / `IPC_ARGUMENTS_INVALID`）。执行与关停行为见 [本机系统通知](main.md#本机系统通知)。
+- **系统通知设置（`desktopNotifications`）**：`DesktopNotificationSettings` 仅含 `plannerRemindersEnabled`（布尔，默认 `true`）、`largeGiftEnabled`（布尔，默认 `false`）、`largeGiftThresholdRmb`（数值，默认 `1000`，非负、最多两位小数且换算整数分为安全整数，采用严格大于比较）。`update` 接受至少一项的部分修改，拒绝额外字段、空对象及非法金额（`DESKTOP_NOTIFICATIONS_INVALID` / `DESKTOP_NOTIFICATIONS_SAVE_FAILED` / `DESKTOP_NOTIFICATIONS_STOPPED` / `IPC_ARGUMENTS_INVALID`）。`ok:true` 表示设置已保存；礼物来源不可用或启用边界尚未确认时，保留启用设置并等待可信来源恢复，该阶段不补发通知。执行与关停行为见 [本机系统通知](main.md#本机系统通知)。
 
 ### 内置播放输出
 
@@ -252,6 +252,7 @@
 | `desktop:show-update-page` | `songAssistantDesktop.onShowUpdatePage(callback)` | 无 | 预留监听，当前主进程无发送方 / `desktop.js` |
 | `desktop:update-state` | `songAssistantDesktop.onUpdateState(callback)` | 更新状态（见 [update.md](update.md)） | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `sendUpdateState` / `desktop.js` |
 | `desktop:window-maximized` | `songAssistantDesktop.onWindowMaximized(callback)` | `boolean` | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) / 桌面窗口控件 |
+| `bilibili:identity-changed` | `bilibiliAuth.onIdentityChanged(callback)` | 无 | 云端同步改变本机 B 站身份后，设置页重新读取本机登录态及资料 |
 | `app:prepare-shutdown` | `musicAPI.onPrepareShutdown(callback)` | 无 | [playback-flush.js](../../../src/electron/playback-flush.js) / 播放器初始化模块 |
 | `license:gift-interaction-state-changed` | `liraLicense.onGiftInteractionStateChanged(callback)` | `GiftInteractionSnapshot` | `gift-interaction-ipc` / `interaction-controls` |
 | `license:state-changed` | `liraLicense.onStateChanged(callback)` | `LicenseSnapshot` | `license-ipc` / `license.js`、Admin 账户与各云端面板 |
@@ -260,7 +261,7 @@
 
 授权与目录事件仅发送到当前存活主窗口，不广播给辅助窗口；礼物互动发送另校验精确本地源，资源检查发送另校验管理页路径。主进程的来源校验与远端代次检查，不能替代渲染进程自身的任务 ID 与草稿版本校验。
 
-- **播放保存与退出冲刷**：退出冲刷由 `createStatePersistence` 发起，桌面 IPC 依次经 `musicAPI.savePlaybackState`、`music-ipc` 与 `desktopRuntime.persistPlaybackSnapshot`，由 `playback-store` 写入 `play_queue_state`。退出时主进程下发 `app:prepare-shutdown`，渲染进程仅在保存成功或无待存内容时调用 `confirmShutdownFlush`；若 IPC 与 HTTP 两种保存方式均失败，则保留待存快照并记录告警。主进程等待确认或 2 秒超时后继续关闭（见 [关闭时序](main.md#7-关闭序列与播放状态冲刷)）。
+- **播放保存与退出冲刷**。播放器在读取队列快照前注册 `app:prepare-shutdown` 监听器，因此初始读取期间也能响应退出并保存周表。收到事件时，监听器并行发起播放状态保存和周表保存。播放快照由 `createStatePersistence` 经 `musicAPI.savePlaybackState`、`music-ipc` 与 `desktopRuntime.persistPlaybackSnapshot` 交给 `playback-store` 写入 `play_queue_state`。若 IPC 与 HTTP 保存均失败，则保留待存快照。周表编辑器等待本机 IndexedDB 事务提交。两项均成功或无待存内容时，该监听器调用一次 `musicAPI.confirmShutdownFlush()`。任一项失败时记录告警，主进程最多等待确认 2 秒后继续关闭。见[关闭时序](main.md#7-关闭序列与播放状态冲刷)。
 - **无 IPC 的主进程内部同步**：礼物日汇总、近期明细同步以及礼物 SSE / 增量拉取均仅在主进程内执行，不新增渲染进程 IPC，也不暴露 Device 令牌、UID 或服务端内部房间；前端统一通过本地 HTTP 与 WebSocket 快照/历史/`gift:frame` 读取投影结果（接口见 [API](../backend/api.md)）。
 
 ## 4. 每日机器人 action
@@ -291,7 +292,7 @@
 
 归属模块：[fan-profile-controller.js](../../../src/electron/fan-profile-controller.js)、[profile-service.js](../../../src/fans/profile-service.js)、[profile-transfer.js](../../../src/fans/profile-transfer.js)。作用域由已认证的 `[normalized server origin, streamerId]` 决定，`roomId` 仅为名单来源。`open` / `calendar` / `auto-update-status` 可不带 `contextId`，其余须匹配当前上下文；授权代次续期与失效边界见 [auth.md](auth.md) §15（名单操作额外核对 `roomId`）。`dispose` 清理定时器、请求与订阅，`whenIdle` 等待同步、名单与自动任务完成，先于数据库关闭。
 
-成功外层结构见 §2.5（`syncStatus` 为 `offline` / `pending` / `syncing` / `ready` / `unsupported`），下表仅列 `data`。失败返回 `{ok:false,error,existingId?}`（仅展示显式 `publicMessage` 业务提示，否则回退「档案操作失败，输入尚未保存，请重试。」；身份冲突可附 `existingId`，非法来源为 `IPC_SOURCE_INVALID`），该通道不采用统一枚举错误码。请求参数 `payload` 必须是普通对象（非数组），序列化为 UTF-8 JSON 后不超过 16 MiB；`preview-restore` / `restore` 额外允许 1 KiB 的摘要与冲突选项外层结构，备份本体仍不超过 16 MiB。完整备份最多 10000 份档案，导出前按两空格缩进 JSON 的实际 UTF-8 字节数预检容量与数量，超限直接报错且不生成下载文件。
+成功外层结构见 §2.5（`syncStatus` 为 `offline` / `pending` / `syncing` / `ready` / `unsupported`），下表仅列 `data`。失败返回 `{ok:false,error,existingId?}`（仅展示显式 `publicMessage` 业务提示，否则回退「档案操作失败，输入尚未保存，请重试。」；身份冲突可附 `existingId`，非法来源为 `IPC_SOURCE_INVALID`），该通道不采用统一枚举错误码。请求参数 `payload` 必须是普通对象（非数组），序列化为 UTF-8 JSON 后不超过 16 MiB；`preview-restore` / `restore` 额外允许 1 KiB 的摘要与冲突选项外层结构，备份本体仍不超过 16 MiB。手工完整备份文件最多 10000 份档案，导出前按两空格缩进 JSON 的实际 UTF-8 字节数预检容量与数量，超限直接报错且不生成下载文件。本机恢复点通过 `snapshotId` 在主进程读取，仍校验格式、归属、身份与记录，但不受上述文件数量或字节限制。
 
 | `action` | `payload` | `data` |
 | --- | --- | --- |
@@ -321,13 +322,13 @@
 | `reminder-state` | `{profileId,key,status:'handled'\|'ignored'\|'snoozed'}` | `true`（`snoozed` 延至次日） |
 | `delete` | `{id,confirm:true,suppress:boolean}` | `true` |
 | `delete-all` | `{confirm:true}` | `{deletedCount}` |
-| `backup` | `{}` | `BackupV1` |
-| `preview-restore` | `{backup}` | `{added,updated,conflicts:[{incomingId,existingId,name,revision}],scope,digest,currentDigest}` |
+| `backup` | `{}` | `BackupV2` |
+| `preview-restore` | `{backup}` | `{added,updated,conflicts:[{incomingId,existingId,name,revision}],suppressionConflicts:[{existingId,name}],scope,digest,currentDigest}` |
 | `restore` | `{backup,digest,currentDigest,conflicts:'keep'\|'replace'}` | `{snapshotId,added,updated}`（先建恢复点并保留当前游标） |
 | `snapshots` | `{}` | 本机恢复点列表 |
 | `preview-snapshot` | `{snapshotId}` | 同 `preview-restore` |
 | `restore-snapshot` | `{snapshotId,confirm:true,digest,currentDigest}` | `{snapshotId}`（先备份当前作用域再完整恢复，保留黑名单，`cursor=0`、`epoch=null`） |
-| `export-list` | `{fields?}`（`alias`/`platformName`/`uid`/`summary`/`birthday`/`mbti`/`notes`，缺省前三项） | CSV 字符串（含 BOM 与公式转义，排除归档与黑名单） |
+| `export-list` | `{fields?}`（`alias`/`platformName`/`uid`/`summary`/`birthday`/`mbti`/`notes`，缺省前三项） | CSV 字符串（含 BOM 与公式转义，排除归档与黑名单；生日为 `公历 MM-DD` / `农历 MM-DD` / `农历闰月 MM-DD`，未填则为空） |
 | `preview-legacy` | `{profileId,from,to}`（档案必须已绑定带类型的明确 UID） | `{count,unownedCount,from,to,digest,records}` |
 | `import-legacy` | 同上加 `{confirmOwnership:true,digest}` | `ProfileDetail`（按摘要认领，`sourceKey` 去重） |
 
@@ -337,7 +338,8 @@
 - **`ProfilePatch` 校验（[validation.js](../../../src/fans/validation.js)）**：按 `String.length`（UTF-16 码元）在 `trim` **前**校验：`alias ≤ 100`、`summary ≤ 300`、`notes ≤ 20000`、`nextTopic ≤ 2000`、`zodiac ≤ 30`、`mbtiNote ≤ 500`、`preferredFormerName ≤ 200`；`tags ≤ 30` 项（每项 `≤ 50`）；`formerNames` 每项 `≤ 200`；布尔标志严格为布尔；`MBTI` 为空或规范 16 型。`save` 切换 `archived` 时保留 `guardRoster` 与会员记录，`detail` / `list` 的 `currentGuardLevel` 不清空。
 - **曾用名与到期并发复用**：曾用名查询按上下文/授权代次/UID 合并在途请求（批量由前端逐人间隔 1 秒调用单人接口）；默认展示投影 `formerName` 优先人工 `preferredFormerName` 或最近可靠 `lastEntry.name`。到期标记由 `src/fans/guard-expiry.js` 独立投影，并发读取按上下文/房间合并（规则见 [粉丝档案规格](../../../specs/fan-profiles.md)）。
 - **身份、生日与记录**：`identity` 为 `null` 或 `{platform:'bilibili',type:'uid'|'open_id',value}`（`value ≤ 128`，UID 为 1–25 位非零开头数字，不将 `open_id` 转 UID）。`birthday` 含 `monthDay`、`calendar`（`solar`/`lunar`）、`year`（`null` 或 `1900` 至当年）、`leapMonth`、`leapDay`（`feb28`/`mar01`）、`thisYearDate`、`advance`。记录 `kind` 支持 `membership` / `song` / `preference` / `anniversary` / `note` / `topic` / `caution` / `followup`，修改校验修订号并保留 `original` 与修订历史（`membership` 支持 `interval` / `baseline` / `observation` / `first`，冲突观察进入待确认态；`note` 正文 `≤ 10000`，纪念日 `advanceDays ≤ 30`）。
-- **`ProfileDetail` 与 `BackupV1`**：`ProfileDetail` 含档案本体及 `formerNames`、`zodiacHint`、`records`、`songs`、`preferences`、`membership`、`guardRoster`、`guardAccompany`、`currentGuardLevel`、`musicSummary`、`musicStats`（近 30 天）、`reminders`（列表另附 `medalLevel`、`lastInteraction`、`nextReminder`）。`BackupV1` 为 `{format:'lira-fan-profiles',version:1,scope,exportedAt,profiles,settings,suppressions}`，仅恢复相同作用域，`profiles ≤ 10000`，档案 ID 与绑定身份不可重复，恢复前须核对 `digest` / `currentDigest`（实现见 [profile-transfer.js](../../../src/fans/profile-transfer.js)、[profile-merge.js](../../../src/fans/profile-merge.js)）。
+- **`ProfileDetail`**：含档案本体及 `formerNames`、`zodiacHint`、`records`、`songs`、`preferences`、`membership`、`guardRoster`、`guardAccompany`、`currentGuardLevel`、`musicSummary`、`musicStats`（近 30 天）、`reminders`（列表另附 `medalLevel`、`lastInteraction`、`nextReminder`）。
+- **`BackupV2` 与恢复预览**：`{format:'lira-fan-profiles',version:2,scope,exportedAt,profiles,settings,suppressions}`，导入兼容 v1；仅恢复相同作用域，档案 ID 与绑定身份不可重复。`digest` 校验备份内容；`currentDigest` 校验本机数据，仅排除设置中的 `cursor`、`epoch`、`synchronizedAt`、`coverageSince`、`syncStatus`。空事实同步不会使预览失效，档案、记录、提醒处理、屏蔽或用户设置变化仍须重新预览。`suppressionConflicts` 列出备份将新增屏蔽的现存档案，独立于资料冲突；文件恢复的 `keep` / `replace`、歌曲来源兼容及事务回滚见[存储参考](../backend/storage.md#粉丝档案songdb-v6-新增六表--v14-模板表)，行为依据见[粉丝档案规格](../../../specs/fan-profiles.md#持久化契约)。
 
 ## 6. 礼物导出任务与取消
 
@@ -347,9 +349,10 @@
 
 - `settings` 无参数时读取默认值。写入接受可选 `mode`（`combined`/`separate`）、`background`（`transparent`/`white`）、`sortBy`（`time`/`amount`）、`rowGap`（整数 `0–32`，单位为输出 PNG 像素）、布尔值 `mergeAcrossDates` 与 `directoryAction`（`choose`/`default`），拒绝未知字段与非法值。渲染进程不能传保存路径，目录由原生对话框或系统图片目录生成；取消选择不写入，导航/代次变化/销毁后忽略迟到结果。
 - `prepare` 的 `selection` 须携带当前 `viewRevision`，可传 `eventIds`（1–10000 个非空字符串，各 `≤ 64`）或历史筛选条件。导出按时间从新到旧取回所选记录，查回条数须与去重 ID 数一致且不能为空（上限 10000 条）。冻结当前来源、流水、展示设置、目录与卡片，后续默认设置只影响新任务。见[礼物 HTTP 契约](../backend/api.md)。
-- `ExportTask` 为 `{id,snapshot,root,directory,mode,background,sortBy,rowGap,mergeAcrossDates,files:[{start,count,fileName}],custom}`。`snapshot` 含 `viewRevision` / `asOf` / `items`、同步元数据、`selectedCount` / `cardsPartial` 与 `config` / `catalog`。`sortBy` 默认 `time`。`amount` 在合并后、分页前按每张卡片的结算总金额降序排列，同额保留时间顺序。预览和 PNG 共用同一顺序与布局。`rowGap` 默认 16，单张图恰好有两张卡片时使用记忆值，其他图使用原有布局。
+- `ExportTask` 为 `{id,snapshot,root,directory,mode,background,sortBy,rowGap,mergeAcrossDates,styleSource,files:[{start,count,fileName}],custom}`。`snapshot` 含 `viewRevision` / `asOf` / `items`、同步元数据、`selectedCount` / `cardsPartial` 与 `config` / `catalog`。`sortBy` 默认 `time`。`amount` 在合并后、分页前按每张卡片的结算总金额降序排列，同额保留时间顺序。预览和 PNG 共用同一顺序与布局。`rowGap` 默认 16，适用于同一张图里每两张相邻卡片。单卡图禁用间距滑块，高度固定为 144 px。
+- `styleSource` 默认为 `follow`，取本任务打开时的滚动礼物外观。切到 `custom` 时优先恢复上次自定义值，首次复制本任务的滚动外观。仅在自定义模式下可传完整 `customStyle`，包含 `tailStyle`、`textureStyle`、`thresholds` 三项。外形与纹理使用[滚动礼物枚举](../../../public/js/shared/gift-banner-styles.js)，金额为三个严格递增的正安全整数，单位为分。`snapshot.config` 是预览与写图共用的有效配置，`sheen` 固定为 `false`。`ExportTask.custom` 仍表示是否使用自选保存目录。
 - `mergeAcrossDates` 默认关闭，预览按所选结算记录逐笔出卡，保留原数量。开启后按已确认的同人同礼物合并当天及历史记录；用今日资料合并的卡片以首条 `sourceEventId` 参与后续分组查询。每个任务复用一次合并结果，再次关闭即可恢复全部所选记录。
-- `configure` 要求当前 `id` 与合法 `mode` / `background`（`directoryAction` 可省略，`remember === true` 仅记忆目录）；`combined` 每图最多 39 行，`separate` 每图 1 行。运行中不可修改配置或再次 `prepare`，已完成任务不可重复 `save`。取消选目录时沿用当前根目录，保留已记忆的目录设置。若同次调用的输出方式、背景、排序、间距和合并选项均与当前任务一致，保留任务子目录、保存计数和完成状态。若这些选项有实际更改，更改仍生效。已尝试保存的任务在更改配置或显式重试时分配新子目录，保存计数从零开始，已写入的图片留在原处。
+- `configure` 要求当前 `id` 与合法 `mode` / `background`。`remember === true` 时可记忆目录，传入样式参数时将来源与上次自定义值一并记忆。`combined` 每图最多 50 张卡片，高度上限 8768 px。允许的 0–32 px 间距均可容纳 50 张，超过 50 张时分页。`separate` 每图 1 张卡片。运行中不可修改配置或再次 `prepare`，已完成任务不可重复 `save`。取消选目录时沿用当前根目录，保留已记忆的目录设置。若同次调用的输出方式、背景、排序、间距、合并及样式选项均与当前任务一致，保留任务子目录、保存计数和完成状态。若这些选项有实际更改，更改仍生效。已尝试保存的任务在更改配置或显式重试时分配新子目录，保存计数从零开始，已写入的图片留在原处。
 - 保存 PNG 时，主进程将此次预览的舰队人数 `{roomId,count}` 传给隐藏渲染窗口。人数超过 1000 时使用千舰款，人数未知时使用普通款。整批图片使用同一个人数快照。
 - `save` 使用独占任务目录与防覆盖文件逐张渲染、截图并落盘（单步渲染超时 20 秒），`viewRevision` 变化立即使任务失效。进度 `{id,saved,total}` 表示已完成文件数；取消或部分失败保留已写文件并返回 `saved` / `directory`。
 - 主窗口非原地导航或销毁时调用 `cancel`，`dispose` 取消任务并销毁隐藏渲染窗口；`preparationGeneration` 防止过期 `prepare` 覆盖新任务。宿主监听的绑定、去重与解绑和周表导出共用 [navigation-cancellation.js](../../../src/electron/ipc/navigation-cancellation.js)，各导出控制器仍拥有任务取消与清理。渲染进程按 `id` 过滤迟到进度并在关闭预览时取消订阅；`openFolder` 仅允许已保存至少一张的任务。

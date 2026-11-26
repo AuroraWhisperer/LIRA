@@ -37,6 +37,7 @@ export function createHomeHandler(deps) {
     });
   let dismissTrackMenu = null;
   let trackMenuTimer = null;
+  let homeContentRequest = 0;
 
   // === Drawer 管理 ===
   function openPlaybackDrawer(title, subtitle, loading, loadingHint = '') {
@@ -46,6 +47,7 @@ export function createHomeHandler(deps) {
   }
 
   function closePlaybackDrawer() {
+    homeContentRequest++;
     closeTrackMenu();
     uiRenderer.getDrawer().close();
     homeService.clearHomeState();
@@ -53,6 +55,7 @@ export function createHomeHandler(deps) {
   }
 
   function playbackDrawerGoBack() {
+    homeContentRequest++;
     closeTrackMenu();
     const previous = homeService.goBack();
     if (previous) {
@@ -127,12 +130,15 @@ export function createHomeHandler(deps) {
    * @param {Function} getAuthState - 获取认证状态的函数
    */
   async function loadPlaybackHomeContent(action, getAuthState) {
+    const request = ++homeContentRequest;
     if (action === 'recent') {
       loadPlaybackLocalRecentHistory();
       return;
     }
 
-    const authState = getAuthState();
+    const source = playbackState.selectedSource;
+    const authState = await getAuthState();
+    if (source !== playbackState.selectedSource || request !== homeContentRequest) return;
     if (!authState || !authState.loggedIn) {
       toast('请先登录播放器');
       return;
@@ -156,6 +162,7 @@ export function createHomeHandler(deps) {
   }
 
   async function loadPlaybackPlaylistTracks(index) {
+    homeContentRequest++;
     const homeState = homeService.getHomeState();
     const playlist = homeState.items[index];
     if (!playlist) return;
@@ -329,7 +336,8 @@ export function createHomeHandler(deps) {
         queueType === 'playlist' &&
         playbackState.queueType === 'playlist' &&
         (previousKey === collection.sourceKey || legacyRecent || legacyDaily)
-          ? findSourcePlaylistIndex(playbackState.normalQueueTracks, selectedTrack, homeState.action === 'recent' ? track : null)
+          ? findSourcePlaylistIndex(playbackState.normalQueueTracks, selectedTrack,
+            homeState.action === 'recent' ? track : null, playbackState.playlistIndex)
           : -1;
 
       if (activeIndex >= 0) {

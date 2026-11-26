@@ -54,8 +54,16 @@ const routes = {
   },
   async 'POST /api/ai/chatgpt/logout'(context, request, res) {
     try {
-      sendJson(res, 200, { ok: true, data: await context.ai.logoutChatGpt() });
+      const body = await request.body();
+      if (body?.profileId !== undefined && (typeof body.profileId !== 'string' || !body.profileId || body.profileId.length > 80)) {
+        throw new Error('账号标识无效。');
+      }
+      sendJson(res, 200, { ok: true, data: await context.ai.logoutChatGpt(body?.profileId) });
     } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
+      if (error.code === 'CHATGPT_ACCOUNT_CHANGED') {
+        return sendJson(res, 409, { ok: false, code: error.code, error: error.message });
+      }
       sendJson(res, 400, { ok: false, code: error.code, error: 'ChatGPT 退出失败，请重试。' });
     }
   },

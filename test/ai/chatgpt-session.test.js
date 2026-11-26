@@ -45,6 +45,21 @@ test('ChatGPT rejects invalid callback state before redeeming any code', async t
   assert.equal(f.session.getStatus().ready, false);
 });
 
+test('retry after a failed first token exchange uses the persisted client registration', async t => {
+  const f = await createChatGptFixture(t);
+  f.controls.request = url => String(url).endsWith('/token') ? new Response(null, { status: 503 }) : undefined;
+  assert.equal(await f.login(), 400);
+  const [profile] = f.session.getStatus().profiles;
+  assert.equal(profile.loggedIn, false);
+  const retry = f.makeSession();
+  delete f.controls.request;
+  await retry.openLogin();
+  assert.equal(f.browserUrl.searchParams.get('client_id'), f.calls.find(call => call.url.endsWith('/token')).body.get('client_id'));
+  assert.equal(await f.callback(), 200);
+  assert.deepEqual(retry.getStatus().profiles.map(entry => entry.id), [profile.id]);
+  assert.equal(retry.getStatus().ready, true);
+});
+
 for (const [name, identity] of Object.entries({ issuer: { iss: 'https://attacker.test' }, audience: { aud: 'other-client' },
   nonce: { nonce: 'wrong' }, expired: { exp: 1 }, issuedInFuture: { iat: 9999999999 }, subject: { sub: '' } })) {
   test(`ChatGPT rejects a signed ID token with invalid ${name}`, async t => {

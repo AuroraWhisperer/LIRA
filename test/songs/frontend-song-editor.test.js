@@ -4,6 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
+const { DatabaseSync } = require('node:sqlite');
+const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createSongStore } = require('../../src/storage/song-store');
+const songService = require('../../src/music/song-service');
+const { previewSongImport, applySongImport } = require('../../src/music/song-import-update');
 
 const fixture = createUiFixture();
 
@@ -165,6 +170,9 @@ test('a complete library refresh resets the editor only when its song was remove
   await page.waitForFunction(() => document.getElementById('songId').value === '1');
   await page.evaluate(() => window.renderSongs([window.library[1]]));
   assert.equal(await page.locator('#songId').inputValue(), '1', 'a filtered result is not treated as a deletion');
+  await page.evaluate(() => window.renderComplete([{ ...window.library[0], request_price: '30', is_enabled: false }, window.library[1]]));
+  assert.equal(await page.locator('#songRequestPrice').inputValue(), '30');
+  assert.equal(await page.locator('#songIsEnabled').inputValue(), 'false');
   await page.evaluate(() => window.renderComplete([window.library[1]]));
   assert.equal(await page.locator('#songId').inputValue(), '');
   await page.evaluate(() => {
@@ -172,6 +180,39 @@ test('a complete library refresh resets the editor only when its song was remove
     window.renderComplete([window.library[1]]);
   });
   assert.equal(await page.locator('#songId').inputValue(), '3', 'a newly saved song not yet listed stays in the editor');
+});
+
+for (const editedPrice of [null, '20']) test(`a dirty song form preserves imported fields${editedPrice ? ' and an explicit price draft' : ''}`, async (t) => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  t.after(() => db.close());
+  const store = createSongStore(db);
+  const song = songService.saveSong(store, { name: '合并测试', requestPrice: '10', isEnabled: true });
+  const page = await open(t);
+  const refresh = () => page.evaluate((rows) => {
+    window.songs.renderSongs(rows, new Set(), new Set(), new Set(), { complete: true });
+  }, songService.listSongs(store));
+  await refresh();
+  await page.locator(`[data-edit-song="${song.id}"]`).dispatchEvent('click');
+  await page.waitForFunction((id) => document.getElementById('songId').value === String(id), song.id);
+  await page.locator('#songNote').fill('my note');
+  if (editedPrice) await page.locator('#songRequestPrice').fill(editedPrice);
+  await page.locator('#songNote').evaluate((input) => { input.focus(); input.setSelectionRange(0, 2); });
+
+  const input = { rows: [{ name: song.name, requestPrice: '30', isEnabled: false, note: 'imported note' }] };
+  const preview = previewSongImport(store, input);
+  assert.equal(applySongImport(store, { ...input, previewToken: preview.previewToken }).updated, 1);
+  await refresh();
+  await refresh();
+  assert.deepEqual(await page.locator('#songNote').evaluate((input) => [input.selectionStart, input.selectionEnd]), [0, 2],
+    'refresh must not replace the active draft input and move its selection');
+  await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  const saved = songService.saveSong(store, await page.evaluate(() => window.pendingSaves[0].body));
+  await page.evaluate((data) => window.pendingSaves[0].resolve({ ok: true, data }), saved);
+  await page.waitForFunction(() => document.getElementById('songName').value === '');
+  const row = db.prepare('SELECT request_price, is_enabled, note FROM songs WHERE id = ?').get(song.id);
+  assert.deepEqual([row.request_price, row.is_enabled, row.note], [editedPrice || '30', 0, 'my note']);
 });
 
 test('song editing protects drafts when changing songs or clearing the form', async (t) => {

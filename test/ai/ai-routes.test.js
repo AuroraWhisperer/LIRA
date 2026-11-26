@@ -122,6 +122,13 @@ test('AI account HTTP routes use runtime composition and require admin authoriza
   const login = await fetch(`${origin}/api/ai/chatgpt/login`, { method: 'POST', headers });
   assert.equal(login.status, 400);
   assert.equal((await login.json()).code, 'CHATGPT_UNAVAILABLE');
+  const logoutUrl = `${origin}/api/ai/chatgpt/logout`;
+  const changed = await fetch(logoutUrl, { method: 'POST', headers, body: JSON.stringify({ profileId: 'old-view' }) });
+  assert.equal(changed.status, 409);
+  assert.equal((await changed.json()).code, 'CHATGPT_ACCOUNT_CHANGED');
+  const legacy = await fetch(logoutUrl, { method: 'POST', headers });
+  assert.equal(legacy.status, 200);
+  await legacy.arrayBuffer();
 });
 
 test('saving disabled through the config route aborts accepted work after committing the setting', async (t) => {

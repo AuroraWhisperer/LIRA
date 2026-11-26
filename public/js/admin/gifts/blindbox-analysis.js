@@ -26,6 +26,7 @@ export const giftAnalysis = (() => {
     requestId: 0,
     controller: null,
     refreshTimer: null,
+    midnightTimer: null,
     refreshPending: false,
     returnFocus: null,
   };
@@ -119,6 +120,8 @@ export const giftAnalysis = (() => {
     clearTimeout(state.refreshTimer);
     state.refreshTimer = null;
     state.refreshPending = false;
+    clearTimeout(state.midnightTimer);
+    state.midnightTimer = null;
     datePicker.close();
     workspace.hidden = true;
     document.body.classList.remove('blind-analysis-open');
@@ -156,6 +159,17 @@ export const giftAnalysis = (() => {
 
   async function load({ quiet = false, sort = state.sort, direction = state.direction } = {}) {
     if (!state.open) return;
+    clearTimeout(state.midnightTimer);
+    state.midnightTimer = null;
+    if (!state.dateRange) {
+      const midnight = new Date();
+      midnight.setHours(24, 0, 0, 0);
+      state.midnightTimer = setTimeout(() => {
+        state.midnightTimer = null;
+        state.page = 1;
+        void load();
+      }, midnight.getTime() - Date.now());
+    }
     clearTimeout(state.refreshTimer);
     state.refreshTimer = null;
     state.refreshPending = false;

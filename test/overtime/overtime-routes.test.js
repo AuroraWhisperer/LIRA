@@ -207,6 +207,21 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.equal(savedDisplayRule.payload.data.rules[0].displayText, '谢谢支持');
     assert.equal(savedDisplayRule.payload.data.rules[0].mode, 'display');
 
+    const start = { action: 'start', initialSeconds: 60, expectedRevision: savedDisplayRule.payload.data.revision,
+      rules: [{ giftId: 'synthetic', mode: 'fixed', fixedSeconds: 300 }] };
+    const missingRevision = await postJson(app.baseUrl, token, '/api/overtime/action', { ...start, expectedRevision: undefined });
+    assert.equal(missingRevision.response.status, 400);
+    const started = await postJson(app.baseUrl, token, '/api/overtime/action', start);
+    assert.equal(started.response.status, 200);
+    assert.equal(started.payload.data.status, 'running');
+    assert.equal(started.payload.data.initialSeconds, 60);
+    assert.equal(started.payload.data.rules[0].fixedSeconds, 300);
+    const staleStart = await postJson(app.baseUrl, token, '/api/overtime/action', { ...start, initialSeconds: 1, rules: [] });
+    assert.equal(staleStart.response.status, 409);
+    const afterStale = await requestJson(app.baseUrl, token, '/api/overtime');
+    assert.equal(afterStale.initialSeconds, 60);
+    assert.equal(afterStale.rules[0].giftId, 'synthetic');
+
     const malicious = await postJson(app.baseUrl, token, '/api/overtime/config', {
       path: '../secret.png',
       fit: 'cover',

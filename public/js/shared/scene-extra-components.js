@@ -78,6 +78,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       desktopLyricVisibleLines: number('自定义行数', '0', 0, 99),
       desktopLyricOpacity: number('文字不透明度', '0.95', 0, 1, 0.05),
       desktopLyricKaraokeMode: select('逐字高亮方式', 'continuous', { off: '关闭（整句显示）', continuous: '连续填充', discrete: '逐字点亮' }),
+      desktopLyricWordBounceEnabled: check('逐字跳动', 'true'),
       desktopLyricSungColor: { ...color('已唱颜色', ''), allowEmpty: true, inheritLabel: '跟随当前歌词样式' },
       desktopLyricShowTranslation: check('显示翻译', 'true'), desktopLyricShowRoma: check('显示罗马音', 'true'),
       desktopLyricTranslationScale: number('译文/罗马音字号比例', '0.65', 0.4, 1, 0.05),

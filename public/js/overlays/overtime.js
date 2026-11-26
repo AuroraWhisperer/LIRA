@@ -210,8 +210,8 @@ let lastTicketsKey;
 function renderTickets() {
   const guide = byId('overtimeGiftGuide');
   const root = byId('overtimeTickets');
-  const rules = Array.isArray(currentState?.rules) ? currentState.rules.filter((rule) => rule.enabled) : [];
-  const key = JSON.stringify(rules.map(rule => [rule.giftId, rule.giftName, rule.imagePath, describeRuleEffect(rule)]));
+  const rules = Array.isArray(currentState?.rules) ? currentState.rules.filter((rule) => rule.enabled && rule.bindingStatus !== 'needs-selection') : [];
+  const key = JSON.stringify(rules.map(rule => [rule.giftId, rule.giftIdentity?.variantId, rule.giftName, rule.imagePath, describeRuleEffect(rule)]));
   if (key === lastTicketsKey) return;
   lastTicketsKey = key;
   const ticketCount = Math.max(1, rules.length);
@@ -230,6 +230,7 @@ function renderTickets() {
     const ticket = document.createElement('article');
     ticket.className = `overtime-ticket ${presentation.modifier}`;
     ticket.dataset.giftId = String(rule.giftId);
+    ticket.dataset.giftVariantId = rule.giftIdentity?.variantId || '';
 
     const image = document.createElement('img');
     image.className = 'overtime-ticket-image';
@@ -281,7 +282,7 @@ function playNextAdjustment() {
   const adjustment = animationQueue.shift();
   const delta = Number(adjustment.netSeconds ?? adjustment.appliedDeltaSeconds) || 0;
 
-  if (!adjustment.aggregate) highlightTicket(adjustment.giftId);
+  if (!adjustment.aggregate) highlightTicket(adjustment);
   const stage = byId('overtimeAdjustmentStage');
   const card = document.createElement('div');
   card.className = `overtime-adjustment-card${delta < 0 ? ' is-negative' : ''}${adjustment.mode === 'random' ? ' is-random' : ''}`;
@@ -309,8 +310,9 @@ function playNextAdjustment() {
   );
 }
 
-function highlightTicket(giftId) {
-  const ticket = Array.from(byId('overtimeTickets').children).find((node) => node.dataset.giftId === String(giftId));
+function highlightTicket({ giftId, giftVariantId = '' }) {
+  const ticket = Array.from(byId('overtimeTickets').children).find((node) =>
+    node.dataset.giftId === String(giftId) && node.dataset.giftVariantId === giftVariantId);
   if (!ticket) return;
   ticket.classList.remove('is-hit');
   void ticket.offsetWidth;

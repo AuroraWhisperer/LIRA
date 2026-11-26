@@ -5,7 +5,7 @@ const { ADMIN_PAGE_PATHS } = require('../shared/admin-page-paths');
 const fs = require('node:fs');
 const path = require('node:path');
 const { writeAtomicFileAsync } = require('./atomic-file');
-const { CLIENT_THEME_BACKGROUNDS, isClientThemeId, normalizeClientThemeId } = require('../shared/client-theme');
+const { CLIENT_THEME_BACKGROUNDS, isClientThemeId, normalizeClientThemeId, resolveClientThemeId } = require('../shared/client-theme');
 const { DEFAULT_CLIENT_FONT_ID, isClientFontId } = require('../../public/js/shared/client-font-theme.js');
 const { hasExactOrigin } = require('./local-media-access');
 
@@ -18,8 +18,9 @@ function createClientAppearance({ dataDir, fileSystem = fs, writeLog = () => {} 
     const record = JSON.parse(fileSystem.readFileSync(filePath, 'utf8'));
     const savedFontId = record?.fontId ?? record?.fonts?.han;
     if (isClientFontId(savedFontId)) fontId = savedFontId;
-    if (!isClientThemeId(record?.themeId)) throw new Error('CLIENT_THEME_INVALID');
-    themeId = record.themeId;
+    const resolvedThemeId = resolveClientThemeId(record?.themeId);
+    if (!resolvedThemeId) throw new Error('CLIENT_THEME_INVALID');
+    themeId = resolvedThemeId;
   } catch (error) {
     if (error.code !== 'ENOENT') writeLog('client-appearance', { event: 'READ_FALLBACK' });
   }
@@ -39,7 +40,7 @@ function createClientAppearance({ dataDir, fileSystem = fs, writeLog = () => {} 
         return { ok: false, error: 'CLIENT_THEME_SAVE_FAILED' };
       }
     });
-    pending = operation;
+    pending = operation.catch(() => {});
     return operation;
   }
 
@@ -53,7 +54,13 @@ function createClientAppearance({ dataDir, fileSystem = fs, writeLog = () => {} 
     return save({ fontId: nextFontId });
   }
 
-  return { getThemeId: () => themeId, getFontId: () => fontId, setThemeId, setFontId, whenIdle: () => pending };
+  return {
+    getThemeId: () => themeId,
+    getFontId: () => fontId,
+    setThemeId,
+    setFontId,
+    whenIdle: () => pending.then(() => undefined),
+  };
 }
 
 function getClientWindowBackground(url, baseUrl, themeId) {

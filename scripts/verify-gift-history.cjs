@@ -15,10 +15,16 @@ const { getGiftHistory, getGiftSelection, getGiftViewRevision } = require('../sr
 const { GIFT_DISPLAY_SETTING, DEFAULT_GIFT_DISPLAY, validateGiftDisplaySettings } = require('../src/bilibili/gift/display-settings');
 const { createGiftExportController } = require('../src/electron/gift-export-controller');
 const { registerGiftExportIpc } = require('../src/electron/ipc/gift-export-ipc');
+const { createGiftExportRuntime } = require('../src/server/gift-export-runtime');
+const { createSettingsStore } = require('../src/storage/settings-store');
 const scratch = path.resolve(__dirname, '../tmp');
 fs.mkdirSync(scratch, { recursive: true });
 const root = fs.mkdtempSync(path.join(scratch, 'lira-gift-ui-check-'));
-app.setPath('userData', path.join(root, 'user-data'));
+const profile = path.join(root, 'user-data');
+fs.mkdirSync(path.join(profile, 'crashes'), { recursive: true });
+app.setPath('userData', profile);
+app.setPath('sessionData', profile);
+app.setPath('crashDumps', path.join(profile, 'crashes'));
 app.on('window-all-closed', () => {});
 const publicDir = path.resolve(__dirname, '../public');
 const sessionToken = randomBytes(32).toString('hex');
@@ -168,6 +174,7 @@ async function screenshot(win, name) {
     },
   });
   windows.push(main);
+  const settings = createSettingsStore(fixture.databases.songDb);
   const controller = createGiftExportController({
     app: { getPath: () => root },
     BrowserWindow,
@@ -177,7 +184,8 @@ async function screenshot(win, name) {
     getMainWindow: () => main,
     getBaseUrl: () => origin,
     runtime: {
-      getSetting: () => '',
+      ...createGiftExportRuntime({ getSettingsStore: () => settings, giftCards: {} }),
+      getSetting: key => settings.getSettings([key])[key],
       getGiftViewRevision: () => getGiftViewRevision(fixture.context),
       prepareGiftExport: (selection) => ({
         ...getGiftSelection(fixture.context, selection),
@@ -229,8 +237,31 @@ async function screenshot(win, name) {
   await wait(main, 'document.getElementById("giftHistoryDrawer").dataset.view === "export"');
   assert.equal(await evaluate(main, 'document.getElementById("giftExportPreview").children.length'), 2);
   await screenshot(main, 'preview.png');
+  await evaluate(main, `document.querySelector('#giftExportStyleSource input[value="custom"]').click()`);
+  await wait(main, '!document.getElementById("giftExportStyleEditor").hidden && !document.getElementById("giftExportSettingsFields").disabled');
+  await evaluate(main, `(() => {
+    const tail = document.getElementById('giftExportTail');
+    tail.value = 'capsule';
+    tail.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await wait(main, '!document.getElementById("giftExportSettingsFields").disabled');
+  await evaluate(main, `(() => {
+    document.getElementById('giftExportTiers').open = true;
+    const pink = document.querySelector('#giftExportTiers input[aria-label^="粉红"]');
+    pink.value = '150';
+    pink.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await wait(main, 'document.querySelector("#giftExportPreview .gift-banner").style.getPropertyValue("--gift-start") === "#8F58EDF2"');
+  await screenshot(main, 'preview-custom.png');
+  assert.equal((await fetch(origin + '/gift-export')).status, 200);
   await click(main, 'giftExportSave');
   await wait(main, 'document.getElementById("giftExportStatus").textContent === "已保存 1 张 PNG"');
+  const batch = await evaluate(main, 'document.getElementById("giftExportDirectory").title');
+  const image = nativeImage.createFromPath(path.join(batch, '礼物_001.png'));
+  assert.deepEqual(image.getSize(), { width: 856, height: 304 });
+  // The capsule fills the area beyond the default slanted tail with the selected purple tier.
+  const [blue, , red, alpha] = image.crop({ x: 820, y: 72, width: 1, height: 1 }).toBitmap();
+  assert.ok(alpha > 180 && blue > red + 35, `Expected purple capsule edge, got B/R/A ${blue}/${red}/${alpha}`);
   await click(main, 'giftExportBack');
   assert.equal(await evaluate(main, 'document.getElementById("giftHistoryPageInfo").textContent'), '第 2/2 页');
   assert.equal(await evaluate(main, 'document.getElementById("giftHistorySelectedCount").textContent'), '已选 2 条');
@@ -314,7 +345,7 @@ async function screenshot(win, name) {
     JSON.stringify({
       ok: true,
       checks:
-        'cross-page selection, amount threshold/precision/reset, filtered export, filters, snapshot select-all, native save, return state, titlebar/footer, settings, 105-row browser-source loop, source clear',
+        'cross-page selection, amount threshold/precision/reset, filtered export, custom PNG style and tier pixels, filters, snapshot select-all, native save, return state, titlebar/footer, settings, 105-row browser-source loop, source clear',
       screenshots: root,
     }),
   );

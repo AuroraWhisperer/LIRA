@@ -7,7 +7,7 @@ const musicLoginWindow = require('./music-login-window');
 const { createMusicProviderRegistry } = require('../music/provider-registry');
 const { logBilibiliDiagnostic, summarizeAuthState } = require('../bilibili/diagnostics');
 
-function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getDataDir, writeLog }) {
+function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getDataDir, writeLog, onCloudBilibiliIdentityChanged = () => {} }) {
   let providerRegistry = null;
   let disposed = false;
   let bilibiliIdentity = null;
@@ -152,10 +152,12 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     return accounts.get('bilibili')?.generation || 0;
   }
 
-  function observeBilibiliIdentity(state) {
+  function observeBilibiliIdentity(state, cloudWrite = false) {
     const identity = state?.loggedIn ? Number(state.uid) || 0 : 0;
+    const changed = bilibiliIdentity !== identity;
     if (bilibiliIdentity !== null && bilibiliIdentity !== identity) bilibiliIdentityRevision += 1;
     bilibiliIdentity = identity;
+    if (changed && cloudWrite) onCloudBilibiliIdentityChanged();
     return state;
   }
 
@@ -182,11 +184,26 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     return snapshot;
   }
 
+  async function mutateBilibiliIdentity(operation, isCurrent) {
+    let state;
+    try {
+      state = await operation();
+    } catch (error) {
+      // A snapshot write or removal can fail after the live partition changed.
+      if (isCurrent) {
+        const live = await getBilibiliSessionState().catch(() => null);
+        if (live) observeBilibiliIdentity(live, true);
+      }
+      throw error;
+    }
+    return observeBilibiliIdentity(state, Boolean(isCurrent));
+  }
+
   async function replaceBilibiliCookieHeader(cookieHeader, { isCurrent } = {}) {
     logBilibiliDiagnostic('credentials-import-start');
     try {
-      const state = await runAccountOperation('bilibili', async () =>
-        observeBilibiliIdentity(await bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader)),
+      const state = await runAccountOperation('bilibili', () =>
+        mutateBilibiliIdentity(() => bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader), isCurrent),
         false, isCurrent,
       );
       if (state === null) return null;
@@ -242,8 +259,8 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   async function logoutBilibiliAccount({ isCurrent, signal } = {}) {
     logBilibiliDiagnostic('logout-start');
     try {
-      const state = await runAccountOperation('bilibili', async () =>
-        observeBilibiliIdentity(await bilibiliAuth.logoutBilibiliAccount(getDataDir())),
+      const state = await runAccountOperation('bilibili', () =>
+        mutateBilibiliIdentity(() => bilibiliAuth.logoutBilibiliAccount(getDataDir()), isCurrent),
         false, isCurrent, signal,
       );
       if (state === null) return null;

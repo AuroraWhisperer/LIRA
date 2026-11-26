@@ -89,7 +89,7 @@ async function fixture(t, contents) {
     t.after(() => library.close());
     return library;
   };
-  return { dataDir, requests, diagnostics, create, get peak() { return peak; },
+  return { dataDir, requests, diagnostics, create, fetch, get peak() { return peak; },
     offline(value = true) { offline = value; }, corrupt(value = true) { corrupt = value; },
     block(match = '') { gate = { ...Promise.withResolvers(), match }; return gate; },
     update(name, bytes) {
@@ -326,7 +326,8 @@ test('a locked promotion can resume offline without blocking other cached assets
   const previous = Buffer.from('previous map');
   const next = Buffer.from('new map');
   const font = Buffer.from('unaffected font');
-  const f = await fixture(t, { [name]: previous, [other]: font });
+  const f = await fixture(t, { [name]: Buffer.from('bundled map'), [other]: font });
+  f.update(name, previous);
   const library = f.create();
   await library.initialize();
   f.update(name, next);
@@ -339,6 +340,8 @@ test('a locked promotion can resume offline without blocking other cached assets
   const reopened = f.create();
   assert.equal((await reopened.initialize()).status, 'error');
   assert.deepEqual(await fs.readFile(await reopened.waitForAsset(other)), font);
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name)), previous);
+  assert.equal(reopened.assetHash(name), digest(previous));
   assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name, digest(previous))), previous);
   lock.mock.restore();
   const requests = f.requests.length;
@@ -346,6 +349,47 @@ test('a locked promotion can resume offline without blocking other cached assets
   assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name)), next);
   assert.equal(f.requests.length - requests, 1);
 });
+
+for (const catalogCached of [false, true]) {
+  test(`a pre-fix index never guesses an unrecorded previous digest (catalog cached: ${catalogCached})`, async t => {
+    const name = 'fonts/one.woff2';
+    const catalog = Buffer.from('bundled version');
+    const previous = Buffer.from('unmapped CDN version');
+    const next = Buffer.from('pending CDN version');
+    const f = await fixture(t, { [name]: catalog });
+    const library = f.create();
+    if (catalogCached) await library.initialize();
+    f.update(name, previous);
+    await library.initialize({ force: true });
+    f.update(name, next);
+    const cache = path.join(f.dataDir, 'cache/resources');
+    const target = path.join(cache, `${digest(next)}.woff2`);
+    const rename = fs.rename;
+    const lock = t.mock.method(fs, 'rename', (from, to) => from === `${target}.pending` && to === target
+      ? Promise.reject(Object.assign(new Error('fixture'), { code: 'EBUSY' })) : rename(from, to));
+    assert.equal((await library.initialize({ force: true })).status, 'error');
+    await library.close();
+    const indexPath = path.join(cache, 'index.json');
+    const index = JSON.parse(await fs.readFile(indexPath, 'utf8'));
+    delete index.files[name].previous; // Exactly the pre-fix publisher's interrupted index.
+    await fs.writeFile(indexPath, JSON.stringify(index));
+    f.offline();
+    const reopened = f.create();
+    assert.equal((await reopened.initialize()).status, 'error');
+    const defaultAsset = await reopened.waitForAsset(name);
+    if (catalogCached) assert.deepEqual(await fs.readFile(defaultAsset), catalog);
+    else assert.equal(defaultAsset, null, 'the path-to-old-digest association cannot be reconstructed');
+    const explicit = await reopened.waitForAsset(name, digest(previous));
+    assert.deepEqual(await fs.readFile(explicit), previous, 'a caller-supplied digest remains verifiable');
+    await fs.writeFile(explicit, 'damaged fixture');
+    assert.equal(await reopened.waitForAsset(name, digest(previous)), null, 'a matching filename alone is not proof');
+    lock.mock.restore();
+    const requests = f.requests.length;
+    assert.equal((await reopened.initialize({ force: true })).status, 'ready');
+    assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name)), next);
+    assert.equal(f.requests.length - requests, 1, 'promotion repairs the default without an object download');
+  });
+}
 
 test('one busy pending image leaves its font package downloadable and retries locally after unlock', async t => {
   const image = 'img/admin/world-clock/earth-day-8k.png';
@@ -362,8 +406,27 @@ test('one busy pending image leaves its font package downloadable and retries lo
   const rename = fs.rename;
   const lock = t.mock.method(fs, 'rename', (from, to) => from === `${filename}.pending` && to === filename
     ? Promise.reject(Object.assign(new Error('busy fixture'), { code: 'EBUSY' })) : rename(from, to));
-  const lib = f.create();
-  const locked = await lib.initialize();
+  const manifest = Promise.withResolvers();
+  const checkingManifest = Promise.withResolvers();
+  const lib = f.create({ fetch: async (url, options) => {
+    if (url.endsWith('/manifest.json')) {
+      checkingManifest.resolve();
+      await manifest.promise;
+    }
+    return f.fetch(url, options);
+  } });
+  const preparing = lib.initialize();
+  const waiting = lib.waitForAsset(image);
+  let locked;
+  try {
+    await checkingManifest.promise;
+    const readers = Promise.all([waiting, lib.waitForAsset(image)]);
+    assert.deepEqual(await Promise.race([readers, new Promise(resolve => setImmediate(() => resolve('pending')))]),
+      [null, null], 'a known publication failure does not wait for the remote manifest');
+  } finally {
+    manifest.resolve();
+    locked = await preparing;
+  }
   assert.deepEqual([f.requests.length, locked.status, locked.failed], [2, 'error', 1]);
   assert.deepEqual(await fs.readFile(lib.resolveAsset(font)), fontBytes);
   assert.equal(lib.resolveAsset(image), null);
@@ -678,6 +741,45 @@ test('small resource downloads stay below the configured CDN request rate', asyn
   assert.equal((await f.create().initialize()).status, 'ready');
   for (const request of f.requests)
     assert.ok(f.requests.filter(other => other.startedAt >= request.startedAt && other.startedAt - request.startedAt < 1000).length <= 8);
+});
+
+test('a wall-clock rollback after eight requests still permits a fresh manifest check', async t => {
+  const contents = Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`fonts/${index}.woff2`, Buffer.from(`font ${index}`)]));
+  const f = await fixture(t, contents);
+  const lib = f.create({ manifestTimeoutMs: 3000 });
+  const wall = Date.now;
+  const clock = t.mock.method(Date, 'now', () => wall() + 3600000);
+  await lib.initialize();
+  assert.equal(f.requests.length, 8);
+  clock.mock.restore();
+  await lib.initialize({ force: true });
+  assert.equal(f.requests.length, 9);
+  assert.ok(f.requests.at(-1).url.endsWith('/manifest.json'));
+});
+
+test('closing aborts a slow cached-object hash before checking the remote manifest', async t => {
+  const name = 'fonts/slow.woff2';
+  const f = await fixture(t, { [name]: Buffer.from('cached') });
+  const lib = f.create();
+  await lib.initialize();
+  const before = f.requests.length;
+  const entered = Promise.withResolvers();
+  const { Readable } = require('node:stream');
+  const openStream = require('node:fs').createReadStream;
+  let slow;
+  t.mock.method(require('node:fs'), 'createReadStream', (filename, options) => {
+    if (filename !== lib.resolveAsset(name)) return openStream(filename, options);
+    slow = new Readable({ read() { entered.resolve(); }, signal: options?.signal });
+    return slow;
+  });
+  const checking = lib.initialize({ force: true });
+  await entered.promise;
+  const closing = lib.close();
+  try {
+    assert.equal(slow.destroyed, true);
+    assert.equal((await checking).status, 'idle');
+    assert.equal(f.requests.length, before);
+  } finally { slow.destroy(); await closing; }
 });
 
 test('a complete downloaded object recovers an interrupted index without another object request', async t => {

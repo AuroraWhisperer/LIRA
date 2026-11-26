@@ -80,6 +80,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
   let hydratedId = '';
   let creating = false;
   let submission = null;
+  let creationRequestId = null;
   let busy = false;
   let disposed = false;
   let timer = null;
@@ -359,8 +360,20 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
       } else {
         accepted = true;
         data = payload.data;
+        if (historyId) creationRequestId = null;
+        if (creationRequestId) {
+          if (data.task?.requestId === creationRequestId) {
+            creationRequestId = null;
+            creating = false;
+          } else {
+            // History may first arrive in the create response. Only the persisted
+            // submission ID proves this task belongs to the current draft.
+            data = { ...data, task: null, result: null };
+            creating = true;
+          }
+        }
         selectedId = data.task?.id || '';
-        if (historyId || path === '/tasks') creating = false;
+        if (historyId || (path === '/tasks' && !creationRequestId)) creating = false;
         if (!data.task && !data.job) creating = true;
       }
     } catch (error) {
@@ -396,6 +409,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     event.preventDefault();
     if (find('create').disabled || !form.reportValidity()) return;
     submission ||= { requestId: crypto.randomUUID(), submittedAtMs: Date.now() };
+    creationRequestId = submission.requestId;
     selectedId = '';
     void load({
       path: '/tasks',
@@ -429,6 +443,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     cancelRequest();
     creating = true;
     submission = null;
+    creationRequestId = null;
     selectedId = '';
     hydratedId = '';
     data = { ...data, task: null, result: null, job: null, error: '' };
@@ -467,6 +482,7 @@ export function initLotteryWorkflow(root, { notify = toast, copy = copyText } = 
     hydratedId = '';
     submission = null;
     creating = false;
+    creationRequestId = null;
     form.reset();
     render();
   }

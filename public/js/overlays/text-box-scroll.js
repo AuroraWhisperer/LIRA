@@ -7,6 +7,7 @@ export function createTextBoxPlayback(host) {
   let mode = 'none';
   let speed = 0;
   let signature = '';
+  let ready;
   let content = null;
   let frame = null;
   let previousTime = null;
@@ -70,7 +71,7 @@ export function createTextBoxPlayback(host) {
       speed = scrollSpeed;
       host.style.backgroundColor = backgroundColor;
       const next = JSON.stringify(appearance);
-      if (next === signature) return;
+      if (next === signature) return ready;
       signature = next;
       stop(); observer.disconnect();
       content = null; distance = 0;
@@ -95,6 +96,8 @@ export function createTextBoxPlayback(host) {
       position = mode === 'horizontal' ? host.clientWidth : host.clientHeight;
       host.scrollLeft = mode === 'horizontal' ? position : 0;
       host.scrollTop = mode === 'vertical' ? position : 0;
+      ready = Promise.all(Array.from(host.querySelectorAll('img'), image => image.decode()));
+      return ready;
     },
     dispose() {
       disposed = true;

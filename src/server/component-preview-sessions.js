@@ -298,7 +298,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       ? waitFor([session], 'desktop', waitMs, signal, read) : read();
   }
 
-  function browser({ id, action, change, baseItemIds, commandId, attachmentId, previousAttachmentId, focusId,
+  function browser({ id, action, change, baseItemIds, baseDocument, commandId, attachmentId, previousAttachmentId, focusId,
     stateRevision, displayRevision, ack, waitMs = 0 }, token, { signal } = {}) {
     checkWait(waitMs);
     const session = authenticate(id, token);
@@ -391,6 +391,11 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
         : !['enable', 'disable', 'start', 'pause', 'reset'].includes(change.action) || Object.keys(change).length !== 1))) {
       fail(400, '加班机操作无效。');
     }
+    if (baseDocument !== undefined) {
+      checkSize(baseDocument, MAX_SCENE_BYTES);
+      if (action !== 'edit' || session.component !== 'canvas' || !record(baseDocument) || !Array.isArray(baseDocument.items)
+        || baseDocument.id !== change.document?.id) fail(400, '画布编辑基线无效。');
+    }
     if (baseItemIds !== undefined) {
       checkSize(baseItemIds, MAX_SCENE_BYTES);
       if (action !== 'edit' || session.component !== 'canvas' || !record(change.document)
@@ -417,6 +422,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     const sequence = ++session.sequence;
     session.commands.push({ sequence, action, ...(['edit', 'preset', 'control', 'favorite'].includes(action) ? { change: copy(change) } : {}),
       ...(action === 'source' && change ? { change } : {}),
+      ...(baseDocument === undefined ? {} : { baseDocument: copy(baseDocument) }),
       ...(baseItemIds === undefined ? {} : { baseItemIds: [...baseItemIds] }) });
     if (commandId !== undefined) session.lastCommand = { id: commandId, sequence };
     session.touched = now();

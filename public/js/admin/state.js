@@ -81,12 +81,7 @@ export class StateService {
           this.scheduleSongReload();
         }
       } else if (payload.type === 'overtime:update') {
-        if (!isRecord(payload.state)) return;
-        const currentRevision = Number(this.appState?.overtime?.revision) || 0;
-        const nextRevision = Number(payload.state?.revision) || 0;
-        if (nextRevision <= currentRevision) return;
-        this.applyRealtimeField('overtime', payload.state);
-        eventBus.emit(Events.OVERTIME_UPDATED, payload);
+        this.applyOvertimeUpdate(payload);
       } else if (payload.type === 'gift-catalog:update') {
         const snapshot = payload.snapshot;
         if (!snapshot || typeof snapshot !== 'object' || !Array.isArray(snapshot.gifts)) return;
@@ -187,6 +182,28 @@ export class StateService {
     this.realtimeFields.set(key, ++this.realtimeVersion);
     this.appState = this.appState || {};
     this.appState[key] = state;
+  }
+
+  applyOvertimeUpdate(payload) {
+    const { state, reason } = payload;
+    if (!isRecord(state)) return;
+    const current = this.appState?.overtime;
+    if ((Number(state.revision) || 0) > (Number(current?.revision) || 0)) {
+      this.applyRealtimeField('overtime', state);
+      eventBus.emit(Events.OVERTIME_UPDATED, payload);
+      return;
+    }
+
+    // A quantity-limit failure updates the ledger at the current machine revision.
+    const { revision, pendingCount, quantityLimitedCount } = state;
+    if (reason !== 'quantity-limit' || !isNonnegativeInteger(revision) || revision !== current?.revision) return;
+    if (!isNonnegativeInteger(pendingCount) || !isNonnegativeInteger(quantityLimitedCount) ||
+        quantityLimitedCount > pendingCount) return;
+    if (pendingCount === current.pendingCount && quantityLimitedCount === current.quantityLimitedCount) return;
+
+    const counts = { revision, pendingCount, quantityLimitedCount };
+    this.applyRealtimeField('overtime', { ...current, ...counts });
+    eventBus.emit(Events.OVERTIME_UPDATED, { type: payload.type, reason, state: counts });
   }
 
   applySnapshot(snapshot, startedAtVersion = Infinity, isConnectionSnapshot = false) {
@@ -363,6 +380,10 @@ export class StateService {
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isNonnegativeInteger(value) {
+  return Number.isSafeInteger(value) && value >= 0;
 }
 
 // State consumers retain references, so compare current JSON values instead of

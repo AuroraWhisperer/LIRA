@@ -480,6 +480,10 @@ test('replacement blocks a misleading name heading when the first song is invali
   assert.equal(preview({ rows: missingName, replaceAll: true }).canApply, false);
   assert.throws(() => parseTable(`歌手,林舟,曲风,,可点,国语,,,,歌名\n${second}`, { preserveMissing: true }), /表头/);
   assert.throws(() => parseTable(`歌手,,,,可点,,,,,歌名\n${second}`, { preserveMissing: true }), /表头/);
+  const trailingEmptyColumn = `海风,林舟,流行,,是,国语,,,,歌名,\n${second},`;
+  assert.throws(() => parseTable(trailingEmptyColumn, { preserveMissing: true }), /表头/);
+  const trailingData = `海风,林舟,流行,,是,国语,,,,歌名,附加信息\n${second},补充`;
+  assert.throws(() => parseTable(trailingData, { preserveMissing: true }), /表头/);
   const external = '外部编号,唱片编号,版本号,分组,,年份,版权方,片号,柜号,歌名';
   const body = 'E-1,LP-1,录音版,甲,是,2026,乙,1,2,晚航';
   assert.throws(() => parseTable(`${external}\n${body}`, { preserveMissing: true }), /表头/);

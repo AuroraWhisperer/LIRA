@@ -128,11 +128,10 @@ async function handleOverlayApi(context, principal, request, res) {
     switch (pathName) {
       case '/api/games/session':
         if (body.action === 'stop') {
-          context.games.stop();
-          return reply(null);
+          return runAction(() => context.games.stop(body.sessionId ?? null), reply, res);
         }
         if (body.action !== 'restart') return forbidden(res);
-        return runAction(() => context.games.restart(), reply, res);
+        return runAction(() => context.games.restart(body.sessionId ?? null), reply, res);
       case '/api/games/session/move': {
         // Draw-guess host controls also enter move() through value.action.
         // Overlay moves are only the existing number/coordinate inputs.

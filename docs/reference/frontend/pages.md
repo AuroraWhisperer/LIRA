@@ -10,20 +10,31 @@
 
 主窗口标题栏使用紧凑的应用图标，避免横向字标挤占导航空间。登录页和「系统与关于」使用本地打包的 [lira-wordmark.svg](../../../public/img/shared/lira-wordmark.svg) 文字字标，复用同一矢量图形；文字随当前表面前景色适配，粉色圆点保持品牌色。布局样式在 [lira-wordmark.css](../../../public/css/shared/lira-wordmark.css)，软件图标继续独立使用，不将横向字标裁成应用图标。安装协议页使用同一字形的 [installer-wordmark.bmp](../../../build/installer-wordmark.bmp)，按当前 Windows DPI 装载；安装窗口尺寸及独立完成页排版见[构建参考](../engineering/build.md)。
 
-「百宝箱 → 设置」采用居中吸顶单行四段页签，包含「外观主题」「声音与通知」「账号与连接」「系统与关于」，由 [client-settings.js](../../../public/js/admin/client-settings.js) 管理切换与旧更新页选中项迁移。设置页通过片段 include 组合 [desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html)，不再提供单独的「桌面更新」侧栏项；更新通知直接打开「系统与关于」。外观主题页签使用宽画廊容器（最高 976px）：顶部为一体外观总控卡（左侧展示当前主题色点、名称、明暗与色阶条，竖线分隔右侧字体实时样字条与界面字体选择器），下方为「主题色板」5 列自适应卡片网格（附「全部 / 浅色 / 深色」筛选）；其余三个页签收束为居中单栏分组卡片（最高 776px），共享圆角表面卡、卡片外微标题与细分隔线。系统与关于将品牌标识、版本号、更新操作与自动更新开关融合为顶部主卡，下方按需显示资源下载任务和「本地数据与诊断」分组卡，底部居中放置无箭头的官网、用户协议与隐私政策入口；关于页使用本地打包的 [lira-app-icon.png](../../../public/img/shared/lira-app-icon.png)，桌面窗口也读取这一文件。「声音与通知」收纳「内置播放器输出」与「系统通知」两张分组卡片（大额礼物开启时原地展开门槛与快捷金额条；控件状态机见 [app.md](app.md#2-公共框架shared) 与 [preload](../desktop/preload.md#25-dailybotsfanprofiles-与-giftexport)）。
+「百宝箱 → 设置」采用居中吸顶单行四段页签，包含「外观主题」「声音与通知」「账号与连接」「系统与关于」，由 [client-settings.js](../../../public/js/admin/client-settings.js) 管理切换与旧更新页选中项迁移。设置页通过片段 include 组合 [desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html)，不再提供单独的「桌面更新」侧栏项；更新通知直接打开「系统与关于」。外观主题页签使用宽画廊容器（最高 976px）：顶部为固定区，包含一体外观总控卡（左侧展示当前主题色点、名称、明暗、所属色系与色阶条，竖线分隔右侧字体实时样字条与界面字体选择器）、「主题色板」标题与「全部 / 浅色 / 深色」明暗筛选以及 6 类色系胶囊筛选栏；下方色板卡片采用 4 列自适应网格（窄面板退化为 3/2 列），在常规桌面窗口高度下仅色板区域独立无滚动条无缝滚动（顶部与底部按滚动状态呈现柔和 `mask-image` 渐隐边缘，无硬分隔线；极窄或极矮窗口自动退化为整页滚动）；其余三个页签收束为居中单栏分组卡片（最高 776px），共享圆角表面卡、卡片外微标题与细分隔线。系统与关于将品牌标识、版本号、更新操作与自动更新开关融合为顶部主卡，下方按需显示资源下载任务和「本地数据与诊断」分组卡，底部居中放置无箭头的官网、用户协议与隐私政策入口；关于页使用本地打包的 [lira-app-icon.png](../../../public/img/shared/lira-app-icon.png)，桌面窗口也读取这一文件。「声音与通知」收纳「内置播放器输出」与「系统通知」两张分组卡片（大额礼物开启时原地展开门槛与快捷金额条；控件状态机见 [app.md](app.md#2-公共框架shared) 与 [preload](../desktop/preload.md#25-dailybotsfanprofiles-与-giftexport)）。
 
 「账号与连接」中的「直播账号」跳转到客户端的「点歌 → 账号登录」页。「关联服务」在系统浏览器中打开网页主播中心、美术资源、礼物特效档案和网页小游戏，入口地址维护在 [settings.html](../../../public/pages/admin/toolbox/settings.html)。
 
-「百宝箱 → 设置 → 外观主题」可分别选择界面字体与主题色板。在界面字体选择器中，「原界面」选项按本机正文可用的首选字族命名，例如「微软雅黑（原界面）」。选中后恢复各页面原有排版。如果正文只匹配到通用无衬线字体，名称显示为「无衬线体（原界面）」。
+「百宝箱 → 设置 → 外观主题」可分别选择界面字体与主题色板。界面字体列在同一个可搜索的列表中。首项显示本机默认正文字体的名称，例如「微软雅黑（默认）」，选中后恢复各页面的默认排版。如果正文只匹配到通用无衬线字体，首项显示为「无衬线体（默认）」。
 
-共享字体库中已就绪的霞鹜文楷、小赖字体和悠哉字体会以精简字名列在这里。每款都可以独立绘制中文、英文和数字，覆盖 GB 2312 的 6,763 个汉字、CJK 基本区及可打印 ASCII。选择框旁的中英数样字条在窄面板中折行展示。扩展区生僻字的覆盖取决于具体字库。字号、字重及直播素材的自有字体由各自页面维护。
+打开列表后，已就绪的霞鹜文楷、小赖字体、悠哉字体、思源宋体、荆南麦圆、猫啃什锦黑、得意黑和站酷快乐体会以简短字名列出。列表还会显示本机可用的等线、宋体、楷体、仿宋和黑体。入选字体在常规和粗体下都能独立绘制 GB 2312 的 6,763 个汉字、95 个可打印 ASCII 字符和常用中文标点。字表以外的生僻字按本机字体回退。选择框旁的中英数样字条在窄面板中折行展示。字号、字重及直播素材的自有字体由各自页面维护。
 
-十三套色板按「日间浅色」（9 套）与「夜间深色」（4 套）两组展示，支持「全部 / 浅色 / 深色」筛选：
+二十四套色板按「日间浅色」（16 套）与「夜间深色」（8 套）两组展示，支持「全部 / 浅色 / 深色」与六大色系分类（暖调大地、玫瑰梅紫、青绿森系、冰青蓝调、极简中性、复合艺彩）双维度联动筛选：
 
-- **浅色组（9 套）**：默认的暖陶（`terracotta`）、经典暖金、中性蓝、清白 · 翠光、雾苔 · 亚麻（`moss-linen`，亚麻白实色底、苔绿按钮与深橄榄文字）、烟粉 · 灰玫瑰（`dusty-rose`，灰粉实色底、灰棕文字与低饱和玫瑰色按钮），以及渐变主题玫瑰映光、梅雾 · 浅色和紫岚 · 浅色。
-- **深色组（4 套）**：墨咖 · 香槟（`cocoa-champagne`，暖咖灰底、香槟色按钮与暖白文字）、玄黑 · 银红、梅雾 · 深色和紫岚 · 深色（梅雾为暖杏到玫瑰灰/深梅色渐变，紫岚为藕粉到灰蓝/灰紫到墨蓝渐变）。
+- **浅色组（16 套）**：
+  - 暖调大地：默认暖陶（`terracotta`）、经典暖金（`classic`）、蜜珀 · 暖阳（`honey-amber`）。
+  - 极简中性：中性蓝（`neutral`）、素墨 · 宣纸（`ink-paper`）。
+  - 青绿森系：清白 · 翠光（`clear-jade`）、雾苔 · 亚麻（`moss-linen`）、青瓷 · 烟岚（`celadon-mist`）。
+  - 冰青蓝调：晴岚 · 冰青（`glacier-cyan`，与深色沧渊 · 冰青成对的亮色冷调渐变）。
+  - 玫瑰梅紫：烟粉 · 灰玫瑰（`dusty-rose`）、梅雾 · 浅色（`rose-plum-light`）、紫岚 · 浅色（`lotus-violet-light`）。
+  - 复合艺彩：玫瑰映光（`rose-lustre`）、云母 · 靛光（`opal-indigo`，珠光柔紫至冰蓝底配深蓝靛点缀）、砂岩 · 孔雀釉（`travertine-verdigris`，温润石灰华底配氧化孔雀绿青釉）、朝霞 · 柿釉（`dawn-persimmon`，淡灰蓝晨空至暖杏底配烤柿釉点缀）。
+- **深色组（8 套）**：
+  - 暖调大地：墨咖 · 香槟（`cocoa-champagne`）、炭墨 · 炽橙（`ember-slate`）。
+  - 极简中性：玄黑 · 银红（`black-silver`）。
+  - 青绿森系：松墨 · 青玉（`pine-jade`）。
+  - 冰青蓝调：沧渊 · 冰青（`abyss-cyan`，与晴岚 · 冰青成对的深海青蓝渐变）、曜蓝 · 星夜（`midnight-cobalt`）。
+  - 玫瑰梅紫：梅雾 · 深色（`rose-plum-dark`）、紫岚 · 深色（`lotus-violet-dark`）。
 
-[desktop/palettes.css](../../../public/css/desktop/palettes.css) 只提供作用域内颜色及兼容别名，选项小样通过 `data-client-theme-preview` 在自身作用域解析；独立工具仅加载色板，不加载拖拽等桌面壳规则。登录页、直播浏览器源、观众点歌页、歌词内容不接入客户端色板；盲盒与加班机专属内容保持独立配色，场景编辑器检查底色固定。点选保存与主题切换状态机见 [app.md](app.md#2-公共框架shared)，白名单与首帧底色见 [server-core.md](../backend/server-core.md) 与 [desktop/main.md](../desktop/main.md)。
+[desktop/palettes.css](../../../public/css/desktop/palettes.css) 采用纯令牌三层结构（Tier 0 默认值与重置、Tier 1 `data-client-theme-mode='dark'` 共享暗色与 `data-client-theme-surface='gradient'` 共享双停渐变基类、Tier 2 单主题覆写，不含任何 `.lira-select` 等组件 DOM 选择器），选项小样通过 `data-client-theme-preview` 与 `data-client-theme-mode` 在自身作用域完整隔离解析；独立工具仅加载色板，不加载拖拽等桌面壳规则。登录页、直播浏览器源、观众点歌页、歌词内容不接入客户端色板；盲盒与加班机专属内容保持独立配色，场景编辑器检查底色固定。点选保存与主题切换状态机见 [app.md](app.md#2-公共框架shared)，白名单与首帧底色见 [server-core.md](../backend/server-core.md) 与 [desktop/main.md](../desktop/main.md)。
 
 ## 1. 技术选型
 
@@ -85,7 +96,7 @@
 | 正文、按钮、字段标签 | 14px / 20px；正文/标签/输入值 400，按钮 500，选中项 600 | Fluent Body 1 尺度，输入框始终常规字重 |
 | 辅助说明、状态 | 12px / 18px，400–500 | 保留 caption 尺度并留足中文行距，不压成 11px |
 | 常规按钮、输入框、下拉框 | 最小高 36px；文字按钮水平内边距 12px | 20px 行盒 + 上下各 7px 内边距 + 边框，保持桌面密度 |
-| 下拉框 | 由 `components/select-menu.css` 统一绘制：圆角 12px，单选为左侧 3px 竖条 + 主题底 + 600 字重（无对勾），多选（`.lira-multiselect`）用实心勾选框 | 参照 Fluent/Ant Design/Linear，单选不放对勾，选中色随十三套客户端外观切换，悬停与选中色分离 |
+| 下拉框 | 由 `components/select-menu.css` 统一绘制：圆角 12px，单选为左侧 3px 竖条 + 主题底 + 600 字重（无对勾），多选（`.lira-multiselect`）用实心勾选框 | 参照 Fluent/Ant Design/Linear，单选不放对勾，经 `--client-select-*` 令牌随二十四套客户端外观切换，悬停与选中色分离 |
 | 导航行 | 一级行 ≥ 40px，礼物姬子项 34px（缩进 24px），侧栏图标 20px、图文间距 12px | 导航承担持续定位，留足点击空间 |
 | 弹幕姬分组与样式入口 | 上方「监控弹幕」「弹幕过滤」为 60px 设置行卡片；下方隔 24px 为「弹幕外观」，主页「最近使用」最多 4 款（80×52px 缩略图横向卡），右侧「全部样式」打开样式库 | 接收与外观分区清晰，常用样式可快速返回；样式库四组筛选采用高 30px 分段控件 |
 | 侧栏 | 常规 184px（901–1100px 窗口 176px），底部「使用指南」下留 32px 避开播放器把手 | 收紧占宽为右侧留空间；选中态用填充 + 3px `--color-selection-marker` 竖条 + 600 字重（玄黑 · 银红竖条改用红色保证辨识） |
@@ -129,6 +140,10 @@ bindCopyUrl(button);
 | 组件浏览器源目录 | 客户端「点歌 → 浏览器源」 | 提供直播场景及点歌板、时钟、加班机、本机弹幕姬（`/danmaku?source=component`）复制入口；旧服务器 `/overlay` 已退役；「网页页面」仅保留「我的网页歌单」，操作见[组件指南](../../guides/component-sources.md) |
 | 本地展示页 | [access-policy.js](../../../src/server/access-policy.js) 的 `OVERLAY_PAGES` 定义权限范围；HTML 注入对应 scope 的叠加层访问凭证 | 仅可调用本 scope 允许的 HTTP/WS，无法取得管理权限；内部导出页（如 `gift-export`、`/weekly-schedule-export`）并非普通浏览器源 |
 | 独立 Node 调试 | `npm start` 保留同一 HTML/API 鉴权，受保护调用须显式携带有效管理凭据 | 无 Electron preload、主进程 Device API 代理、分区登录与本地媒体协议 |
+
+场景编辑器规范化图层名和场景名的首尾空格，保存回执可保留撤销历史。浏览器提交画布修改时附上编辑前的文档，桌面按图层 ID 和字段合并并发修改。若两个入口改动了同一字段且结果不同，编辑器提示重新打开画布核对。
+
+文本框页的「保存并应用」发布整个场景。网页跨过已有字幕层会改变遮挡顺序，需确认后发布。正文导致整场超过 256 KiB 时，桌面文本框页和画布各自在当前窗口按场景、图层保留被拒的输入。重选标签或切换图层后可回到原处修正。当前场景还有被拒的正文时，该窗口禁用发布并显示文本框名称和错误。修正后可正常保存，也可显式放弃整场未保存的修改。预览下方两个复制入口均在点击时读取当前发布凭据。
 
 [servePageOrAsset](../../../src/server/page-assets.js) 对非展示、非登录、非组件预览 HTML 的匿名请求返回 401「请从桌面应用打开管理页面。」；API 无效凭据返回 401，越权或不受信 Origin 返回 403。时钟的客户端和画布参数由 [clock-preview.js](../../../public/js/admin/clock-preview.js) 共用绑定，并通过 [component-parameter-fields.js](../../../public/js/shared/component-parameter-fields.js) 保护正在编辑的字段。
 
@@ -255,7 +270,7 @@ bindCopyUrl(button);
 | `overlay-utils.js` | 队列、盲盒、歌单板和主题适配直接导入的 ES 模块。转义和字体回退复用 `shared/`，并提供覆盖层的颜色转换、滚动时长与低功耗判定 |
 | `song-virtual-scroller.js` | 歌单虚拟滚动器（环形 DOM 窗口） |
 | `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` / `interactions.js` | 各叠加层逻辑，详见 [overlays.md](overlays.md) |
-| `games.js` | 直播小游戏入口与会话渲染；绘画工具与笔画清理归 `games-drawing.js`，结果窗归 `games-result.js`；通过 `danmaku-feed.js` 显式 ESM 接口读取你画我猜弹幕 |
+| `games.js` | 直播小游戏入口与会话渲染。切房后重新选取观众，重连时补读未加载的词库分类，画猜终局显示已结束。绘画工具与笔画清理归 `games-drawing.js`，结果窗归 `games-result.js`；通过 `danmaku-feed.js` 显式 ESM 接口读取你画我猜弹幕 |
 | `opening.js` | 开播动画浏览器源：读取本地配置与用户上传人物图/音乐，驱动人物待机与轨道动画 |
 | `clock.js` | 时钟浏览器源：读取已保存配置并兼容 URL 参数覆盖，按本地秒边界更新时间/日期并在页面隐藏时暂停调度 |
 | `danmaku-feed.js` / `danmaku-message-renderer.js` / `danmaku-renderer-core.js` / `danmaku-superchat-renderer.js` | feed 负责队列、布局与过期清理；renderer 适配桌面策略，core 为公共消息 DOM 源码快照，委托 SC 渲染器处理价格配色与卡片；图片解析由调用方传入 |
@@ -280,7 +295,7 @@ bindCopyUrl(button);
 
 **`shared/select-menu.js` 行为细则**：
 
-- **定位与事件**：单选弹层保留 DOM 归属并使用顶层 popover（复用 `shared/select-menu-position.js` 的 `positionSelectMenu`），按触发框宽度（`--select-trigger-width`）、窗口边界与上下空间限高滚动，外层滚动或缩放时关闭；展开后派发可冒泡的 `lira-select-open` 供调用方按需刷新选项。原生 `select` 动态禁用时同步关闭已展开菜单；`option.disabled` 占位项不可选且不自动选中首项，`optgroup` 写入 `data-label` 展示组名。
+- **定位与事件**：单选弹层保留 DOM 归属并使用顶层 popover（复用 `shared/select-menu-position.js` 的 `positionSelectMenu`），按触发框宽度（`--select-trigger-width`）、窗口边界与上下空间限高滚动，外层滚动或缩放时关闭；展开后派发可冒泡的 `lira-select-open` 供调用方按需刷新选项。原生 `select` 动态禁用时同步关闭已展开菜单；`option.disabled` 占位项不可选且不自动选中首项，`optgroup` 默认通过 `data-label` 展示组名。在 `select` 上设置 `data-select-ungrouped` 可将各组选项直接列在一起。
 - **搜索、字体预览与多选**：单选可通过 `data-select-search` 启用名称搜索、通过 `data-select-font-preview` 预览字体（直接展开无淡入，预览行用 `content-visibility: auto` 避免展开时全量同步排版）；可在 `.lira-select` 设 `--select-marker-display: none` 隐藏左侧竖条。多选保留 `.lira-multiselect` 的 details/checkbox 结构，由 `song-library-filters.js` 的 `bindFilterMenuPopovers` 接入顶层 popover。
 - 菜单、搜索和键盘选择都遵循原生 `option.hidden` 与 `optgroup.hidden`。隐藏当前项时，触发框继续显示已选值，直至用户另选或页面更新该值。场景编辑器用此方式限定当前资源样式的候选项。
 

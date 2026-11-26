@@ -7,6 +7,7 @@ const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
 const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors, migrateGiftWishTextRuns } = require('../../src/storage/gift-wish-migration');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
 const { createGiftWishService } = require('../../src/bilibili/gift/wish-service');
+const { createGiftWishSession } = require('../../src/bilibili/gift/wish-session');
 const { giftVariantId } = require('../../src/shared/gift-identity');
 const { mergeVariantRoomCatalog } = require('../../src/bilibili/gift/variant-room-catalog');
 
@@ -24,6 +25,7 @@ function setup(t) {
   let readCount = 0;
   const store = createGiftWishStore(fixture.giftDb);
   const options = {
+    monotonicNow: () => time,
     store,
     gifts: {
       getActiveSource: fixture.context.getActiveGiftSource,
@@ -59,7 +61,7 @@ function setup(t) {
     readRoom: async () => {
       readCount++;
       if (room instanceof Error) throw room;
-      return room;
+      return { ...room, checkedAtMs: time };
     },
   };
   const service = createGiftWishService(options);
@@ -103,6 +105,89 @@ function setup(t) {
       room = value;
     },
   };
+}
+
+test('wish session cache expires on elapsed time despite backward, forward or frozen wall clocks', async (t) => {
+  let wall = Date.parse('2026-11-26T12:00:00Z');
+  t.mock.timers.enable({ apis: ['Date'], now: wall });
+  const platformTime = wall;
+  let elapsed = 0;
+  let reads = 0;
+  const session = createGiftWishSession({
+    store: { readSession: () => null, saveSession() {} }, getRoomId: () => '123',
+    monotonicNow: () => elapsed,
+    readRoom: async () => {
+      reads++;
+      return reads === 1 ? { live_status: 0 } :
+        { live_status: 1, live_time: (platformTime - 10_000) / 1000, checkedAtMs: platformTime };
+    },
+  });
+  assert.equal((await session.get(1)).state, 'offline');
+  wall -= 3_600_000;
+  t.mock.timers.setTime(wall);
+  elapsed = 29_999;
+  assert.equal((await session.get(1)).state, 'offline');
+  elapsed = 30_000;
+  assert.equal((await session.get(1)).state, 'live');
+  assert.equal(reads, 2);
+  wall += 86_400_000;
+  t.mock.timers.setTime(wall);
+  await session.get(1);
+  assert.equal(reads, 2, 'a warm cache survives a wall-clock correction');
+  elapsed += 30_000;
+  await Promise.all([session.get(1), session.get(1)]);
+  assert.equal(reads, 3, 'elapsed time expires a frozen wall clock and concurrent reads still coalesce');
+});
+
+for (const skew of [-3_600_000, 3_600_000]) {
+  test(`session dates follow the Bilibili response with independent desktop skew ${skew}`, async (t) => {
+    const f = setup(t);
+    f.add('session');
+    const sourceTime = Date.parse('2026-11-26T12:00:00Z');
+    const start = Date.parse('2026-11-26T11:30:00Z');
+    let elapsed = 0;
+    let reads = 0;
+    let liveTime = start;
+    let responseDate = true;
+    t.mock.method(globalThis, 'fetch', async () => {
+      reads++;
+      return Response.json({ code: 0, data: { room_id: 123, live_status: 1, live_time: liveTime / 1000 } },
+        { headers: responseDate ? { Date: new Date(sourceTime + elapsed).toUTCString() } : {} });
+    });
+    f.time(new Date(sourceTime + skew).toISOString());
+    const service = createGiftWishService({ ...f.options, readRoom: undefined, monotonicNow: () => elapsed });
+    f.event('before-start', '2026-11-26T11:29:59Z', 2);
+    f.event('in-window', '2026-11-26T11:45:00Z', 3);
+    f.event('later', '2026-11-26T12:00:10Z', 5);
+    f.event('future', '2026-11-26T12:30:00Z', 7);
+    const first = await service.getSnapshot();
+    assert.equal(first.session.state, 'live');
+    assert.equal(first.session.startedAt, new Date(start).toISOString());
+    assert.equal(first.items[0].count, 3, 'both bounds use the platform date, not the desktop date');
+    elapsed = 15_000;
+    f.time('2026-11-25T12:00:00Z');
+    assert.equal((await service.getSnapshot()).items[0].count, 8, 'cached live time advances on elapsed time');
+    assert.equal(reads, 1);
+    elapsed = 30_000;
+    liveTime = sourceTime + 3_600_000; // Contradicts the Date on the same source response.
+    const unknown = await service.getSnapshot();
+    assert.equal(unknown.session.stale, true);
+    assert.equal(unknown.session.startedAt, first.session.startedAt);
+    assert.equal(unknown.items[0].count, 3, 'an invalid source cannot extend the last confirmed window');
+    assert.equal(f.store.readSession(f.source, '123').started_at, first.session.startedAt);
+    liveTime = start;
+    elapsed = 60_000;
+    assert.equal((await service.getSnapshot()).items[0].count, 8);
+    assert.equal(reads, 3);
+    const confirmed = f.store.readSession(f.source, '123');
+    responseDate = false;
+    elapsed = 90_000;
+    f.time('2027-11-26T12:00:00Z');
+    const unproven = await service.getSnapshot();
+    assert.equal(unproven.session.stale, true, 'without a source clock the skew cannot be resolved');
+    assert.equal(unproven.items[0].count, 8);
+    assert.deepEqual(f.store.readSession(f.source, '123'), confirmed, 'unproven dates cannot overwrite the valid source window');
+  });
 }
 
 test('wishes with the same time window share ledger aggregation and one retention snapshot', async (t) => {
@@ -314,7 +399,7 @@ test('a late room response cannot overwrite the current wish session or its fall
   const older = Promise.withResolvers();
   let roomId = '111';
   let offline = false;
-  const live = time => ({ live_status: 1, live_time: Date.parse(time) / 1000 });
+  const live = time => ({ live_status: 1, live_time: Date.parse(time) / 1000, checkedAtMs: f.options.now() });
   const service = createGiftWishService({ ...f.options, getRoomId: () => roomId,
     readRoom: async id => {
       if (id === '111') return older.promise;

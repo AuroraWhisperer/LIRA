@@ -3,6 +3,35 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createGameSessionService } = require('../../src/games/game-session-service');
+const { HistoryPoller } = require('../../src/bilibili/danmaku/history-poller');
+
+test('a history poll finishing during a replacement game only plays commands from its lifetime', async t => {
+  const base = 1_800_000_000_000;
+  let now = base;
+  t.mock.method(Date, 'now', () => now);
+  const games = createGameSessionService({ wallNow: () => now });
+  t.after(() => games.dispose());
+  t.mock.method(Math, 'random', () => 0.5);
+  const read = Promise.withResolvers();
+  const results = [];
+  const poller = new HistoryPoller({ fetchHistory: () => read.promise }, message => {
+    results.push(games.handleDanmaku(message).accepted);
+  }, { startedAtMs: base });
+  const config = { game: 'number-bomb', mode: 'single', targetUid: '42' };
+  games.start(config);
+  const polling = poller.pollHistory({ roomId: '123' });
+  games.stop();
+  now += 2000;
+  games.start(config);
+  games.move({ value: 1 });
+  now += 1000;
+  read.resolve({ room: [
+    { uid: '42', text: '点歌 2', timeline: base + 1000 },
+    { uid: '42', text: '点歌 3', timeline: now },
+  ] });
+  await polling;
+  assert.deepEqual(results, [false, true]);
+});
 
 test('a viewer guesses a complete integer without taking a turn on fractions or negative numbers', (t) => {
   t.mock.method(Math, 'random', () => 0.495);

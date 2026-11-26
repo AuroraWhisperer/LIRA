@@ -96,6 +96,10 @@ const { writeLog, nextSequence: nextLogSequence, startRun: startLogRun } = creat
   getLogFile: () => paths.logFile,
 });
 const desktopAuth = createDesktopAuthController({
+  onCloudBilibiliIdentityChanged() {
+    const window = desktopWindow.getWindow();
+    if (window && !window.isDestroyed()) window.webContents.send('bilibili:identity-changed');
+  },
   BrowserWindow,
   shell,
   getMainWindow: () => desktopWindow.getWindow(),
@@ -709,6 +713,7 @@ async function startDesktopApp() {
   remoteGiftController = createRemoteGiftController({
     licenseManager,
     runtime,
+    onGiftNotificationSource: desktopNotifications.setGiftSource,
   });
   sceneCloudController = createSceneCloudController({
     licenseManager,

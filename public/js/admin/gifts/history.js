@@ -334,7 +334,7 @@ async function clearGiftDatabase() {
     clearOutcome = null;
     historyLoaded = false;
     resetGiftLedgerPagination(giftLedgerState);
-    setText('giftHistoryClearDatabaseBtn', '正在清空…');
+    setButtonLabel('giftHistoryClearDatabaseLabel', 'giftHistoryClearDatabaseBtn', '正在清空…');
     renderHistoryNotice({ label: '正在清空礼物记录…' });
     const response = await fetch('/api/database/clear-gifts', {
       method: 'POST',
@@ -373,7 +373,7 @@ async function clearGiftDatabase() {
   } finally {
     clearing = false;
     if (button) button.disabled = false;
-    setText('giftHistoryClearDatabaseBtn', '清空全部记录');
+    setButtonLabel('giftHistoryClearDatabaseLabel', 'giftHistoryClearDatabaseBtn', '清空全部记录');
     if (reload && isGiftHistoryOpen()) loadGiftHistory();
     else if (!confirmed && isGiftHistoryOpen()) loadGiftHistory({ background: true });
   }
@@ -458,6 +458,11 @@ function setText(id, value) {
   if (element) element.textContent = value;
 }
 
+function setButtonLabel(labelId, fallbackId, value) {
+  const element = get(labelId) || get(fallbackId);
+  if (element) element.textContent = value;
+}
+
 function get(id) {
   return document.getElementById(id);
 }
@@ -476,7 +481,8 @@ export function initGiftRecentToggle() {
   const panelHeader = section?.querySelector('.panel-header');
 
   panelHeader?.addEventListener('click', (event) => {
-    if (event.target.closest('#giftHistoryOpenBtn')) return;
+    if (!event.target.closest('#giftRecentHeading, #giftRecentToggle')) return;
+    if (event.target.closest('#giftSprintStatus')) return;
     const collapsed = section?.classList.toggle('is-collapsed') || false;
     if (toggle) {
       toggle.setAttribute('aria-expanded', String(!collapsed));

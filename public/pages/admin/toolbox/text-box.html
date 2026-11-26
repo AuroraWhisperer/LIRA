@@ -1,35 +1,68 @@
 <section id="otherTextBoxFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="otherTextBoxFeatureTab" data-other-feature-panel hidden>
   <div id="textBoxPage" class="other-feature-panel-body text-box-page">
     <header class="text-box-page-heading component-toolbar">
-      <button class="secondary" type="button" data-text-box="add" disabled>新建文本框</button>
-      <nav class="text-box-library" data-text-box="library" aria-label="文本框列表" hidden>
-        <div class="text-box-list" data-text-box="list"></div>
-      </nav>
+      <div class="text-box-tabs-bar">
+        <nav class="text-box-library" data-text-box="library" aria-label="文本框列表" hidden>
+          <div class="text-box-list" data-text-box="list"></div>
+        </nav>
+        <button class="secondary text-box-add-button" type="button" data-text-box="add" aria-label="新建文本框" title="新建文本框" disabled>
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M10 4.5v11M4.5 10h11"/></svg>
+          <span class="text-box-add-label">新建文本框</span>
+        </button>
+      </div>
       <div class="text-box-heading-actions">
-        <div class="text-box-page-status"><p data-text-box="status" role="status" aria-live="polite">正在读取文本框…</p><button class="secondary" type="button" data-text-box="retry" hidden>重新读取</button></div>
-        <button class="secondary" type="button" data-text-box="discard" disabled>放弃修改</button><button class="primary" type="button" data-text-box="save" disabled>保存并应用</button>
+        <div class="text-box-page-status">
+          <p data-text-box="status" role="status" aria-live="polite">正在读取文本框…</p>
+          <button class="secondary" type="button" data-text-box="retry" hidden>重新读取</button>
+        </div>
+        <button class="ghost text-box-discard-button" type="button" data-text-box="discard" disabled>放弃</button>
+        <button class="primary text-box-save-button" type="button" data-text-box="save" disabled>保存并应用</button>
       </div>
     </header>
-    <div class="text-box-scene-context">
-      <p data-text-box="scene">正在读取场景…</p>
-      <p class="hint">保存和放弃修改均作用于整个场景。</p>
+    <div class="text-box-scene-context" data-text-box="scene-context" hidden>
+      <p data-text-box="scene"></p>
     </div>
     <div class="text-box-workspace">
       <div class="text-box-empty" data-text-box="empty">
         <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect x="5" y="7" width="38" height="34" rx="6" stroke="currentColor" stroke-width="2"/><path d="M15 17h18M24 17v15m-5 0h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         <h3>还没有文本框</h3>
+        <p class="text-box-empty-subtitle">每个文本框独立维护内容与浏览器源，可单独投屏或放入画布</p>
+        <button class="primary text-box-empty-add" type="button" data-text-box="empty-add" disabled>新建文本框</button>
       </div>
       <section class="text-box-detail" data-text-box="detail" aria-label="文本框详情" hidden>
-        <div class="text-box-detail-heading">
-          <input data-text-box="name" aria-label="文本框名称" maxlength="80" required />
-          <button class="secondary" type="button" data-text-box="copy" disabled>复制链接</button>
-          <button class="secondary" type="button" data-text-box="duplicate">创建副本</button>
-          <button class="secondary" type="button" data-text-box="remove">删除</button>
-        </div>
-        <div data-text-box="editor"></div>
-        <section class="text-box-live-section">
-          <div class="text-box-live-heading"><h3>实时预览</h3><button class="secondary" type="button" data-text-box="canvas">在画布中调整</button></div>
+        <section class="text-box-card text-box-editor-card">
+          <div class="text-box-detail-heading">
+            <input data-text-box="name" aria-label="文本框名称" maxlength="80" required />
+            <div class="text-box-card-actions">
+              <button class="ghost text-box-icon-button" type="button" data-text-box="duplicate" aria-label="创建副本" title="创建副本">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="6.5" width="9.5" height="9.5" rx="2"/><path d="M13.5 6.5V5a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 5v7A1.5 1.5 0 0 0 5 13.5h1.5"/></svg>
+              </button>
+              <button class="ghost text-box-icon-button text-box-remove-button" type="button" data-text-box="remove" aria-label="删除" title="删除文本框">
+                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6h11M8 6V4.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V6m-5.5 0 .6 9.1a1.5 1.5 0 0 0 1.5 1.4h2.8a1.5 1.5 0 0 0 1.5-1.4L13.5 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <div data-text-box="editor"></div>
+        </section>
+        <section class="text-box-card text-box-live-section">
+          <div class="text-box-live-heading">
+            <h3>实时预览</h3>
+            <button class="secondary text-box-canvas-button" type="button" data-text-box="canvas">在画布中调整</button>
+          </div>
           <div class="text-box-live" data-text-box="preview"></div>
+          <div class="text-box-source-bar" data-text-box="source-bar" data-source-state="pending">
+            <div class="text-box-source-label">
+              <span class="text-box-source-dot" aria-hidden="true"></span>
+              <span>独立浏览器源</span>
+            </div>
+            <button class="copy-url text-box-source-url" type="button" data-text-box="source-url" aria-label="点击复制当前文本框独立浏览器源地址" hidden></button>
+            <p class="text-box-source-pending" data-text-box="source-pending">保存并应用后生成此文本框专属地址</p>
+            <button class="secondary text-box-source-action" type="button" data-text-box="copy" disabled hidden>
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="7" width="9" height="9" rx="2"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/></svg>
+              <span data-text-box="copy-label">复制地址</span>
+            </button>
+            <button class="secondary text-box-source-action" type="button" data-text-box="source-publish" hidden>保存并生成</button>
+          </div>
         </section>
         <div class="text-box-detail-settings" data-text-box="settings"></div>
       </section>

@@ -55,6 +55,8 @@ let basicVisible = true;
 let advancedVisible = false;
 let rawSettings = {};
 let fallbackLine = null;
+let fallbackLines = [];
+let renderedLines = [];
 let advancedLineCache = null;
 let latestState = null;
 let latestTimeline = EMPTY_TIMELINE;
@@ -124,13 +126,13 @@ function init({ layer = 'both' } = {}) {
   performanceProfile = createLyricPerformanceProfile({
     onChange: (profile) => {
       activeWordAnimator?.setMode(resolveWordAnimationMode(profile));
-      activeWordAnimator?.setMotionEnabled(profile.effects === 'full');
+      activeWordAnimator?.setMotionEnabled(shouldBounceWords(profile));
       stage.classList.toggle('is-low-power', profile.effects === 'low');
     },
   });
   activeWordAnimator = new LyricWordAnimator({
     mode: resolveWordAnimationMode(),
-    motionEnabled: performanceProfile.profile.effects === 'full',
+    motionEnabled: shouldBounceWords(),
     wordClass: 'desktop-lyric-preview-word',
     highlightClass: 'desktop-lyric-preview-word-highlight',
   });
@@ -213,13 +215,15 @@ function applyLyricState(state) {
   latestWordSignature = JSON.stringify([latestState.lineText || '', latestState.words || []]);
   immediateLineChange = state.discontinuity === true || latestState.generation !== previousState?.generation
     || latestState.trackTitle !== previousState?.trackTitle;
-  if (latestWordSignature !== previousWords || immediateLineChange) {
+  if (latestWordSignature !== previousWords || immediateLineChange
+    || (latestState.translation || '') !== (previousState?.translation || '')) {
     const words = Array.isArray(latestState.words) ? latestState.words : [];
     fallbackLine = latestState.lineText ? {
       text: latestState.lineText, translation: latestState.translation || '', words,
       startMs: words[0]?.startMs ?? (fallbackLine?.text === latestState.lineText ? fallbackLine.startMs : latestState.currentMs),
       endMs: words.at(-1)?.endMs,
     } : null;
+    fallbackLines = fallbackLine ? [fallbackLine] : [];
   }
   if (immediateLineChange) lineTransition?.clear();
   renderer?.setState({ ...latestState, discontinuity: state.discontinuity === true });
@@ -252,8 +256,14 @@ function updateLyricTimeline(timeline) {
   updatePreviewStatus();
 }
 
+function displayLines(currentMs) {
+  return Number.isFinite(latestTimeline.truncatedAtMs) && currentMs >= latestTimeline.truncatedAtMs
+    ? fallbackLines : latestTimeline.lines;
+}
+
 function renderTimeline() {
   if (!timelineElement) return;
+  renderedLines = displayLines(resolveLyricTime(currentPreviewPosition(), currentDisplaySettings));
   lineTransition?.clear();
   const fragment = document.createDocumentFragment();
   rowElements = [];
@@ -273,15 +283,15 @@ function renderTimeline() {
     return;
   }
 
-  timelineElement.style.paddingBlock = latestTimeline.lines.length
+  timelineElement.style.paddingBlock = renderedLines.length
     ? 'var(--preview-follow-padding, 50cqh) calc(100cqh - var(--preview-follow-padding, 50cqh))' : '';
-  if (!latestTimeline.lines.length) {
+  if (!renderedLines.length) {
     const empty = document.createElement('div');
     empty.className = 'desktop-lyric-preview-empty';
     empty.textContent = timelineFallback(latestTimeline, currentDisplaySettings);
     fragment.appendChild(empty);
   } else {
-    latestTimeline.lines.forEach((line, index) => {
+    renderedLines.forEach((line, index) => {
       const row = document.createElement('div');
       row.className = 'desktop-lyric-preview-row';
       row.dataset.lyricIndex = String(index);
@@ -336,8 +346,12 @@ function createCountdownElement() {
 
 function renderTimelineFrame(currentMs) {
   if (!basicVisible && !advancedVisible) return;
-  const lines = latestTimeline.lines;
   const lyricTime = resolveLyricTime(currentMs, currentDisplaySettings);
+  const lines = displayLines(lyricTime);
+  if (lines !== renderedLines) {
+    renderTimeline();
+    return;
+  }
   const nextActiveIndex = findActiveLyricIndex(lines, lyricTime);
 
   if (!basicVisible || !lines.length) {
@@ -388,8 +402,8 @@ function renderAdvancedFrame(currentMs) {
     || latestTimeline.trackTitle === latestState.trackTitle;
   const available = matchesTrack && !['idle', 'loading', 'empty'].includes(latestState?.status)
     && !['loading', 'empty'].includes(latestTimeline.status);
-  let line = available ? latestTimeline.lines[activeIndex]
-    || (!latestTimeline.lines.length ? fallbackLine : null) : null;
+  let line = available ? renderedLines[activeIndex]
+    || (!renderedLines.length ? fallbackLine : null) : null;
   if (line && !line.words?.length && latestState?.lineText === line.text && latestState.words?.length) {
     if (advancedLineCache?.source !== line || advancedLineCache.words !== latestWordSignature) {
       advancedLineCache = { source: line, words: latestWordSignature, line: { ...line, words: latestState.words } };
@@ -398,7 +412,7 @@ function renderAdvancedFrame(currentMs) {
   }
   advancedRenderer?.renderFrame({
     currentMs, line, index: activeIndex,
-    nextLine: available ? latestTimeline.lines[activeIndex + 1] : null,
+    nextLine: available ? renderedLines[activeIndex + 1] : null,
     playing: latestState?.playing === true, playbackRate: latestState?.playbackRate,
     discontinuity: immediateLineChange,
     trackTitle: latestState?.trackTitle || latestTimeline.trackTitle,
@@ -412,7 +426,7 @@ function renderActiveWords() {
     resetActiveWords();
     return;
   }
-  const line = latestTimeline.lines[activeIndex] || {};
+  const line = renderedLines[activeIndex] || {};
   const timelineWords = Array.isArray(line.words) && line.words.length > 0 ? line.words : null;
   const words = timelineWords || (Array.isArray(latestState?.words) ? latestState.words : []);
   const matchesCurrentLine = latestState?.lineText === line.text;
@@ -442,7 +456,7 @@ function resetActiveWords() {
   activeWordAnimator?.clear({ commit: false });
   if (previousIndex >= 0 && rowElements[previousIndex]) {
     const textElement = rowElements[previousIndex].querySelector('.desktop-lyric-preview-row-text');
-    if (textElement) textElement.textContent = latestTimeline.lines[previousIndex]?.text || '';
+    if (textElement) textElement.textContent = renderedLines[previousIndex]?.text || '';
   }
   activeWordIndex = -1;
   activeWordSignature = '';
@@ -458,6 +472,10 @@ function updateActiveWordProgress(currentMs, force = false) {
 function resolveWordAnimationMode(profile = performanceProfile?.profile) {
   if (currentDisplaySettings.karaokeMode === 'discrete') return 'discrete';
   return profile?.wordAnimation || 'waapi';
+}
+
+function shouldBounceWords(profile = performanceProfile?.profile) {
+  return currentDisplaySettings.wordBounceEnabled && profile?.effects === 'full';
 }
 
 function acceptLyricVersion(state) {
@@ -499,7 +517,7 @@ function setLinesHidden(first, last, hidden) {
 
 function updateCountdown(currentMs) {
   if (!countdownElement || !timelineElement) return;
-  const countdown = getLyricCountdown(latestTimeline.lines, activeIndex, currentMs);
+  const countdown = getLyricCountdown(renderedLines, activeIndex, currentMs);
   const signature = countdown ? `${countdown.nextIndex}:${countdown.seconds}:${currentDisplaySettings.visibleLines}` : '';
   if (signature === countdownSignature) return;
   countdownSignature = signature;
@@ -640,6 +658,9 @@ function applySettings(settings = {}) {
   lineTransition?.clear();
   const previousSettings = currentDisplaySettings;
   currentDisplaySettings = values;
+  if (previousSettings.wordBounceEnabled !== values.wordBounceEnabled) {
+    activeWordAnimator?.setMotionEnabled(shouldBounceWords());
+  }
   if (Object.hasOwn(settings, 'lyricLayer')) outputLayer = normalizeLayer(settings.lyricLayer);
   advancedRenderer?.applySettings(rawSettings);
   applyDesktopLyricStyles(card, values);
@@ -707,6 +728,7 @@ function dispose() {
   renderer = advancedRenderer = advancedStage = previewStage = layoutObserver = null;
   timelineElement = viewport = lineTransition = activeWordAnimator = performanceProfile = null;
   latestState = fallbackLine = advancedLineCache = null;
+  fallbackLines = renderedLines = [];
   latestTimeline = EMPTY_TIMELINE;
   rowElements = [];
   countdownElement = countdownRow = null;

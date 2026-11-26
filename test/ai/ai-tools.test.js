@@ -79,6 +79,21 @@ test('QWeather keeps quota when a successful response has no locations', async (
   assert.equal(releases, 0);
 });
 
+test('AMap diagnostics distinguish timeout, disconnected network and provider refusal', async () => {
+  const config = { amapApiHost: 'https://map.test', amapApiKey: 'fixture' };
+  for (const [result, code] of [
+    [new DOMException('timeout', 'TimeoutError'), 'UPSTREAM_TIMEOUT'],
+    [new TypeError('offline'), 'UPSTREAM_UNAVAILABLE'],
+    [Response.json({ status: '0', infocode: '10004' }), 'AMAP_REJECTED'],
+  ]) {
+    const tool = createAmapTool({ fetchImpl: async () => {
+      if (result instanceof Error) throw result;
+      return result;
+    } });
+    await assert.rejects(tool.testConnection(config), { code });
+  }
+});
+
 test('AMap keeps quota when route normalization finds no route', async () => {
   let releases = 0;
   const tool = createAmapTool({

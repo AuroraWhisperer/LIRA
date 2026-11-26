@@ -341,6 +341,11 @@
   box-shadow: 0 20px 32px rgb(0 0 0 / 18%);
 }
 
+.player-appearance-style-art .player-fs-vinyl-disc,
+.player-appearance[inert] .player-fs-vinyl-disc {
+  will-change: auto;
+}
+
 [data-player-rotation='false'] .player-fs-vinyl-disc,
 .player-appearance[inert] .player-fs-vinyl-disc,
 .player-appearance[inert] .player-appearance-canvas .player-fs-bg::before {

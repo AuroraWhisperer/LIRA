@@ -4,7 +4,7 @@ import { isComponentPreview, createComponentPreviewClient } from './component-pr
 if (isComponentPreview()) {
   const playback = createTextBoxPlayback(document.getElementById('textBox'));
   createComponentPreviewClient({
-    onConfig(config) { playback.update(config); },
+    onConfig(config) { return playback.update(config); },
     onDispose() { playback.dispose(); },
   });
 }

@@ -31,11 +31,16 @@ test('changing platform restores the whale selection without deleting its edits 
   const saved = store.createPersona({ name: '我的人格', prompt });
   store.updateConfig({ personaId: 'whale' });
   const f = await createAiSettingsFixture({
+    deferInitialConfig: true,
     config: store.getPublicConfig(),
     request: (url, options) => url === '/api/ai/config' && options.method === 'PUT'
       ? aiResponse(store.updateConfig(JSON.parse(options.body))) : undefined,
   });
   const provider = f.elements.get('xiaomiAiModelProvider');
+  assert.equal(provider.disabled, true);
+  f.resolveInitialConfig();
+  await flushAiTasks();
+  assert.equal(provider.disabled, false);
   const select = f.elements.get('xiaomiAiPersona');
   provider.value = 'openai';
   f.fire(provider.id, 'change');
@@ -219,6 +224,33 @@ test('editing a role remains a draft until saved and cancel does not change the 
   f.fire('xiaomiAiPersonaCancel', 'click');
   f.fire('xiaomiAiPersonaManage', 'click');
   assert.notEqual(f.elements.get('xiaomiAiPersonaPrompt').value, text);
+});
+
+test('editing the description of an imported CRLF persona retains its conversation scope', async t => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
+  const { resolvePersona, getPersonaScope } = require('../../src/ai/personas');
+  const scope = () => getPersonaScope('room', store.getConfig(), resolvePersona(store.getConfig()));
+  const prompt = 'First line of the guide.\r\nSecond line of the guide.';
+  const config = store.importPersona({ ...store.exportPersona(), id: 'imported-role', prompt });
+  const before = scope();
+  const f = await createAiSettingsFixture({ config, request(url, options) {
+    if (url === '/api/ai/personas/update') return aiResponse(store.updatePersona(JSON.parse(options.body)));
+  } });
+  f.fire('xiaomiAiPersonaManage', 'click');
+  // Native textarea.value exposes LF even before an input event.
+  f.elements.get('xiaomiAiPersonaPrompt').value = prompt.replace('\r\n', '\n');
+  f.input('xiaomiAiPersonaDescription', 'Updated description');
+  f.fire('xiaomiAiPersonaEditor', 'submit', { preventDefault() {} });
+  await flushAiTasks();
+  assert.equal(store.exportPersona().description, 'Updated description');
+  assert.equal(scope(), before);
+  f.input('xiaomiAiPersonaPrompt', 'A deliberately different guide.');
+  f.fire('xiaomiAiPersonaEditor', 'submit', { preventDefault() {} });
+  await flushAiTasks();
+  assert.notEqual(scope(), before);
 });
 
 test('saved legacy custom role remains selectable after choosing a built-in', async () => {

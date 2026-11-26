@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createGiftExportController, exportLayout } = require('../../src/electron/gift-export-controller');
+const { createGiftExportRuntime } = require('../../src/server/gift-export-runtime');
+const { readGiftDisplaySettings } = require('../../src/bilibili/gift/display-settings');
 const { registerGiftExportIpc } = require('../../src/electron/ipc/gift-export-ipc');
 const { createPublicError } = require('../../src/shared/public-error');
 
@@ -26,7 +28,9 @@ function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport, 
         setWindowOpenHandler() {},
         on() {},
         executeJavaScript: async (script) => {
-          if (script.startsWith('window.')) this.payloads.push(JSON.parse(script.slice(script.indexOf('(') + 1, -1)));
+          if (script.startsWith('window.initializeGiftExport(') || script.startsWith('window.renderGiftExport(')) {
+            this.payloads.push(JSON.parse(script.slice(script.indexOf('(') + 1, -1)));
+          }
           return script.startsWith('window.renderGiftExport(')
             ? { width: renderWidths[Math.min(render++, renderWidths.length - 1)] }
             : undefined;
@@ -58,6 +62,10 @@ function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport, 
       return this.destroyed;
     }
   }
+  const preferences = createGiftExportRuntime({
+    getSettingsStore: () => ({ setSettings: patch => Object.assign(storedSettings, patch) }),
+    giftCards: {},
+  });
   const controller = createGiftExportController({
     app: { getPath: () => root },
     BrowserWindow: Window,
@@ -65,19 +73,9 @@ function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport, 
     shell: { openPath: async () => '' },
     runtime: {
       getSetting: (key) => storedSettings[key] || '',
-      setGiftExportDirectory: (directory) => {
-        storedSettings.giftExportDirectory = directory;
-      },
+      rememberGiftExport: preferences.rememberGiftExport,
       mergeGiftExport,
-      setGiftExportSettings: ({ mode, background, sortBy, rowGap, mergeAcrossDates, directory }) =>
-        Object.assign(storedSettings, {
-          giftExportMode: mode,
-          giftExportBackground: background,
-          giftExportSortBy: sortBy,
-          giftExportRowGap: String(rowGap),
-          giftExportMergeAcrossDates: String(mergeAcrossDates),
-          giftExportDirectory: directory,
-        }),
+      setGiftExportSettings: preferences.setGiftExportSettings,
       getGiftViewRevision: () => revision,
       prepareGiftExport: () => ({
         viewRevision: revision,
@@ -85,7 +83,7 @@ function fixture(t, renderWidths = [856], storedSettings = {}, mergeGiftExport, 
           { eventId: 'one', gift: { totalPrice: 2 } },
           { eventId: 'two', gift: { totalPrice: 5 } },
         ],
-        config: {},
+        config: readGiftDisplaySettings(storedSettings),
         catalog: [{ id: 'sample', name: 'Sample gift' }],
       }),
     },
@@ -150,6 +148,22 @@ test('gift export rejects empty or malformed capture output without writing a pa
   }
 });
 
+test('a transient compositor failure retries the current image once without duplicating earlier files', async t => {
+  for (const failures of [1, 2]) {
+    const { controller, windows } = fixture(t);
+    const { id } = await controller.prepare({});
+    await controller.configure({ id, mode: 'separate', background: 'transparent' });
+    const result = await controller.save({ id }, ({ saved }) => {
+      if (saved === 1) t.mock.method(windows[0].webContents, 'capturePage', async () => {
+        throw new Error('UnknownVizError');
+      }, { times: failures });
+    });
+    assert.equal(result.ok, failures === 1);
+    assert.equal(result.saved, failures === 1 ? 2 : 1);
+    assert.equal(fs.readdirSync(result.directory).length, result.saved);
+  }
+});
+
 test('export settings work without a selection, persist and only affect new tasks', async (t) => {
   const { root, controller, storedSettings, dialog } = fixture(t);
   assert.deepEqual(await controller.settings(), {
@@ -179,6 +193,58 @@ test('export settings work without a selection, persist and only affect new task
   assert.equal(next.mode, 'combined');
   assert.equal(next.background, 'transparent');
   assert.equal(next.root, path.join(reloaded.root, 'LIRA', '礼物导出'));
+});
+
+test('custom PNG style is seeded once and follows its own saved preference across tasks', async t => {
+  const rolling = { ...readGiftDisplaySettings({}), tailStyle: 'swallowtail', textureStyle: 'satin', sheen: true };
+  const stored = { giftDisplayConfig: JSON.stringify(rolling) };
+  const { controller, windows } = fixture(t, undefined, stored, async snapshot => {
+    assert.equal(snapshot.config.tailStyle, rolling.tailStyle);
+    return { ...snapshot, items: snapshot.items.slice(1) };
+  });
+  const task = await controller.prepare({});
+  assert.equal(task.styleSource, 'follow');
+  const options = { id: task.id, mode: task.mode, background: task.background, remember: true };
+  const first = await controller.configure({ ...options, styleSource: 'custom' });
+  assert.equal(first.snapshot.config.tailStyle, rolling.tailStyle);
+  assert.equal(first.snapshot.config.textureStyle, rolling.textureStyle);
+  const customStyle = { tailStyle: 'capsule', textureStyle: 'lace', thresholds: [250, 1250, 2500] };
+  await controller.configure({ ...options, customStyle });
+  const grouped = await controller.configure({ ...options, sortBy: 'amount', mergeAcrossDates: true });
+  assert.equal(grouped.snapshot.config.textureStyle, 'lace');
+  assert.deepEqual(grouped.snapshot.config.thresholds, customStyle.thresholds);
+  assert.equal((await controller.save(options)).ok, true);
+  assert.equal(windows[0].payloads[0].config.tailStyle, 'capsule');
+  assert.deepEqual(windows[0].payloads[0].config.thresholds, grouped.snapshot.config.thresholds);
+  assert.equal(windows[0].payloads[0].config.sheen, false);
+  assert.equal(stored.giftDisplayConfig, JSON.stringify(rolling));
+  const reopened = await controller.prepare({});
+  assert.equal(reopened.styleSource, 'custom');
+  const followed = await controller.configure({ ...options, id: reopened.id, styleSource: 'follow' });
+  assert.equal(followed.snapshot.config.tailStyle, rolling.tailStyle);
+  stored.giftDisplayConfig = JSON.stringify({ ...rolling, tailStyle: 'ribbon' });
+  const next = await controller.prepare({});
+  assert.equal(next.styleSource, 'follow');
+  assert.equal(next.snapshot.config.tailStyle, 'ribbon');
+  const restored = await controller.configure({ ...options, id: next.id, styleSource: 'custom' });
+  assert.equal(restored.snapshot.config.tailStyle, 'capsule');
+  assert.deepEqual(restored.snapshot.config.thresholds, customStyle.thresholds);
+});
+
+test('export rejects invalid or live-only style fields without replacing the saved preference', async t => {
+  const { controller, storedSettings } = fixture(t);
+  const task = await controller.prepare({});
+  const options = { id: task.id, mode: task.mode, background: task.background, styleSource: 'custom', remember: true };
+  await controller.configure(options);
+  const previous = storedSettings.giftExportStyle;
+  const style = JSON.parse(previous).customStyle;
+  for (const patch of [{ thresholds: [200, 200, 300] }, { textureStyle: 'unknown' }, { sheen: true }]) {
+    await assert.rejects(controller.configure({ ...options, customStyle: { ...style, ...patch } }));
+  }
+  await assert.rejects(controller.configure({ ...options, styleSource: 'follow', customStyle: style }));
+  assert.equal(storedSettings.giftExportStyle, previous);
+  storedSettings.giftExportStyle = '{}';
+  assert.equal((await controller.prepare({})).styleSource, 'follow');
 });
 
 test('export settings reject unsafe values and discard cancelled or stale directory dialogs', async (t) => {
@@ -233,7 +299,8 @@ test('export preview creates no files and accepts only dialog/system directories
   await assert.rejects(() => controller.configure({ id: task.id, mode: 'huge', background: 'white' }));
   await assert.rejects(() => controller.configure({ id: task.id, mode: 'combined', background: 'white', rowGap: 0.5 }));
   await assert.rejects(() => controller.configure({ id: task.id, mode: 'combined', background: 'white', sortBy: 'name' }));
-  assert.equal(exportLayout(40, 'combined').length, 2);
+  assert.deepEqual(exportLayout(50, 'combined', 32).map(file => file.count), [50]);
+  assert.deepEqual(exportLayout(51, 'combined', 0).map(file => file.count), [50, 1]);
   assert.throws(() => exportLayout(10001, 'combined'));
 });
 
@@ -360,9 +427,11 @@ test('a source change prevents any subsequent file being written', async (t) => 
 });
 
 test('reconfiguring a partially failed export allocates a new directory and keeps the first batch', async (t) => {
+  t.mock.method(Date, 'now', () => Date.parse('2026-11-25T16:07:58Z'));
   const widths = [856, 9000];
   const { controller } = fixture(t, widths);
   const task = await controller.prepare({});
+  assert.equal(task.directory, path.join(task.root, '2026-11-26', '0007'));
   const options = { id: task.id, mode: 'separate', background: 'transparent' };
   const cancelPicker = () => controller.configure({ ...options, directoryAction: 'choose' });
   await controller.configure(options);
@@ -372,7 +441,7 @@ test('reconfiguring a partially failed export allocates a new directory and keep
   assert.equal((await cancelPicker()).directory, task.directory);
   assert.equal((await controller.openFolder({ id: task.id })).ok, true);
   const next = await controller.configure(options);
-  assert.notEqual(next.directory, task.directory);
+  assert.equal(next.directory, `${task.directory}-02`);
   assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
   widths[1] = 856;
   const retried = await controller.save({ id: task.id });
@@ -384,7 +453,7 @@ test('reconfiguring a partially failed export allocates a new directory and keep
   const changed = await controller.configure({ ...options, background: 'white', directoryAction: 'choose' });
   assert.equal(changed.background, 'white');
   assert.equal(changed.root, next.root);
-  assert.notEqual(changed.directory, next.directory);
+  assert.equal(changed.directory, `${task.directory}-03`);
   await assert.rejects(controller.openFolder({ id: task.id }));
   assert.deepEqual(fs.readdirSync(next.directory), ['礼物_001.png', '礼物_002.png']);
   assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
@@ -401,6 +470,28 @@ test('a conflicting output directory reports failure without overwriting or clai
   assert.match(result.error, /保存位置不可用/);
   assert.equal(windows.length, 0);
   assert.deepEqual(fs.readdirSync(task.directory), ['keep.txt']);
+});
+
+test('a partial disk write removes only the failed PNG and keeps the completed batch prefix', async t => {
+  const { controller } = fixture(t);
+  const task = await controller.prepare({});
+  await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
+  const open = fs.promises.open;
+  t.mock.method(fs.promises, 'open', async (filename, flags) => {
+    const handle = await open(filename, flags);
+    if (filename.endsWith('_002.png')) {
+      const write = handle.writeFile.bind(handle);
+      handle.writeFile = async bytes => {
+        await write(bytes.subarray(0, 8));
+        throw Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+      };
+    }
+    return handle;
+  });
+  const result = await controller.save({ id: task.id });
+  assert.equal(result.ok, false);
+  assert.equal(result.saved, 1);
+  assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
 });
 
 test('closing a preview rejects its in-flight preparation', async (t) => {

@@ -197,6 +197,50 @@ test('snapshots preserve newer overtime and lyric revisions', async () => {
   assert.equal(service.getAppState().lyricState.sequence, 9);
 });
 
+test('same-revision quantity-limit messages update only the settlement counts in shared overtime state', async () => {
+  const { service, requests, eventBus } = await createFixture();
+  const updates = [];
+  eventBus.on('overtime:updated', update => updates.push(update));
+  const send = (reason, state, adjustment) => service.ws.receive({ type: 'overtime:update', reason, state, adjustment });
+  const baseline = { revision: 4, status: 'running', effectiveRemainingMs: 9000, serverNowMs: 1000,
+    rules: [{ giftId: 'A' }], settlements: [{ giftEventId: 7 }], pendingCount: 0, quantityLimitedCount: 0 };
+  service.ws.receive({ type: 'snapshot', reason: 'connect', state: { overtime: baseline } });
+  const reload = service.reloadState();
+  const counts = { revision: 4, pendingCount: 2, quantityLimitedCount: 1 };
+  send('quantity-limit', { ...counts, status: 'paused', effectiveRemainingMs: 0, serverNowMs: 800,
+    rules: [], settlements: [] }, { giftEventId: 7 });
+
+  const current = service.getAppState().overtime;
+  assert.equal(current.pendingCount, 2);
+  assert.equal(current.quantityLimitedCount, 1);
+  assert.equal(current.status, 'running');
+  assert.equal(current.effectiveRemainingMs, 9000);
+  assert.equal(current.serverNowMs, 1000);
+  assert.equal(current.rules[0].giftId, 'A');
+  assert.equal(current.settlements[0].giftEventId, 7);
+  assert.equal(updates.length, 1);
+  assert.deepEqual({ ...updates[0].state }, counts);
+  assert.equal(updates[0].adjustment, undefined);
+
+  send('quantity-limit', counts);
+  send('quantity-limit', { ...counts, revision: 3, pendingCount: 5 });
+  send('quantity-limit', { revision: 4, pendingCount: 5 });
+  send('quantity-limit', { ...counts, quantityLimitedCount: 3 });
+  send('gift', { ...counts, pendingCount: 5 }, { giftEventId: 7 });
+  requests[0]({ overtime: baseline, settings: { roomId: '123' } });
+  await reload;
+  assert.equal(service.getAppState().overtime, current);
+  assert.equal(service.getAppState().settings.roomId, '123');
+  assert.equal(updates.length, 1);
+
+  const applied = { revision: 5, effectiveRemainingMs: 14000 };
+  send('gift', applied, { giftEventId: 8 });
+  send('gift', applied, { giftEventId: 8 });
+  assert.equal(service.getAppState().overtime.revision, 5);
+  assert.equal(updates.length, 2);
+  assert.equal(updates[1].adjustment.giftEventId, 8);
+});
+
 test('gift-only snapshots do not redispatch unchanged settings', async () => {
   const { service, events, eventBus } = await createFixture();
   const changes = [];

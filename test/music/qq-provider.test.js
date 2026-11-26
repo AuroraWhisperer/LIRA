@@ -51,6 +51,37 @@ test('QQ public playlist fallback still requests each actual page', async () => 
   assert.deepEqual(offsets, ['0', '100']);
 });
 
+test('QQ liked reads fall back on missing client songs without caching failures', async () => {
+  const provider = createProvider();
+  provider.getLikedPlaylist = async () => ({ id: '123' });
+  const song = { id: 11, mid: 'song-11', title: 'Confirmed song' };
+  let songs = [song];
+  let clientCalls = 0, publicCalls = 0;
+  provider.requestMusicsClient = async (modules) => {
+    clientCalls++;
+    return { code: 0, [Object.keys(modules)[0]]: { code: 0, data: { songlist: songs } } };
+  };
+  let publicResponse = { code: 0, cdlist: [{ songlist: [song] }] };
+  provider.requestJson = async () => { publicCalls++; return publicResponse; };
+  const page = loadingSession => provider.getLikedTrackPage({ loadingSession, limit: 100 });
+  assert.equal((await page('confirmed')).tracks[0].sourceTrackId, 'song-11');
+  songs = undefined;
+  assert.equal((await page('fallback')).tracks[0]?.sourceTrackId, 'song-11');
+  assert.equal(publicCalls, 1);
+  publicResponse = { code: 1000, cdlist: [{ songlist: [] }] };
+  await assert.rejects(page('retry'), { statusCode: 501 });
+  const beforeRetry = clientCalls;
+  songs = [song];
+  assert.equal((await page('retry')).tracks[0]?.sourceTrackId, 'song-11');
+  assert.equal(clientCalls, beforeRetry + 1);
+  songs = [];
+  const beforeEmpty = publicCalls;
+  const empty = await page('empty');
+  assert.deepEqual(empty.tracks, []);
+  assert.equal(empty.nextOffset, null);
+  assert.equal(publicCalls, beforeEmpty, 'an explicit empty client list needs no fallback');
+});
+
 test('QQ liked public pages advance past a fully filtered window and stop on a repeated raw page', async () => {
   const provider = createProvider();
   provider.getLikedPlaylist = async () => ({ id: '123' });
@@ -115,6 +146,42 @@ test('QQ membership checks raw numeric IDs and mids and retries the client after
   assert.equal(await provider.playlistContainsTrack('1', { sourceSongId: 123 }), true);
   assert.equal(await provider.playlistContainsTrack('2', { sourceTrackId: 'client-mid' }), true);
   assert.deepEqual([clientCalls, publicCalls], [2, 1]);
+  provider.requestMusicsClient = async () => { throw new Error('client unavailable'); };
+  for (const response of [{ code: 1000, cdlist: [{ songlist: [] }] }, { code: 0, cdlist: [{}] }]) {
+    provider.requestJson = async () => response;
+    await assert.rejects(provider.playlistContainsTrack('1', { sourceSongId: 123 }), { statusCode: 501 });
+  }
+  provider.requestJson = async () => ({ code: 0, cdlist: [{ songlist: [] }] });
+  assert.equal(await provider.playlistContainsTrack('1', { sourceSongId: 123 }), false);
+});
+
+test('QQ playlist directories fall back on missing arrays and reject failed web reads', async (t) => {
+  for (const [method, clientField, webField] of [
+    ['getCreatedPlaylists', 'v_playlist', 'disslist'],
+    ['getCollectedPlaylists', 'v_list', 'cdlist'],
+  ]) {
+    await t.test(method, async () => {
+      const provider = createProvider();
+      let clientRows;
+      provider.requestMusicsClient = async (modules) => ({
+        code: 0, [Object.keys(modules)[0]]: { code: 0, data: { [clientField]: clientRows } },
+      });
+      let webResponse = { code: 0, data: { [webField]: [{ tid: 123, dirId: 1, dirName: 'Recovered' }] } };
+      let webCalls = 0;
+      provider.requestJson = async () => { webCalls++; return webResponse; };
+      assert.equal((await provider[method]())[0]?.id, '123');
+      assert.equal(webCalls, 1);
+      clientRows = [];
+      assert.deepEqual(await provider[method](), []);
+      assert.equal(webCalls, 1, 'an explicit empty client directory needs no fallback');
+      clientRows = undefined;
+      for (webResponse of [{ code: 1000, data: { [webField]: [] } }, { code: 0, data: {} }]) {
+        await assert.rejects(provider[method](), { statusCode: 501 });
+      }
+      webResponse = { code: 0, data: { [webField]: [] } };
+      assert.deepEqual(await provider[method](), []);
+    });
+  }
 });
 
 test('QQ requests keep their signed identity and Cookie on one credential snapshot', async (t) => {

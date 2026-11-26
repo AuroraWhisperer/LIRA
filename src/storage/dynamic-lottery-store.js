@@ -393,7 +393,7 @@ function createDynamicLotteryStore(lotteryDb) {
     commitPages,
     listTasks(streamerId) {
       return lotteryDb
-        .prepare('SELECT * FROM lottery_tasks WHERE streamer_id = ? ORDER BY created_at_ms DESC, id DESC LIMIT 50')
+        .prepare('SELECT * FROM lottery_tasks WHERE streamer_id = ? ORDER BY rowid DESC LIMIT 50')
         .all(requiredText(streamerId, 'streamer ID'))
         .map(toTask);
     },

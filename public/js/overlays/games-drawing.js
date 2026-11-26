@@ -17,6 +17,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   let drawTool = 'pen';
   let drawFlushTimer = null;
   let activeStroke = null;
+  let prediction = null;
   let drawSendChain = Promise.resolve();
   let drawDanmakuRenderTimer = null;
   let pendingDrawDanmakuItems = null;
@@ -27,6 +28,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
 
   function setToolsEnabled(enabled) {
     const session = getSession();
+    if (prediction?.preview !== session?.state?.canvas) prediction = null;
     const sameCanvas = activeStroke && activeStroke.sessionId === session?.sessionId && activeStroke.round === session?.state?.round;
     if (activeStroke && (!enabled || !sameCanvas)) {
       clearTimeout(drawFlushTimer);
@@ -341,7 +343,8 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
         width: activeStroke.width,
         points: activeStroke.pendingPoints.splice(0, 32),
       };
-      mergeDrawOperation(operation, false);
+      predictOperation(operation);
+      if (activeStroke.repaintOnFlush) redrawCanvas(getSession().state.canvas);
       queueDrawOperation(operation);
     }
   }
@@ -361,7 +364,8 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     });
     if (!confirmed || !canDraw() || getSession().sessionId !== sessionId || getSession().state.round !== round) return;
     const operation = { action: 'clear', clientId: drawClientId };
-    mergeDrawOperation(operation, true);
+    predictOperation(operation);
+    redrawCanvas(getSession().state.canvas);
     queueDrawOperation(operation);
   }
 
@@ -393,73 +397,64 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
       });
   }
 
-  function applyBroadcast(operation, replaying = false) {
-    if (!operation || getSession()?.game !== 'draw-guess') return;
-    // Undo waits for confirmation because the server selects the stroke.
-    if (!replaying && operation.clientId === drawClientId && operation.action !== 'undo') {
-      if (getSession().state?.canvas) getSession().state.canvas.revision = operation.revision;
-      return;
-    }
-    mergeDrawOperation(operation, true);
+  // Keep the confirmed canvas so an intervening broadcast can rebase outstanding local strokes.
+  function predictOperation(operation) {
+    const state = getSession().state;
+    if (prediction?.preview !== state.canvas) prediction = { confirmed: state.canvas, pending: [] };
+    prediction.pending.push(operation);
+    state.canvas = prediction.preview = advanceCanvas(state.canvas, operation, state.canvas.revision + 1);
+    syncUndoState();
   }
 
-  function mergeDrawOperation(operation, drawIncrement) {
-    if (!getSession()?.state?.canvas) return;
-    const canvasState = getSession().state.canvas;
-    if (operation.action === 'clear') {
-      canvasState.strokes = [];
-      canvasState.totalPoints = 0;
-      canvasState.revision = Number(operation.revision) || canvasState.revision;
-      redrawCanvas(canvasState);
-      syncUndoState();
-      return;
+  function applyBroadcast(operation) {
+    const state = getSession()?.state;
+    if (!operation || !state?.canvas) return;
+    if (prediction?.preview !== state.canvas) prediction = null;
+    const confirmed = prediction?.confirmed || state.canvas;
+    if (operation.revision <= confirmed.revision) return;
+    const next = advanceCanvas(confirmed, operation, operation.revision);
+    const first = prediction?.pending[0];
+    const predicted = operation.clientId === drawClientId && first?.action === operation.action &&
+      first.strokeId === operation.strokeId;
+    if (predicted) prediction.pending.shift();
+    if (prediction) prediction.confirmed = next;
+    state.canvas = next;
+    for (const pending of prediction?.pending || []) {
+      state.canvas = advanceCanvas(state.canvas, pending, state.canvas.revision + 1);
     }
-    if (operation.action === 'undo') {
-      const strokeIndex = canvasState.strokes.findIndex((stroke) => stroke.id === operation.strokeId);
-      if (strokeIndex >= 0) {
-        canvasState.totalPoints = Math.max(0, canvasState.totalPoints - canvasState.strokes[strokeIndex].points.length);
-        canvasState.strokes.splice(strokeIndex, 1);
-        redrawCanvas(canvasState);
-      }
-      canvasState.revision = Number(operation.revision) || canvasState.revision;
-      syncUndoState();
-      return;
-    }
-    if (operation.action !== 'append' || !Array.isArray(operation.points)) return;
-    let stroke = canvasState.strokes.find((item) => item.id === operation.strokeId);
-    const previous = stroke?.points.at(-1) || null;
-    if (!stroke) {
-      stroke = {
-        id: operation.strokeId,
-        color: operation.color,
-        width: operation.width,
-        points: [],
-      };
-      canvasState.strokes.push(stroke);
-    }
-    stroke.points.push(
-      ...operation.points.map((point) => ({
-        x: Number(point.x),
-        y: Number(point.y),
-      })),
-    );
-    canvasState.totalPoints = (Number(canvasState.totalPoints) || 0) + operation.points.length;
-    canvasState.revision = Number(operation.revision) || canvasState.revision;
-    if (drawIncrement) {
-      if (activeStroke) activeStroke.background = null;
-      drawCanvasPoints(previous ? [previous, ...operation.points] : operation.points, operation.color, operation.width);
+    if (prediction?.pending.length) prediction.preview = state.canvas;
+    else prediction = null;
+    if (!predicted) {
+      if (activeStroke) activeStroke.repaintOnFlush = true;
+      if (!prediction && operation.action === 'append') {
+        if (activeStroke) activeStroke.background = null;
+        const previous = confirmed.strokes.find(stroke => stroke.id === operation.strokeId)?.points.at(-1);
+        drawCanvasPoints(previous ? [previous, ...operation.points] : operation.points, operation.color, operation.width);
+      } else redrawCanvas(state.canvas);
     }
     syncUndoState();
   }
 
   function redrawCanvas(canvasState = {}) {
-    if (activeStroke) activeStroke.background = null;
+    if (activeStroke) {
+      activeStroke.background = null;
+      activeStroke.repaintOnFlush = true;
+    }
     const canvas = byId('drawCanvas');
     if (!canvas) return;
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    for (const stroke of canvasState.strokes || []) drawCanvasPoints(stroke.points, stroke.color, stroke.width);
+    const batches = [];
+    for (const stroke of canvasState.strokes || []) {
+      let start = 0;
+      for (const { revision, end } of stroke.segments || [{ revision: 0, end: stroke.points.length }]) {
+        batches.push({ revision, stroke, start: Math.max(0, start - 1), end });
+        start = end;
+      }
+    }
+    batches.sort((a, b) => a.revision - b.revision);
+    for (const { stroke, start, end } of batches) drawCanvasPoints(stroke.points.slice(start, end), stroke.color, stroke.width);
   }
 
   function drawCanvasPoints(points, color, width) {
@@ -507,4 +502,20 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     setDrawingClock,
     updateCountdown,
   };
+}
+
+function advanceCanvas(canvas, operation, revision) {
+  if (operation.action === 'clear') return { revision, totalPoints: 0, strokes: [] };
+  const strokes = canvas.strokes.slice();
+  const index = strokes.findIndex(stroke => stroke.id === operation.strokeId);
+  const old = strokes[index];
+  if (operation.action === 'undo') {
+    if (old) strokes.splice(index, 1);
+    return { revision, strokes, totalPoints: canvas.totalPoints - (old?.points.length || 0) };
+  }
+  const points = [...(old?.points || []), ...operation.points];
+  const prior = old?.segments || (old ? [{ revision: 0, end: old.points.length }] : []);
+  strokes[index < 0 ? strokes.length : index] = { id: operation.strokeId, color: operation.color, width: operation.width,
+    points, segments: [...prior, { revision, end: points.length }] };
+  return { revision, strokes, totalPoints: canvas.totalPoints + operation.points.length };
 }

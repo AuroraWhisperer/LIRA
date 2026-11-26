@@ -4,6 +4,7 @@ import { createSceneSource } from './scene-source.js';
 const sceneId = new URLSearchParams(location.search).get('id');
 const itemId = new URLSearchParams(location.search).get('item');
 const token = new URLSearchParams(location.hash.slice(1)).get('token');
+if (itemId) document.documentElement.style.setProperty('--external-frame-outline-inset', '-1');
 const status = document.getElementById('sceneStatus');
 let source = null;
 const renderer = createSceneRenderer(document.getElementById('sceneOutput'), { onStatus(message, version) {

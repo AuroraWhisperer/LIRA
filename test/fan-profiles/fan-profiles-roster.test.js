@@ -101,6 +101,39 @@ test('profile lookups remain mutually exclusive, drain on shutdown and discard c
   }
 });
 
+test('disabling and reenabling daily sync drains the old lookup then imports a fresh roster once', async t => {
+  const pending = deferred();
+  const started = deferred();
+  let reads = 0;
+  const f = fixture(t, {
+    now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+    state: { windowOpen: true }, autoSyncGuardRoster: true,
+    roster: () => ({ roomId: '42', members: [], pass: ++reads }),
+    targets: () => [refreshTarget],
+    profile: () => {
+      if (reads === 1) { started.resolve(); return pending.promise; }
+      return { name: '当前资料', avatarUrl: '' };
+    },
+  });
+  const contextId = f.invoke({ action: 'open' }).contextId;
+  const old = f.invoke({ action: 'auto-update-status' });
+  await started.promise;
+  for (const autoSyncGuardRoster of [false, true]) f.invoke({ action: 'configure', contextId,
+    payload: { autoCreate: true, autoUpdate: true, autoSyncGuardRoster } });
+  assert.equal(f.calls.profiles[0].signal.aborted, true);
+  assert.equal(f.calls.imports.length, 0);
+  pending.resolve({ name: '旧资料', avatarUrl: '' });
+  await old;
+  await f.controller.whenIdle();
+  assert.equal(reads, 2);
+  assert.equal(f.calls.imports.length, 1);
+  assert.equal(f.calls.imports[0].snapshot.pass, 2);
+  assert.equal(f.calls.imports[0].refresh.observations[0].name, '当前资料');
+  assert.equal(f.settings.get(SCOPE_A).lastGuardRosterAutoUpdate.date, '2026-09-20');
+  await f.invoke({ action: 'auto-update-status' });
+  assert.equal(reads, 2);
+});
+
 test('daily roster waits until 00:10 Shanghai time and delivers one scheduled notification', async (t) => {
   let now = Date.parse('2026-09-20T00:09:55+08:00');
   const f = fixture(t, { now: () => now, state: { windowOpen: true }, autoSyncGuardRoster: true });

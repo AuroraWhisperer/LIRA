@@ -156,7 +156,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
         let availableTools = availableAfterQuotaCheck();
         // The store persists only the key hash, not config secrets or context text.
         const cacheKey = JSON.stringify([
-          'reply-v11',
+          'reply-v13',
           config,
           modelSessionRevision,
           personaScope,
@@ -207,7 +207,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
           }
           const outputs = [];
           for (const call of response.functionCalls) {
-            const result = await executeToolWithQuotaFallback(call, config, excludedToolNames, signal);
+            const result = await executeToolWithQuotaFallback(call, config, excludedToolNames, { signal, assertCurrent });
             assertCurrent();
             outputs.push({
               type: 'function_call_output',
@@ -332,8 +332,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
     return parseSafetyReview(response.text);
   }
 
-  async function executeTool(call, config, signal) {
-    const options = { signal };
+  async function executeTool(call, config, options) {
     if (call.name === 'get_weather') return tools.qweather.getWeather(config, call.arguments, options);
     if (call.name === 'search_places') return tools.amap.searchPlaces(config, call.arguments, options);
     if (call.name === 'resolve_location') return tools.amap.resolveLocation(config, call.arguments, options);
@@ -342,7 +341,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
     throw codedError('UNKNOWN_TOOL', '模型请求了未开放的工具。');
   }
 
-  async function executeToolWithQuotaFallback(call, config, excludedToolNames, signal) {
+  async function executeToolWithQuotaFallback(call, config, excludedToolNames, options) {
     const offered = (candidate) => candidate.functionCallingEnabled && buildAvailableTools(candidate, excludedToolNames)
       .some((tool) => (tool.name || tool.type) === call.name);
     if (!offered(config) || !offered(store.getConfig())) {
@@ -350,7 +349,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
       return { unavailable: true, reason: 'tool_unavailable', instruction: '此工具本次不可用，请使用已提供的其他能力，或说明无法核实，不要编造结果。' };
     }
     try {
-      return await executeTool(call, config, signal);
+      return await executeTool(call, config, options);
     } catch (error) {
       const quotaToolNames = getQuotaToolNames(error);
       if (!quotaToolNames.length) throw error;

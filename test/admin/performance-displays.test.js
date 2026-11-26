@@ -6,7 +6,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom } = require('../helpers/toast-dom');
 
-async function fixture(fetch) {
+async function fixture(globals) {
   const { documentRef } = createDom();
   const elements = new Map();
   documentRef.getElementById = (id) => {
@@ -14,7 +14,7 @@ async function fixture(fetch) {
     return elements.get(id);
   };
   const { metrics } = await loadModuleExports(path.resolve(__dirname, '../../public/js/admin/metrics.js'), {
-    document: documentRef, window: {}, fetch,
+    document: documentRef, window: {}, ...globals,
   });
   return { metrics, elements };
 }
@@ -25,10 +25,12 @@ test('reopening performance refreshes display settings without overlapping hardw
   let calls = 0;
   let release;
   const pending = new Promise((resolve) => { release = resolve; });
-  const { metrics, elements } = await fixture(async () => {
-    calls += 1;
-    if (calls === 1) await pending;
-    return { json: async () => ({ ok: true, data: { displays: [{ ...primary, width: calls === 1 ? 2560 : 1920 }] } }) };
+  const { metrics, elements } = await fixture({
+    async fetch() {
+      calls += 1;
+      if (calls === 1) await pending;
+      return { json: async () => ({ ok: true, data: { displays: [{ ...primary, width: calls === 1 ? 2560 : 1920 }] } }) };
+    },
   });
   const first = metrics.loadHardwareSummary(false);
   await metrics.loadHardwareSummary(false);
@@ -38,4 +40,21 @@ test('reopening performance refreshes display settings without overlapping hardw
   await metrics.loadHardwareSummary(false);
   assert.equal(calls, 2);
   assert.match(elements.get('hardwareDisplayList').textContent, /1920 × 1440/);
+});
+
+test('sampling countdown follows elapsed time when the system clock moves back', async t => {
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  let wallMs = 100_000;
+  let elapsedMs = 0;
+  const { metrics, elements } = await fixture({
+    Date: { now: () => wallMs },
+    performance: { now: () => elapsedMs },
+    setInterval,
+    clearInterval,
+  });
+  metrics.setMetricsBusy(true);
+  elapsedMs = 1_000;
+  wallMs += elapsedMs - 60_000;
+  t.mock.timers.tick(elapsedMs);
+  assert.equal(elements.get('metricsCountdownValue').textContent, '4');
 });

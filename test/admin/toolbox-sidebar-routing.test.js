@@ -195,14 +195,14 @@ test('selection motion cleans up transient SVG sweep overlays on completion, ret
   };
 
   // Switch A -> B: both icons receive transient overlays during the sweep.
-  motion.transition(root, buttonB, () => apply(buttonB));
+  assert.equal(motion.transition(root, buttonB, () => apply(buttonB)), true);
   assert.equal(buttonA.icon.children.length, 2);
   assert.equal(buttonB.icon.children.length, 2);
   assert.equal(buttonB.icon.classList.contains('is-color-sweeping'), true);
 
   // Mid-flight retarget B -> C cleans up B's transient sweep without leaving stale overlays.
   indicatorTop = 160;
-  motion.transition(root, buttonC, () => apply(buttonC));
+  assert.equal(motion.transition(root, buttonC, () => apply(buttonC)), true);
   assert.equal(buttonB.icon.children.length, 1);
   assert.equal(buttonB.icon.classList.contains('is-color-sweeping'), false);
   assert.equal(buttonC.icon.children.length, 2);
@@ -219,13 +219,74 @@ test('selection motion cleans up transient SVG sweep overlays on completion, ret
   // Reduced motion and interactive tour apply selection immediately without creating overlays.
   const countBefore = scheduled.length;
   reducedMotion = true;
-  motion.transition(root, buttonA, () => apply(buttonA));
+  assert.equal(motion.transition(root, buttonA, () => apply(buttonA)), false);
   assert.equal(scheduled.length, countBefore);
   assert.equal(buttonA.classList.contains('active'), true);
 
   reducedMotion = false;
   tourActive = true;
-  motion.transition(root, buttonB, () => apply(buttonB));
+  assert.equal(motion.transition(root, buttonB, () => apply(buttonB)), false);
   assert.equal(scheduled.length, countBefore);
   assert.equal(buttonB.classList.contains('active'), true);
+});
+
+test('interactive toolbox click defers panel mount by one frame when animated while programmatic selection stays synchronous', async () => {
+  const runtime = await createToolboxRuntime();
+  const frames = new Map();
+  let nextFrameId = 1;
+  runtime.sandbox.window.requestAnimationFrame = (cb) => {
+    const id = nextFrameId++;
+    frames.set(id, cb);
+    return id;
+  };
+  runtime.sandbox.window.cancelAnimationFrame = (id) => {
+    frames.delete(id);
+  };
+  let indicatorTop = 580;
+  const indicator = {
+    getBoundingClientRect: () => ({ top: indicatorTop, height: 56 }),
+    getAnimations: () => [],
+    animate: () => ({ cancel() {}, onfinish: null, oncancel: null }),
+  };
+  const buttons = runtime.root.querySelectorAll('[data-other-feature]');
+  buttons.forEach((button, index) => {
+    button.getBoundingClientRect = () => ({ top: 100 + index * 60, height: 56 });
+  });
+  const baseQuerySelector = runtime.root.querySelector;
+  runtime.root.querySelector = (selector) => {
+    if (selector === '.other-feature-indicator') return indicator;
+    if (selector === '.other-feature-button.active') return buttons.find((b) => b.classList.contains('active')) || null;
+    return baseQuerySelector(selector);
+  };
+
+  const selectedEvents = [];
+  runtime.other.initOtherPage({
+    onFeatureSelected: (featureId) => selectedEvents.push(featureId),
+  });
+  selectedEvents.length = 0;
+
+  const danmakuBtn = buttons.find((b) => b.dataset.otherFeature === 'otherDanmakuFeature');
+  const gamesBtn = buttons.find((b) => b.dataset.otherFeature === 'otherGamesFeature');
+  const danmakuPanel = runtime.root.querySelectorAll('[data-other-feature-panel]').find((p) => p.id === 'otherDanmakuFeature');
+  const gamesPanel = runtime.root.querySelectorAll('[data-other-feature-panel]').find((p) => p.id === 'otherGamesFeature');
+
+  // Rapid clicks: first click defers panel mount; second click cancels the first before frame 1.
+  danmakuBtn.dispatch('click');
+  assert.equal(danmakuBtn.classList.contains('active'), true);
+  assert.equal(danmakuPanel.hidden, true);
+  assert.deepEqual(selectedEvents, []);
+
+  gamesBtn.dispatch('click');
+  assert.equal(frames.size, 1);
+  [...frames.values()].forEach((cb) => cb());
+  frames.clear();
+  assert.equal(danmakuPanel.hidden, true);
+  assert.equal(gamesPanel.hidden, false);
+  assert.deepEqual(selectedEvents, ['otherGamesFeature']);
+
+  // Programmatic selection applies immediately without deferring.
+  runtime.other.selectFeatureById('otherDanmakuFeature');
+  assert.equal(danmakuPanel.hidden, false);
+  assert.equal(gamesPanel.hidden, true);
+  assert.deepEqual(selectedEvents, ['otherGamesFeature', 'otherDanmakuFeature']);
 });

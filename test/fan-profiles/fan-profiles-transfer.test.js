@@ -30,6 +30,73 @@ function oldRequest(f, input = {}, scope = null) {
   );
 }
 
+test('an empty fact sync preserves restore confirmation while a real edit invalidates it', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.consume([]);
+  const backup = f.run('backup');
+  const plan = f.run('preview-restore', { backup });
+  f.setNow('2026-09-18T05:00:00Z');
+  f.consume([]);
+  f.run('restore', { backup, ...plan, conflicts: 'keep' });
+  const stale = f.run('preview-restore', { backup });
+  f.record(p.id, 'note', { body: '预览后新增' });
+  assert.throws(() => f.run('restore', { backup, ...stale, conflicts: 'replace' }));
+  assert.equal(f.detail(p.id).records[0].data.body, '预览后新增');
+});
+
+test('suppression-only file restore previews its effect and keep preserves a local profile and calendar', t => {
+  const f = fanFixture(t);
+  const p = f.create({ birthday: { monthDay: '09-18' } });
+  const backup = { ...f.run('backup'), profiles: [], suppressions: [JSON.stringify(['bilibili', 'uid', IDENTITY.value])] };
+  const plan = f.run('preview-restore', { backup });
+  assert.equal(plan.suppressionConflicts[0].existingId, p.id);
+  f.run('restore', { backup, ...plan, conflicts: 'keep' });
+  assert.equal(f.run('list').profiles[0].id, p.id);
+  assert.equal(f.run('calendar')[0].profileId, p.id);
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  assert.equal(f.run('list').profiles.length, 0);
+  assert.equal(f.run('calendar').length, 0);
+  const suppressed = f.run('backup');
+  f.run('delete', { id: p.id, confirm: true, suppress: false });
+  f.run('unsuppress', { identity: IDENTITY, confirm: true });
+  f.run('restore', { backup: suppressed, ...f.run('preview-restore', { backup: suppressed }), conflicts: 'keep' });
+  assert.equal(f.store.list(SCOPE, { includeSuppressed: true }).length, 1);
+  assert.equal(f.run('list').profiles.length, 0, 'a restored profile still receives its own backup suppression');
+});
+
+test('birthday CSV retains solar, lunar and leap-month identity', t => {
+  const f = fanFixture(t);
+  for (const birthday of [{ calendar: 'solar' }, { calendar: 'lunar' }, { calendar: 'lunar', leapMonth: true }])
+    f.create({ identity: null, birthday: { ...birthday, monthDay: '06-06' } });
+  const rows = f.run('export-list', { fields: ['birthday'] }).split('\r\n').slice(1);
+  assert.equal(new Set(rows).size, 3);
+  assert.ok(rows.every(row => row.includes('06-06')));
+});
+
+test('merge recovery points exceed manual file profile and byte limits and remain reversible', t => {
+  const f = fanFixture(t);
+  const target = f.create();
+  const source = f.create({ identity: null });
+  f.store.transaction(() => {
+    for (let index = 0; index < 9999; index++) f.store.restoreProfile(SCOPE,
+      { ...source, id: `large-snapshot-${index}`, notes: index < 300 ? '档'.repeat(20000) : '' }, null, NOW);
+  });
+  const merged = f.run('merge', { id: source.id, revision: source.revision,
+    targetId: target.id, targetRevision: target.revision, prefer: 'target' });
+  const snapshot = f.store.getSnapshot(SCOPE, merged.snapshotId);
+  assert.equal(snapshot.profiles.length, 10001);
+  assert.ok(Buffer.byteLength(JSON.stringify(snapshot), 'utf8') > 16 * 1024 * 1024);
+  const plan = f.run('preview-snapshot', { snapshotId: merged.snapshotId });
+  const undone = f.run('restore-snapshot', { snapshotId: merged.snapshotId, ...plan, confirm: true });
+  assert.equal(f.detail(source.id).id, source.id);
+  assert.equal(f.store.list(SCOPE).length, 10001);
+  const redo = f.run('preview-snapshot', { snapshotId: undone.snapshotId });
+  f.run('restore-snapshot', { snapshotId: undone.snapshotId, ...redo, confirm: true });
+  assert.throws(() => f.detail(source.id));
+  assert.equal(f.store.list(SCOPE).length, 10000);
+});
+
 test('complete backup export admits restorable UTF-8 files and rejects over-budget data', (t) => {
   const f = fanFixture(t);
   const notes = '档'.repeat(20000);
@@ -75,6 +142,198 @@ test('replacing a complete backup restores swapped identities without depending 
     assert.equal(f.detail(b.id).identity.value, '900000002');
     assert.deepEqual(f.store.exportScope(otherScope), otherBefore);
   }
+});
+
+for (const version of [1, 2]) test(`version ${version} pre-merge backups keep song ownership across repeat restore, reorder and new requests`, t => {
+  const f = fanFixture(t);
+  const source = f.create({ identity: null });
+  const target = f.create();
+  const song = { songName: '重逢', artist: '歌手', category: '民谣' };
+  f.record(target.id, 'song', song);
+  f.record(source.id, 'song', song);
+  f.record(source.id, 'song', song);
+  const backup = f.run('backup');
+  if (version === 1) {
+    backup.version = 1;
+    for (const profile of backup.profiles) profile.records = Array.from({ length: profile.id === source.id ? 2 : 1 }, (_, index) => ({
+      id: `v1-${profile.id}-${index}`, kind: 'song', profileId: profile.id, sourceKey: `request:v1-${profile.id}-${index}`,
+      occurredAt: NOW, data: song, original: { ...song, source: 'manual' }, revisions: [], revision: 1,
+    }));
+    f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  }
+  const merge = () => f.run('merge', { id: source.id, revision: f.detail(source.id).revision,
+    targetId: target.id, targetRevision: f.detail(target.id).revision, prefer: 'target' });
+  assert.equal(merge().profile.songs[0].data.count, 3);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    f.restart();
+    backup.profiles.reverse();
+    for (const profile of backup.profiles) profile.records.reverse();
+    f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'keep' });
+    assert.equal(f.detail(source.id).songs.length, 0);
+    assert.equal(merge().profile.songs[0].data.count, 3);
+  }
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'keep' });
+  f.record(source.id, 'song', song);
+  assert.equal(merge().profile.songs[0].data.count, 4, 'a fresh summary UUID still contributes');
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  assert.equal(merge().profile.songs[0].data.count, 3, 'explicit replacement restores the original ownership');
+  const partial = { ...backup, profiles: backup.profiles.filter(profile => profile.id === source.id) };
+  f.run('restore', { backup: partial, ...f.run('preview-restore', { backup: partial }), conflicts: 'replace' });
+  const snapshots = f.run('snapshots');
+  assert.throws(merge, undefined, 'restoring only one side cannot safely re-add an absorbed summary');
+  assert.equal(f.detail(target.id).songs[0].data.count, 3);
+  assert.equal(f.detail(source.id).songs[0].data.count, 2);
+  assert.deepEqual(f.run('snapshots'), snapshots);
+});
+
+test('an older v1 file with a different representative keeps the absorbed request after restart', t => {
+  const f = fanFixture(t);
+  const source = f.create({ identity: null });
+  const target = f.create();
+  const legacy = f.run('backup');
+  legacy.version = 1;
+  const track = { songName: '同一首歌', artist: '同一人' };
+  const event = (id, seconds) => ({ id, kind: 'song', sourceKey: `request:${id}`, data: track,
+    original: { source: 'manual' }, revisions: [], occurredAt: new Date(Date.parse(NOW) + seconds * 1000).toISOString() });
+  const draft = legacy.profiles.find(p => p.id === source.id);
+  legacy.profiles.find(p => p.id === target.id).records = [event('target', 0)];
+  draft.records = [event('old', 0)];
+  const early = structuredClone(legacy);
+  draft.records.push(event('new', 2));
+  legacy.exportedAt = '2026-09-18T04:00:02Z';
+  const restore = (backup, conflicts) => f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts });
+  const merge = () => f.run('merge', { id: source.id, revision: f.detail(source.id).revision,
+    targetId: target.id, targetRevision: f.detail(target.id).revision, prefer: 'target' });
+  restore(legacy, 'replace');
+  merge();
+  f.restart();
+  restore(early, 'keep');
+  assert.equal(f.detail(source.id).songs.length, 0);
+  merge();
+  f.restart();
+  assert.equal(f.detail(target.id).songs[0].data.count, 3);
+
+  // Same endpoints need not mean the same set. Compacted v1 evidence stays bounded.
+  draft.records.splice(1, 0, ...Array.from({ length: 40 }, (_, i) => event(`middle-${i}`, 1)));
+  restore(legacy, 'replace');
+  merge();
+  f.restart();
+  assert.ok(f.detail(target.id).songs[0].data.mergedRecordIds.length < 10);
+  draft.records.reverse();
+  restore(legacy, 'keep');
+  assert.equal(f.detail(source.id).songs.length, 0);
+  merge();
+  draft.records[1] = event('only-in-other-file', 1);
+  const snapshots = f.run('snapshots');
+  assert.throws(() => restore(legacy, 'keep'), error => Boolean(error.publicMessage));
+  f.restart();
+  assert.equal(f.detail(target.id).songs[0].data.count, 43);
+  assert.equal(f.run('list').profiles.length, 1);
+  assert.deepEqual(f.run('snapshots'), snapshots);
+});
+
+test('a tracked merge with only the old representative refuses uncertain v1 ownership but restores another song', t => {
+  const f = fanFixture(t);
+  const draft = f.create({ identity: null });
+  const target = f.create();
+  const song = { songName: '旧汇总', artist: '甲' };
+  for (const id of [target.id, draft.id, draft.id]) f.record(id, 'song', song);
+  // The old v1 compactor kept one representative ID, just like this plain v2 summary.
+  const originals = f.run('backup');
+  const representative = originals.profiles.find(p => p.id === draft.id).records[0].id;
+  const row = (id, data) => ({ id, kind: 'song', data, occurredAt: NOW, original: { source: 'manual' }, revisions: [] });
+  const oldDraft = { ...originals.profiles.find(p => p.id === draft.id), records: [row('older', song)] };
+  const older = { ...originals, version: 1, profiles: [oldDraft] };
+  const restore = (backup, conflicts) => f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts });
+  restore(older, 'replace');
+  const converted = f.run('backup');
+  restore(originals, 'replace');
+  f.run('merge', { id: draft.id, revision: f.detail(draft.id).revision, targetId: target.id,
+    targetRevision: f.detail(target.id).revision, prefer: 'target' });
+  f.restart();
+  const points = f.run('snapshots');
+  for (const file of [older, converted]) {
+    assert.throws(() => restore(file, 'keep'), error => Boolean(error.publicMessage));
+    f.restart();
+    assert.equal(f.store.get(SCOPE, draft.id), null);
+    assert.equal(f.detail(target.id).songs[0].data.count, 3);
+    assert.deepEqual(f.run('snapshots'), points);
+  }
+
+  oldDraft.records = [row(representative, song), row('different-artist', { ...song, artist: '乙' })];
+  restore(older, 'keep');
+  assert.deepEqual(f.detail(draft.id).songs.map(r => [r.data.artist, r.data.count]), [['乙', 1]]);
+});
+
+test('pre-upgrade merges recover song ownership from retained history even after snapshots have been pruned', t => {
+  const f = fanFixture(t);
+  const source = f.create({ identity: null });
+  const target = f.create();
+  for (const id of [target.id, source.id, source.id]) f.record(id, 'song', { songName: '旧汇总' });
+  const backup = f.run('backup');
+  f.setNow('2026-09-18T05:00:00Z');
+  const result = f.run('merge', { id: source.id, revision: source.revision,
+    targetId: target.id, targetRevision: target.revision, prefer: 'target' });
+  // Reproduce the persisted shape written before merge lineage was retained.
+  f.db.songDb.prepare("UPDATE fan_records SET data = json_remove(data, '$.mergedRecordIds') WHERE scope = ?").run(SCOPE);
+  const legacy = f.store.get(SCOPE, target.id);
+  legacy.merges = legacy.merges.map(({ songsTracked, ...merge }) => merge);
+  f.store.save(SCOPE, legacy, JSON.stringify(['bilibili', 'uid', IDENTITY.value]), NOW);
+  for (let index = 0; index < 2; index++) f.store.snapshot(SCOPE, f.run('backup'), '2026-09-18T06:00:00Z');
+  assert.equal(f.run('snapshots').some(snapshot => snapshot.id === result.snapshotId), false);
+  f.restart();
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'keep' });
+  assert.equal(f.detail(source.id).songs.length, 0);
+  assert.equal(f.run('merge', { id: source.id, revision: f.detail(source.id).revision,
+    targetId: target.id, targetRevision: f.detail(target.id).revision, prefer: 'target' }).profile.songs[0].data.count, 3);
+  const ambiguous = { ...backup, exportedAt: '2026-09-18T06:00:00Z' };
+  const before = f.store.exportScope(SCOPE);
+  const snapshots = f.run('snapshots');
+  assert.throws(() => f.run('restore', { backup: ambiguous, ...f.run('preview-restore', { backup: ambiguous }), conflicts: 'keep' }));
+  assert.deepEqual(f.store.exportScope(SCOPE), before);
+  assert.deepEqual(f.run('snapshots'), snapshots);
+});
+
+test('merged song identities survive a second merge and reject partial overlap atomically', t => {
+  const f = fanFixture(t);
+  const a = f.create();
+  const b = f.create({ identity: { ...IDENTITY, value: '900000002' } });
+  const c = f.create({ identity: null });
+  for (const p of [a, b, c]) f.record(p.id, 'song', { songName: '共同曲目' });
+  const backup = f.run('backup');
+  const merge = (source, target) => f.run('merge', { id: source.id, revision: f.detail(source.id).revision,
+    targetId: target.id, targetRevision: f.detail(target.id).revision, prefer: 'target' });
+  merge(c, b);
+  f.run('save', { id: b.id, revision: f.detail(b.id).revision, identity: null });
+  const intermediate = f.run('backup');
+  assert.equal(merge(b, a).profile.songs[0].data.count, 3);
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'keep' });
+  assert.equal(f.detail(b.id).songs.length, 0);
+  assert.equal(f.detail(c.id).songs.length, 0);
+  assert.equal(f.detail(a.id).songs[0].data.count, 3);
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  const overlap = { ...intermediate, profiles: intermediate.profiles.filter(p => p.id === b.id) };
+  f.run('delete', { id: b.id, confirm: true, suppress: false });
+  const before = f.store.exportScope(SCOPE);
+  const snapshots = f.run('snapshots');
+  assert.throws(() => f.run('restore', { backup: overlap, ...f.run('preview-restore', { backup: overlap }), conflicts: 'keep' }));
+  assert.deepEqual(f.store.exportScope(SCOPE), before);
+  assert.deepEqual(f.run('snapshots'), snapshots);
+
+  // Reverse the overlap: B is already part of A+B, while C only exists in incoming B+C.
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  f.run('save', { id: b.id, revision: f.detail(b.id).revision, identity: null });
+  merge(b, a);
+  f.run('delete', { id: c.id, confirm: true, suppress: false });
+  const plan = f.run('preview-restore', { backup: intermediate });
+  assert.equal(plan.added, 1);
+  const points = f.run('snapshots');
+  assert.throws(() => f.run('restore', { backup: intermediate, ...plan, conflicts: 'keep' }),
+    error => Boolean(error.publicMessage));
+  f.restart();
+  assert.deepEqual(f.run('list').profiles.map(p => p.id), [a.id]);
+  assert.equal(f.detail(a.id).songs[0].data.count, 2);
+  assert.deepEqual(f.run('snapshots'), points);
 });
 
 test('restoring a pre-merge backup keeps the local owner of a moved note or replaces it explicitly', t => {

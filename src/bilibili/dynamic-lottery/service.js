@@ -142,6 +142,7 @@ function createDynamicLotteryService({
       task: task
         ? {
             ...summary(task),
+            requestId: task.requestId,
             ownerUid: task.ownerUid,
             target: {
               kind: task.target.kind,

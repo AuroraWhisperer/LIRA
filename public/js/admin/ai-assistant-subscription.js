@@ -1,6 +1,7 @@
 'use strict';
 
 let lastStatus = null;
+let accountOperationPending = false;
 
 export function isSubscriptionSelected() {
   return document.getElementById('xiaomiAiModelProvider')?.value === 'openai'
@@ -35,6 +36,8 @@ export function renderSubscriptionStatus(status = lastStatus) {
   document.getElementById('xiaomiAiChatGptAdd').disabled = !status?.available || Boolean(status?.pending);
   document.getElementById('xiaomiAiChatGptCancel').hidden = !status?.pending;
   document.getElementById('xiaomiAiChatGptLogout').hidden = !status?.loggedIn;
+  document.getElementById('xiaomiAiChatGptLogout').disabled =
+    accountOperationPending || !status?.available || !status?.loggedIn || !status.activeId;
   document.getElementById('xiaomiAiConfigState').textContent = status?.ready && document.getElementById('xiaomiAiTrigger')?.value
     && document.getElementById('xiaomiAiModel')?.value ? '可运行' : '等待配置';
 }
@@ -44,7 +47,7 @@ export function createSubscriptionControls({ readApi, flushPendingSave, onAccoun
   let identity = '';
   let statusRevision = 0;
   let acceptedRevision = 0;
-  let accountOperationPending = false;
+  const logoutButton = document.getElementById('xiaomiAiChatGptLogout');
   function beginStatusRead() {
     return accountOperationPending ? null : ++statusRevision;
   }
@@ -69,18 +72,37 @@ export function createSubscriptionControls({ readApi, flushPendingSave, onAccoun
     finally { refreshing = false; }
   }
   async function operate(operation, body = {}) {
+    if (operation === 'logout') {
+      if (accountOperationPending || !lastStatus?.available || !lastStatus.loggedIn || !lastStatus.activeId) return;
+      body = { profileId: lastStatus.activeId };
+    }
     const revision = ++statusRevision;
     // A read already in flight predates this account operation.
     acceptedRevision = revision;
     accountOperationPending = true;
+    logoutButton.disabled = true;
     try {
-      if (!['cancel', 'logout'].includes(operation) && !(await flushPendingSave())) return;
+      if (!['cancel', 'logout'].includes(operation) && !(await flushPendingSave())) {
+        if (revision === statusRevision) renderSubscriptionStatus();
+        return;
+      }
       if (revision !== statusRevision) return;
       accept(await readApi(`/api/ai/chatgpt/${operation}`, { method: 'POST', body: JSON.stringify(body) }), revision);
     } catch (error) {
-      if (revision === statusRevision) renderSubscriptionStatus({ ...lastStatus, lastError: error.message || 'ChatGPT 账号操作失败。' });
+      if (revision !== statusRevision) return;
+      // A transport error can arrive after the session changed. Only a fresh status can identify the target.
+      renderSubscriptionStatus({ lastError: '无法确认当前 ChatGPT 账号，正在重新读取。' });
+      try {
+        const status = await readApi('/api/ai/chatgpt/status');
+        accept({ ...status, lastError: status.lastError || error.message }, revision);
+      } catch {
+        if (revision === statusRevision) renderSubscriptionStatus({ lastError: '无法确认当前 ChatGPT 账号，请稍后重试。' });
+      }
     } finally {
-      if (revision === statusRevision) accountOperationPending = false;
+      if (revision === statusRevision) {
+        accountOperationPending = false;
+        renderSubscriptionStatus();
+      }
     }
   }
   for (const [id, operation, body] of [

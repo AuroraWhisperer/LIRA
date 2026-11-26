@@ -84,10 +84,14 @@ function getReplyLengthBudget(mentionName) {
   };
 }
 
+// Keep IPv6 hosts and parenthesized path segments inside a link. A closing wrapper ends it.
+const SOURCE_URL = /https?:\/\/(?:\[[^\]\s]*\]|\([^()\s]*\)|[^\s()[\]<>"。，、；：！？「」『』【】（）《》“”])+/.source;
+const SOURCE_LINK = new RegExp(`(?:\\[([^\\[\\]\\n]+)\\])?\\(${SOURCE_URL}\\)|${SOURCE_URL}`, 'giu');
+
 function cleanModelText(value) {
   return cleanText(value)
     .replace(/^```[\s\S]*?\n|```$/g, '')
-    .replace(/https?:\/\/\S+/g, '');
+    .replace(SOURCE_LINK, '$1');
 }
 
 function truncateReply(text, limit) {

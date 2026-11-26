@@ -121,7 +121,7 @@ data/
 
 上传与 ZIP 检查仅写入 `.pending-<UUID>/`，确认时整目录重命名为最终 UUID 再原子更新索引（索引失败则移回暂存，操作失败或取消则清理暂存）。打开库时回收超过 24 小时且未被当前导入占用的暂存与索引临时文件（同目录每小时至多扫描一次；链接与锁定文件保留，未登记正式 UUID 目录保留供核对）。
 
-相同作者 ID、版本与 ZIP 摘要的重复安装幂等，完整的已安装包直接复用主索引。缺失资源可从同一份 ZIP 补回，恢复包或成员的 `removed` 状态时复用原 UUID；同 ID 同版本不同内容返回冲突。安装标准素材包时在单次索引提交中将同 `packageId` 的其他已安装版本标记为 `removed`（含旧客户端留下的并存版本）。套装分类由完整成员及同 `packageId` 历史推导，不新增持久字段；多类别仍须存在于同一个历史包，不跨版本拼凑。
+相同作者 ID、版本与 ZIP 摘要的重复安装幂等，完整的已安装包直接复用主索引。缺失资源可从同一份 ZIP 补回，恢复包或成员的 `removed` 状态时复用原 UUID；同 ID 同版本不同内容返回冲突。安装标准素材包时在单次索引提交中将同 `packageId` 的其他已安装版本标记为 `removed`（含旧客户端留下的并存版本）。安装时按完整成员和同 `packageId` 的历史识别套装，多类别须来自同一个版本。备份包条目的可选 `isSuite` 保留已确认的套装身份，即使归档只带一个单分类版本，恢复后仍列为套装。
 
 服务层 [component-style-install.js](../../../src/server/component-style-install.js) 统一安装重试：仅待确认目录移至正式目录遇到 `EPERM` / `EBUSY` 时最多重试 4 次（每次重新授权，不重放失败的索引事务或回滚）；存储层在临时索引写好后遇到这两类锁定错误仅同步重试原子重命名（最多 4 次、累计 ≤ 500 ms，避免并发写入插入当前事务，持续失败仍回滚）。清理后的同版本原包恢复与备份批量恢复采用相同重试上限。
 
@@ -129,7 +129,9 @@ data/
 
 专用备份由 `component-library-transfer.js` 编排资源 ZIP，`scene-transfer.js` 仅导出当前账号的显示文档并生成新场景凭据，场景批量插入经 `scene-store.js` 的 savepoint 事务提交。归档参数取自最新索引，文件保留相对路径与 SHA-256。导出包含可见样式包，并按保存布局、发布布局和入选包配置中的实际文件地址收集依赖。`styleParameters` 可以保留已换下样式的参数键，这些键不引入素材包。
 
-恢复时按归档摘要与来源 ID（场景另含当前账号 scope 摘要）确定性重映射 ID。文件引用和归档内包、样式对应的参数键使用新 ID，其余历史键、正文和文件名保留原文。重复恢复不覆盖既有副本上的修改，素材包名加「备份」且作者 ID 使用 `backup.` 命名空间。恢复流程先登记隐藏素材、再事务创建未发布场景、最后恢复库可见性（失败可用同一备份续作），不覆盖原直播绑定、原场景与凭据；外部浏览器源、本地加班机背景路径、未保存草稿与业务数据不导出。
+恢复时按归档摘要与来源 ID（场景另含当前账号 scope 摘要）确定性重映射 ID。文件引用和归档内包、样式对应的参数键使用新 ID，其余历史键、正文和文件名保留原文。重复恢复不覆盖既有副本上的修改，素材包名加「备份」且作者 ID 使用 `backup.` 命名空间。恢复流程先登记隐藏素材、再事务创建未发布场景、最后完成带 `restorePending` 标记的新包登记。中断后可用同一备份续作。用户移除整包时清除此标记，再次恢复可补回布局所需文件并保留移除状态。恢复布局的标题后缀只在最终存储文档（含加密网址）仍满足 256 KiB 上限时追加。恢复副本单独保存，不覆盖原直播绑定、原场景与凭据；外部浏览器源、本地加班机背景路径、未保存草稿与业务数据不导出。
+
+场景副本删除后，为保留固定直播源而留下的 `isPreset=false` 记录不计为已恢复场景。恢复遇到该记录时使用稳定的替代场景 ID，之后重复恢复复用该副本并保留其修改；原输出记录、绑定及凭据不变。确定性 ID 算法由 `scene-transfer.js` 提供，归档映射共用同一算法。
 
 `component-library-maintenance.js` 盘点实际磁盘体积（单次盘点构建已登记目录集合，不跨请求缓存）。手动清理复核全部账号的保存/发布文档、预览配置与待处理编辑命令，保留可见样式依赖；缺失在用资源、索引故障、恢复副本不可写、引用解密失败或目录符号链接均阻止清理。仅整包或全部成员已移除且无引用的目录可回收：先重命名为 `.purged-<UUID>` 再删除，保留索引中的历史身份、参数与分类（重新导入相同 ZIP 可补回原 UUID 文件）。
 
@@ -213,14 +215,16 @@ data/
 | `fan_reminder_states` | `scope + profile + item_key` 唯一；保存已处理、忽略、稍后与事项来源 |
 | `fan_scopes` | 自动设置、epoch/cursor（事实与游标同事务提交）；可选 `autoSyncGuardRoster`（默认 `false`）、`lastGuardRosterAutoUpdate` 与成功的自动名单导入同事务保存。`date` 为北京时间日期，`roomId` 为正式房号。配置短号与正式号不同时另存已核对的 `configuredRoomId`。同归属当天匹配其中任一房号即跳过自动同步，旧标记按正式房号匹配；可选 `accompanyMilestones` 与 `showAccompanyInCalendar` |
 | `fan_suppressions` | 当前 scope 黑名单的最小 typed identity 标记；屏蔽档案展示与写入 |
-| `fan_restore_snapshots` | scope 内恢复/合并前的完整快照，仅保留最新两份，恢复点操作校验归属。文件恢复与创建快照同事务。`keep` 根据快照中的记录 ID 或稳定来源键保留本机内容与归属，`replace` 按备份恢复冲突档案及其记录归属 |
+| `fan_restore_snapshots` | scope 内恢复/合并前的完整快照，仅保留最新两份；操作校验归属与完整格式，创建、裁剪与恢复/合并同事务 |
 
 - **档案 JSON 扩展字段（无 SQL schema 变更）**：复用 `nameHistory` 并支持可选 `lastEntry: {name, observedAt}`、`preferredFormerName`、`excludedFormerNames`（最近进房名、默认展示与人工移除名单）；可选 `guardAccompany: {days, roomId, observedAt, source}` 平台陪伴观察（预计日历事项仅作内存投影，处理状态存 `fan_reminder_states`）；可选 `guardRoster: {roomId, ownerUid, observedAt, level}` 最近完整名单身份（`level` 为 1/2/3 或明确缺席时的 `null`，未知/跨房/迟到快照不覆盖较新已知身份）。均兼容 v1/v2 备份，详见 [粉丝档案规格](../../../specs/fan-profiles.md)。
 - **索引与投影查询**：songDb v15 新增 `idx_fan_records_profile_id` 与 `idx_fan_reminder_states_profile_id` 支撑外键级联删除。`fan-profile-store.list(scope)` 默认排除黑名单（完整备份显式传 `{includeSuppressed: true}`）。列表、提醒与日历经 `records.listProjectionInputs` 分批读取所需最小字段，在“提醒所需最早日期与有效名单快照时间”较早边界之前，同一档案与自动名单模板仅取最近一次标准 UTC 观测；详情、修改、合并与备份读取完整历史。非歌曲记录保存先核乐观 `revision`，无实质变更时不追加空修订或展开模板。
 - **点歌汇总与自动清理（songDb v13 / v14）**：`requests` 保存 `stable_id`、`owner_scope`、`identity_type` 与 `fan_recorded`，普通点歌入队、更新档案歌曲汇总与标记已归档同事务提交（切号后延迟请求置空 `owner_scope` 并跳过归档、每日次数与冷却；队列终态删除不扣减已归档次数）。v13（[fan-song-migration.js](../../../src/storage/fan-song-migration.js)）将同档案规范化歌名/歌手的 `song` 合并为单条汇总（含 `count`、最近 3 个上海日期 `recentDates`、`dailyCounts` 与合并手记，规则见 [song-summary.js](../../../src/fans/song-summary.js)）；读写、导出与保留维护自动清理早于上海近 30 天的 `dailyCounts`。v14（[fan-roster-observation-migration.js](../../../src/storage/fan-roster-observation-migration.js)）通过可空 `roster_template_id` 对未修订自动名单观察做无损去重，编辑时在事务内展开。档案表不参与 `clearAllData`；自动恢复点每 scope 保留两份（[fan-snapshot-retention.js](../../../src/storage/fan-snapshot-retention.js)）。
 - **完整备份与替换**：
   - 导出 `lira-fan-profiles` v2 前先核对 [恢复容量与数量预算](../desktop/preload.md#5-粉丝档案-action-与-dto)（超限不生成文件，内部自动恢复点不受外部预算限制），导入兼容 v1 并转换逐次歌曲为汇总。
-  - 恢复前校验数据与预览摘要并保存恢复点；完整替换在单事务内先验导入集合与保留档案的身份唯一性，再经 `removeMany(scope, ids)` 分批删除批准替换的档案，仅清理一次无引用名单模板后写入新数据（支持档案间 UID 互换），失败连同恢复点整体回滚；保留档案、其他账号与当前黑名单标记不受影响。
+  - 歌曲 `data.mergedRecordIds?: string[]` 保留被吸收汇总的稳定 ID。压缩 v1 逐次记录时，每组以现有记录 ID 为代表，另存归属范围、原档案与规范化歌名/歌手的组标记，以及与代表不同的最早记录 ID。还有其他记录时加存排序后 ID 集合的摘要。常规点歌只更新汇总。`merges[].songsTracked: true` 表示合并时保留了汇总身份，后续合并继承双方历史。旧合并的 `sourceId` / `mergedAt` 仍用于兼容判断。上述凭据均复用现有 JSON。整组覆盖、部分重叠及旧资料的恢复规则见[粉丝档案持久化契约](../../../specs/fan-profiles.md#持久化契约)。
+  - `keep` 按记录 ID、稳定来源键及歌曲合并身份保留本机内容与归属；备份中的屏蔽标记不改变现存本机档案的可见性，新导入档案仍接受其备份标记。`replace` 按备份恢复冲突档案及其记录归属，可新增屏蔽，但两种方式均不解除当前黑名单。预览字段见 [preload.md §5](../desktop/preload.md#5-粉丝档案-action-与-dto)。
+  - 恢复前校验数据与预览摘要并保存恢复点；完整替换在单事务内先验导入集合与保留档案的身份唯一性，再经 `removeMany(scope, ids)` 分批删除批准替换的档案，仅清理一次无引用名单模板后写入新数据（支持档案间 UID 互换），失败连同恢复点创建与裁剪整体回滚；其他账号不受影响。
 
 ### 3.2 `super-chat-data.db`（醒目留言库，2 表）
 
@@ -244,7 +248,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 | `gift_sync_state` | 每个来源的投影恢复状态 | `source_id` PK、epoch/final cursor、bootstrap token/锚点、`projection_generation`、最后验证时间 |
 | `overtime_machine_state` | 加班机单例状态 | **id=1 CHECK 单行**；`enabled`/`enable_epoch`/`initial_seconds`/`remaining_ms`/`anchor_at_ms`/`status`(`paused\|running\|finished`)/`background_path`/`background_fit`/`revision`，见 [overtime.md](overtime.md) |
 | `overtime_gift_rules` | 加班机礼物规则 | `(gift_id, gift_identity_key)` 复合主键、`gift_identity_json`、`mode`(`fixed\|random\|display`)、`fixed_seconds`、`outcomes_json`、`enabled`、`sort_order` |
-| `overtime_settlements` | 结算流水（幂等） | `gift_event_id` **UNIQUE**、`status`(`pending\|applied\|ignored`)、`rule_snapshot_json`、`requested`/`applied_delta_seconds`、`settle_after_ms`、`retry_count`；`idx(status, settle_after_ms)`、`idx(status, id DESC)` |
+| `overtime_settlements` | 结算流水（幂等） | `gift_event_id` **UNIQUE**、`status`(`pending\|applied\|ignored`)、`rule_snapshot_json`、`requested`/`applied_delta_seconds`、`settle_after_ms`、`retry_count`；`idx(status, settle_after_ms)`、`idx(status, id DESC)`。giftDb v27 以 `settled_order` 记录实际完成顺序，终态行按 `(settled_order DESC,id DESC)` 读取。升级时按 `updated_at,id` 回填旧终态行，待结算行为 0 |
 | `gift_wishes` | 礼物许愿定义 | `id` PK、`source_id` FK、`period`(`long`/`day`/`session`)、礼物/variant 身份、类别、展示图片、整数 `target`、说明与创建时间、`display_style`（默认 `card`）、`text_template`、`text_image_position`、`text_image_format`、`text_pending_color`/`text_received_color`、`text_runs`（默认 `[]`）；来源/创建时间索引 |
 | `gift_wish_sessions` | 最近确认的直播窗口 | `source_id` PK/FK、`room_id`、`started_at`、可空 `ended_at`、`checked_at`（`ended_at` 记下播前最后确认在线时间，不代表实际下播时间） |
 | `heart_box_collection_adjustments` | 心动盲盒本期校准 | `source_id` PK/FK（删除来源级联）、`starts_at`（北京时间周六 ISO 起点）、`adjustment`（整数差额）；每来源仅留最近一次校准，不改写礼物事件（`heart-box-collection-store.js`，giftDb v23） |
@@ -253,6 +257,8 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 **礼物存储适配器边界**：礼物投影的数据库读写由 `gift-projection-store.js` 负责，复用调用方已开启的历史/游标事务；统计投递由 `gift-statistics-store.js` 负责，通过独立的 `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK` 事务原子检查并标记已投递。两个适配器不向领域层暴露数据库句柄或 statement，领域校验与扇出见 [bilibili/gift.md §3](bilibili/gift.md#3-历史导入与存储边界)。许愿状态存储由 `gift-wish-store.js` 负责（giftDb v13–v16、v19 幂等建表与加列），进度与今日数量实时从账本计算，不持久化今日收礼状态或首帧 PNG。
 
 ### 3.4 `music-data.db`（播放器库，5 表）
+
+`play_queue_state.payload` 保存客户端提交的快照 JSON；曲目试听元数据、播放位置和旧快照恢复兼容由[播放状态持久化](../frontend/playback.md#6-状态持久化play_queue_state)维护，不增加数据库列或迁移。
 
 `play_queue_state.payload` 的 `snapshotVersion` 保存最后接受的 `writerId`/`generation`/`senderGeneration`/`sequence` 及已分配页面代次的高水位，无 SQL schema 变更。领取代次与保存校验均在 `BEGIN IMMEDIATE` 事务内执行：领取不推进已接受版本，仅新页面实际保存才推进门槛；单独清除队列保留排序元数据（仅元数据时读取返回空），防止旧版本重放复活队列；接受版本化快照后禁止无版本降级（接口契约见 [api.md](api.md) §5）。
 
@@ -292,7 +298,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 
 抽奖私有 `streamer_id`、创建回执与账号预算 scope 使用主进程派生的服务器 origin + 账号编号 namespace（算法见 [auth.md §14](../desktop/auth.md#14-动态抽奖专用账号)），本机预算仍按整台安装共享；旧无 origin 数据保留，不自动映射。
 
-- **历史清理**：创建新活动时在同事务调用 [dynamic-lottery-retention.js](../../../src/storage/dynamic-lottery-retention.js) 清理同 namespace 已完成或候选耗尽的旧活动及其级联数据（创建失败回滚）；runtime 首次取得或切换可信 scope 时保留最新活动结果并清理其他已结束活动（暂停活动保留）。旧创建请求保留 `create-retired` 回执（同参数重试返回 `LOTTERY_TASK_CLEARED`，不同参数报冲突）。原五库清理入口不覆盖抽奖库，抽奖历史由活动生命周期维护，请求预算独立保留。
+- **历史清理**：创建新活动时在同事务调用 [dynamic-lottery-retention.js](../../../src/storage/dynamic-lottery-retention.js) 清理同 namespace 已完成或候选耗尽的旧活动及其级联数据（创建失败回滚）；runtime 首次取得或切换可信 scope 时按登记顺序（SQLite rowid）保留最新活动结果并清理其他已结束活动（暂停活动保留）。旧创建请求保留 `create-retired` 回执（同参数重试返回 `LOTTERY_TASK_CLEARED`，不同参数报冲突）。原五库清理入口不覆盖抽奖库，抽奖历史由活动生命周期维护，请求预算独立保留。
 - **结果展示（v2）**：抽奖库 v2 追加可空 `lottery_evidence.display_name TEXT`（≤256 字符，旧行保持 `NULL`，不回源补查）；中奖结果通过 round 的 scan 与 member 的 `source`/`recordId`/`uid` 精准读取对应昵称与评论（前端缺失昵称时回退 UID）。
 - **客户端交集与开奖事务**：`commitPages` 同事务提交点赞/转发共用页并用已见游标防分页循环（评论按事件时间截止，reaction 保持 `occurred_at_ms = NULL`）；冻结规则与全量随机顺序同事务落盘，资格确认、授奖与 `next_index` 同事务推进。`rules` JSON `version: 2` 固定单一中奖人数与三条件，旧版本活动不套用新流程续抽。
 
@@ -304,7 +310,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 
 | 库 | key | 版本 | 步骤内容 |
 | --- | --- | --- | --- |
-| `songDb` | `song_db` | v1–v22 | v1 列补全（`tags`/`language`/`source_platform`/`original_group`、`pinned_at`、`requester_*`）；v2 `seedThemePresets`；v3 清理重复 `(name, artist)` 后建唯一索引；v4 补 `songs.request_price`；v5 补 `songs.song_clip`；v6 建六张粉丝档案表及 `requests` 稳定标识/归属列；v7 建 `idx_requests_queue_id`；v8 建 `component_scenes`；v9 建 `component_output_sizes`；v10 建 `component_canvas`；v11 加 `is_preset` 且 `active_scene_id` 可空；v12 建账号隔离 `song_cooldowns`；v13 汇总粉丝歌曲与恢复点、加 `requests.fan_recorded` 与 `random_request_history` 并清旧终态队列/流水；v14 建 `fan_roster_templates` 无损去重自动名单；v15 建粉丝记录/提醒 `profile_id` 索引；v16 加 `queue.is_live` 及单 LIVE 部分唯一索引；v17 建 `danmaku_appearances`；v18 修正 F–L 拼音界标重算 `name_pinyin`/`name_initial`（不触发云同步）；v19 建 `song_request_daily_counts`。v20 为点歌汇总和两张 AI 过期表添加清理索引。v21 为 `component_scenes.published_json` 和 `danmaku_appearances.config_json` 增加行级 `body_token`。SQLite 触发器在插入、重插和正文改写时更新标识，迁移给已有行补齐标识。v22 校正旧 H 拼音界标下被分入 G 的歌曲，保留业务字段与修改时间 |
+| `songDb` | `song_db` | v1–v23 | v1 列补全（`tags`/`language`/`source_platform`/`original_group`、`pinned_at`、`requester_*`）；v2 `seedThemePresets`；v3 清理重复 `(name, artist)` 后建唯一索引；v4 补 `songs.request_price`；v5 补 `songs.song_clip`；v6 建六张粉丝档案表及 `requests` 稳定标识/归属列；v7 建 `idx_requests_queue_id`；v8 建 `component_scenes`；v9 建 `component_output_sizes`；v10 建 `component_canvas`；v11 加 `is_preset` 且 `active_scene_id` 可空；v12 建账号隔离 `song_cooldowns`；v13 汇总粉丝歌曲与恢复点、加 `requests.fan_recorded` 与 `random_request_history` 并清旧终态队列/流水；v14 建 `fan_roster_templates` 无损去重自动名单；v15 建粉丝记录/提醒 `profile_id` 索引；v16 加 `queue.is_live` 及单 LIVE 部分唯一索引；v17 建 `danmaku_appearances`；v18 修正 F–L 拼音界标重算 `name_pinyin`/`name_initial`（不触发云同步）；v19 建 `song_request_daily_counts`。v20 为点歌汇总和两张 AI 过期表添加清理索引。v21 为 `component_scenes.published_json` 和 `danmaku_appearances.config_json` 增加行级 `body_token`。SQLite 触发器在插入、重插和正文改写时更新标识，迁移给已有行补齐标识。v22 校正旧 H 拼音界标下被分入 G 的歌曲，保留业务字段与修改时间。v23 为 `component_scenes` 增加 `published_shared_ids`，与发布快照在同一事务写入。旧记录初值为 `[]`，下次发布时记录共享图层 ID |
 | `superChatDb` | `super_chat_db` | v1–v3 | v1 基线；v2 建最小防重 ID 表 `super_chat_receipts`，转换旧 `deleted` 行并覆盖后续删除路径。v3 给有效记录的 `platform_id` 添加查重索引 |
 | `giftDb` | `gift_db` | v1–v26 | v1 `ensureGiftColumns`；v2 `platform_id` 索引；v3 `collapseDuplicateGiftIdentities` + 唯一索引 `(platform_id, uid)`；v4 **检测账本升级**（`ensureGiftDetectionColumns`）；v5 插加班机单例行（`id=1`）；v6 扩加班机时长上限；v7 放开 `display` 规则模式；v8 增来源分区、同步状态与远程约束索引；v9 补可空 `gift_events.blind_box_id`；v10 **礼物身份升级**（[ADR-0014](../../architecture/adr/0014-gift-identity-bound-overtime.md)：`gift_events` 增可空 `gift_variant_id`/`blind_box_variant_id`，`overtime_gift_rules` 增 `gift_identity_key`/`gift_identity_json` 并将主键升级为 `(gift_id, gift_identity_key)`，旧无身份规则保留等待重选，`settlements` 不迁移不回放，图片索引升级 schema 2 按 `variantId` 回退）；v11 补可空 `avatar_url`/`guard_level`（0–3）；v12 建 `source_recent` 与 `source_time_asc` 索引；v13 建 `gift_wishes`/`gift_wish_sessions`；v14–v16 补许愿样式、文字模板、图片位置/格式与颜色；v17 建礼物保留快照/日汇总/去重键/本机归档/冲刺结转（见 §9）；v18 建保留快照双状态时间索引；v19 补许愿 `text_runs`；v20 建 `gift_wish_contributions`；v21 补本机盲盒归档可空 `occurred_at` 及索引；v22 建立一年礼物保留分层并执行一次性旧投影重置（见 §9）；v23 建 `heart_box_collection_adjustments`；v24 建远端最近记录 `idx_gift_events_remote_recent` 表达式部分索引（仅加索引，不改写数据）。v25 为当前轮次的终态加班礼物及仍含原始 JSON 的记录添加部分索引。v26 在迁移事务中重建 `idx_gift_events_source_recent` 和 `idx_gift_events_remote_recent`，按 UTC 毫秒排序 |
 | `musicDb` | `music_db` | v1 | 基线 |
@@ -430,6 +436,7 @@ Phase 1 失败且全部事务回滚成功时，仅解除本次请求取得的暂
 
 基础歌词与高级歌词的所有视觉设置均为本机外观字符串，同步到同样式画布与歌词输出，不加入云设置同步（旧库仅补齐缺失键默认值，无 schema 迁移）：
 
+- 基础歌词的「逐字跳动」使用布尔字符串 `desktopLyricWordBounceEnabled`，默认 `'true'`。切换逐字高亮方式会保留这个选择。
 - **基础歌词颜色与显隐**：已唱颜色 `desktopLyricSungColor`（默认 `''` 跟随高亮色，支持十六进制及 Alpha），未唱颜色复用 `desktopLyricTextColor`（默认 `#000000`），整体不透明度复用 `desktopLyricOpacity`；`desktopLyricShowTranslation` 与 `desktopLyricShowRoma` 默认 `'true'`。
 - **基础排版**：`desktopLyricLineHeight` 默认 `'1.4'`（1–2），`desktopLyricLineGap` 默认 `'24'`（0–120 整数像素），翻译/罗马音缩放 `desktopLyricTranslationScale` 默认 `'0.65'`（0.4–1）；管理页预览宽高另存 `localStorage`（见 [歌词输出与预览](../frontend/overlays.md#6-直播歌词页lyrics)）。
 - **高级歌词开关与编排**：`desktopLyricEnabled='true'`、`advancedLyricEnabled='false'` 为独立开关；高级输出仅显示当前句，`advancedLyricHideUnsung='true'`、`advancedLyricWordProgress='false'` 随命名搭配保存（旧 `advancedLyricShowNextLine` 保留布尔兼容，默认 `'false'`，渲染不使用）；`advancedLyricLayout` 默认 `'phrase-flow'`（目录见 [advanced-lyric-catalog.js](../../../public/js/shared/advanced-lyric-catalog.js)），完整编排复用 `advancedLyricMotionDuration`/`Amount`。视觉类型与校验统一定义于 [advanced-lyric-appearance.js](../../../public/js/shared/advanced-lyric-appearance.js)，排版/入场轮换序列至多 12 项逗号去重，非法值整批拒绝。
@@ -474,7 +481,8 @@ Phase 1 失败且全部事务回滚成功时，仅解除本次请求取得的暂
 ### 7.2 defaults 外的领域设置与公开投影
 
 - `giftDisplayConfig` 由 [display-settings.js](../../../src/bilibili/gift/display-settings.js) 管理（JSON 文本，经专属礼物展示接口读写，不同步云端，旧 `intervalSeconds`/`paused`/`lowPower` 兼容为 `scrollSpeed=1`，完整字段见 [api.md §10](api.md#10-礼物域gifts)）。
-- 礼物图片导出的本地设置由 Electron 控制器经 `giftExport` IPC 写入，控制器提供缺省值。`giftExportMode` 默认 `combined`，另可 `separate`。`giftExportBackground` 默认 `transparent`，另可 `white`。`giftExportSortBy` 默认 `time`，另可 `amount`。`giftExportRowGap` 存储双条合图间距的整数像素字符串，范围 `'0'` 至 `'32'`，默认 `'16'`。`giftExportMergeAcrossDates` 默认 `'false'`。`giftExportDirectory` 只接受原生对话框或系统默认目录，空串使用系统图片目录下 `LIRA/礼物导出`。见[礼物导出接口](../desktop/preload.md#6-礼物导出任务与取消)。
+- `giftExportStyle` 是本机礼物图片导出偏好。一个 JSON 值保存 `{source,customStyle}`，`source` 为 `follow` 或 `custom`。`customStyle` 保存外形、纹理和三个金额分界。缺少或无法识别该键时使用滚动礼物样式。切回跟随会保留上次的自定义值。字段与单位见[礼物导出接口](../desktop/preload.md#6-礼物导出任务与取消)。
+- 礼物图片导出的本地设置由 Electron 控制器经 `giftExport` IPC 写入，控制器提供缺省值。`giftExportMode` 默认 `combined`，另可 `separate`。`giftExportBackground` 默认 `transparent`，另可 `white`。`giftExportSortBy` 默认 `time`，另可 `amount`。`giftExportRowGap` 以整数像素字符串存储长图中相邻卡片的间距，范围 `'0'` 至 `'32'`，默认 `'16'`。`giftExportMergeAcrossDates` 默认 `'false'`。`giftExportDirectory` 只接受原生对话框或系统默认目录，空串使用系统图片目录下 `LIRA/礼物导出`。见[礼物导出接口](../desktop/preload.md#6-礼物导出任务与取消)。
 - 以上领域键仍由 `getSettings()` 返回并可进入管理 HTTP/WS；overlay 设置由 [overlay-projection.js](../../../src/server/overlay-projection.js) 按 scope 白名单筛选。真正隐藏的私有键（`cloudRoomAccountKey`、`cloudSongSyncPending` 等）见 §8。
 
 ### 7.3 启动迁移、清理与导入导出
@@ -546,11 +554,13 @@ Phase 1 失败且全部事务回滚成功时，仅解除本次请求取得的暂
 
 ## 公共资源缓存
 
-[src/resources/resource-library.js](../../../src/resources/resource-library.js) 负责 `data/cache/resources/`，在现有设备 data 根下保存可重建的共享字体与大图（与账号资料、导入套装与安装文件分离）。对象文件名为 `<SHA-256>.<原扩展名>`，`index.json` 为 `{version:1, files:{<public相对路径>:{sha256, size}}}`，仅记已发布资源，无绝对路径、CDN 凭据或账号信息。
+[src/resources/resource-library.js](../../../src/resources/resource-library.js) 负责 `data/cache/resources/`，在现有设备 data 根下保存可重建的共享字体与大图（与账号资料、导入套装与安装文件分离）。对象文件名为 `<SHA-256>.<原扩展名>`，`index.json` 为 `{version:1, files:{<public相对路径>:{sha256, size, previous?}}}`，换版时 `previous` 记录上一可用版本的摘要和大小，无绝对路径、CDN 凭据或账号信息。
 
 `resource-packages.js` 声明当前共享图片与旧客户端兼容图片，启动下载、更新比较与缺失统计仅针对共享资源；航海旗帜三张兼容图片继续校验并提供已有缓存，不因缺失或 CDN 版本变化发起下载（当前旗帜样式完整读取导入 ZIP 的 `component-media`）。准入与防回归见 [CDN 分发指南](../../guides/cdn-resources.md#资源准入与防回归)。
 
 启动先校验当前缓存大小与摘要再检查远程清单。字体 ZIP 与图片下载至同目录独占 `.tmp` 并流式校验；ZIP 校验全部条目后仅解出所需文件并校验，重复、加密或意外条目使整包失败并丢弃临时文件。验证通过的字节先暂存为 `<摘要>.<扩展名>.pending`，原子替换 v1 索引后再改名为公开对象名；改名中断时下次启动按索引离线补完，超 24 小时未引用 `.pending` 按临时文件回收。已发布对象按摘要保留供旧版本 URL 读取，索引损坏可从可信清单与本地完整文件重建。
+
+扫描期间 `.pending` 发布失败时，即使重开也会校验上版对象或随包资源，继续通过默认路径提供可读版本。没有可用旧版本时，该逻辑路径的不带版本读取立即结束，不等待远程清单；重试初始化会清除本轮失败记录。按摘要读取仍保留等待其他资源发布同一对象的能力。
 
 清单 v2 为 `{version:2, files:[{path, size, sha256, label}], packages:[{id, size, sha256, files:[path]}]}`（原文件与下载包各最多 512 项、单项 ≤ 128 MiB、声明总量 ≤ 512 MiB，清单 ≤ 1 MiB）；CDN 根 origin 来自可信启动配置，兼容 v1 清单 `resources/objects/<SHA-256>.<扩展名>`，本地索引保持 v1。上传步骤见 [CDN 分发指南](../../guides/cdn-resources.md)。
 

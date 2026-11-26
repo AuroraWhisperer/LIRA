@@ -2,18 +2,19 @@
 
 const { BilibiliApiClient } = require('../danmaku/api-client');
 const { queryError } = require('./history-filters');
+const { performance } = require('node:perf_hooks');
 
 async function readLiveRoom(roomId) {
-  const { payload } = await new BilibiliApiClient(roomId).fetchJson(
+  const { payload, response } = await new BilibiliApiClient(roomId).fetchJson(
     'gift_wish_live',
     `https://api.live.bilibili.com/room/v1/Room/room_init?id=${encodeURIComponent(roomId)}`,
     { signal: AbortSignal.timeout(5000) },
   );
   if (payload?.code !== 0 || !payload.data?.room_id) throw new Error('直播状态暂时无法确认');
-  return payload.data;
+  return { ...payload.data, checkedAtMs: Date.parse(response.headers.get('date')) };
 }
 
-function createGiftWishSession({ store, getRoomId, readRoom = readLiveRoom, now = Date.now }) {
+function createGiftWishSession({ store, getRoomId, readRoom = readLiveRoom, monotonicNow = () => performance.now() }) {
   let cached = null;
   let pending = null;
 
@@ -21,7 +22,7 @@ function createGiftWishSession({ store, getRoomId, readRoom = readLiveRoom, now 
     const roomId = String(getRoomId() || '');
     const key = `${sourceId}:${roomId}`;
     if (pending && pending.key !== key) pending = null;
-    if (cached?.key === key && now() - cached.at < 30000) return Promise.resolve(cached.value);
+    if (cached?.key === key && monotonicNow() - cached.at < 30000) return Promise.resolve(currentWindow());
     if (pending?.key === key) return pending.promise;
     const request = { key };
     pending = request;
@@ -45,23 +46,34 @@ function createGiftWishSession({ store, getRoomId, readRoom = readLiveRoom, now 
         value = fallback;
       }
     }
-    cached = { key: request.key, at: now(), value };
-    return value;
+    cached = { key: request.key, at: monotonicNow(), value };
+    return currentWindow();
+  }
+
+  function currentWindow() {
+    const { value, at } = cached;
+    if (value.state !== 'live' || value.stale) return value;
+    return { ...value, as_of: new Date(Date.parse(value.checked_at) + Math.max(0, monotonicNow() - at)).toISOString() };
   }
 
   async function readWindow(roomId, previous) {
     if (!/^[1-9]\d*$/.test(roomId)) throw new Error('尚未配置直播间');
     const room = await readRoom(roomId);
-    const checkedAt = new Date(now()).toISOString();
+    // Only the same Bilibili response can establish the counting upper bound.
+    // A missing source clock must not replace a known window with desktop time.
+    const checkedAt = Number.isFinite(room.checkedAtMs) && room.checkedAtMs > 0
+      ? new Date(room.checkedAtMs).toISOString() : null;
     if (Number(room.live_status) === 1) {
       const start = Number(room.live_time) * 1000;
-      if (!Number.isSafeInteger(start) || start <= 0 || start > now()) throw new Error('开播时间暂时无法确认');
+      if (!checkedAt || !Number.isSafeInteger(start) || start <= 0 || start > room.checkedAtMs)
+        throw new Error('开播时间暂时无法确认');
       return { started_at: new Date(start).toISOString(), ended_at: null, checked_at: checkedAt, state: 'live', stale: false };
     }
     if (![0, 2].includes(Number(room.live_status))) throw new Error('直播状态暂时无法确认');
     if (!previous) return { state: 'offline', stale: false, started_at: null, ended_at: null };
     // The next visit is not the time the broadcast ended.
-    return { ...previous, ended_at: previous.ended_at || previous.checked_at, checked_at: checkedAt, state: 'offline', stale: false };
+    return { ...previous, ended_at: previous.ended_at || previous.checked_at,
+      checked_at: checkedAt || previous.checked_at, state: 'offline', stale: false };
   }
 
   return { get };

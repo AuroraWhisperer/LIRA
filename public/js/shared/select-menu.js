@@ -146,12 +146,13 @@ function buildOptions(state) {
   state.optionsRoot.replaceChildren();
   state.optionNodes = [];
   state.selectedOption = null;
+  const showGroups = !state.select.hasAttribute('data-select-ungrouped');
   const groups = new Map();
   for (const [index, option] of Array.from(state.select.options).entries()) {
     const parent = option.parentNode;
     const nativeGroup = parent?.tagName === 'OPTGROUP' ? parent : null;
     if (option.hidden || nativeGroup?.hidden) continue;
-    if (nativeGroup && !groups.has(nativeGroup)) {
+    if (showGroups && nativeGroup && !groups.has(nativeGroup)) {
       const group = createOptionGroup(nativeGroup, state.variant);
       state.optionsRoot.append(group);
       groups.set(nativeGroup, group);

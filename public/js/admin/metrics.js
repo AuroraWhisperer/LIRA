@@ -72,10 +72,10 @@ export const metrics = (() => {
     if (!countdown || !countdownValue) return;
 
     resetMetricsCountdown();
-    const startedAt = Date.now();
+    const startedAt = performance.now();
     countdown.classList.add('is-running');
     metricsCountdownTimer = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
+      const elapsedSeconds = Math.floor((performance.now() - startedAt) / 1000);
       const remainingSeconds = Math.max(0, METRICS_SAMPLE_SECONDS - elapsedSeconds);
       countdownValue.textContent = String(remainingSeconds);
       if (remainingSeconds === 0) {

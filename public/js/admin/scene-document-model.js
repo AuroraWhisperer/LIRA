@@ -17,6 +17,45 @@ function freeze(value) {
   return Object.freeze(value);
 }
 
+// A browser preview can submit an edit after the desktop has edited the same preset.
+export function mergeSceneEdit(base, edited, current) {
+  const conflict = () => { throw new Error('场景已在其他入口修改，请重新打开画布核对后再编辑。'); };
+  if (base.id !== current.id || edited.id !== base.id) conflict();
+  function changedFields(before, after, latest) {
+    const result = { ...latest };
+    for (const key of Object.keys(after)) {
+      if (key === 'items' || equal(before[key], after[key])) continue;
+      if (!equal(before[key], latest[key]) && !equal(after[key], latest[key])) conflict();
+      result[key] = after[key];
+    }
+    return result;
+  }
+  const itemsById = items => new Map(items.map(item => [item.id, item]));
+  const original = itemsById(base.items);
+  const updated = itemsById(edited.items);
+  const latest = itemsById(current.items);
+  const merged = new Map(latest);
+  for (const [id, before] of original) {
+    if (!updated.has(id)) {
+      if (latest.has(id) && !equal(before, latest.get(id))) conflict();
+      merged.delete(id);
+    } else if (latest.has(id)) merged.set(id, changedFields(before, updated.get(id), latest.get(id)));
+    else if (!equal(before, updated.get(id))) conflict();
+  }
+  for (const [id, item] of updated) if (!original.has(id)) {
+    if (latest.has(id) && !equal(latest.get(id), item)) conflict();
+    merged.set(id, item);
+  }
+  const changedOrder = !equal([...original.keys()].filter(id => updated.has(id)), [...updated.keys()].filter(id => original.has(id)));
+  const inserted = [...updated.keys()].some(id => !original.has(id));
+  if (changedOrder || inserted) {
+    // Competing structural edits have ambiguous stacking order.
+    if (!equal([...original.keys()], [...latest.keys()])) conflict();
+    return validateSceneDocument({ ...changedFields(base, edited, current), items: [...updated.keys()].map(id => merged.get(id)) });
+  }
+  return validateSceneDocument({ ...changedFields(base, edited, current), items: [...merged.values()] });
+}
+
 export function createSceneDocumentModel(document) {
   let current = freeze(validateSceneDocument(document));
   let past = [];

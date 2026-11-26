@@ -149,9 +149,10 @@ function createAiAssistantService(dependencies) {
       replyController = new AbortController();
       coordinator = createCoordinator();
     } else if ((currentConfig.autoReplyEnabled && !config.autoReplyEnabled)
-      || (currentConfig.autoReplyProbabilityPercent !== 0 && config.autoReplyProbabilityPercent === 0)
-      || currentConfig.autoReplyMentionEnabled !== config.autoReplyMentionEnabled) {
+      || (currentConfig.autoReplyProbabilityPercent !== 0 && config.autoReplyProbabilityPercent === 0)) {
       autoReplies.reset();
+    } else if (currentConfig.autoReplyMentionEnabled !== config.autoReplyMentionEnabled) {
+      autoReplies.interrupt();
     }
     currentConfig = config;
   }
@@ -285,9 +286,12 @@ function createAiAssistantService(dependencies) {
         // The target is selected after admission, so its confirmed auto exchange must settle first.
         if (submittedAutoReply?.uid === item.uid) await submittedAutoReply.done;
       }
-      throwIfReplyCancelled(item);
-      item.assertSessionCurrent?.();
-      const operation = item.turn.generate({ ...options, signal: item.signal, assertCurrent: () => throwIfReplyCancelled(item) });
+      const assertCurrent = () => {
+        throwIfReplyCancelled(item);
+        item.assertSessionCurrent?.();
+      };
+      assertCurrent();
+      const operation = item.turn.generate({ ...options, signal: item.signal, assertCurrent });
       if (item.autoTask) {
         const pending = { signal: item.signal, settled: operation.then(() => {}, () => {}) };
         autoGeneration = pending;

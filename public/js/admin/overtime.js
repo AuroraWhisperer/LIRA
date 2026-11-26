@@ -19,9 +19,9 @@ let rulesDirty = false;
 let rulesSaving = false;
 let rulesEditRevision = 0;
 let appearance = null;
-let displayRevision = 0;
-let overviewRequest = 0;
-let lastDisplayedOverview = 0;
+let overviewRequest = null;
+let overviewConnection = new AbortController();
+let latestCounts = null;
 let catalogLiveStatus = null;
 let ruleEditor = null;
 let timeChangePending = false;
@@ -68,8 +68,14 @@ const overtimeStatusView = createOvertimeStatusView({
   },
 });
 function renderState(state, options) {
+  if (overviewConnection.signal.aborted) return false;
   if (!overtimeStatusView.renderState(state, options)) return false;
-  displayRevision += 1;
+  if (options?.allowRevisionReset) latestCounts = null;
+  if (Number.isSafeInteger(state.pendingCount)) latestCounts = state;
+  if (Array.isArray(state.settlements)) {
+    settlements = state.settlements;
+    renderSettlements();
+  }
   appearance?.receive(overtimeStatusView.getState(), options);
   return true;
 }
@@ -87,7 +93,11 @@ export function initOvertime(currentState = {}) {
   bindControls();
   const stopVisibility = observePanelVisibility(panel, overtimeStatusView.setClockVisible);
   if (currentState?.overtime) renderState(currentState.overtime);
-  eventBus.on(Events.STATE_LOADED, ({ state, changedKeys, isConnectionSnapshot }) => {
+  const offState = eventBus.on(Events.STATE_LOADED, ({ state, changedKeys, isConnectionSnapshot }) => {
+    if (isConnectionSnapshot) {
+      overviewConnection.abort();
+      overviewConnection = new AbortController();
+    }
     const changed = (key) => isConnectionSnapshot || (changedKeys ? changedKeys.includes(key) : Object.hasOwn(state, key));
     const detectionChanged = changed('giftDetection');
     if (detectionChanged) giftDetection = state.giftDetection;
@@ -97,37 +107,76 @@ export function initOvertime(currentState = {}) {
       catalogLiveStatus = state.liveStatus;
       giftPicker.renderStatus();
     }
+    if (isConnectionSnapshot) refresh();
   });
-  eventBus.on(Events.OVERTIME_UPDATED, (payload) => {
-    renderState(payload.state);
-    if (payload.adjustment) refresh().catch(showError);
+  const offOvertime = eventBus.on(Events.OVERTIME_UPDATED, (payload) => {
+    if (renderState(payload.state) && payload.adjustment) refresh();
   });
-  eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot }) => {
+  const offCatalog = eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot }) => {
     if (snapshot?.source === 'server') giftPicker.applyServerGiftArtwork(snapshot);
     else giftPicker.applyGiftCatalog(snapshot);
   });
-  eventBus.once('app:shutdown', () => {
+  function dispose() {
+    overviewConnection.abort();
+    offState();
+    offOvertime();
+    offCatalog();
+    offShutdown();
+    window.removeEventListener('pagehide', dispose);
     stopVisibility();
     overtimeStatusView.setClockVisible(false);
-  });
+  }
+  const offShutdown = eventBus.on('app:shutdown', dispose);
+  window.addEventListener('pagehide', dispose, { once: true });
   giftPicker.load().catch(showError);
-  refresh().catch(showError);
+  refresh();
 }
 
-async function refresh() {
-  const request = ++overviewRequest;
-  const requestedRevision = displayRevision;
-  const response = await fetch('/api/overtime');
-  const payload = await readJsonResponse(response, '读取加班机失败');
-  if (!payload.ok) {
-    if (request === overviewRequest) throw new Error(payload.error || '读取加班机失败');
-    return;
+function refresh({ notifyError = true } = {}) {
+  if (!overviewConnection.signal.aborted) overviewRequest ??= reconcileOverview(notifyError);
+  return overviewRequest;
+}
+
+async function reconcileOverview(notifyError) {
+  try {
+    while (!overviewConnection.signal.aborted) {
+      const { signal } = overviewConnection;
+      const requestedRevision = overtimeStatusView.getState()?.revision ?? -1;
+      const countsAtRequest = latestCounts;
+      try {
+        const response = await fetch('/api/overtime', { signal });
+        const payload = await readJsonResponse(response, '读取加班机失败');
+        if (signal.aborted) continue;
+        if (!payload?.ok || !payload.data) throw new Error(payload?.error || '读取加班机失败');
+        let data = payload.data;
+        const currentRevision = overtimeStatusView.getState()?.revision ?? -1;
+        const hasRevision = Number.isSafeInteger(data.revision);
+        if (hasRevision && data.revision >= currentRevision) {
+          // A count-only receipt may be newer even at the same machine revision.
+          if (latestCounts !== countsAtRequest && latestCounts?.revision === data.revision) {
+            if (Array.isArray(latestCounts.settlements)) return;
+            data = { ...data, pendingCount: latestCounts.pendingCount,
+              quantityLimitedCount: latestCounts.quantityLimitedCount ?? data.quantityLimitedCount };
+          }
+          renderState(data);
+          return;
+        }
+        if (!hasRevision && latestCounts === countsAtRequest && Array.isArray(data.settlements)) {
+          settlements = data.settlements;
+          renderSettlements();
+        }
+        // Only a newer revision received during this GET can require another one.
+        if (currentRevision <= requestedRevision ||
+            (latestCounts?.revision === currentRevision && Array.isArray(latestCounts.settlements))) return;
+      } catch (error) {
+        if (signal.aborted) continue;
+        if (notifyError) showError(error);
+        return;
+      }
+    }
+  } finally {
+    overviewRequest = null;
   }
-  if (request < lastDisplayedOverview) return;
-  lastDisplayedOverview = request;
-  settlements = payload.data.settlements || [];
-  if (request === overviewRequest && requestedRevision === displayRevision) renderState(payload.data);
-  renderSettlements();
 }
 
 function bindControls() {
@@ -174,6 +223,7 @@ async function requestAction(action) {
 }
 
 async function startOvertime() {
+  if (rulesSaving) return;
   const state = overtimeStatusView.getState();
   const initialSeconds = readInitialDuration();
   const replaceTime = initialSeconds !== state.initialSeconds || state.effectiveRemainingMs <= 0;
@@ -183,10 +233,26 @@ async function startOvertime() {
     }
     if (state.effectiveRemainingMs > 0 && !(await confirmTimeReset(initialSeconds, true, true))) return;
   }
-  if (!(await saveRules())) return;
-  if (replaceTime) await saveTime(initialSeconds);
-  if (!overtimeStatusView.getState().enabled) await requestAction('enable');
-  await requestAction('start');
+  const rules = rulesDirty ? ruleEditor.readRules() : undefined;
+  const submittedRevision = rulesEditRevision;
+  rulesSaving = true;
+  syncRulesSaveButton();
+  try {
+    const result = await api('/api/overtime/action', {
+      action: 'start', enable: true,
+      ...(replaceTime ? { initialSeconds, expectedRevision: state.revision } : {}),
+      ...(rules ? { rules } : {}),
+    }, { notifyError: false });
+    if (rules) rulesDirty = rulesEditRevision !== submittedRevision;
+    renderState(result.data);
+    if (replaceTime) acceptInitialDuration(overtimeStatusView.getState().initialSeconds);
+  } catch (error) {
+    await refresh({ notifyError: false });
+    throw error;
+  } finally {
+    rulesSaving = false;
+    syncRulesSaveButton();
+  }
 }
 
 function setTimeChangePending(value) {

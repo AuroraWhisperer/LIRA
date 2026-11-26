@@ -101,6 +101,26 @@ test('automatic frequency samples each fresh viewer message once and retains ski
   assert.deepEqual(f.sent.map(item => item.message), ['自动回复', '直接回答']);
 });
 
+test('an unsampled supplement wakes the waiting author and reaches the model only as background', async t => {
+  const f = fixture(t, { random: () => 0.5, respond(request) {
+    if (request.purpose !== 'auto_generation') return;
+    const input = JSON.parse(request.input);
+    if (input.waitAllowed) return { text: JSON.stringify({ action: 'wait', targetMessageId: input.messages[0].id, reply: '' }),
+      functionCalls: [], usage: {} };
+  } });
+  f.observe({ message: '歌名我下一条发' });
+  await f.advance(600);
+  f.service.updateConfig({ autoReplyProbabilityPercent: 10 });
+  f.observe({ message: '茉莉花' });
+  await f.advance(1);
+  const turns = f.requests.filter(request => request.purpose === 'auto_generation');
+  assert.equal(turns.length, 2);
+  const followup = JSON.parse(turns[1].input);
+  assert.deepEqual(followup.contextMessages.map(message => message.text), ['茉莉花']);
+  assert.deepEqual(followup.messages.map(message => message.text), ['歌名我下一条发']);
+  assert.equal(f.sent.length, 1);
+});
+
 test('automatic chat is opt-in, excludes consumed commands, and never consumes the directed request quota', async t => {
   const f = fixture(t, { config: { autoReplyEnabled: false, roomLimitPerMinute: 1 } });
   assert.equal(f.observe().reason, 'not_triggered');
@@ -174,6 +194,7 @@ test('targeted automatic delivery without a mention confirms before a same-viewe
   f.observe({ uid: 'b', userName: '同名', message: '乙的话' });
   await f.advance(600);
   assert.equal(f.sent[0].mentionTarget, null);
+  f.service.updateConfig({ autoReplyMentionEnabled: true });
   await f.advance(13000);
   f.observe({ uid: 'b', userName: '同名', message: '小米 然后呢' });
   await flush();

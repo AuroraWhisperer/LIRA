@@ -47,6 +47,65 @@ test('a restored track accepts a seek before metadata and saves the latest posit
   assert.equal(app.audioPlayCalls(), 1);
 });
 
+test('previous before first playback clears a restored position without history', async () => {
+  const app = await createPlaybackApp({ current: track('song', 'Song'), currentTime: 92,
+    selectedSource: 'qq', mode: 'sequence', volume: 0.75 });
+  const audio = app.element('music-player');
+  Object.assign(audio, { readyState: 0, duration: NaN });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPrev', 'click');
+  assert.equal(app.element('playbackSeek').value, '0');
+  assert.equal(app.savedState().currentTime, 0);
+  assert.equal(app.audioPlayCalls(), 0);
+  await app.emit('playbackPlayPause', 'click');
+  Object.assign(audio, { readyState: 1, duration: 180 });
+  await app.emit('music-player', 'loadedmetadata');
+  assert.equal(audio.currentTime, 0);
+});
+
+for (const { before, after, position, expected, legacy = false } of [
+  { before: 30000, after: 0, position: 5, expected: 35 },
+  { before: 0, after: 30000, position: 35, expected: 5 },
+  { before: 30000, after: 45000, position: 20, expected: 5 },
+  { before: 30000, after: 30000, position: 5, expected: 5 },
+  { before: 0, after: 0, position: 35, expected: 35 },
+  { before: 30000, after: 30000, position: 5, expected: 5, legacy: true },
+]) {
+  test(`restart preserves song position when excerpt changes from ${before} to ${after}${legacy ? ' (legacy snapshot)' : ''}`, async () => {
+    const open = async (snapshot, startMs) => {
+      const app = await createPlaybackApp(snapshot, { resolveStream: () => ({
+        url: 'https://example.test/audio.mp3', trial: startMs > 0, trialStartMs: startMs,
+      }) });
+      const audio = app.element('music-player');
+      Object.assign(audio, { readyState: 0, duration: NaN });
+      await app.init();
+      await flushAsyncWork();
+      await app.emit('playbackPlayPause', 'click');
+      Object.assign(audio, { readyState: 1, duration: startMs ? 30 : 180 });
+      await app.emit('music-player', 'loadedmetadata');
+      return { app, audio };
+    };
+    const first = await open({ current: { ...track('song', 'Song'), source: 'netease' },
+      selectedSource: 'netease', mode: 'sequence', volume: 0.75 }, before);
+    first.audio.currentTime = position;
+    await first.app.emitPrepareShutdown();
+    let saved = first.app.ipcSavedState();
+    if (legacy) {
+      delete saved.current.playbackTrial;
+      delete saved.current.playbackTrialStartMs;
+      const unopened = await createPlaybackApp(saved);
+      await unopened.init();
+      await flushAsyncWork();
+      await unopened.emitPrepareShutdown();
+      saved = unopened.ipcSavedState();
+    }
+    const second = await open(saved, after);
+    assert.equal(second.audio.currentTime, expected);
+    assert.equal(second.audio.currentTime + after / 1000, position + before / 1000);
+  });
+}
+
 for (const autoAccept of [true, false]) {
   test(`clearing during an ${autoAccept ? 'accepted' : 'pending'} import prevents stale queue writes`, async () => {
     const match = Promise.withResolvers();

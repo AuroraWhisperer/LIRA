@@ -23,3 +23,8 @@ window.renderGiftExport = async ({ items, background, rowGap }) => {
     height,
   };
 };
+
+window.positionGiftExport = async (top) => {
+  document.getElementById('stage').style.translate = `0 -${top}px`;
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+};

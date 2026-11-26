@@ -3,8 +3,47 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
+const { projectOverlayState, projectWebSocketPayload } = require('../../src/server/overlay-projection');
+const { createFixture, fixedRule } = require('../helpers/overtime-service-fixture');
+const { giftVariantId } = require('../../src/shared/gift-identity');
 
 const fixture = createUiFixture();
+
+test('projected overtime hides unbound rules and highlights the settled identity on cold and warm snapshots', async (t) => {
+  const backend = createFixture();
+  const updates = [];
+  const service = backend.createService({ onUpdate: (update) => updates.push(update) });
+  t.after(() => { service.dispose(); backend.close(); });
+  const page = await fixture(t, 'overlay');
+  await page.clock.install();
+  const rules = ['first', 'second'].map((name, index) => {
+    const identity = { priceRaw: (index + 1) * 100, coinType: 'gold', bagGift: false };
+    identity.variantId = giftVariantId({ ...identity, giftId: '123', name });
+    return { ...fixedRule('123', 60), giftName: name, giftIdentity: identity };
+  });
+  service.replaceRules([...rules, fixedRule('999', 60)]);
+  service.act('enable');
+  await sendSnapshot(page, projectOverlayState('overtime', { overtime: service.getSnapshot() }).overtime);
+  assert.equal(await page.locator('#overtimeTickets .overtime-ticket').count(), 2);
+  service.finalizeGift(backend.insertFinalGift({ giftId: '123', giftName: 'second', giftVariantId: rules[1].giftIdentity.variantId, overtimeEpoch: 1 }));
+  const event = projectWebSocketPayload({ type: 'overlay', scope: 'overtime' }, { type: 'overtime:update', ...updates.at(-1) });
+  await page.evaluate((message) => window.socketOptions.onMessage(message), event);
+  assert.equal(await page.locator('.overtime-ticket.is-hit .overtime-ticket-name').textContent(), 'second');
+  await page.clock.runFor(1000);
+  const replacement = { ...rules[1].giftIdentity, priceRaw: 300 };
+  replacement.variantId = giftVariantId({ ...replacement, giftId: '123', name: 'second' });
+  service.replaceRules([rules[0], { ...rules[1], giftIdentity: replacement }, fixedRule('999', 60)]);
+  const preview = await page.evaluate(async (state) => {
+    const { projectOvertimePreviewState } = await import('/js/admin/overtime-preview-factory.js');
+    return projectOvertimePreviewState(state);
+  }, service.getSnapshot());
+  await sendSnapshot(page, preview);
+  assert.equal(await page.locator('#overtimeTickets .overtime-ticket').count(), 2, 'desktop preview retains binding state too');
+  service.finalizeGift(backend.insertFinalGift({ giftId: '123', giftName: 'second', giftVariantId: replacement.variantId, overtimeEpoch: 1 }));
+  await page.evaluate((message) => window.socketOptions.onMessage(message),
+    projectWebSocketPayload({ type: 'overlay', scope: 'overtime' }, { type: 'overtime:update', ...updates.at(-1) }));
+  assert.equal(await page.locator('.overtime-ticket.is-hit .overtime-ticket-name').textContent(), 'second');
+});
 
 async function sendSnapshot(page, overtime) {
   await page.evaluate((overtime) => window.socketOptions.onMessage({ type: 'snapshot', state: { overtime } }), overtime);

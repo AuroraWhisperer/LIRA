@@ -57,14 +57,26 @@ test('embedded installer seeds only the installation-drive baseline and retires 
   const installer = fs.readFileSync(exe);
   const different = Buffer.from(installer);
   different[different.length - 1] ^= 1;
-  for (const [flags, previous, keepMap] of [
-    [['--updated'], different, true],
+  const pending = path.join(cache, 'pending');
+  fs.mkdirSync(pending);
+  const downloaded = path.join(pending, 'cache-fixture.exe');
+  fs.copyFileSync(exe, downloaded);
+  fs.copyFileSync(path.join(scratch, 'control.txt'), path.join(pending, 'control.txt'));
+  for (const [flags, previous, keepMap, pendingMap] of [
+    // An interrupted download can leave identical pending/current maps from a different release.
+    [['--updated'], different, false, 'map'],
+    [['--updated'], installer, false, 'map'],
+    [['--updated'], different, false, 'different map'],
+    [['--updated'], different, false],
     [[], installer, true],
     [[], different, false],
   ]) {
     fs.writeFileSync(baseline, previous);
     fs.writeFileSync(blockmap, 'map');
-    const run = spawnSync(exe, ['/S', ...flags], { windowsHide: true, timeout: 10000 });
+    const candidate = path.join(pending, 'current.blockmap');
+    if (pendingMap) fs.writeFileSync(candidate, pendingMap);
+    else fs.rmSync(candidate, { force: true });
+    const run = spawnSync(flags.length ? downloaded : exe, ['/S', ...flags], { windowsHide: true, timeout: 10000 });
     assert.equal(run.status, 0);
     assert.equal(fs.readFileSync(path.join(scratch, 'control/copied.txt'), 'utf8'), 'ordinary copy');
     assert.deepEqual(fs.readFileSync(baseline), installer);
@@ -78,6 +90,9 @@ test('embedded installer seeds only the installation-drive baseline and retires 
   assert.equal(fs.readFileSync(blockmap, 'utf8'), 'previous map');
   assert.ok(fs.readFileSync(baseline).equals(Buffer.from('previous installer')),
     'a map still in use must stay paired with its original installer');
+  const lockedUpdate = spawnSync(downloaded, ['/S', '--updated', '--lock-map'], { windowsHide: true, timeout: 10000 });
+  assert.equal(lockedUpdate.status, 0);
+  assert.equal(fs.existsSync(baseline), false, 'an unverified promoted map cannot identify a usable delta baseline');
 });
 
 test('builder upgrade runs the current safe uninstaller instead of a destructive legacy executable', {

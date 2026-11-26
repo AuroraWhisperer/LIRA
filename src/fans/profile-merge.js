@@ -67,7 +67,8 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
       if (!isEmpty(incoming) && (isEmpty(mergedProfile[key]) || input.prefer === 'source'))
         mergedProfile[key] = incoming;
     }
-    mergedProfile.merges = [...(mergedProfile.merges || []), { sourceId: plan.source.id, mergedAt: at, snapshotId }];
+    mergedProfile.merges = [...(mergedProfile.merges || []), ...(plan.source.merges || []),
+      { sourceId: plan.source.id, mergedAt: at, snapshotId, songsTracked: true }];
     store.save(scope, mergedProfile, identityKey(mergedProfile.identity), at);
     store.moveRecords(scope, plan.source.id, plan.target.id, at);
     const adopted = record => record.kind === 'membership' && record.data.decision === 'adopted' && !record.data.excluded;

@@ -44,7 +44,7 @@ export function createFanProfileActions({ request, openForm, onProfile, onDelete
       },
       async (payload) => {
         await request('delete', payload);
-        await onDeleted();
+        await onDeleted(id);
       },
     );
   }

@@ -333,7 +333,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
         },
       }, cookieHeader);
       const moduleData = readQQModuleData(data, callKey, '读取我的歌单');
-      playlists = Array.isArray(moduleData.v_playlist) ? moduleData.v_playlist : [];
+      if (!Array.isArray(moduleData.v_playlist)) throw createPublicError('QQ 音乐未返回歌单目录，请重试。', 501);
+      playlists = moduleData.v_playlist;
     } catch (error) {
       if (error?.code !== 'QQ_CLIENT_AUTH_MISSING') cookieHeader = await this.getCookieForUin(uin);
       const gtkSource = extractQQGtkSource(cookieHeader);
@@ -352,7 +353,10 @@ class QQMusicProvider extends QQMusicStreamProvider {
         platform: 'yqq.json',
         needNewCode: '0',
       }, cookieHeader);
-      playlists = data && data.data && Array.isArray(data.data.disslist) ? data.data.disslist : [];
+      if (Number(data?.code ?? 0) !== 0 || !Array.isArray(data?.data?.disslist)) {
+        throw createPublicError('QQ 音乐未返回歌单目录，请重试。', 501);
+      }
+      playlists = data.data.disslist;
     }
     const mapped = playlists.map(mapQQPlaylist).filter(Boolean);
     if (options.includeLiked === false) {
@@ -376,7 +380,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
         },
       }, cookieHeader);
       const moduleData = readQQModuleData(data, callKey, '读取收藏歌单');
-      playlists = Array.isArray(moduleData.v_list) ? moduleData.v_list : [];
+      if (!Array.isArray(moduleData.v_list)) throw createPublicError('QQ 音乐未返回收藏歌单目录，请重试。', 501);
+      playlists = moduleData.v_list;
     } catch (error) {
       if (error?.code !== 'QQ_CLIENT_AUTH_MISSING') cookieHeader = await this.getCookieForUin(uin);
       const gtkSource = extractQQGtkSource(cookieHeader);
@@ -396,7 +401,10 @@ class QQMusicProvider extends QQMusicStreamProvider {
         platform: 'yqq.json',
         needNewCode: '0',
       }, cookieHeader);
-      playlists = data && data.data && Array.isArray(data.data.cdlist) ? data.data.cdlist : [];
+      if (Number(data?.code ?? 0) !== 0 || !Array.isArray(data?.data?.cdlist)) {
+        throw createPublicError('QQ 音乐未返回收藏歌单目录，请重试。', 501);
+      }
+      playlists = data.data.cdlist;
     }
     return playlists.map(mapQQPlaylist).filter(Boolean).slice(0, limit);
   }
@@ -525,7 +533,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
           },
         }, cookieHeader);
         const moduleData = readQQModuleData(data, callKey, '读取歌单详情');
-        const songlist = Array.isArray(moduleData.songlist) ? moduleData.songlist : [];
+        const songlist = moduleData.songlist;
+        if (!Array.isArray(songlist)) throw createPublicError('QQ 音乐未返回歌单曲目，请重试。', 501);
         if (options.likedSession) options.likedSession.songs = songlist;
         return songlist.slice(offset, offset + limit);
       } catch (_) {
@@ -558,16 +567,16 @@ class QQMusicProvider extends QQMusicStreamProvider {
     }
     const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, params, cookieHeader);
     const cdlist = data && Array.isArray(data.cdlist) ? data.cdlist : [];
+    const songlist = cdlist[0]?.songlist;
+    if (Number(data?.code ?? 0) !== 0 || !Array.isArray(songlist)) {
+      throw createPublicError('QQ 音乐未返回歌单曲目，请重试。', 501);
+    }
     if (options.likedSession) {
-      if (!Array.isArray(cdlist[0]?.songlist)) {
-        throw createPublicError('QQ 音乐未返回完整收藏，请重试。', 501);
-      }
       const count = cdlist[0]?.total_song_num ?? cdlist[0]?.songnum;
       if (count != null && count !== '' && Number.isSafeInteger(Number(count)) && Number(count) >= 0) {
         options.likedSession.publicSongCount = Number(count);
       }
     }
-    const songlist = cdlist[0] && Array.isArray(cdlist[0].songlist) ? cdlist[0].songlist : [];
     return songlist.slice(0, limit);
   }
 }

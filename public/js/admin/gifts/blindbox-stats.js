@@ -209,7 +209,7 @@ export function initBlindBoxStats() {
   };
   setCollapsed(section?.classList.contains('is-collapsed') || false);
   const onHeaderClick = (e) => {
-    if (e.target.closest('#blindBoxAnalysisOpenBtn')) return;
+    if (!e.target.closest('#blindBoxStatsHeading, #blindBoxStatsToggle')) return;
     setCollapsed(!section.classList.contains('is-collapsed'));
   };
   const openButton = document.getElementById('blindBoxAnalysisOpenBtn');

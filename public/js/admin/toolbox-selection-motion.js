@@ -260,7 +260,7 @@ export function createSelectionMotion() {
   function transition(root, targetButton, applySelection, { animate = true } = {}) {
     if (!animate || !root || !targetButton || targetButton.getAttribute?.('aria-selected') === 'true') {
       applySelection();
-      return;
+      return false;
     }
 
     const indicator = root.querySelector?.('.other-feature-indicator');
@@ -271,7 +271,7 @@ export function createSelectionMotion() {
       typeof targetButton.getBoundingClientRect !== 'function'
     ) {
       applySelection();
-      return;
+      return false;
     }
 
     const fromRect = indicator.getBoundingClientRect();
@@ -281,13 +281,13 @@ export function createSelectionMotion() {
       indicator.getAnimations?.().forEach((animation) => animation.cancel());
       cleanupAllSweeps();
       applySelection();
-      return;
+      return false;
     }
 
     const offset = fromRect.top - targetRect.top;
     if (Math.abs(offset) < 0.5) {
       applySelection();
-      return;
+      return false;
     }
 
     const previousButton = root.querySelector?.('.other-feature-button.active');
@@ -365,6 +365,7 @@ export function createSelectionMotion() {
       durationMs: 210,
       arriving: true,
     });
+    return true;
   }
 
   return { transition };

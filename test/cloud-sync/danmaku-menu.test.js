@@ -232,13 +232,13 @@ test('current menu is projected into pending uploads and changes request cloud s
   requested.length = 0;
   await request('/api/ai/config', { trigger: '小梨' }, 'PUT');
   assert.deepEqual(requested, []);
-  await request('/api/games/session', { game: 'gomoku', mode: 'multi' });
+  const board = await request('/api/games/session', { game: 'gomoku', mode: 'multi' });
   assert.deepEqual(requested, []);
   await request('/api/games/session/move', { value: 'A1' });
   assert.deepEqual(requested, ['settings']);
   assert.equal(runtime.getCloudSettingsSnapshot().menuCommands.length, 1);
   requested.length = 0;
-  await request('/api/games/session', { action: 'stop' });
+  await request('/api/games/session', { action: 'stop', sessionId: board.data.sessionId });
   assert.deepEqual(requested, ['settings']);
   assert.deepEqual(runtime.getPendingCloudSettings(accountKey).values.menuCommands, []);
   await request('/api/games/session', { game: 'draw-guess' });

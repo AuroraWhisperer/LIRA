@@ -26,7 +26,7 @@ test('an ASAR bundles tiny title subsets, downloads shared fonts once, renders t
     config: pkg.build, debugLogger: { isEnabled: false },
   } }, appOutDir, false);
   const filter = matchers[0].createFilter();
-  for (const relative of ['public/fonts', 'public/js/shared', 'public/js/admin/font-library-toast.js',
+  for (const relative of ['public/fonts', 'public/js/shared', 'public/js/admin/font-library-toast.js', 'public/js/admin/client-font-settings.js',
     'public/css/styles-base.css', 'public/css/shared', 'public/css/lyrics', 'public/css/admin/toasts']) {
     await fs.cp(path.join(root, relative), path.join(sourceDir, relative), {
       recursive: true, filter: async file => filter(file, await fs.stat(file)),
@@ -69,7 +69,8 @@ test('an ASAR bundles tiny title subsets, downloads shared fonts once, renders t
     renderedFamilies.add(rendered.map(face => face.familyName).join(','));
   }
   assert.equal(renderedFamilies.size, fonts.length, 'Every choice uses a different font, not a common fallback.');
-  await checkClientFontCoverage(page, cdp);
+  const checked = await checkClientFontCoverage(page, cdp);
+  t.diagnostic(`Verified interface fonts at weights 400 and 700: ${checked.join(', ')}`);
   const result = await app.evaluate(() => ({ ...global.cdnResourcesTest }));
   assert.equal(result.state.status, 'ready');
   assert.equal(result.state.total, fonts.length + 1, 'Shared fonts and the map are complete without imported style artwork.');

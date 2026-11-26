@@ -20,6 +20,22 @@ const { routes } = require('../../src/server/routes/song-routes');
 let parser;
 test.before(async () => { parser = await loadSongImportParser(); });
 
+test('text import preserves valid UTF-8 replacement characters and reads legacy Chinese text', async () => {
+  const { loadModuleExports } = require('../helpers/frontend-modules');
+  const { songImports } = await loadModuleExports(require.resolve('../../public/js/admin/song-import.js'), { TextDecoder });
+  const read = bytes => songImports.readTextFile({ arrayBuffer: async () => Uint8Array.from(bytes).buffer });
+  assert.equal(await read(Buffer.from('中文�')), '中文�');
+  assert.equal(await read([0xd6, 0xd0, 0xce, 0xc4]), '中文');
+});
+
+test('Excel cell text distinguishes escaped CRLF from a literal escape marker', () => {
+  const { parseSharedStrings } = require('../../src/shared/xlsx-codec');
+  const expected = '首行\r\n次行 _x000D_';
+  assert.deepEqual(parseSharedStrings('<sst><si><t>首行_x000D_\n次行 _x005F_x000D_</t></si></sst>'), [expected]);
+  const [row] = parseSongsFromXlsx(buildSongsWorkbook([{ name: '歌', song_clip: expected }]));
+  assert.equal(row['歌切'], expected);
+});
+
 function namespaceWorksheetTags(buffer) {
   const files = readZipFiles(buffer);
   const worksheetPath = 'xl/worksheets/sheet1.xml';
@@ -31,6 +47,36 @@ function namespaceWorksheetTags(buffer) {
   files.set(worksheetPath, worksheet);
   return createZip(Array.from(files.entries()));
 }
+
+test('an imported Excel control character remains XML-safe when the stored song is exported', (t) => {
+  const files = readZipFiles(buildSongsWorkbook([{ name: '控制字符测试', note: 'CONTROL_MARKER' }]));
+  const sheet = 'xl/worksheets/sheet1.xml';
+  files.set(sheet, files.get(sheet).replace('CONTROL_MARKER', 'abc_x001F_xyz 中文🎵 &amp; &lt;'));
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  t.after(() => db.close());
+  const store = createSongStore(db);
+  songService.importSongs(store, parseSongsFromXlsx(createZip([...files])));
+  const expected = 'abc\u001fxyz 中文🎵 & <';
+  assert.equal(store.listRows()[0].note, expected);
+  const exported = buildSongsWorkbook(store.listRows());
+  assert.doesNotMatch(readZipFiles(exported).get(sheet), /[\u0000-\u0008\u000b\u000c\u000e-\u001f\ufffe\uffff]/u);
+  assert.equal(parseSongsFromXlsx(exported)[0]['核对备注'], expected);
+});
+
+test('external shared and inline cell strings preserve uppercase X markers and decode mixed-case hex', () => {
+  // Cell spelling emitted by XlsxWriter: uppercase X is literal; lowercase x is protected.
+  const cell = 'catalog_X0041_part _x005F_x0041_ _x000d_\r\n_x4e2D_';
+  const expected = 'catalog_X0041_part _x0041_ \r\n中';
+  const { parseSharedStrings } = require('../../src/shared/xlsx-codec');
+  const strings = parseSharedStrings(`<sst><si><t>${cell}</t></si></sst>`);
+  const rows = parseWorksheetXml(`<worksheet><sheetData><row r="1">
+    <c r="A1" t="s"><v>0</v></c>
+    <c r="B1" t="inlineStr"><is><t>${cell}</t></is></c>
+    </row></sheetData></worksheet>`, strings);
+  assert.equal(rows[0][0], expected);
+  assert.equal(rows[0][1], expected);
+});
 
 test('song workbook codec uses the default column order and exports the stored source platform', () => {
   const songs = [
@@ -92,6 +138,7 @@ test('text and XLSX import songs by their named columns in reordered or sparse s
     ['歌名,,,,是否可点,,,,,排练组', '纸鸢,,,,否,,,,,周六', ['纸鸢', '', false, '']],
     ['外部编号,唱片编号,曲名,分组,推荐位,年份,版权方,片号,柜号,归档号', 'E-1,LP-1,晚航,甲,否,2026,乙,1,2,3', ['晚航', '', true, '']],
     ['歌名,唱片编号,,,,,,,,归档号', '晚航,LP-1,,,,,,,,22', ['晚航', '', true, '']],
+    ['外部编号,唱片编号,版本,分组,推荐位,年份,版权方,片号,柜号,归档号,歌名', 'E-1,LP-1,录音版,甲,否,2026,乙,1,2,3,晚航', ['晚航', '', true, '']],
     [',唱片编号,,,,,,,,歌名', ',LP-1,,,,,,,,晚航', ['晚航', '', true, '']],
   ]) {
     const files = readZipFiles(buildSongsWorkbook(songs));

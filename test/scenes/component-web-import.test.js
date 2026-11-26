@@ -267,7 +267,7 @@ test('complete HTML dependencies import with comments, remote URLs and quoted CS
   const result = await f.add([
     ['index.html', '<!-- <img src="unused.png"> --><style>/* url("unused.png") */ body { background: url("images/frame one.png"); }</style><img src=images/frame.png srcset="images/frame.png 1x, images/frame-large.png 2x"><iframe src="nested/frame.html"></iframe><script src="https://example.test/remote.js"></script>'],
     ['nested/frame.html', '<link href="../theme.css"><img src="../images/frame.png?version=1#image">'],
-    ['theme.css', '/* @import "unused.css"; */ body { color: red; background-image: url(data:image/png;base64,AQID); }'],
+    ['theme.css', '/* @import "unused.css"; */ p::before { content: "/* url(missing.png) */ @import foo"; } p::after { content: "url(example.png)"; } body { color: red; background-image: url(data:image/png;base64,AQID); }'],
     ['images/frame one.png', image], ['images/frame.png', image], ['images/frame-large.png', image],
   ]);
   assert.equal(result.status, 200, result.error);

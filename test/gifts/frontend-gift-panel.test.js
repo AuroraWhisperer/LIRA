@@ -143,3 +143,53 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
   assert.notEqual(f.status.textContent, previousStatus);
   assert.deepEqual(writes, beforeMapping);
 });
+
+test('gift header status shows only abnormal states and header switches never collapse the panel', async () => {
+  const status = { hidden: true, textContent: '', className: '', title: '' };
+  const detectToggle = { checked: false };
+  const recentToggle = { attributes: {}, setAttribute(k, v) { this.attributes[k] = v; } };
+  let headerClick = null;
+  let collapsed = false;
+  const header = { addEventListener(type, fn) { if (type === 'click') headerClick = fn; } };
+  const section = {
+    querySelector: (selector) => (selector === '.panel-header' ? header : null),
+    classList: { toggle(name) { if (name === 'is-collapsed') collapsed = !collapsed; return collapsed; } },
+  };
+  const documentRef = {
+    readyState: 'complete',
+    addEventListener() {},
+    querySelector: (selector) => (selector === '.gift-recent-panel' ? section : null),
+    getElementById: (id) => ({ giftSprintStatus: status, giftDetectToggle: detectToggle, giftRecentToggle: recentToggle })[id] || null,
+  };
+  const { giftDetection } = await loadModuleExports(path.resolve('public/js/admin/gifts/detection.js'), {
+    document: documentRef,
+    window: {},
+  });
+  const { initGiftRecentToggle } = await loadModuleExports(path.resolve('public/js/admin/gifts/history.js'), {
+    document: documentRef,
+    window: {},
+  });
+
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: true, message: '历史消息监听中' }, { giftMonitoringEnabled: 'true' });
+  assert.equal(status.hidden, true);
+  giftDetection.renderDetectionStatus({ enabled: false }, { connected: true }, { giftMonitoringEnabled: 'true' });
+  assert.equal(status.hidden, false);
+  giftDetection.renderDetectionStatus({ enabled: false }, { connected: true }, { giftMonitoringEnabled: 'false' });
+  assert.equal(status.hidden, false);
+  assert.equal(status.textContent, '已停收礼物');
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: false, message: '弹幕长连已断开，历史消息监听中' }, { giftMonitoringEnabled: 'true' });
+  assert.equal(status.hidden, false);
+
+  initGiftRecentToggle();
+  const click = (matched) => headerClick({ target: { closest: (sel) => sel.split(',').some((s) => matched.includes(s.trim())) ? {} : null } });
+  click(['.gift-header-controls', '#enableGiftNotification']);
+  click(['#giftHistoryOpenBtn']);
+  click(['#giftRecentHeading', '#giftSprintStatus']);
+  assert.equal(collapsed, false);
+  click(['#giftRecentHeading']);
+  assert.equal(collapsed, true);
+  assert.equal(recentToggle.attributes['aria-expanded'], 'false');
+  click(['#giftRecentToggle']);
+  assert.equal(collapsed, false);
+  assert.equal(recentToggle.attributes['aria-expanded'], 'true');
+});

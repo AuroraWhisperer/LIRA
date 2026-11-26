@@ -10,7 +10,7 @@ const GROUPS = [
     'desktopLyricTranslationOpacity',
   ], true],
   ['highlight', '高亮与配色', [
-    'desktopLyricKaraokeMode', 'desktopLyricTextColor', 'desktopLyricSungColor',
+    'desktopLyricKaraokeMode', 'desktopLyricWordBounceEnabled', 'desktopLyricTextColor', 'desktopLyricSungColor',
     'desktopLyricOpacity', 'desktopLyricCurrentLineEnhanced',
     ['当前行强调', 'desktopLyricBaseOpacity', 'desktopLyricBlurEffect', 'desktopLyricScaleEffect'],
   ]],
@@ -150,8 +150,11 @@ export function groupDesktopLyricParameters(root, fields, { scene = false } = {}
     }
     const translationScale = fields.get('desktopLyricTranslationScale');
     if (translationScale) translationScale.label.hidden = !value('desktopLyricShowTranslation') && !value('desktopLyricShowRoma');
-    const sung = fields.get('desktopLyricSungColor');
-    if (sung) sung.label.hidden = value('desktopLyricKaraokeMode') === 'off';
+    const karaokeOff = value('desktopLyricKaraokeMode') === 'off';
+    for (const key of ['desktopLyricWordBounceEnabled', 'desktopLyricSungColor']) {
+      const field = fields.get(key);
+      if (field) field.label.hidden = karaokeOff;
+    }
     for (const { section, controls } of advancedGroups) section.hidden = controls.every(control => control.hidden);
     const enabled = key => value(key) ? '开' : '关';
     const states = {

@@ -178,9 +178,12 @@ export class HomeService {
   }
 
   getPlaylistRemovalTarget(action) {
+    if (action !== 'liked' && action !== 'playlist-tracks') return null;
     const platform = this.state.selectedSource;
     const playlist = action === 'liked' ? { id: 'liked' } : this.getCurrentPlaylist();
     if (!playlist) return null;
+    if (platform === 'qq' && action === 'playlist-tracks' &&
+        (!Number.isSafeInteger(Number(playlist.dirId)) || Number(playlist.dirId) <= 0)) return null;
     return { platform, playlist, items: this.homeItems, generation: this.contentLoader.getPlatformGeneration(platform) };
   }
 

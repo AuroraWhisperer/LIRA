@@ -12,7 +12,7 @@ const BUILTIN_PRESENTATION = {
 export function createPersonaControls({ flushPendingSave, acceptConfig, confirm: confirmAction = dangerConfirm }) {
   const byId = (suffix) => document.getElementById(`xiaomiAi${suffix}`);
   const select = byId('Persona');
-  const legacyPrompt = byId('SystemPrompt');
+  let legacyPrompt = '';
   const dialog = byId('PersonaDialog');
   const editor = byId('PersonaEditor');
   const name = byId('PersonaName');
@@ -27,6 +27,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
   let providerPersonaIds = {};
   let selectionNotice = '';
   let editorId = null;
+  let originalPrompt = '';
   let busy = false;
   manageButton.disabled = true;
 
@@ -68,7 +69,8 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
     description.value = persona?.description || '';
     byId('PersonaProviderNote').textContent = persona?.providerNote ? `${persona.providerNote}；其他模型未测试。` : '';
     byId('PersonaProviderNote').hidden = !persona?.providerNote;
-    prompt.value = persona?.prompt || (id === 'custom' ? legacyPrompt.value : '');
+    originalPrompt = persona?.prompt || (id === 'custom' ? legacyPrompt : '');
+    prompt.value = originalPrompt;
     name.disabled = Boolean(persona?.builtin) || id === 'custom';
     description.disabled = id === 'custom';
     byId('PersonaReset').hidden = !persona?.builtin;
@@ -107,7 +109,8 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
     event.preventDefault();
     if (!editor.reportValidity()) return;
     const id = editorId;
-    const draft = { name: name.value.trim(), description: description.value.trim(), prompt: prompt.value };
+    const savedPrompt = prompt.value === originalPrompt.replace(/\r\n?/g, '\n') ? originalPrompt : prompt.value;
+    const draft = { name: name.value.trim(), description: description.value.trim(), prompt: savedPrompt };
     void runOperation(async () => {
       const url = id === 'custom' ? '/api/ai/config' : `/api/ai/personas/${id ? 'update' : 'create'}`;
       const body = id === 'custom' ? { personaId: 'custom', systemPrompt: draft.prompt } : { ...draft, ...(id ? { id } : {}) };
@@ -238,7 +241,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
       }));
       detectedProvider = config.modelProvider === 'auto' ? config.modelEndpoint?.provider || '' : '';
       manageButton.disabled = false;
-      if (!preservedFieldIds.has(legacyPrompt.id)) legacyPrompt.value = config.systemPrompt || '';
+      legacyPrompt = config.systemPrompt || '';
       const preserveSelection = preservedFieldIds.has(select.id) || preservedFieldIds.has(byId('ModelProvider').id);
       if (!preserveSelection) providerPersonaIds = { ...config.providerPersonaIds };
       const selected = preserveSelection ? select.value : config.personaId || 'custom';

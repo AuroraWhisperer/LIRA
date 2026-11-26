@@ -5,7 +5,9 @@ export function projectOvertimePreviewState(state = {}) {
   return { revision: state.revision || 0, status: state.status || 'disabled', serverNowMs: state.serverNowMs,
     initialSeconds: state.initialSeconds || 0,
     effectiveRemainingMs: state.effectiveRemainingMs || 0,
-    rules: (state.rules || []).map((rule) => ({ enabled: rule.enabled, giftId: rule.giftId, giftName: rule.giftName,
+    rules: (state.rules || []).map((rule) => ({ enabled: rule.enabled, bindingStatus: rule.bindingStatus,
+      giftIdentity: rule.giftIdentity ? { variantId: rule.giftIdentity.variantId } : null,
+      giftId: rule.giftId, giftName: rule.giftName,
       imagePath: rule.imagePath, mode: rule.mode, displayText: rule.displayText, fixedSeconds: rule.fixedSeconds,
       ...(rule.fixedEffect ? { fixedEffect: { operation: rule.fixedEffect.operation, value: rule.fixedEffect.value } } : {}) })) };
 }

@@ -86,6 +86,41 @@ test('calendar dates appear three Beijing days ahead, follow edits and never cre
   assert.equal(f.run('calendar').length, 0);
 });
 
+test('same-day followups carry their own content into reminders and calendar after edits', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const a = f.record(p.id, 'followup', { body: '问候考试', reviewDate: '2026-09-18' });
+  const b = f.record(p.id, 'followup', { body: '<试听新歌>', reviewDate: '2026-09-18' });
+  const key = record => `followup:${record.id}`;
+  assert.ok(f.run('reminders').find(item => item.key === key(a)).basis.includes('问候考试'));
+  assert.ok(f.run('calendar').find(item => item.key === key(b)).detail.includes('<试听新歌>'));
+  f.record(p.id, 'followup', { ...b.data, body: '询问演出' }, { id: b.id, revision: b.revision });
+  assert.ok(f.run('reminders').find(item => item.key === key(b)).basis.includes('询问演出'));
+  assert.ok(f.run('calendar').find(item => item.key === key(b)).detail.includes('询问演出'));
+  f.run('reminder-state', { profileId: p.id, key: key(a), status: 'handled' });
+  assert.equal(f.run('calendar').find(item => item.key === key(a)), undefined);
+  assert.equal(f.run('calendar').find(item => item.key === key(b)).profileId, p.id);
+});
+
+test('a due companion snooze remains actionable after a newer observation passes its threshold', t => {
+  const f = fanFixture(t);
+  const p = f.create();
+  f.service.importGuardRoster(SCOPE, roster(100));
+  const key = 'accompany:1234:100';
+  f.run('reminder-state', { profileId: p.id, key, status: 'snoozed' });
+  f.setNow('2026-09-19T04:00:00Z');
+  f.service.importGuardRoster(SCOPE, roster(101, '2026-09-19T04:00:00Z'));
+  f.restart();
+  const item = f.detail(p.id).reminders.find(item => item.key === key);
+  assert.equal(item.actionable, true);
+  assert.equal(item.date, '2026-09-18');
+  assert.equal(item.predicted, false);
+  assert.equal(f.run('reminders').find(item => item.key === key).status, 'snoozed');
+  assert.equal(f.run('list').profiles[0].nextReminder.key, key);
+  f.run('reminder-state', { profileId: p.id, key, status: 'handled' });
+  assert.equal(f.detail(p.id).reminders.find(item => item.key === key).status, 'handled');
+});
+
 test('companion milestones enter profile reminders seven days ahead and the calendar three days ahead', (t) => {
   const f = fanFixture(t);
   const p = f.create();

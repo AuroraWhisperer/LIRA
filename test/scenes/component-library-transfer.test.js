@@ -101,6 +101,68 @@ test('portable backup restores current parameters, media, local HTML and text im
   assert.equal(final.store.list().flatMap(pack => pack.styles).find(style => style.type === 'gift-wishes').config.limit, 4);
 });
 
+test('deleted backup presets restore beside their retained output without duplicating later restores', async t => {
+  const source = await fixture(t); const destination = await fixture(t, false);
+  const archive = await bytes(source.transfer.backup(allow));
+  const inspected = await destination.transfer.inspect(Readable.from([archive]), allow);
+  await destination.transfer.restore(inspected.id, allow);
+  const local = destination.server.service;
+  const copies = local.list(); const packs = destination.store.list();
+  local.publishCanvas({ id: copies[0].document.id, expectedRevision: copies[0].revision, expectedPublishedVersion: 0 });
+  for (const record of copies) local.delete({ id: record.document.id, expectedRevision: record.revision });
+  assert.equal(local.list().length, 0);
+  const binding = local.getCanvas(); const token = local.getSource(binding.outputId).token;
+  const original = local.create({ title: '保留本地草稿', canvas: { width: 1280, height: 720 } });
+  for (const pack of packs) destination.store.removePack(pack.id);
+  const cleanup = await fetch(`${destination.server.origin}/api/component-styles/cleanup`, { method: 'POST',
+    headers: { Authorization: `Bearer ${destination.server.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: packs.map(pack => pack.id) }) });
+  assert.equal(cleanup.status, 200);
+  for (const pack of packs) assert.equal(fs.existsSync(destination.store.directory(pack.id)), false);
+
+  const preview = await destination.transfer.inspect(Readable.from([archive]), allow);
+  assert.equal((await destination.transfer.restore(preview.id, allow)).created, 2);
+  const restored = local.list().filter(record => record.document.id !== original.document.id);
+  assert.equal(restored.length, 2);
+  assert.ok(restored.every(record => record.document.id !== binding.outputId && record.document.items.length === 3));
+  assert.equal(local.get(original.document.id).document.title, original.document.title);
+  assert.equal(local.getSource(binding.outputId).token, token);
+  assert.deepEqual(local.getCanvas(), binding);
+  assert.deepEqual(destination.store.list(), []);
+  for (const record of restored) {
+    const url = record.document.items.find(entry => entry.type === 'browser').appearance.config.url;
+    assert.equal((await fetch(`${destination.server.origin}${url}`)).status, 200);
+  }
+  const changed = restored[0];
+  local.save({ id: changed.document.id, expectedRevision: changed.revision, document: { ...changed.document, title: '保留副本修改' } });
+  const repeat = await destination.transfer.inspect(Readable.from([archive]), allow);
+  const result = await destination.transfer.restore(repeat.id, allow);
+  assert.equal(result.created, 0); assert.equal(result.existing, 2);
+  assert.equal(local.list().length, 3);
+  assert.equal(local.get(changed.document.id).document.title, '保留副本修改');
+});
+
+test('a single-category suite and a near-limit document retain their identity and content after restore', async t => {
+  const source = await fixture(t, false); const target = await fixture(t, false);
+  for (const [version, types] of [['1.0.0', ['clock', 'background']], ['2.0.0', ['clock']]]) {
+    const manifest = { schemaVersion: 1, id: 'test.shrinking', version, name: '小套装',
+      styles: types.map(type => ({ type, name: type, file: 'image.png', width: 320, height: 180 })) };
+    const zip = createStoredStyleZip(new Map([['lira-pack.json', Buffer.from(JSON.stringify(manifest))], ['image.png', png]]));
+    const inspected = await source.library.inspect(Readable.from([zip]), allow, 'suite');
+    await source.library.install(inspected.id, allow, 'suite');
+  }
+  const { document, revision } = source.server.service.create({ title: 'A', canvas: { width: 800, height: 600 } });
+  document.items.push(item('text-box', { ...createTextBoxDefaults(), nodes: [{ type: 'text', text: '' }] }));
+  const node = document.items[0].appearance.config.nodes[0];
+  node.text = 'x'.repeat(256 * 1024 - Buffer.byteLength(JSON.stringify(document)) - 1);
+  source.server.service.save({ id: document.id, document, expectedRevision: revision });
+  const backup = await bytes(source.transfer.backup(allow));
+  const preview = await target.transfer.inspect(Readable.from([backup]), allow);
+  assert.equal(preview.packages, 1);
+  await target.transfer.restore(preview.id, allow);
+  assert.equal(target.store.list()[0].importTarget, 'suite');
+  assert.equal(target.server.service.list()[0].document.items[0].appearance.config.nodes[0].text.length, node.text.length);
+});
+
 test('saved and published gift motion layers remain portable alongside an incoming backup', async t => {
   const source = await fixture(t, false);
   const other = await fixture(t, false);

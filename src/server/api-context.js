@@ -170,7 +170,7 @@ function createApiContext(options) {
       openChatGptLogin: (input) => ai.chatgptSession.openLogin(input),
       cancelChatGptLogin: () => ai.chatgptSession.cancelLogin(),
       selectChatGptAccount: (id) => ai.chatgptSession.selectAccount(id),
-      logoutChatGpt: () => ai.chatgptSession.logout(),
+      logoutChatGpt: (profileId) => ai.chatgptSession.logout(profileId),
     },
     games: createGamesContext(games),
     wheel: createWheelContext(wheel),

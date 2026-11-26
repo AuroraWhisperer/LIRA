@@ -155,9 +155,11 @@ test('Bilibili login and confirmed logout announce each auth change once', async
     ['bilibiliLogoutBtn', createElement('bilibiliLogoutBtn', { style: { display: 'none' } })],
   ]);
   let authState = { loggedIn: false };
+  let cloudRefresh;
   const windowRef = {
     __API_TOKEN__: '',
     bilibiliAuth: {
+      onIdentityChanged(callback) { cloudRefresh = callback; },
       getAuthState: async () => authState,
       login: async () => {
         authState = { loggedIn: true, uid: 42 };
@@ -194,4 +196,10 @@ test('Bilibili login and confirmed logout announce each auth change once', async
   await elements.get('bilibiliLogoutBtn').listeners.get('click')();
   assert.ok(logoutPrompt);
   assert.deepEqual(authEvents, ['app:bilibili-auth-changed', 'app:bilibili-auth-changed']);
+  authState = { loggedIn: true, uid: 102 };
+  await cloudRefresh();
+  assert.match(elements.get('bilibiliAuthUid').textContent, /102/);
+  authState = { loggedIn: false };
+  await cloudRefresh();
+  assert.equal(elements.get('bilibiliAuthProfile').hidden, true);
 });

@@ -39,6 +39,9 @@ test('appearance accepts only theme IDs, atomically saves ID alone and restores 
     assert.deepEqual(await f.owner.setThemeId(value), { ok: false, error: 'CLIENT_THEME_INVALID' });
   }
   assert.equal(f.owner.getThemeId(), 'classic');
+  assert.deepEqual(await f.owner.setThemeId('opal-indigo'), { ok: true, themeId: 'opal-indigo' });
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.file)), { themeId: 'opal-indigo' });
+  assert.equal(createClientAppearance({ dataDir: f.dataDir }).getThemeId(), 'opal-indigo');
   assert.deepEqual(await f.owner.setThemeId('terracotta'), { ok: true, themeId: 'terracotta' });
   assert.deepEqual(JSON.parse(fs.readFileSync(f.file)), { themeId: 'terracotta' });
   assert.equal(createClientAppearance({ dataDir: f.dataDir }).getThemeId(), 'terracotta');

@@ -170,7 +170,7 @@
 
 .queue-row .meta {
   margin-top: 4px;
-  color: var(--muted);
+  color: var(--color-text-muted, var(--muted));
   font-family: var(--admin-queue-font-family, var(--font));
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
@@ -178,7 +178,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.75;
 }
 
 /* SC 队列：允许多行显示 */

@@ -81,11 +81,15 @@ function recoverToolboxInitialization(error) {
   return toolboxRecovery;
 }
 
+let flushWeeklySchedule = () => true;
 const toolbox = createToolboxLifecycle({
   loaders: {
     otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
     otherPkScoreFeature: () => import('./pk-score-calculator.js').then((module) => module.initPkScoreCalculator),
-    otherWeeklyScheduleFeature: () => import('./weekly-schedule.js').then((module) => module.initWeeklySchedule),
+    otherWeeklyScheduleFeature: () => import('./weekly-schedule.js').then(module => {
+      flushWeeklySchedule = module.flushWeeklySchedule;
+      return module.initWeeklySchedule;
+    }),
   },
   onError: Utils.showError,
   onInitError: recoverToolboxInitialization,
@@ -309,6 +313,7 @@ async function initializeApp() {
  */
 function initPlaybackAssistant() {
   playback.initPlaybackAssistant({
+    flushWeeklySchedule: () => flushWeeklySchedule(),
     getWeSingState: () => stateService.getAppState()?.weSing,
     toast: Utils.toast,
     showError: Utils.showError,

@@ -75,6 +75,28 @@ async function fixture(preference = null, nativeOutput = null) {
   };
 }
 
+test('an automatic browser device disappearing preserves default playback before native audio is used', async t => {
+  const { getPlaybackOutput } = await loadModuleExports(path.resolve('public/js/playback/features/output-device.js'), { setTimeout, clearTimeout });
+  const audio = new EventTarget();
+  Object.assign(audio, { sinkId: '', paused: false, pause() { this.paused = true; },
+    async setSinkId(id) {
+      if (id) throw Object.assign(new Error('device disappeared'), { name: 'NotFoundError' });
+      this.sinkId = id;
+    },
+  });
+  const output = getPlaybackOutput(audio, {
+    windowRef: {}, storage: { getItem: () => null, setItem: () => assert.fail('failed choice cannot be saved') },
+    mediaDevices: { enumerateDevices: async () => [{ kind: 'audiooutput', deviceId: 'vanished', label: 'Gone' }] },
+    nativeBridge: { onFault: () => () => {}, invoke: async () => ({ ok: true, data: [] }) },
+  });
+  t.after(() => output.dispose());
+  await output.prepare();
+  assert.equal(await output.select('vanished'), false);
+  assert.equal(audio.sinkId, '');
+  assert.equal(audio.paused, false);
+  await output.prepare();
+});
+
 test('component preparation keeps browser playback available and preserves a pending native device', async () => {
   let ready = false;
   const selected = [];

@@ -31,6 +31,7 @@ function settingsKeys(type) {
 }
 
 function sharedResourceAppearance(type, config = {}, settings = {}) {
+  if (type === 'danmaku' && config.resourceStyle) return { styleParameters: {}, ...config };
   if (type === 'queue') return { ...config,
     queueRequestRequesterColor: settings.queueRequestRequesterColor,
     queueRequestSongColor: settings.queueRequestSongColor,

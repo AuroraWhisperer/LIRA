@@ -30,6 +30,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   let disposed = false;
   let revision = 0;
   let savedRevision = -1;
+  let savingRevision = -1;
   let saveTimer;
   let savePending = Promise.resolve();
   let frame;
@@ -110,6 +111,8 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     clearTimeout(saveTimer);
     if (!state || disposed) return Promise.resolve(false);
     const requestedRevision = revision;
+    if (savingRevision === requestedRevision) return savePending;
+    savingRevision = requestedRevision;
     status('saving');
     const pending = storage.save(state).then(() => {
       savedRevision = Math.max(savedRevision, requestedRevision);
@@ -124,6 +127,8 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       lastSaveError = error;
       showError(error);
       return false;
+    }).finally(() => {
+      if (savingRevision === requestedRevision) savingRevision = -1;
     });
     savePending = pending;
     return pending;
@@ -505,8 +510,11 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       changed();
     }
   }
-  function flush() {
-    if (state && revision > savedRevision) void persist();
+  async function flush() {
+    while (state && revision > savedRevision) {
+      if (!(await persist())) return false;
+    }
+    return true;
   }
   function onEscape(event) {
     if (event.key === 'Escape' && expanded && !event.defaultPrevented) {
@@ -543,12 +551,19 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   root.addEventListener('keydown', onKeyDown);
   root.ownerDocument.addEventListener('keydown', onEscape);
   window.addEventListener('pagehide', flush);
-  const resize = new ResizeObserver(() => { resizePreview(); queueFit(); });
+  let wasStageVisible = false;
+  const resize = new ResizeObserver(() => {
+    const visible = stage.clientWidth > 0;
+    resizePreview();
+    if (visible && !wasStageVisible) queueFit();
+    wasStageVisible = visible;
+  });
   resize.observe(stage);
   const titlebar = root.ownerDocument.querySelector('.topbar');
   if (titlebar) resize.observe(titlebar);
   await load();
   return {
+    flush,
     dispose() {
       imageInteraction.dispose();
       setExpanded(false, false);

@@ -17,6 +17,7 @@ function cloneCanvasState(canvas) {
     totalPoints: canvas.totalPoints,
     strokes: canvas.strokes.map((stroke) => ({
       ...stroke,
+      segments: stroke.segments.map(segment => ({ ...segment })),
       points: stroke.points.map((point) => ({ ...point })),
     })),
   };
@@ -68,9 +69,12 @@ function applyCanvasOperation(canvas, input = {}) {
   if (canvas.totalPoints + points.length > MAX_TOTAL_POINTS) return reject('本局画布坐标数量已达上限。', canvas);
 
   const strokes = canvas.strokes.slice();
-  if (existing) strokes[strokeIndex] = { ...existing, points: [...existing.points, ...points] };
-  else strokes.push({ id: strokeId, color, width, points: [...points] });
   const revision = canvas.revision + 1;
+  const segment = { revision, end: (existing?.points.length || 0) + points.length };
+  if (existing) strokes[strokeIndex] = {
+    ...existing, points: [...existing.points, ...points], segments: [...existing.segments, segment],
+  };
+  else strokes.push({ id: strokeId, color, width, points: [...points], segments: [segment] });
   return {
     accepted: true,
     operation: { action: 'append', clientId, strokeId, color, width, points, revision },

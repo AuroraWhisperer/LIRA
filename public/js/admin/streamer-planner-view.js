@@ -122,6 +122,18 @@ export function renderTodoAgenda(view) {
   );
 }
 
+function setTaskTitle(task, title, check, remove) {
+  title.value = title.title = task.title;
+  check.setAttribute('aria-label', `${task.done ? '恢复待办' : '完成'}：${task.title}`);
+  remove.title = `删除待办：${task.title}`;
+  remove.setAttribute('aria-label', remove.title);
+}
+
+export function renderTaskTitle(input, task) {
+  const row = input.closest('.planner-task-row');
+  setTaskTitle(task, input, row.querySelector('[data-task-complete]'), row.querySelector('[data-task-delete]'));
+}
+
 export function renderTodoTasks(view) {
   const tasks = view.planner.tasks;
   const done = tasks.filter((task) => task.done).length;
@@ -142,15 +154,14 @@ export function renderTodoTasks(view) {
           check.type = 'checkbox';
           check.checked = task.done;
           check.dataset.taskComplete = task.id;
-          check.setAttribute('aria-label', `${task.done ? '恢复待办' : '完成'}：${task.title}`);
           const title = createElement('input', 'planner-task-copy');
           title.type = 'text';
           title.maxLength = 80;
-          title.value = task.title;
-          title.title = task.title;
           title.dataset.taskTitle = task.id;
           title.setAttribute('aria-label', '编辑待办内容');
-          row.append(check, title, iconButton('x', `删除待办：${task.title}`, 'taskDelete', task.id));
+          const remove = iconButton('x', '', 'taskDelete', task.id);
+          setTaskTitle(task, title, check, remove);
+          row.append(check, title, remove);
           return row;
         })
       : [createElement('p', 'planner-empty-state lira-content-state', view.taskFilter === 'done' ? '暂无已完成事项' : '暂无待办')]),
@@ -200,8 +211,7 @@ export function renderTodoNotes(view) {
   );
 }
 
-export function renderTodo(view) {
-  if (!byId('streamerPlanner')) return;
+export function renderPlannerSaveState(view) {
   const status = byId('plannerSaveState');
   const message = view.readFailed
     ? '本机记录读取失败，已暂停写入'
@@ -209,6 +219,11 @@ export function renderTodo(view) {
       ? '保存失败，请勿关闭页面'
       : '已保存到本机';
   renderSaveStatus(status, view.readFailed || view.saveFailed ? 'error' : 'saved', message);
+}
+
+export function renderTodo(view) {
+  if (!byId('streamerPlanner')) return;
+  renderPlannerSaveState(view);
   renderTodoCalendar(view);
   renderTodoAgenda(view);
   renderTodoNotes(view);

@@ -186,7 +186,8 @@ export function profileForm(profile = {}, { previewIdentity, lookupFormerNames, 
           const result = await lookupFormerNames(uid);
           if (!isCurrent()) return;
           const existing = readNames();
-          const seen = new Set([profile.platformName, ...existing]);
+          const sameIdentity = uid === profile.identity?.value;
+          const seen = new Set([...existing, ...(sameIdentity ? [profile.platformName, ...(profile.excludedFormerNames || [])] : [])]);
           const added = result.names.filter(name => !seen.has(name));
           for (const name of added) appendedNames.add(name);
           form.elements.formerNames.value = [...new Set([...existing, ...added])].join('\n');
@@ -232,6 +233,7 @@ export function profileForm(profile = {}, { previewIdentity, lookupFormerNames, 
         }
       }
       identityInput.addEventListener('input', () => {
+        form.elements.alias.required = !profile.platformName || identityInput.value.trim() !== profile.identity?.value;
         namesRevision++;
         if (appendedNames.size) form.elements.formerNames.value = readNames().filter(name => !appendedNames.has(name)).join('\n');
         appendedNames = new Set();
@@ -424,6 +426,7 @@ export function recordForm(kind, record) {
       field('date', '日期', data.date, 'date', 'required') +
       check('annual', '每年重复', data.annual) +
       field('advanceDays', '提前提醒天数', data.advanceDays || 0, 'number', 'min="0" max="30" step="1"') +
+      '<p class="fan-field-help fan-field-wide">此天数决定档案详情从何时可处理提醒。档案列表与提醒页最早提前 7 天显示，工作台日历最早提前 3 天显示。</p>' +
       area('note', '说明', data.note);
   else
     fields =

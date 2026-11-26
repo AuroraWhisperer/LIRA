@@ -94,6 +94,7 @@ function createQWeatherTool(options = {}) {
 
   async function requestWithQuota(url, config, transform = (payload) => payload, options = {}) {
     throwIfAborted(options.signal);
+    options.assertCurrent?.();
     return withApiQuota(quotaStore, 'qweather', async () => {
       const payload = await fetchJson(url, {
         timeoutMs: config.requestTimeoutMs,

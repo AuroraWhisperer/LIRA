@@ -2,68 +2,172 @@
 <div class="ui-drawer-backdrop gift-drawer-backdrop" id="giftHistoryBackdrop"></div>
 <aside class="ui-drawer gift-drawer" id="giftHistoryDrawer" role="dialog" aria-modal="true" aria-labelledby="giftHistoryTitle" aria-hidden="true" tabindex="-1" inert>
   <div class="ui-drawer-head gift-drawer-head">
-    <button id="giftHistoryClose" class="secondary sm" type="button" title="返回礼物（Esc）">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path d="m15 18-6-6 6-6" />
-      </svg>
-      返回礼物
-    </button>
-    <div class="gift-drawer-title">
-      <strong id="giftHistoryTitle" class="ui-section-title">全部礼物记录</strong>
-      <span id="giftHistoryTotal" class="ui-caption" hidden></span>
-      <span id="giftLedgerSyncStatus" class="ui-caption" role="status" aria-live="polite" hidden></span>
+    <div class="gift-drawer-head-left">
+      <button id="giftHistoryClose" class="secondary sm" type="button" title="返回礼物（Esc）">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+        返回礼物
+      </button>
+      <span class="gift-history-head-divider" aria-hidden="true"></span>
+      <div class="gift-drawer-title">
+        <strong id="giftHistoryTitle" class="ui-section-title">全部礼物记录</strong>
+        <span id="giftHistoryTotal" class="gift-history-total-pill" hidden></span>
+        <span id="giftLedgerSyncStatus" class="gift-history-sync-pill" role="status" aria-live="polite" hidden></span>
+      </div>
     </div>
-    <button id="giftHistoryRetryBtn" class="secondary sm" type="button" hidden>重新加载</button>
-    <button
-      id="giftHistoryClearDatabaseBtn"
-      class="danger sm"
-      type="button"
-      title="删除当前账号在本机和云端的全部礼物记录"
-    >
-      清空全部记录
-    </button>
+    <div class="gift-drawer-head-actions">
+      <button id="giftHistoryRetryBtn" class="secondary sm" type="button" hidden>重新加载</button>
+      <button id="giftHistoryExport" type="button" class="primary sm" data-gift-pane="list" disabled>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.1"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" x2="12" y1="15" y2="3" />
+        </svg>
+        <span id="giftHistoryExportLabel">导出所选</span>
+      </button>
+      <span class="gift-history-head-divider" data-gift-pane="list" aria-hidden="true"></span>
+      <button
+        id="giftHistoryClearDatabaseBtn"
+        class="danger sm"
+        type="button"
+        title="永久删除当前账号在本机和云端的全部礼物记录"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 6h18" />
+          <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        </svg>
+        <span id="giftHistoryClearDatabaseLabel">清空全部记录</span>
+      </button>
+    </div>
   </div>
 
   <form id="giftHistoryFilters" class="gift-history-filters" data-gift-pane="list">
-    <label>用户<input id="giftHistoryUserQuery" type="search" maxlength="100" placeholder="名称关键词" /></label>
-    <label>礼物<input id="giftHistoryGiftQuery" type="search" maxlength="100" placeholder="礼物名称" /></label>
-    <label
-      >金额大于（元）<input
-        id="giftHistoryAmountAbove"
-        type="number"
-        min="0"
-        step="0.01"
-        inputmode="decimal"
-        placeholder="不限"
-        title="按单条礼物记录的总金额筛选，不包含等于门槛的记录"
-    /></label>
-    <label>开始日期<input id="giftHistoryStartDate" type="date" /></label>
-    <label>结束日期<input id="giftHistoryEndDate" type="date" /></label>
-    <div class="gift-history-filter-actions">
-      <button id="giftHistoryToday" type="button" class="secondary">今天</button>
-      <button id="giftHistoryReset" type="button" class="secondary">清除筛选</button>
-      <button type="submit">查询</button>
+    <div class="gift-history-filter-tray">
+      <label class="gift-filter-field gift-filter-user">
+        <span class="sr-only">用户</span>
+        <svg
+          class="gift-filter-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.9"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="8" r="4" />
+          <path d="M20 21a8 8 0 0 0-16 0" />
+        </svg>
+        <input id="giftHistoryUserQuery" type="search" maxlength="100" placeholder="用户关键词" />
+      </label>
+      <label class="gift-filter-field gift-filter-gift">
+        <span class="sr-only">礼物</span>
+        <svg
+          class="gift-filter-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.9"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="8" width="18" height="4" rx="1" />
+          <path d="M12 8v13" />
+          <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+          <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+        </svg>
+        <input id="giftHistoryGiftQuery" type="search" maxlength="100" placeholder="礼物名称" />
+      </label>
+      <label class="gift-filter-field gift-filter-amount">
+        <span class="sr-only">金额大于（元）</span>
+        <span class="gift-filter-prefix" aria-hidden="true">金额 &gt; ¥</span>
+        <input
+          id="giftHistoryAmountAbove"
+          type="number"
+          min="0"
+          step="0.01"
+          inputmode="decimal"
+          placeholder="不限"
+          title="按单条礼物记录的总金额筛选，不包含等于门槛的记录"
+        />
+      </label>
+      <div class="gift-filter-date-group" role="group" aria-label="日期范围">
+        <span class="gift-filter-prefix gift-filter-date-label" aria-hidden="true">日期</span>
+        <label class="gift-filter-date-slot">
+          <span class="sr-only">开始日期</span>
+          <input id="giftHistoryStartDate" type="date" aria-label="开始日期" />
+        </label>
+        <span class="gift-filter-date-sep" aria-hidden="true">—</span>
+        <label class="gift-filter-date-slot">
+          <span class="sr-only">结束日期</span>
+          <input id="giftHistoryEndDate" type="date" aria-label="结束日期" />
+        </label>
+        <button id="giftHistoryToday" type="button" class="gift-filter-today-btn" title="一键筛选今天的礼物">
+          今天
+        </button>
+      </div>
+      <div class="gift-history-filter-actions">
+        <button id="giftHistoryReset" type="button" class="secondary" title="清除全部筛选条件">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+            <path d="M3 3v5h5" />
+          </svg>
+          重置
+        </button>
+        <button type="submit" class="primary">查询</button>
+      </div>
     </div>
     <span id="giftHistoryFilterError" role="alert"></span>
   </form>
-  <div class="gift-history-tools" data-gift-pane="list">
-    <span id="giftHistorySelectedCount" role="status">已选 0 条</span>
-    <button id="giftHistoryDeselect" type="button" class="secondary sm" disabled>取消选择</button>
-    <button id="giftHistorySelectAll" class="secondary sm" type="button">选择全部筛选结果</button>
-    <button id="giftHistoryCancelSelect" class="secondary sm" type="button" hidden>取消全选</button>
-    <span id="giftHistorySelectionNotice" class="hint" role="status"></span>
-    <button id="giftHistoryExport" type="button" class="primary sm" disabled>导出所选</button>
+  <div id="giftHistoryTools" class="gift-history-tools" data-gift-pane="list">
+    <div class="gift-history-tools-left">
+      <span id="giftHistorySelectedCount" role="status">已选 0 条</span>
+      <span class="gift-history-tools-divider" aria-hidden="true"></span>
+      <button id="giftHistorySelectAll" class="secondary sm" type="button">全选筛选结果</button>
+      <button id="giftHistoryDeselect" type="button" class="secondary sm" disabled hidden>取消选择</button>
+      <button id="giftHistoryCancelSelect" class="secondary sm" type="button" hidden>取消全选</button>
+      <span id="giftHistorySelectionNotice" class="hint" role="status"></span>
+    </div>
+    <span id="giftHistoryState" class="sr-only gift-history-retention-note" role="status" aria-live="polite"
+      >正在加载礼物记录…</span
+    >
   </div>
   <div id="giftHistoryScroll" class="gift-drawer-body" data-gift-pane="list">
-    <span id="giftHistoryState" class="sr-only ui-caption" role="status" aria-live="polite">正在加载礼物记录…</span>
     <table class="gift-history-table" aria-label="礼物记录" aria-describedby="giftHistorySelectionHelp">
       <colgroup>
         <col class="gift-history-select-col" />
@@ -102,7 +206,11 @@
     <div id="giftHistoryMarquee" class="gift-history-marquee" aria-hidden="true" hidden></div>
   </div>
   <div class="gift-drawer-footer" data-gift-pane="list">
-    <span id="giftHistorySelectionHelp" class="hint">点击行可勾选或取消 · 拖动框选本页 · Ctrl + 框选：已选取消，未选加入</span>
+    <div id="giftHistorySelectionHelp" class="hint">
+      <span><i class="gift-gesture-mouse" aria-hidden="true"></i><strong>点击行</strong>切换勾选</span>
+      <span><i class="gift-gesture-box" aria-hidden="true"></i><strong>拖动</strong>框选本页</span>
+      <span><kbd>Ctrl</kbd> + <strong>拖动</strong>反选框内记录</span>
+    </div>
     <button id="giftHistoryPrev" type="button" class="secondary" disabled>← 上一页</button>
     <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
     <button id="giftHistoryNext" type="button" class="secondary" disabled>下一页 →</button>
@@ -267,7 +375,7 @@
                     </label>
                   </div>
                 </div>
-                <div class="gift-export-setting-row" title="当前长图恰好有两张卡片时可调整间距">
+                <div class="gift-export-setting-row" title="当前图片有两张或更多卡片时可调整间距">
                   <label for="giftExportRowGap" class="gift-export-row-label">词条间距</label>
                   <div class="gift-export-spacing">
                     <input id="giftExportRowGap" class="parameter-range" type="range" min="0" max="32" value="16" disabled />
@@ -290,6 +398,47 @@
                 </label>
               </div>
             </div>
+            <section class="gift-export-group" aria-labelledby="giftExportStyleHeading">
+              <div class="gift-export-group-head">
+                <h3 id="giftExportStyleHeading" class="gift-export-section-title">卡片样式</h3>
+                <span id="giftExportStyleScope" class="gift-export-sub-label" hidden>仅用于导出</span>
+              </div>
+              <div class="gift-export-card">
+                <div class="gift-export-setting-row">
+                  <span id="giftExportStyleLabel" class="gift-export-row-label">样式来源</span>
+                  <div id="giftExportStyleSource" class="gift-export-segmented" role="radiogroup" aria-labelledby="giftExportStyleLabel">
+                    <label class="gift-export-segment">
+                      <input type="radio" name="giftExportStyleSource" value="follow" checked />
+                      <span class="gift-export-segment-face">跟随滚动礼物</span>
+                    </label>
+                    <label class="gift-export-segment">
+                      <input type="radio" name="giftExportStyleSource" value="custom" />
+                      <span class="gift-export-segment-face">自定义</span>
+                    </label>
+                  </div>
+                </div>
+                <div id="giftExportStyleSummary" class="gift-export-setting-row">
+                  <span id="giftExportStyleName"></span>
+                  <span class="gift-export-palette" aria-hidden="true"></span>
+                </div>
+                <div id="giftExportStyleEditor" hidden>
+                  <div class="gift-export-style-selects">
+                    <label>条带外形<select id="giftExportTail" aria-label="条带外形"></select></label>
+                    <label>条带纹理<select id="giftExportTexture" aria-label="条带纹理"></select></label>
+                  </div>
+                  <details id="giftExportTiers">
+                    <summary>
+                      <span class="gift-export-row-label">价格分色</span>
+                      <span class="gift-export-palette" aria-hidden="true"></span>
+                    </summary>
+                    <div class="gift-export-tier-inputs">
+                      <span class="gift-export-tier-heading">起始金额 · 元</span>
+                    </div>
+                  </details>
+                  <p id="giftExportTierError" role="status" hidden>起始金额须大于 0、依次递增，最多两位小数。</p>
+                </div>
+              </div>
+            </section>
             <div class="gift-export-group">
               <div class="gift-export-directory-head">
                 <label class="gift-export-section-title" for="giftExportSettingsDirectory">保存位置</label>
@@ -337,26 +486,6 @@
               </div>
             </div>
           </fieldset>
-          <p class="gift-export-color-tip">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.9"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-              <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-              <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-              <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-              <path
-                d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"
-              />
-            </svg>
-            <span>价格分色可在「<strong>组件 › 礼物姬 › 滚动礼物</strong>」调整</span>
-          </p>
         </div>
         <div class="gift-export-actions">
           <p id="giftExportStatus" role="status" aria-live="polite"></p>

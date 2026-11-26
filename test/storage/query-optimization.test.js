@@ -433,5 +433,5 @@ test('remote recent index upgrades without data changes and preserves millisecon
     assert.match(plan, new RegExp(`SEARCH g USING INDEX ${index} \\(source_id=\\?\\)`, 'u'));
     assert.doesNotMatch(plan, /TEMP B-TREE/u);
   }
-  assert.equal(schema.getSchemaVersion(db, 'gift_db'), 26);
+  assert.equal(schema.getSchemaVersion(db, 'gift_db'), 27);
 });

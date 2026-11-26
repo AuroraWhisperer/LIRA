@@ -216,8 +216,8 @@ export class QueueManager {
     const track = tracks[index];
     if (dailySourceKey) {
       this.state.queueSourceKey = dailySourceKey;
-      if (index === this.state.playlistIndex) return track;
     }
+    if (index === this.state.playlistIndex) return track;
     let remaining = tracks.slice(index + 1).map((item) => ({ ...item }));
     if (dailySourceKey) {
       // The live queue keeps play-next insertions ahead of source rows and appends behind them.

@@ -24,34 +24,20 @@ body.player-dock-expanded .gift-workspace {
   height: calc(100vh - var(--topbar-height, 58px) - var(--player-dock-reserve, 218px));
 }
 
-.gift-controls-grid {
-  grid-column: 1 / -1;
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  width: 100%;
-  max-width: 100%;
-  padding: 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-primary);
-  box-shadow: var(--shadow-sm);
-}
-
 .gift-recent-panel {
   grid-column: 1 / -1;
-  grid-row: 2;
+  grid-row: 1;
 }
 
 .gift-blindbox-panel {
   grid-column: 1 / -1;
-  grid-row: 3;
+  grid-row: 2;
 }
 
 .gift-blindbox-mapping-panel {
   grid-column: 1 / -1;
-  grid-row: 4;
+  grid-row: 3;
+  border-radius: 14px;
 }
 
 .gift-page .panel-body .gift-cards {
@@ -84,57 +70,181 @@ body.player-dock-expanded .gift-workspace {
   min-height: auto;
 }
 
-/* Keep settings compact so gift records remain the focus. */
-.gift-control-panel {
-  flex: 1 1 auto;
-  display: flex;
+/* 统一「最近礼物」与「今日盲盒盈亏」标题栏：稳态不跳动，仅标题与折叠按钮触发折叠 */
+.gift-page .panel:is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header {
+  cursor: default;
+  min-height: 62px;
+  padding: 12px 16px;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  background: transparent;
+  transition: border-color 160ms ease;
+}
+
+.gift-page .panel:is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header:is(:hover, :active) {
+  background-color: transparent;
+}
+
+.gift-page .panel:is(.gift-recent-panel, .gift-blindbox-panel).is-collapsed > .panel-header {
+  border-bottom-color: transparent;
+}
+
+.gift-page :is(.gift-recent-heading, .blind-stats-heading) {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 11px;
   min-width: 0;
-  padding: 8px 12px;
-  border-left: 1px solid var(--color-border-light);
+  cursor: pointer;
+  user-select: none;
 }
 
-.gift-monitoring-panel {
-  border-left: 0;
+.gift-page :is(.gift-recent-heading, .blind-stats-heading):hover .gift-section-title {
+  color: var(--color-primary-text, var(--color-accent));
 }
 
-.gift-control-heading,
-.gift-control-detail {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: var(--spacing-xs) var(--spacing-sm);
-  min-width: 0;
-}
-
-.gift-control-detail .pill {
-  max-width: 160px;
+.gift-page .gift-recent-heading .pill {
+  flex: 0 0 auto;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: default;
 }
 
-.gift-control-panel .gift-section-title {
-  margin: 0;
+.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .section-toggle {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--muted);
+  transition:
+    color 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease;
+}
+
+.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .section-toggle:hover {
+  border-color: var(--color-border-strong);
   color: var(--text);
-  font-size: var(--type-size-body);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-body);
 }
 
-.gift-control-panel .gift-section-title label {
-  cursor: pointer;
+.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .section-toggle:focus-visible,
+.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .gift-history-open-btn:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
 }
 
-.gift-control-panel .switch-control {
-  flex: 0 0 auto;
+/* 集成在「最近礼物」标题栏右侧的紧凑开关胶囊 */
+.gift-header-controls {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-height: 32px;
+  padding: 2px 6px;
+  gap: 2px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
 }
 
-.gift-control-panel .switch-control input:disabled + .switch-track {
+.gift-header-switch {
+  min-height: 26px;
+  padding: 0 7px;
+  gap: 6px;
+  border-radius: 999px;
+  color: var(--text);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+  transition:
+    background-color 140ms ease,
+    opacity 140ms ease;
+}
+
+.gift-header-switch:hover {
+  background: var(--surface);
+}
+
+.gift-header-switch .switch-track {
+  width: 32px;
+  height: 18px;
+}
+
+.gift-header-switch .switch-track::after {
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+}
+
+.gift-header-switch input:checked + .switch-track::after {
+  transform: translateX(14px);
+}
+
+.gift-header-switch input:disabled + .switch-track {
   opacity: 0.5;
   cursor: wait;
+}
+
+/* 漏斗联动弱化：关闭监控或统计时，柔和提示受影响的左侧开关（不改原值） */
+.gift-header-controls:has(#giftMonitoringEnabled:not(:checked))
+  :is([data-gift-control='statistics'], [data-gift-control='notification']),
+.gift-header-controls:has(#giftDetectToggle:not(:checked))
+  [data-gift-control='notification'] {
+  opacity: 0.54;
+}
+
+.gift-header-controls:has(#giftMonitoringEnabled:not(:checked))
+  :is([data-gift-control='statistics'], [data-gift-control='notification']):hover,
+.gift-header-controls:has(#giftDetectToggle:not(:checked))
+  [data-gift-control='notification']:hover {
+  opacity: 0.86;
+}
+
+.gift-header-control-divider {
+  width: 1px;
+  height: 14px;
+  flex: 0 0 1px;
+  background: var(--color-border-light);
+}
+
+.gift-header-controls > lira-help {
+  margin-inline: 3px 2px;
+}
+
+.gift-header-actions-divider {
+  width: 1px;
+  height: 16px;
+  flex: 0 0 1px;
+  margin-inline: 2px;
+  background: var(--color-border-default);
+}
+
+@container gift-workspace (max-width: 820px) {
+  .gift-recent-panel > .panel-header {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .gift-header-controls {
+    flex-wrap: wrap;
+    border-radius: var(--radius-lg);
+    padding: 4px 6px;
+  }
+
+  .gift-header-actions-divider {
+    display: none;
+  }
 }
 
 /* 歌库表格行：跳过屏幕外行的渲染，减少折叠面板展开时的布局重计算 */

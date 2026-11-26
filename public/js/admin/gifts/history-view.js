@@ -75,7 +75,8 @@ export function renderGiftHistoryView(view) {
   } else if (availability === 'partial') {
     retentionText = '当前范围内的礼物明细可能不全，列表和导出仅包含本机已有记录。';
   }
-  setText('giftHistoryTotal', `共 ${view.ledger.total} 条`);
+  const formattedTotal = Number(view.ledger.total || 0).toLocaleString('zh-CN');
+  setText('giftHistoryTotal', `${formattedTotal} 条`);
   const total = get('giftHistoryTotal');
   if (total) total.hidden = false;
   setText('giftHistoryState', retentionText || (items.length === 0 ? '暂无礼物记录' : '已加载'));

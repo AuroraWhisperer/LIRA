@@ -55,9 +55,8 @@ export function createEventHandlers(deps) {
     closeTrackMenu,
     handlePlaybackHomeTrackAction,
     handlePlaybackSearchAction,
-    takePlaybackQueueTrack,
+    playPlaybackQueueTrack,
     jumpToPlaylistTrack,
-    playPlaybackTrack,
     rebuildPlaybackShuffleOrder,
     refreshSelectedMusicProviderState,
   } = deps;
@@ -330,10 +329,7 @@ export function createEventHandlers(deps) {
 
       const button = event.target.closest('[data-playback-queue][data-playback-index]');
       if (!button) return;
-      const picked = takePlaybackQueueTrack(button.dataset.playbackQueue, Number(button.dataset.playbackIndex));
-      if (picked) {
-        playPlaybackTrack(picked.track, { origin: picked.origin });
-      }
+      playPlaybackQueueTrack(button.dataset.playbackQueue, Number(button.dataset.playbackIndex));
     });
   }
 

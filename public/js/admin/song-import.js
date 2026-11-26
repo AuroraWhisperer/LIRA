@@ -12,12 +12,11 @@ export function createSongImports({ utils = sharedUtils } = {}) {
   async function readTextFile(file) {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
-    const utf8Text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-    if (!utf8Text.includes('�')) return utf8Text;
     try {
-      return new TextDecoder('gb18030', { fatal: false }).decode(bytes);
-    } catch (_) {
-      return utf8Text;
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      try { return new TextDecoder('gb18030').decode(bytes); }
+      catch { return new TextDecoder('utf-8').decode(bytes); }
     }
   }
 

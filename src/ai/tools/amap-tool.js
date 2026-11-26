@@ -18,6 +18,7 @@ function createAmapTool(options = {}) {
     }
     const category = pathName === '/v3/place/text' ? 'amap_search' : 'amap_lbs';
     throwIfAborted(options.signal);
+    options.assertCurrent?.();
     return withApiQuota(quotaStore, category, async () => {
       const payload = await fetchJson(url, {
         timeoutMs: config.requestTimeoutMs,
@@ -144,8 +145,10 @@ function createAmapTool(options = {}) {
       if (['10001', '10002', '10003', '10007', '10008', '10009', '10010'].includes(String(error?.code || ''))) {
         throw createPublicError('AMAP_AUTH_FAILED', '高德地图拒绝了该 Web 服务 Key。');
       }
-      if (String(error?.code || '').startsWith('AMAP_')) throw error;
-      throw createPublicError('AMAP_REJECTED', '高德地图返回了业务错误。');
+      if (/^\d{5}$/.test(error?.code) || error?.code === 'AMAP_ERROR') {
+        throw createPublicError('AMAP_REJECTED', '高德地图返回了业务错误。');
+      }
+      throw error;
     }
   }
 

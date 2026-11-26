@@ -167,7 +167,12 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
         : snapshot.items;
       return mergeAcrossDates({ ...snapshot, items }, sync.cardGroups, signal);
     },
-    setGiftExportDirectory: (directory) => getSettingsStore().setSetting('giftExportDirectory', directory),
+    rememberGiftExport({ directory, style }) {
+      const settings = {};
+      if (directory !== undefined) settings.giftExportDirectory = directory;
+      if (style !== undefined) settings.giftExportStyle = JSON.stringify(style);
+      if (Object.keys(settings).length) getSettingsStore().setSettings(settings);
+    },
     setGiftExportSettings: ({ mode, background, sortBy, rowGap, mergeAcrossDates, directory }) =>
       getSettingsStore().setSettings({
         giftExportMode: mode,

@@ -23,6 +23,29 @@ function createSceneOutputReader({ readOutput, readCapability, decodeDocument, m
   getDisplayData, getSharedAppearances }) {
   const projections = createSceneOutputProjection();
   const outputDocuments = new WeakMap();
+  // Sources reconcile every five seconds. Hold only local style references across
+  // preparation, retries and a short disconnect, renewing the active receipt.
+  const leases = new Map();
+  const leaseMs = 60000;
+  function pruneLeases() {
+    const now = Date.now();
+    for (const [key, lease] of leases) if (lease.expires <= now) leases.delete(key);
+  }
+  function retain(receipt, document) {
+    let lease = leases.get(receipt);
+    if (!lease && document) {
+      const refs = [];
+      for (const item of document.items) {
+        if (!item.visible) continue;
+        const config = item.appearance.config;
+        if (!config) continue;
+        if (item.type === 'browser' && config.url.startsWith('/component-web/')) refs.push(config.url);
+        for (const style of [config.cssStyle, config.mediaStyle, config.resourceStyle]) if (style) refs.push(style.id);
+      }
+      if (refs.length) { lease = { refs }; leases.set(receipt, lease); }
+    }
+    if (lease) lease.expires = Date.now() + leaseMs;
+  }
 
   function readOutputSource(input, owner) {
     const id = normalizeSceneId(input?.id);
@@ -57,14 +80,21 @@ function createSceneOutputReader({ readOutput, readCapability, decodeDocument, m
   }
 
   return {
+    visitAssetReferences(visit) {
+      pruneLeases();
+      for (const lease of leases.values()) visit(lease.refs);
+    },
     getAccess(input, owner) {
       const { record, binding, types, activeTypes } = readOutputSource(input, owner);
+      retain(input.projection);
       return { binding: JSON.stringify(binding), version: record.publishedVersion,
         types: [...new Set([...types, ...activeTypes])] };
     },
 
     getOutput(input, owner, assertCurrent) {
       const { id, record, document, binding, types, activeTypes } = readOutputSource(input, owner);
+      pruneLeases();
+      retain(input.projection);
       const { token, version, epoch, cursor } = input;
       const dataVersions = readDataVersions(input.dataVersions);
       if (dataVersions && version !== record.publishedVersion) dataVersions.known = {};
@@ -84,10 +114,12 @@ function createSceneOutputReader({ readOutput, readCapability, decodeDocument, m
         displayContext.opening = display?.opening;
         const appearances = getSharedAppearances?.(document.items.filter(item => item.visible), displayContext);
         assertCurrent();
+        const projection = projections.issue(binding, record.publishedVersion, types);
+        retain(projection, outputDocument);
         return {
           sceneId: id,
           version: record.publishedVersion,
-          projection: projections.issue(binding, record.publishedVersion, types),
+          projection,
           document: outputDocument,
           data: display,
           ...(dataVersions ? { dataVersions: dataVersions.current } : {}),

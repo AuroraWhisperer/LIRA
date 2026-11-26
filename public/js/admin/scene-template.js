@@ -55,7 +55,7 @@ function name(value) {
 }
 
 export function validateSceneDocumentSize(document) {
-  if (new TextEncoder().encode(JSON.stringify(document)).length > 256 * 1024) throw invalid();
+  if (new TextEncoder().encode(JSON.stringify(document)).length > 256 * 1024) throw new Error('场景超过 256 KiB，请减少内容后再保存。');
 }
 
 export function validateSceneDocument(input) {
@@ -64,6 +64,7 @@ export function validateSceneDocument(input) {
   exactKeys(document, ['schemaVersion', 'id', 'title', 'canvas', 'items']);
   if (document.schemaVersion !== 1 || !UUID.test(document.id)) throw invalid();
   name(document.title);
+  document.title = document.title.trim();
   exactKeys(document.canvas, ['width', 'height']);
   if (!Object.values(document.canvas).every((size) => Number.isInteger(size) && size >= 320 && size <= 7680)) throw invalid();
   if (!Array.isArray(document.items) || document.items.filter(item => item?.type !== 'text-box').length > MAX_NON_TEXT_BOX_SCENE_ITEMS) throw invalid();
@@ -73,6 +74,7 @@ export function validateSceneDocument(input) {
     if (!UUID.test(item.id) || ids.has(item.id.toLowerCase()) || !SCENE_TYPES.includes(item.type)) throw invalid();
     ids.add(item.id.toLowerCase());
     name(item.name);
+    item.name = item.name.trim();
     if (typeof item.visible !== 'boolean' || typeof item.locked !== 'boolean'
       || !isSceneItemGeometryValid(item, document.canvas)) throw invalid();
     if (item.appearance?.mode === 'shared') {

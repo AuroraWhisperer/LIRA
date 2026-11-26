@@ -125,6 +125,7 @@ export function createNativeOutput(audio, { bridge, onFault, AudioContextClass =
 
   return {
     get currentId() { return selectedId && stream ? selectedId : ''; },
+    get browserSinkId() { return !context && !selectedId ? audio.sinkId || '' : null; },
     async enumerate() {
       const result = await bridge.invoke({ op: 'list' });
       if (!result.ok) throw new Error(result.error);

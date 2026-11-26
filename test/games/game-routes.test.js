@@ -5,6 +5,35 @@ const assert = require('node:assert/strict');
 const { normalizeSessionInput, routes } = require('../../src/server/routes/game-routes');
 const { createGameSessionService } = require('../../src/games/game-session-service');
 const { createGameRuntime, createGameAudience } = require('../../src/server/game-runtime');
+const { chooseGameWord } = require('../helpers/draw-guess');
+
+test('host round actions cannot finish a replacement drawing or advance another round', async t => {
+  const games = createGameSessionService();
+  t.after(() => games.dispose());
+  const a = games.start({ game: 'draw-guess' });
+  chooseGameWord(games);
+  const move = async value => {
+    let status;
+    await routes['POST /api/games/session/move']({ games }, { body: async () => ({ value: await value }) },
+      { writeHead(code) { status = code; }, end() {} });
+    return status;
+  };
+  const delivery = Promise.withResolvers();
+  const finishing = move(delivery.promise);
+  games.stop(a.sessionId);
+  const b = games.start({ game: 'draw-guess', totalRounds: 2 });
+  chooseGameWord(games);
+  delivery.resolve({ action: 'finish-round', sessionId: a.sessionId, round: 1 });
+  assert.equal(await finishing, 400);
+  assert.equal(await move({ action: 'finish-round' }), 400);
+  assert.equal(games.getSession().state.phase, 'drawing');
+  const target = { sessionId: b.sessionId, round: 1 };
+  assert.equal(await move({ action: 'finish-round', ...target }), 200);
+  assert.equal(await move({ action: 'reveal-answer', ...target, round: 2 }), 400);
+  assert.equal(await move({ action: 'reveal-answer', ...target }), 200);
+  assert.equal(await move({ action: 'next-round', ...target, round: 2 }), 400);
+  assert.equal(await move({ action: 'next-round', ...target }), 200);
+});
 
 test('single-player game requires a selected numeric viewer uid', () => {
   assert.throws(() => normalizeSessionInput({ game: 'gomoku', mode: 'single' }));
@@ -214,6 +243,24 @@ test('game session refuses replacing an active game until it is stopped', () => 
     }).game,
     'gomoku',
   );
+});
+
+test('starting with a roster from the old room fails even before the panel receives the switch', async t => {
+  const games = createGameSessionService();
+  t.after(() => games.dispose());
+  const context = { games, bilibili: { liveStatus: { connected: true, roomId: '202' } } };
+  const post = async (viewerRoomId, targetUid) => {
+    let status;
+    await routes['POST /api/games/session'](context,
+      { body: async () => ({ game: 'gomoku', mode: 'single', viewerRoomId, targetUid }) },
+      { writeHead(code) { status = code; }, end() {} });
+    return status;
+  };
+  assert.equal(await post('101', '197'), 409);
+  assert.equal(await post('202', '283'), 200);
+  games.move({ value: 'A1' });
+  assert.equal(games.handleDanmaku({ uid: '197', message: 'B2' }).accepted, false);
+  assert.equal(games.handleDanmaku({ uid: '283', message: 'B2' }).accepted, true);
 });
 
 test('game session route returns conflict for a second start request', async () => {

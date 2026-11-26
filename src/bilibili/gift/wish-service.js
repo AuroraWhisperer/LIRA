@@ -30,8 +30,8 @@ const DISPLAY_STYLES = new Set(['card', 'text', 'circle', 'moonlit']);
 const TEXT_IMAGE_POSITIONS = new Set(['none', 'before', 'after', 'inline']);
 const TEXT_IMAGE_FORMATS = new Set(['animated', 'static']);
 
-function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.now, readRoom }) {
-  const sessions = createGiftWishSession({ store, getRoomId, now, readRoom });
+function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.now, monotonicNow, readRoom }) {
+  const sessions = createGiftWishSession({ store, getRoomId, monotonicNow, readRoom });
   const invalid = (message) => queryError('INVALID_GIFT_WISH', message);
 
   function scope(viewRevision) {
@@ -82,7 +82,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
       } else {
         start = session.state === 'offline' || session.ended_at ? null : session.started_at;
       }
-      const end = wish.period === 'session' && session.stale ? session.checked_at : asOf;
+      const end = wish.period === 'session' ? (session.stale ? session.checked_at : session.as_of) : asOf;
       const countIndex = requests.push({ wish, start, end }) - 1;
       const todayIndex = wish.period === 'day' ? countIndex : requests.push({ wish, start: todayStart, end: asOf }) - 1;
       return { wish, start, countIndex, todayIndex };

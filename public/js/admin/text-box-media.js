@@ -6,6 +6,42 @@ import { setGiftArtwork } from '../shared/gift-image.js';
 import { formatByteLimit } from '../shared/display-format.js';
 
 const MAX_TEXT_IMAGE_BYTES = 5 * 1024 * 1024;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+const MEDIA_ICONS = {
+  gift: [
+    ['rect', { x: '3.5', y: '8', width: '13', height: '8.5', rx: '1.5' }],
+    ['path', { d: 'M2.5 8h15M10 8v8.5M10 8C8.2 8 6.5 6.8 6.5 5.4c0-1 .8-1.6 1.7-1.6C9.3 3.8 10 5.4 10 8Zm0 0c1.8 0 3.5-1.2 3.5-2.6 0-1-.8-1.6-1.7-1.6C10.7 3.8 10 5.4 10 8Z' }],
+  ],
+  image: [
+    ['rect', { x: '3', y: '4', width: '14', height: '12', rx: '2' }],
+    ['circle', { cx: '7.5', cy: '8.5', r: '1.2' }],
+    ['path', { d: 'M4 14l3.8-3.6a1 1 0 0 1 1.4 0L12 13l1.6-1.5a1 1 0 0 1 1.4 0L17 13.5' }],
+  ],
+  smile: [
+    ['circle', { cx: '10', cy: '10', r: '7' }],
+    ['path', { d: 'M7.5 12.2a3.2 3.2 0 0 0 5 0' }],
+    ['circle', { cx: '7.8', cy: '8.5', r: '0.7', fill: 'currentColor', stroke: 'none' }],
+    ['circle', { cx: '12.2', cy: '8.5', r: '0.7', fill: 'currentColor', stroke: 'none' }],
+  ],
+};
+
+function createMediaIcon(name) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.6');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const [tag, attrs] of MEDIA_ICONS[name]) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    svg.append(node);
+  }
+  return svg;
+}
 
 export async function requestTextBoxMedia(kind, { source, file, signal } = {}, access) {
   const url = new URL(`${access ? '/api/component-preview' : '/api/scenes'}/text-${kind}`, location.origin);
@@ -38,9 +74,15 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
   let uploading = false;
   let disabled = false;
   const tools = previewElement('div', 'text-box-insert-tools');
-  function button(text, action, parent = tools) {
-    const node = previewElement('button', 'secondary', text);
+  function button(text, action, { parent = tools, icon, title } = {}) {
+    const node = previewElement('button', icon ? 'secondary text-box-tool-pill' : 'secondary');
     node.type = 'button';
+    if (title) node.title = title;
+    if (icon) {
+      node.append(createMediaIcon(icon), previewElement('span', '', text));
+    } else {
+      node.textContent = text;
+    }
     node.addEventListener('mousedown', () => composer.rememberSelection());
     node.addEventListener('click', action);
     parent.append(node);
@@ -56,7 +98,7 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
       composer.insertNode({ type: 'gift', name: selectedGift.name,
         src: normalizeTextBoxImageSource(selectedGift.imagePath, 'gift') });
     } catch (error) { onError(error); }
-  }, giftRow);
+  }, { parent: giftRow });
   const dialog = previewElement('dialog', 'text-box-gift-picker');
   dialog.setAttribute('aria-label', '选择要插入的礼物');
   function identified(tag, id, text, className) {
@@ -83,22 +125,26 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
     giftRow.hidden = false;
   }, { root: scope, requireVariant: false,
     request: (path, _body, signal) => request('gifts', { source: path.endsWith('/catalog') ? 'all' : 'room', signal }) });
-  button('礼物图片', () => picker.open());
+  button('礼物', () => picker.open(), { icon: 'gift', title: '插入礼物图片' });
   const upload = previewElement('input'); upload.type = 'file'; upload.accept = '.png,.jpg,.jpeg,.gif,.webp'; upload.hidden = true;
-  const uploadButton = button('上传图片', () => upload.click());
+  const uploadButton = button('图片', () => upload.click(), {
+    icon: 'image',
+    title: '上传图片 · 支持 PNG / JPEG / GIF / WebP，单张 ≤ 5 MB，保留动图',
+  });
+  const uploadLabel = uploadButton.querySelector('span');
   upload.addEventListener('change', async () => {
     const file = upload.files[0]; upload.value = '';
     if (!file || uploading || disabled) return;
     if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) { onError(new Error('请选择 PNG、JPEG、GIF 或 WebP 图片。')); return; }
     if (file.size > MAX_TEXT_IMAGE_BYTES) { onError(new Error(`图片不能超过 ${formatByteLimit(MAX_TEXT_IMAGE_BYTES)}，请压缩后重新上传。`)); return; }
-    uploading = true; uploadButton.disabled = true; uploadButton.textContent = '上传中…';
+    uploading = true; uploadButton.disabled = true; uploadLabel.textContent = '上传中…';
     const submitted = requests;
     try {
       const result = await request('image', { file, signal: submitted.signal });
       if (!submitted.signal.aborted && !disabled) composer.insertNode({ type: 'image', name: file.name.slice(0, 200), src: result.imagePath });
     } catch (error) { if (!submitted.signal.aborted) onError(error); }
     finally {
-      if (submitted === requests) { uploading = false; uploadButton.disabled = disabled; uploadButton.textContent = '上传图片'; }
+      if (submitted === requests) { uploading = false; uploadButton.disabled = disabled; uploadLabel.textContent = '图片'; }
     }
   });
   const faces = previewElement('div', 'text-box-faces'); faces.hidden = true;
@@ -107,18 +153,20 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
   function showFaces(category) {
     for (const tab of tabs.children) tab.setAttribute('aria-pressed', String(tab.textContent === category));
     options.replaceChildren();
-    for (const face of KAOMOJI[category]) button(face, () => composer.insertText(face), options);
+    for (const face of KAOMOJI[category]) button(face, () => composer.insertText(face), { parent: options });
   }
-  for (const category of Object.keys(KAOMOJI)) button(category, () => showFaces(category), tabs);
+  for (const category of Object.keys(KAOMOJI)) button(category, () => showFaces(category), { parent: tabs });
   faces.append(tabs, options); showFaces('开心');
-  const faceButton = button('颜文字 / 表情', () => { faces.hidden = !faces.hidden; faceButton.setAttribute('aria-expanded', String(!faces.hidden)); });
+  const faceButton = button('表情', () => {
+    faces.hidden = !faces.hidden;
+    faceButton.setAttribute('aria-expanded', String(!faces.hidden));
+  }, { icon: 'smile', title: '插入颜文字或表情' });
   faceButton.setAttribute('aria-expanded', 'false');
-  const hint = previewElement('p', 'text-box-upload-hint', 'PNG / JPEG / GIF / WebP · 单张 ≤ 5 MB · 动图会保留');
-  host.append(tools, giftRow, upload, faces, hint);
+  host.append(tools, giftRow, upload, faces);
   return {
     cancelPending() {
       requests.abort(); requests = new AbortController();
-      uploading = false; uploadButton.disabled = disabled; uploadButton.textContent = '上传图片';
+      uploading = false; uploadButton.disabled = disabled; uploadLabel.textContent = '图片';
     },
     setDisabled(value) {
       disabled = value;

@@ -537,18 +537,34 @@ test('a source drawer and restored shuffle history select the original occurrenc
   assert.deepEqual(restored.savedState().normalQueue.map((item) => item.id), ['T']);
 });
 
-test('reselecting a direct search play from recent history keeps imported songs and pending matches', async () => {
+test('reselecting recent playlist playback keeps shuffle progress, imported songs and pending matches', async () => {
   const waiting = ['Q', 'P'].map((song_name, id) => ({ id: id + 1, song_name, created_at: '2026-11-01T00:00:00Z' }));
-  const app = await createPlaybackApp({ displayHistory: ['A', 'B'].map(id => track(id, id)),
-    selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+  const tracks = ['A', 'B', 'C', 'D'].map(id => ({ ...track(id, id), playlistOccurrence: 0 }));
+  const app = await createPlaybackApp({ current: tracks[0], currentOrigin: 'normal', displayHistory: tracks,
+    normalQueueTracks: tracks, normalQueue: tracks.slice(1), playlistIndex: 0,
+    queueType: 'playlist', queueSourceKey: 'local:recent', shuffleOrder: ['C', 'B', 'D'], shuffleCursor: 0,
+    selectedSource: 'qq', mode: 'shuffle', volume: 0.75 }, {
     homeAction: 'recent', songQueue: { waiting },
     matchTrack: async ({ songName }) => ({ track: track(songName, songName), autoAccept: songName === 'Q', score: songName === 'Q' ? 100 : 60 }),
   });
   await app.init();
   await flushAsyncWork();
+  for (const id of ['C', 'B']) {
+    await app.emit('playbackNext', 'click');
+    await flushAsyncWork();
+    assert.equal(app.savedState().current.id, id);
+  }
+  const progressed = app.savedState();
   await app.emitHomeAction();
-  await app.emit('playbackDrawerActions', 'click', { target: { id: 'playbackDrawerPlayAll' } });
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
+  });
   await flushAsyncWork();
+  const replayed = app.savedState();
+  assert.deepEqual(replayed.normalQueue.map(item => item.id), ['D']);
+  assert.deepEqual(replayed.shuffleOrder, progressed.shuffleOrder);
+  assert.equal(replayed.shuffleCursor, progressed.shuffleCursor);
+
   await app.emit('playbackImportSongQueue', 'click');
   app.element('playbackSearchKeyword').value = 'S';
   await app.emit('playbackSearchBtn', 'click');
@@ -556,6 +572,8 @@ test('reselecting a direct search play from recent history keeps imported songs 
     playbackSearchAction: 'play', playbackSearchIndex: '0',
   }, 'playback-search-action') });
   await flushAsyncWork();
+  const beforeReplay = app.savedState();
+  const plays = app.audioPlayCalls();
   await app.emitHomeAction();
   await app.emit('playbackDrawerBody', 'click', {
     target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
@@ -564,8 +582,14 @@ test('reselecting a direct search play from recent history keeps imported songs 
   await app.emit('playbackImportSongQueue', 'click');
   const saved = app.savedState();
   assert.equal(saved.normalQueueTracks[saved.playlistIndex].id, 'searched');
-  assert.deepEqual(saved.normalQueue.map(item => item.id), ['Q', 'B']);
+  assert.deepEqual(saved.normalQueue.map(item => [item.id, item.playNext]), [['Q', true], ['D', false]]);
   assert.deepEqual(saved.pendingRequests.map(item => item.songName), ['P']);
+  assert.deepEqual(saved.importedSongRequestKeys, beforeReplay.importedSongRequestKeys);
+  assert.equal(app.audioPlayCalls(), plays + 1);
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'Q');
+  assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['D']);
 });
 
 test('recent replay in a normal queue preserves imported requests and their handled keys', async () => {
@@ -660,6 +684,39 @@ test('a restored history playlist can replay across tabs with its audience reque
   assert.equal(app.element('music-player').dataset.trackId, 'A');
   assert.deepEqual(saved.normalQueue.map(row => row.id), ['Q', 'B']);
   assert.deepEqual(saved.pendingRequests.map(row => row.songName), ['P']);
+});
+
+test('restored unnumbered recent replay keeps the current occurrence of repeated manual additions', async () => {
+  const [a, b, c] = ['A', 'B', 'C'].map(id => track(id, id));
+  const manual = { ...a, requestedBy: '音乐首页' };
+  const requested = { ...track('Q', 'Q'), songRequestKey: 'accepted', requestedBy: '观众' };
+  const app = await createPlaybackApp({
+    selectedSource: 'netease', mode: 'sequence', volume: 0.75,
+    current: manual, currentOrigin: 'normal', queueType: 'playlist', queueSourceKey: 'qq:recent',
+    playlistIndex: 3, normalQueueTracks: [a, manual, b, { ...manual }, requested, c],
+    normalQueue: [requested, c], displayHistory: [manual, b, c],
+    pendingRequests: [{ songName: 'P', songRequestKey: 'pending', track: b }],
+    importedSongRequestKeys: ['accepted', 'pending'],
+  }, { homeAction: 'recent' });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '0' }, 'playback-home-track-row-index'),
+  });
+  await flushAsyncWork();
+  const saved = app.savedState();
+  assert.equal(saved.playlistIndex, 3);
+  assert.deepEqual(saved.normalQueue.map(item => item.id), ['Q', 'C']);
+  assert.deepEqual(saved.pendingRequests.map(item => item.songRequestKey), ['pending']);
+  assert.deepEqual(saved.importedSongRequestKeys, ['accepted', 'pending']);
+
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackRowIndex: '1' }, 'playback-home-track-row-index'),
+  });
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'B');
+  assert.equal(app.savedState().playlistIndex, 2);
 });
 
 test('a restored shuffled legacy daily keeps both audience requests when selecting a duplicate', async () => {
@@ -913,6 +970,40 @@ test('a playlist jump keeps the selected duplicate entry when a request is inser
   assert.equal(app.savedState().current.id, 'last');
 });
 
+test('a failed manual queue selection retains imported requests until a successful retry', async () => {
+  let available = false;
+  const app = await createPlaybackApp({ current: track('original', '原曲'),
+    selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
+    songQueue: { waiting: [{ id: 9, created_at: '2026-11-26T00:00:00Z', song_name: '点歌' }] },
+    resolveStream: (_count, { track: selected }) => ({
+      url: selected.id === 'original' || available ? 'https://example.test/audio.mp3' : '',
+    }),
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await app.emit('playbackImportSongQueue', 'click');
+  const before = app.savedState();
+  const select = async () => {
+    await app.emit('playbackQueueList', 'click', {
+      target: closestTarget({ playbackQueue: 'normal', playbackIndex: '0' }, 'data-playback-queue'),
+    });
+    await flushAsyncWork();
+  };
+  await select();
+  await app.emit('playbackImportSongQueue', 'click');
+  assert.equal(app.savedState().current.id, 'original');
+  assert.equal(app.element('music-player').paused, false);
+  const queuedRequests = snapshot => snapshot.normalQueue.map(item => [item.songRequestKey, item.playNext]);
+  assert.deepEqual(queuedRequests(app.savedState()), queuedRequests(before));
+  assert.deepEqual(app.savedState().importedSongRequestKeys, before.importedSongRequestKeys);
+  available = true;
+  await select();
+  assert.equal(app.savedState().current.songRequestKey, before.normalQueue[0].songRequestKey);
+  assert.equal(app.savedState().current.playNext, false);
+  assert.equal(app.savedState().normalQueue.length, 0);
+});
+
 for (const mode of ['sequence', 'repeat-one', 'shuffle']) {
   test(`playlist previous wraps from the first track (${mode})`, async () => {
     const tracks = [track('first', '第一首'), track('last', '最后一首')];
@@ -927,6 +1018,7 @@ for (const mode of ['sequence', 'repeat-one', 'shuffle']) {
     assert.equal(app.savedState().current.id, 'last');
     assert.equal(app.savedState().playlistIndex, 1);
     assert.deepEqual(app.savedState().normalQueue, []);
+    assert.ok(app.savedState().displayHistory.some(item => item.id === 'last'));
     if (mode === 'shuffle') return;
     await app.emit('playbackNext', 'click');
     await flushAsyncWork();

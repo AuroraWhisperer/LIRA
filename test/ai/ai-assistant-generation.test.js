@@ -48,6 +48,28 @@ test('plain generation and a cache hit skip weather and map usage reads', async 
   assert.deepEqual(reads, []);
 });
 
+for (const source of ['公告见https://news.test/排练。', '根据[公告](https://news.test/排练_(明日))']) {
+  test(`a Chinese sentence immediately following ${source} survives delivery, cache and memory`, async t => {
+    const delivered = [], cached = [], memories = [];
+    const service = createTestService({
+      config: { modelProvider: 'deepseek' },
+      modelClient: { async createResponse() {
+        return { text: `${source}明天下午三点排练。`, functionCalls: [], usage: {} };
+      } },
+      store: { setCache: (_, result) => cached.push(result.text), setContext: (_, context) => memories.push(context) },
+      sendReply: async reply => delivered.push(reply.message),
+    });
+    t.after(() => service.shutdown());
+    service.handleDanmaku({ uid: 'viewer', message: '小米 几点排练' });
+    await waitUntil(() => memories.length);
+    const answer = delivered[0];
+    assert.match(answer, /明天下午三点排练/);
+    assert.doesNotMatch(answer, /news\.test|明日/);
+    assert.equal(cached[0], answer);
+    assert.equal(memories[0].exchanges[0].answer, answer);
+  });
+}
+
 test('renaming a custom persona without a name token isolates delivered exchanges', async t => {
   const contexts = new Map(), inputs = [];
   const service = createTestService({

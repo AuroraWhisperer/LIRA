@@ -1,6 +1,7 @@
 import { api, localOverlayOrigin, toast } from '../shared/utils.js';
 import { getActiveComponentPreview, closeComponentPreview, setActiveComponentPreview, releaseComponentPreview } from './component-preview-session.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
+import { mergeSceneEdit } from './scene-document-model.js';
 import { createPreviewPollBatch } from './component-preview-poll-batch.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { getRoomGuardState, subscribeRoomGuardState } from '../shared/bilibili-guard-icons.js';
@@ -167,7 +168,8 @@ export function openComponentPreview(selected = null) {
         if (command.action === 'edit') {
           let change = command.change;
           const current = controller.getState().draft.document;
-          if (command.baseItemIds && current?.id === change.document?.id) {
+          if (command.baseDocument) change = { ...change, document: mergeSceneEdit(command.baseDocument, change.document, current) };
+          else if (command.baseItemIds && current?.id === change.document?.id) {
             const known = new Set([...command.baseItemIds, ...change.document.items.map(item => item.id)]);
             change = { ...change, document: { ...change.document,
               items: [...change.document.items, ...current.items.filter(item => !known.has(item.id))] } };

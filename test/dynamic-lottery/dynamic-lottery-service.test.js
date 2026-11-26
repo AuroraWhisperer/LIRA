@@ -250,6 +250,7 @@ test('failed new task inspection preserves the previous completed result', async
   await f.settle();
   assert.deepEqual(f.service.getState().result, before);
   assert.equal(f.service.getState().task.id, previous.id);
+  assert.equal(f.service.getState().task.requestId, previous.requestId, 'the client can distinguish history from the failed submission');
   assert.equal(f.store.findCreateReceipt('42', previous.requestId), null);
 });
 

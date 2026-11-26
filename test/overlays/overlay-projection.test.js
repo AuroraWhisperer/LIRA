@@ -615,6 +615,7 @@ test('actual shared gift banner renders the same avatar, guard, artwork, amount 
       addEventListener() {},
     };
     node.style = {
+      getPropertyValue(key) { return node.properties[key] || ''; },
       setProperty(key, value) {
         node.properties[key] = value;
       },

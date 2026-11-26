@@ -103,7 +103,7 @@ function recordRow(record) {
     record.kind === 'preference'
       ? `${data.sentiment === 'like' ? '喜欢' : '不喜欢'} ${data.label}`
       : data.body || data.name || data.label;
-  return `<article class="fan-record"><div class="fan-record-top"><div class="fan-record-copy"><p class="fan-record-body">${html(title || '')}</p><span class="fan-muted fan-record-meta">${html(dateLabel(record.occurredAt))}${data.archived ? ' · 已收起' : ''}${data.pinned ? ' · 置顶' : ''}${data.completed ? ' · 已完成' : ''}</span></div>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
+  return `<article class="fan-record"><div class="fan-record-top"><div class="fan-record-copy"><p class="fan-record-body">${html(title || '')}</p><span class="fan-muted fan-record-meta">${record.kind === 'anniversary' ? `${html(dateLabel(data.date))}${data.annual ? ' · 每年重复' : ''} · 记录于 ` : ''}${html(dateLabel(record.occurredAt))}${data.archived ? ' · 已收起' : ''}${data.pinned ? ' · 置顶' : ''}${data.completed ? ' · 已完成' : ''}</span></div>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
     ${data.note || data.reason ? `<p class="fan-muted">${html(data.note || data.reason)}</p>` : ''}</article>`;
 }
 
@@ -129,14 +129,15 @@ function journal(profile) {
 }
 
 function overview(profile) {
-  const topics = profile.records.filter((r) => r.kind === 'topic' && !r.data.archived);
-  const cautions = profile.records.filter((r) => r.kind === 'caution' && !r.data.archived);
-  const followups = profile.records.filter((r) => r.kind === 'followup' && !r.data.archived && !r.data.completed);
+  const pinnedFirst = (a, b) => Number(Boolean(b.data.pinned)) - Number(Boolean(a.data.pinned));
+  const topics = profile.records.filter((r) => r.kind === 'topic' && !r.data.archived).sort(pinnedFirst);
+  const cautions = profile.records.filter((r) => r.kind === 'caution' && !r.data.archived).sort(pinnedFirst);
+  const followups = profile.records.filter((r) => r.kind === 'followup' && !r.data.archived && !r.data.completed).sort(pinnedFirst);
   const archived = profile.records.filter(
     (r) => ['topic', 'caution', 'followup', 'anniversary'].includes(r.kind) && (r.data.archived || r.data.completed),
   );
   return `<section class="fan-section"><h4>基本资料</h4>
-    <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(profile.birthday ? `${profile.birthday.monthDay}${profile.birthday.calendar === 'lunar' ? '（农历）' : '（公历）'}` : '待补充')}</dd></div>
+    <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(profile.birthday ? `${profile.birthday.monthDay}${profile.birthday.calendar === 'lunar' ? `（农历${profile.birthday.leapMonth ? '闰月' : ''}）` : '（公历）'}` : '待补充')}</dd></div>
     <div><dt>星座</dt><dd>${html(profile.zodiacHint || '未知')}</dd></div><div><dt>MBTI</dt><dd>${html(profile.mbti || '未知')}${profile.mbtiNote ? ` · ${html(profile.mbtiNote)}` : ''}</dd></div>
     ${formerNames(profile)}</dl></section>
     <section class="fan-section"><div class="fan-section-title"><h4>可以聊的话题</h4><div class="fan-actions">${button('new-topic', '添加话题')}${button('new-followup', '记一个约定')}</div></div>${topics.length ? topics.map(recordRow).join('') : '<p class="fan-muted">从一次聊天开始记录。</p>'}
@@ -173,12 +174,18 @@ function music(profile) {
 
 function membershipDescription(data) {
   return data.type === 'interval'
-    ? `${levels[data.level]} · ${dateLabel(data.startAt)} 至 ${dateLabel(new Date(Date.parse(data.endAt) - 1).toISOString())}`
+    ? data.precision === 'instant'
+      ? `${levels[data.level]} · ${instantLabel(data.startAt)} 起，${instantLabel(data.endAt)} 截止（不含截止时刻，北京时间）`
+      : `${levels[data.level]} · ${dateLabel(data.startAt)} 至 ${dateLabel(new Date(Date.parse(data.endAt) - 1).toISOString())}（含当日）`
     : data.type === 'baseline'
       ? `截至 ${dateLabel(data.asOf)}：累计 ${data.totalDays ?? '未知'} 天，连续 ${data.continuousDays ?? '未知'} 天`
       : data.type === 'first'
         ? `首次上舰：${dateLabel(data.date)}`
         : `${dateLabel(data.observedAt)}：${data.status === 'inactive' ? '当时未在舰' : `当时为${levels[data.level]}`}`;
+}
+
+function instantLabel(value) {
+  return new Date(Date.parse(value) + 8 * 3600000).toISOString().replace('T', ' ').replace('Z', '');
 }
 
 function membershipRecord(record, profile) {

@@ -4,7 +4,7 @@ import { api, readJsonResponse, showError, toast } from '../shared/utils.js';
 import { createDrawWordPicker } from './games-word-picker.js';
 import { observePanelVisibility } from './panel-visibility.js';
 
-export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess }) {
+export function createDrawAdmin({ startSession, onSession, onRefreshFailure, onRefreshSuccess }) {
   // Only syncSession replaces this snapshot; action responses go back through the page owner.
   let sessionSnapshot = null;
   let interactionCollecting = false;
@@ -14,6 +14,7 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
   let stopVisibility;
   let disposed = false;
   let drawWordCategories = [];
+  let categoryRequest = null;
   let activeDrawCategoryIds = null;
 
   const drawWordPicker = createDrawWordPicker({
@@ -48,7 +49,13 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
     onRefreshSuccess();
   }
 
-  async function refreshDrawCategories() {
+  function refreshDrawCategories() {
+    if (drawWordCategories.length) return Promise.resolve();
+    categoryRequest ??= loadDrawCategories().finally(() => { categoryRequest = null; });
+    return categoryRequest;
+  }
+
+  async function loadDrawCategories() {
     const response = await fetch('/api/games/draw-guess/categories', {
       cache: 'no-store',
     });
@@ -129,20 +136,23 @@ export function createDrawAdmin({ onSession, onRefreshFailure, onRefreshSuccess 
   async function start() {
     const categoryIds = readSelectedDrawCategoryIds();
     if (!categoryIds.length) throw new Error('请至少选择一个词库分类。');
-    const result = await api('/api/games/session', {
+    const session = await startSession({
       game: 'draw-guess',
       totalRounds: Number(byId('drawTotalRounds').value),
       roundDurationSeconds: Number(byId('drawRoundDuration').value),
       categoryIds,
     });
-    onSession(result.data);
+    if (!session) return;
     await refreshHostState();
-    toast('请选择本局题词');
+    if (sessionSnapshot?.sessionId === session.sessionId && sessionSnapshot.state.round === session.state.round
+      && sessionSnapshot.state.phase === 'choosing') toast('请选择本局题词');
   }
 
   async function controlDrawRound(action) {
-    const sessionId = sessionSnapshot?.sessionId;
-    const result = await api('/api/games/session/move', { value: { action } });
+    if (sessionSnapshot?.game !== 'draw-guess') return;
+    const sessionId = sessionSnapshot.sessionId;
+    const round = sessionSnapshot.state.round;
+    const result = await api('/api/games/session/move', { value: { action, sessionId, round } });
     if (!sessionSnapshot || sessionSnapshot.sessionId !== sessionId || result.data?.sessionId !== sessionId
       || result.data.eventRevision < sessionSnapshot.eventRevision) return;
     onSession(result.data);

@@ -314,7 +314,7 @@ function createOvertimeStore(giftDb) {
         `
       SELECT * FROM overtime_settlements
       WHERE status IN ('applied', 'ignored')
-      ORDER BY id DESC
+      ORDER BY settled_order DESC, id DESC
       LIMIT ?
     `,
       )

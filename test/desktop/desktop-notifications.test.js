@@ -100,10 +100,14 @@ function fixture(t, overrides = {}) {
       restore: () => windowActions.push('restore'), show: () => windowActions.push('show'), focus: () => windowActions.push('focus') }),
     ...overrides };
   const owner = createDesktopNotifications(options);
+  const giftSource = { sourceId: 1, syncEpoch: 'fixture-epoch', projectionGeneration: 1,
+    readCursor: async () => 10, isCurrent: () => true };
+  owner.setGiftSource(giftSource);
   t.after(async () => { owner.dispose(); await owner.whenIdle(); fs.rmSync(dataDir, { recursive: true, force: true }); });
   const gift = { detection_status: 'final', total_price: 1200, num: 10, user_name: '观众A', gift_name: '测试礼物',
-    updated_at: new Date(now()).toISOString() };
-  return { owner, options, dataDir, shown, gift, logs, plannerChanges, windowActions };
+    updated_at: new Date(now()).toISOString(),
+    remote_delivery: { sourceId: 1, syncEpoch: 'fixture-epoch', projectionGeneration: 1, cursor: 11 } };
+  return { owner, options, dataDir, shown, gift, giftSource, logs, plannerChanges, windowActions };
 }
 
 test('large gift notifications require opt-in and compare the final total strictly to the saved threshold', async (t) => {
@@ -111,7 +115,7 @@ test('large gift notifications require opt-in and compare the final total strict
   f.owner.notifyGift(f.gift);
   assert.equal(f.shown.length, 0);
   await f.owner.update({ largeGiftEnabled: true });
-  f.owner.notifyGift({ ...f.gift, updated_at: '2026-11-03T12:00:00Z' });
+  f.owner.notifyGift({ ...f.gift, remote_delivery: { ...f.gift.remote_delivery, cursor: 10 } });
   f.owner.notifyGift({ ...f.gift, detection_status: 'progress' });
   f.owner.notifyGift({ ...f.gift, total_price: 999.99 });
   f.owner.notifyGift({ ...f.gift, total_price: 1000 });
@@ -134,6 +138,7 @@ test('settings survive restart, serialize concurrent patches and notify the plan
   assert.deepEqual(f.plannerChanges, [false]);
   const restored = createDesktopNotifications(f.options);
   t.after(() => restored.dispose());
+  await restored.setGiftSource(f.giftSource);
   assert.equal(restored.getState().settings.plannerRemindersEnabled, false);
   restored.notifyGift({ ...f.gift, total_price: 2000.51 });
   assert.equal(f.shown.length, 1);
@@ -167,6 +172,7 @@ test('notification clicks restore the window; disabling and disposal release act
   f.owner.notifyGift(f.gift);
   f.shown[0].emit('click');
   assert.deepEqual(f.windowActions, ['restore', 'show', 'focus']);
+  f.shown[0].emit('close', { reason: 'timedOut' });
   await f.owner.update({ largeGiftEnabled: false });
   assert.equal(f.shown[0].closed, true);
   f.owner.notifyGift(f.gift);
@@ -176,8 +182,11 @@ test('notification clicks restore the window; disabling and disposal release act
   f.shown[1].emit('failed', {}, 'private-observer');
   assert.doesNotMatch(JSON.stringify(f.logs), /观众A|private-observer/);
   f.owner.notifyGift(f.gift);
+  f.shown[2].emit('close', { reason: 'timedOut' });
   f.owner.dispose();
   assert.equal(f.shown[2].closed, true);
+  f.shown[2].emit('click');
+  assert.equal(f.windowActions.length, 3);
   f.owner.notifyGift(f.gift);
   assert.equal(f.shown.length, 3);
 });

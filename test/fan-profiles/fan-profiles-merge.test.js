@@ -28,6 +28,23 @@ function sortedExport(f, scope = SCOPE) {
   return result;
 }
 
+test('merging contradictory first dates keeps the target evidence until the incoming date is explicitly adopted', t => {
+  const f = fanFixture(t);
+  const { source, target } = pair(f);
+  const confirmed = f.record(target.id, 'membership', { type: 'first', date: '2023-01-01' });
+  const incoming = f.record(source.id, 'membership', { type: 'first', date: '2024-02-02' },
+    { occurredAt: '2026-09-18T05:00:00Z' });
+  f.run('merge', mergeInput(f.detail(source.id), f.detail(target.id)));
+  const profile = f.detail(target.id);
+  assert.equal(profile.membership.firstDate, '2023-01-01');
+  const pending = profile.records.find(record => record.id === incoming.id);
+  assert.equal(pending.data.decision, 'pending');
+  assert.deepEqual(pending.data.conflicts, [confirmed.id]);
+  const adopted = f.run('resolve-membership', { profileId: target.id, id: incoming.id, choice: 'adopt' });
+  assert.equal(adopted.membership.firstDate, '2024-02-02');
+  assert.equal(adopted.records.find(record => record.id === confirmed.id).data.decision, 'superseded');
+});
+
 test('merging contradictory same-day baselines retains both facts for review and suspends the milestone', t => {
   const f = fanFixture(t);
   const { source, target } = pair(f);

@@ -40,6 +40,9 @@ function checkZip(condition) {
 
 function escapeXml(value) {
   return String(value || '')
+    .replace(/_(?=x[0-9a-fA-F]{4}_)/g, '_x005F_')
+    .replace(/[\u0000-\u0008\u000b-\u001f\ufffe\uffff]/g,
+      (character) => `_x${character.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}_`)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -410,11 +413,17 @@ function extractXmlTexts(xml, maxChars) {
   let value = '';
   // Phonetic runs annotate the visible characters in both shared and inline strings.
   for (const element of xmlElements(xml, 't', 'rPh')) {
-    const text = unescapeXml(element.body);
+    const text = decodeCellText(element.body);
     checkBudget(value.length + text.length, maxChars, 'cell text');
     value += text;
   }
   return value;
+}
+
+function decodeCellText(text) {
+  // XML normalizes raw line endings before SpreadsheetML escapes restore cell CRs.
+  return unescapeXml(text.replace(/\r\n?/g, '\n'))
+    .replace(/_x([0-9a-fA-F]{4})_/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
 }
 
 function parseWorksheetXml(xml, sharedStrings, limits = {}) {
@@ -467,7 +476,7 @@ function readWorksheetCell(attrs, body, sharedStrings, maxTextChars) {
 
   let value = '';
   for (const element of xmlElements(body, 'v')) {
-    value = unescapeXml(element.body);
+    value = type === 'str' ? decodeCellText(element.body) : unescapeXml(element.body);
     checkBudget(value.length, maxTextChars, 'cell value');
     break;
   }

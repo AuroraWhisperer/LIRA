@@ -23,6 +23,7 @@ export function createInitializer(deps) {
     handlePlaybackError,
     flushPlaybackStateOnUnload,
     flushPlaybackStateForShutdown,
+    flushWeeklySchedule = () => true,
     refreshSelectedMusicProviderState,
   } = deps;
 
@@ -46,6 +47,16 @@ export function createInitializer(deps) {
 
     // 设置全屏播放器 seek 回调
     uiRenderer.getFullscreenPlayer().setSeekCallback(seekPlayback);
+
+    window.musicAPI?.onPrepareShutdown?.(async () => {
+      try {
+        const [playbackSaved, weeklySaved] = await Promise.all([flushPlaybackStateForShutdown(), flushWeeklySchedule()]);
+        if (playbackSaved && weeklySaved) await window.musicAPI.confirmShutdownFlush();
+        else console.warn('[Shutdown] Renderer state was not saved.');
+      } catch (error) {
+        console.warn('[Shutdown] Renderer state flush failed:', error.message || error);
+      }
+    });
 
     await restorePlaybackState();
     audio.volume = playbackState.volume;
@@ -120,21 +131,6 @@ export function createInitializer(deps) {
     audio.addEventListener('error', () => handlePlaybackError());
 
     window.addEventListener('pagehide', flushPlaybackStateOnUnload);
-
-    // Electron prepare-shutdown: flush playback state via IPC before server closes
-    if (window.musicAPI && typeof window.musicAPI.onPrepareShutdown === 'function') {
-      window.musicAPI.onPrepareShutdown(async () => {
-        try {
-          if (await flushPlaybackStateForShutdown()) {
-            await window.musicAPI.confirmShutdownFlush();
-          } else {
-            console.warn('[Playback] Shutdown state was not saved.');
-          }
-        } catch (error) {
-          console.warn('[Playback] Shutdown state flush failed:', error.message || error);
-        }
-      });
-    }
   }
 
   async function restoreLocalFileUrls() {

@@ -135,6 +135,7 @@ contextBridge.exposeInMainWorld('musicAPI', {
 });
 
 contextBridge.exposeInMainWorld('bilibiliAuth', {
+  onIdentityChanged: subscribe('bilibili:identity-changed', false),
   getAuthState: () => ipcRenderer.invoke('bilibili:get-auth-state'),
   getProfile: () => ipcRenderer.invoke('bilibili:get-profile'),
   login: () => ipcRenderer.invoke('bilibili:login'),

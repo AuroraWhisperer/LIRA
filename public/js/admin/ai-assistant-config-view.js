@@ -26,7 +26,6 @@ const FIELD_MAP = Object.freeze({
   userCooldownSeconds: ['xiaomiAiUserCooldown', 'number'],
   roomLimitPerMinute: ['xiaomiAiRoomLimit', 'number'],
   contextTtlSeconds: ['xiaomiAiContextMinutes', 'minutes'],
-  systemPrompt: ['xiaomiAiSystemPrompt', 'value'],
   personaId: ['xiaomiAiPersona', 'value'],
   weatherEnabled: ['xiaomiAiWeatherEnabled', 'checked'],
   placesEnabled: ['xiaomiAiPlacesEnabled', 'checked'],
@@ -59,7 +58,6 @@ export function collectConfig(editedFieldIds) {
     if ((key === 'reasoningEnabled' || key === 'reasoningEffort') && !reasoningEdited) continue;
     if (key === 'reasoningEffort' && (document.getElementById('xiaomiAiReasoningEffortControl')?.hidden
       || !element.value || (element.disabled && !effortEdited))) continue;
-    if (key === 'systemPrompt' && document.getElementById('xiaomiAiPersona')?.value !== 'custom') continue;
     if (element.disabled && ['deepseekResponsesUrl', 'deepseekApiKey', 'model', 'modelApiProtocol', 'qweatherApiHost', 'qweatherApiKey', 'amapApiHost', 'amapApiKey'].includes(key)) continue;
     if (kind === 'checked') {
       config[key] = element.checked;
@@ -100,10 +98,10 @@ export function renderConfig(config, preservedFieldIds = new Set()) {
       element.value = String(kind === 'minutes' ? config[key] / 60 : config[key]);
     }
   }
-  renderConfigSummary(config);
+  renderConfigSummary(config, {}, preservedFieldIds);
 }
 
-export function renderConfigSummary(config, savedConfig = {}) {
+export function renderConfigSummary(config, savedConfig = {}, preservedFieldIds = new Set()) {
   modelConfig = config;
   renderToolSettings();
   for (const [key, [id, kind, savedFlag]] of Object.entries(FIELD_MAP)) {
@@ -113,6 +111,10 @@ export function renderConfigSummary(config, savedConfig = {}) {
     config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger && config.model ? '可运行' : '等待配置';
   document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
   renderProviderSelection(config);
+  const reasoning = config.modelEndpoint?.reasoningState;
+  if (!preservedFieldIds.has('xiaomiAiReasoning') && ['enabled', 'disabled'].includes(reasoning?.mode)) {
+    document.getElementById('xiaomiAiReasoning').checked = reasoning.mode === 'enabled';
+  }
   renderModelSelection();
   if (config.modelProvider === 'doubao') {
     document.getElementById('xiaomiAiModelState').textContent = '豆包';

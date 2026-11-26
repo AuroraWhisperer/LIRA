@@ -423,6 +423,19 @@ test('drawing recovery replays the initiating page append after restoring an ear
   f.assertSynchronized();
 });
 
+test('a remote clear ahead of a local append echo preserves the same stroke on both canvases', async t => {
+  const f = await createDrawingFixture(t);
+  f.host.pointer('pointerdown', 30);
+  f.host.pointer('pointermove', 40);
+  f.host.pointer('pointerup', 40);
+  f.games.draw({ action: 'clear', clientId: 'observer' });
+  await f.flushRequests();
+  assert.deepEqual(f.broadcasts.map(op => op.action), ['clear', 'append']);
+  for (const op of f.broadcasts) f.deliver(op);
+  f.assertSynchronized();
+  assert.equal(f.host.canvas().totalPoints, 2);
+});
+
 test('queued drawing is discarded after its round is replaced', async (t) => {
   const f = await createDrawingFixture(t);
   f.host.pointer('pointerdown', 30);

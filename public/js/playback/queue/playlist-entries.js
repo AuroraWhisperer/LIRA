@@ -42,7 +42,12 @@ export function matchesLegacyDailyTracks(playlist, visible) {
   return savedIds.every((id, index) => id === visibleIds[index]);
 }
 
-export function findSourcePlaylistIndex(playlist, selected, recentTrack) {
+export function findSourcePlaylistIndex(playlist, selected, recentTrack, currentIndex) {
+  // Old recent snapshots can contain repeated unnumbered copies. Keep the matching cursor.
+  const current = playlist[currentIndex];
+  if (recentTrack && samePlaylistEntry(current, recentTrack) &&
+      (current.requestedBy || '') === (recentTrack.requestedBy || '')) return currentIndex;
+
   // Recent plays can name an inserted copy that was never a row in the original source.
   if (recentTrack && (recentTrack.playlistOccurrence !== undefined || recentTrack.songRequestKey || recentTrack.requestedBy)) {
     const playedIndex = playlist.findIndex((item) => samePlaylistEntry(item, recentTrack) &&

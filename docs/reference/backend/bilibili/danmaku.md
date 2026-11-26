@@ -89,6 +89,8 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 
 **弹幕**（`handleDanmaku`，[message-handlers.js:75-114](../../../../src/bilibili/danmaku/message-handlers.js#L75-L114)）：仅命令文本参与窗口校验与去重；`onMessage` 载荷含 `source:'danmaku'`、归一化 cmd 和发送者 `avatarUrl`。头像优先取该条 `DANMU_MSG` 的用户扩展资料，缺失时按 uid 复用在线榜/历史身份缓存；`DANMU_MSG` 前缀统一为 `DANMU_MSG`（[message-handlers.js:242-247](../../../../src/bilibili/danmaku/message-handlers.js#L242-L247)）。实时弹幕和历史回补命令的发送者 UID 等于当前房主 UID 时，`onMessage` 均携带 `isStreamer: true`。
 
+历史补回的命令进入小游戏时，游戏服务按平台 `messageTimestamp` 与当前会话 `startedAt` 比较。早于开局的命令不能落子、猜数或参与画猜。点歌仍按自己的规则处理。
+
 **SC**（`handleSuperChat`，[message-handlers.js:115-176](../../../../src/bilibili/danmaku/message-handlers.js#L115-L176)）：每条 SC 先走 `onSuperChat`（发布弹幕流并入库，见 [gift.md §7](gift.md#7-醒目留言服务superchat-service)）；若正文为命令，再过窗口与去重后二次触发 `onMessage(source:'superchat', isPinned: price>=2)`，命令拒绝仅影响 `onMessage`，不影响 SC 入账。
 
 **SC 下线**：`SUPER_CHAT_MESSAGE_DELETE` 直接调用独立 `onSuperChatDelete`，不做新增 SC 或命令文本二次分发。重复下线和未找到平台 ID 不产生新记录；存储与防重规则见 [gift.md §7](gift.md#7-醒目留言服务superchat-service)。
@@ -176,7 +178,7 @@ text.startsWith('点歌') || text.startsWith('随机点歌') || text.startsWith(
 
 1. `source === 'superchat'` 且 `scSongRequestEnabled === 'false'` 时在解析前返回 `{accepted:false, reason:'SC 点歌已关闭。'}`，诊断为 `sc-song-requests-disabled`；不生成点歌回复、不写入队列或冷却。SC 留言由独立的 `onSuperChat` 路径照常接收。其他情况解析命令 → 非命令 `{accepted:false, reason:'不是点歌指令。'}`。解析为 `request` 后，若 `songRequestRequireSpace === 'true'`，则归一化文本必须以「点歌 」开头；紧连格式按相同非命令结果忽略，不带 `command`，不产生点歌结果提示、入队或冷却。开关默认关闭，沿用 `cleanText` 空白归一化；随机和取消指令不受此格式限制。
 2. `cancel` 先检查 `songRequestCancelEnabled`（默认开启），为 `'false'` 时返回 `{accepted:false, reason:'观众取消点歌已关闭。', command}`，诊断为 `song-request-cancel-disabled`；不删除、不广播、不生成回复、不改变冷却。开启时在暂停、黑名单、资格和冷却检查前调用队列 `cancelQueueItem`，归属、歌名与选择规则见 [services.md](../music/services.md#85-cancelqueueitemcontext-input)。成功返回 `{accepted:true, command, queueItem}` 并沿用现有点歌快照广播；无法匹配本人活跃点歌时返回 `{accepted:false, reason:'没有找到你点的待处理歌曲。', command}`，不广播、不生成自动回复、不写入或重置冷却。命令识别沿用实时/历史统一的过期检查和去重，避免一条取消弹幕被重复执行。
-   历史回补保留平台 `timeline` 的精度。整秒时间覆盖该秒，毫秒时间戳和带 `.000` 的时间精确到毫秒。点歌与取消的时间范围重叠时，使用同一观众在同一份历史列表里的原始指令和排列顺序。已经实时入队、在历史轮询中被去重的指令仍可用于判断先后。`admin` 和 `room` 各自提供列表内的顺序。重复指令无法唯一对应、两份列表顺序矛盾，或仍有可能是目标的队列项无法确定先后时，保留队列，等待观众再次取消。
+   历史回补保留平台 `timeline` 的精度。整秒时间覆盖该秒，毫秒时间戳和带 `.000` 的时间精确到毫秒。点歌与取消的时间范围重叠时，使用同一观众在同一份历史列表里的原始指令和排列顺序。已经实时入队、在历史轮询中被去重的指令仍可用于判断先后。`admin` 和 `room` 各自提供列表内的顺序。同秒跨列表顺序不明时，按当前点歌空格设置筛选可能的目标。例如开启“点歌必须带空格”后，`点歌晴天` 不能阻止取消先前的点歌。重复指令无法唯一对应、两份列表顺序矛盾，或仍有可能是目标的队列项无法确定先后时，保留队列，等待观众再次取消。
    其余命令 `settings.paused === 'true'` → 拒绝
    普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 在简繁等价后区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
 3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串或 0 均不限，各身份互不沿用；非大航海使用 `userCooldownSeconds`；UI 明确为「非大航海点歌间隔」，所有身份均按每位观众分别计时。`src/music/user-request-cooldown.js` 由 `domainServices` 创建并持有，集中管理内存记录、24 小时过期清理、启动恢复及成功接纳后的 `cooldownStore.touch` 持久化（DB 失败保留内存记录并告警，不阻断本次点歌）；Bilibili 重连不重建冷却。消息处理器以 `v2:` + JSON `[fanScope || null, identity.type, identity.uid]` 构键，UID 与 `open_id`、不同主播作用域均独立；只有冷却大于 0 且稳定身份存在的成功接纳才写入，0 秒或无身份请求不生成昵称/匿名键。旧裸 UID、`open_id:` 或昵称记录不映射到新键、不对任何租户生效，保留至正常清理。启用间隔但缺少稳定身份时拒绝。完整清库在数据库全部提交成功后，依原运行状态重置顺序清空内存；数据库阶段部分失败不重置。

@@ -7,11 +7,11 @@ export function createInteractionClient({ onState, fetchState, countdown }) {
   let queued = null;
   let queuedAt;
   const readClock = () => countdown && { atMs: performance.now(), wallMs: Date.now() };
-  function accept(next, received, requested) {
+  function accept(next, received, requested, previous) {
     if (!next || next.runtimeId !== runtimeId || !Number.isInteger(next.revision) || next.revision < revision)
       return false;
     revision = next.revision;
-    countdown?.sync(next.session, received?.atMs, received?.wallMs, requested);
+    countdown?.sync(next.session, received?.atMs, received?.wallMs, requested, previous);
     return true;
   }
   function receive(next) {
@@ -36,7 +36,7 @@ export function createInteractionClient({ onState, fetchState, countdown }) {
     }
     const accepted = accept(next, readClock(), requested);
     let state = accepted ? next : null;
-    if (accept(queued, queuedAt)) state = queued;
+    if (accept(queued, queuedAt, undefined, requested)) state = queued;
     queued = null;
     if (!state) return false;
     const hostState = host && accepted && next.revision === revision ? next : null;
