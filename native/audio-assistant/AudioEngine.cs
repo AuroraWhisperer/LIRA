@@ -139,7 +139,8 @@ internal sealed class DspSource : ISampleProvider, IDisposable
       int available = directSamples / 2;
       if (available == 0) available = pitch.ReceiveSamples(destination, destination.Length / 2);
       written += available * 2;
-      if (written == count || finished) break;
+      if (written == count || (finished && available == 0)) break;
+      if (finished) continue;
       bool original = Original;
       int semitones = original ? 0 : Semitones;
       int speed = original ? 100 : Math.Clamp(SpeedPercent, 50, 200);

@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "id": "5cbba48149893e76a6363e47",
+  "id": "bc164f9448800eaf6c91be9f",
   "platform": "win32",
   "arch": "x64",
   "entry": "LiraAudioAssistant.exe",
   "archive": {
-    "path": "client/resources/audio/audio-win-x64-e7a1c092256c2482027b5b4c.zip",
-    "size": 69708419,
-    "sha256": "e7a1c092256c2482027b5b4cf0e795653eef1d34d098d33349af1499b05ff7b3"
+    "path": "client/resources/audio/audio-win-x64-d21151f3b8e3060a1686b23b.zip",
+    "size": 69708437,
+    "sha256": "d21151f3b8e3060a1686b23bf1e00a0727df1e077788105ac143697f223fdc5f"
   },
   "files": [
     {
@@ -23,12 +23,12 @@
     {
       "path": "LiraAudioAssistant.dll",
       "size": 125440,
-      "sha256": "42bf383c4146568ef91b22638479f711fdb6fb48ddb757842ced2aa11a4dc43b"
+      "sha256": "9c76991efd11a72cf2c5b923fb7267f562f5dedd470a62e6305fa756e07375d7"
     },
     {
       "path": "LiraAudioAssistant.exe",
       "size": 162816,
-      "sha256": "a95fec9b7eb6d59f8749b528b245e47d83c978d57ac12599a880a480ba4c1dd3"
+      "sha256": "bc572c4684be6ee643899f4abf6651d196a6757d61dfd815f91326bc12f5076e"
     },
     {
       "path": "LiraAudioAssistant.runtimeconfig.json",

@@ -245,12 +245,18 @@ internal static class NativeChecks
       using var dsp = new DspSource(tone.Take(TimeSpan.FromSeconds(4))) {
         StrengthPercent = mode.Item2, Semitones = mode.Item3, Original = mode.Item4, SpeedPercent = mode.Item5, OutputVolume = 1,
       };
-      float[] buffer = new float[2048], expected = new float[2048];
+      // WaveOut requests 50 ms of stereo PCM per device buffer at 48 kHz.
+      bool waveOutSlow = mode.Item1 == "slow";
+      float[] buffer = new float[waveOutSlow ? 2400 * 2 : 2048], expected = new float[buffer.Length];
+      int previousRead = buffer.Length;
       int total = 0, crossings = 0, count;
       float previous = 0;
       double maximumDifference = 0;
       while ((count = dsp.Read(buffer, 0, buffer.Length)) > 0)
       {
+        if (waveOutSlow && previousRead < buffer.Length)
+          throw new Exception($"Half-speed WaveOut read {previousRead / 2} of 2400 frames, then returned another {count / 2} frames.");
+        previousRead = count;
         reference.Read(expected, 0, count);
         for (int i = 0; i < count; i++)
         {

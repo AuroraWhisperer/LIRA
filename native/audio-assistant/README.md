@@ -22,4 +22,6 @@
 
 ## 验证
 
+`NativeChecks` 的半速用例按 WaveOut 的设备块大小读取音频（48 kHz 双声道，每块 2,400 帧）。输入结束后，只要变速器仍有尾音，`DspSource` 就继续填充当前块。只有最后一块可以短读，避免 WaveOut 在尾音之间补入静音。
+
 `test/desktop/audio-assistant-native/NativeChecks.cs` 迁入原样品的 DSP 行为检查，覆盖精确直通、音高/速度/时长、连续调参、短尾及切歌/换播放器检测。测试工程直接编译这里的源码，资源来自已构建的 `build/audio-assistant/vendor`；构建中间产物与输出放入仓库 `tmp/`。原生恢复检查覆盖安全延期、真实失败、守护身份、记录保留、安装维护退出和状态变化。Electron 的隔离验证使用生成的静音 WAV，不录制用户歌曲，也不修改用户播放器或设备路由。
