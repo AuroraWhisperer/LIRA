@@ -4,11 +4,31 @@ import { LIVE_RANKING_COMPONENT, RANKING_FLAGS, rankingDefaults, rankingSelectio
 import { subscribeLiveRankings } from './live-rankings-client.js';
 import { toast } from '../shared/toast.js';
 
+function countRankedBoards({ room, status, boards }) {
+  if (!room || status !== 'ready' || boards.length !== LIVE_RANKING_COMPONENT.variants.length) return null;
+  if (boards.some(board => board.status !== 'ready' && board.status !== 'unavailable')) return null;
+  return boards.filter(board => {
+    if (board.status !== 'ready' || board.eligible === false) return false;
+    const rank = board.current?.rank;
+    return (rank > 0 && rank <= board.limit) || board.rows.some(row => row.roomId === room.roomId);
+  }).length;
+}
+
+function setText(node, text) {
+  if (node.textContent !== text) node.textContent = text;
+}
+
 export function initLiveRankings() {
   const root = document.getElementById('liveRankingsFeature');
   if (!root || root.dataset.initialized) return;
   root.dataset.initialized = 'true';
   const get = name => root.querySelector(`[data-rankings="${name}"]`);
+  const room = get('room');
+  const roomName = get('name');
+  const roomId = get('room-id');
+  const summary = get('summary');
+  const count = get('count');
+  const status = get('status');
   const view = createRankingsView(get('boards'), { scrollable: true, statusExternallyRendered: true, onConfigure: configureBoard });
   let snapshot;
   let stop;
@@ -40,8 +60,13 @@ export function initLiveRankings() {
   }
   function receive(data) {
     snapshot = data;
-    get('room').textContent = data.room ? `${data.room.name || '当前直播间'} · ${data.room.roomId}` : '跟随当前账号配置的直播间';
-    get('status').textContent = data.message || '';
+    room.toggleAttribute('hidden', !data.room);
+    setText(roomName, data.room ? data.room.name || '当前直播间' : '');
+    setText(roomId, data.room ? `房间号 ${data.room.roomId}` : '');
+    const ranked = countRankedBoards(data);
+    summary.toggleAttribute('hidden', ranked === null);
+    setText(count, ranked === null ? '' : String(ranked));
+    setText(status, data.message || (data.status === 'loading' ? '正在连接榜单…' : ''));
     render();
   }
   function sync() {

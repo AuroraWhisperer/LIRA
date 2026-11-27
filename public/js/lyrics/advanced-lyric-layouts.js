@@ -64,11 +64,6 @@ export function createAdvancedLyricText(line) {
   return grouped;
 }
 
-export function advancedLyricUnitProgress(unit, currentMs) {
-  const elapsed = (currentMs - unit.startMs) / Math.max(1, unit.endMs - unit.startMs);
-  return Math.max(0, Math.min(1, (elapsed - unit.fillStart) / Math.max(0.0001, unit.fillEnd - unit.fillStart)));
-}
-
 function widthOf(text) {
   let width = 0;
   for (const character of text) width += /\s/u.test(character) ? 0.32 : /[\x20-\x7e]/u.test(character) ? 0.58 : 1;

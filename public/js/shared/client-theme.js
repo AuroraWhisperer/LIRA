@@ -1,7 +1,5 @@
 export const DEFAULT_CLIENT_THEME_ID = 'terracotta';
 
-export const CLIENT_THEME_ALIASES = Object.freeze({});
-
 export const CLIENT_THEME_CATEGORIES = Object.freeze([
   { id: 'warm-earth', label: '暖调大地', order: 1 },
   { id: 'rose-plum', label: '玫瑰梅紫', order: 2 },
@@ -58,9 +56,6 @@ export function isClientThemeId(value) {
 
 export function resolveClientThemeId(value) {
   if (isClientThemeId(value)) return value;
-  if (typeof value === 'string' && Object.hasOwn(CLIENT_THEME_ALIASES, value)) {
-    return CLIENT_THEME_ALIASES[value];
-  }
   return null;
 }
 
@@ -70,14 +65,4 @@ export function normalizeClientThemeId(value) {
 
 export function getClientTheme(value) {
   return CLIENT_THEME_BY_ID[normalizeClientThemeId(value)];
-}
-
-export function getClientThemeMode(value) {
-  return getClientTheme(value).mode;
-}
-
-export function getPairedClientTheme(value) {
-  const current = getClientTheme(value);
-  if (!current.family) return null;
-  return CLIENT_THEMES.find((theme) => theme.family === current.family && theme.mode !== current.mode) ?? null;
 }

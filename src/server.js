@@ -515,7 +515,7 @@ function createServerRuntime(runtimeOptions = {}) {
       weSing: () => musicRuntime.weSingCapture.getStatus(),
       danmakuFeed: () => danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],
     };
-    return Object.fromEntries((fields ?? Object.keys(readers)).filter(field => !exclude.includes(field))
+    return Object.fromEntries((fields ?? Object.keys(readers)).filter(field => Object.hasOwn(readers, field) && !exclude.includes(field))
       .map((field) => [field, readers[field]()]));
   }
 

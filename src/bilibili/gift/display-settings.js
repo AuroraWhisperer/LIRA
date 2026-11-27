@@ -71,4 +71,19 @@ function readGiftDisplaySettings(settings) {
   }
 }
 
-module.exports = { GIFT_DISPLAY_SETTING, DEFAULT_GIFT_DISPLAY, validateGiftDisplaySettings, readGiftDisplaySettings };
+function patchGiftDisplaySettings(settings, patch) {
+  const allowed = ['threshold1', 'threshold2', 'threshold3', 'visibleRows', 'scrollSpeed',
+    'minGiftAmountCents', 'tailStyle', 'textureStyle', 'sheen'];
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)
+    || !Object.keys(patch).length || Object.keys(patch).some(key => !allowed.includes(key))) {
+    throw new Error('礼物显示设置补丁字段无效。');
+  }
+  const next = readGiftDisplaySettings(settings);
+  for (const [key, value] of Object.entries(patch)) {
+    if (key.startsWith('threshold')) next.thresholds[Number(key.slice(-1)) - 1] = value;
+    else next[key] = value;
+  }
+  return validateGiftDisplaySettings(next);
+}
+
+module.exports = { GIFT_DISPLAY_SETTING, DEFAULT_GIFT_DISPLAY, validateGiftDisplaySettings, readGiftDisplaySettings, patchGiftDisplaySettings };

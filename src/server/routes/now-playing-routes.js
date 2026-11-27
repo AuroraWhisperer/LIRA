@@ -1,7 +1,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const { readNowPlayingConfig, saveNowPlayingConfig } = require('../now-playing-settings');
+const { readNowPlayingConfig, saveNowPlayingConfig, patchNowPlayingConfig } = require('../now-playing-settings');
 
 const prefixes = ['/api/now-playing'];
 const routes = {
@@ -9,8 +9,10 @@ const routes = {
     sendJson(res, 200, { ok: true, data: readNowPlayingConfig(context.settings.get()) });
   },
   async 'POST /api/now-playing/config'(context, request, res) {
-    const config = await request.body();
-    sendJson(res, 200, { ok: true, data: saveNowPlayingConfig(context, config) });
+    const body = await request.body();
+    const isPatch = body && Object.hasOwn(body, 'patch') && Object.keys(body).length === 1;
+    const data = isPatch ? patchNowPlayingConfig(context, body.patch) : saveNowPlayingConfig(context, body);
+    sendJson(res, 200, { ok: true, data });
   },
 };
 

@@ -1,37 +1,17 @@
 // 编写人：Aurora
-// 前端共享工具 — escapedHtml, toast, api, format 系列。
+// 前端共享工具 — 表单、提示与请求。
 'use strict';
 
 import { dangerConfirm, logoutConfirm, showConfirmationDialog } from './confirmation-dialog.js';
 import { toast, showStackedToast } from './toast.js';
 import { assertApiResponse, readJsonResponse } from './json-response.js';
-import { escapeHtml, escapeAttr } from './html-escape.js';
 import { withMultilingualFallback } from './font-family.js';
-import {
-  formatTime,
-  formatDateTime,
-  formatBytes,
-  formatDuration,
-  formatSuperChatPrice,
-  formatMoney,
-  formatCompactNumber,
-} from './display-format.js';
 
 export { dangerConfirm, logoutConfirm, showConfirmationDialog };
 export { withMultilingualFallback };
 
 export { toast, showStackedToast };
 export { readJsonResponse };
-export { escapeHtml, escapeAttr };
-export {
-  formatTime,
-  formatDateTime,
-  formatBytes,
-  formatDuration,
-  formatSuperChatPrice,
-  formatMoney,
-  formatCompactNumber,
-};
 
 export function value(id) {
   const el = document.getElementById(id);

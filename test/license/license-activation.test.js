@@ -20,7 +20,7 @@ function createFixture(t, existing) {
     },
   };
   const keyStore = createDeviceKeyStore({ dataDir, safeStorage });
-  if (existing === 'valid') keyStore.createNew();
+  if (existing === 'valid') keyStore.prepareActivation().commit();
   if (existing === 'corrupt') {
     fs.mkdirSync(path.dirname(keyStore.keyPath), { recursive: true });
     fs.writeFileSync(keyStore.keyPath, 'synthetic-unreadable-device-key');

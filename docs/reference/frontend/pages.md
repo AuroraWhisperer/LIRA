@@ -159,7 +159,7 @@ bindCopyUrl(button);
 | `/imported-danmaku` | [overlays/imported-danmaku.html](../../../public/pages/overlays/imported-danmaku.html) | 导入弹幕 CSS 的预览与场景子页面 | 兼容 blivechat/BLC 消息结构，CSS 与数据经组件协议进入，保持不透明源沙箱，无独立 B 站连接 |
 | `/queue` | [overlays/queue.html](../../../public/pages/overlays/queue.html) | 浏览器源、独立浏览器窗口 | 点歌队列叠加层，透明背景（见 [overlays.md](overlays.md#2-队列叠加层queue)） |
 | `/songlist` | [overlays/songs.html](../../../public/pages/overlays/songs.html) | 浏览器源 | 歌单展示板叠加层，支持 `?category=` 过滤 |
-| `/blindbox` | [overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | 浏览器源 | 盲盒盈亏投屏，支持 `?top=`/`winners=`/`heartBox=`/`title=` 参数覆盖；固定地址沿用已保存设置 |
+| `/blindbox` | [overlays/blindbox.html](../../../public/pages/overlays/blindbox.html) | 浏览器源 | 盲盒盈亏投屏，支持 `?style=`/`top=`/`winners=`/`heartBox=`/`title=` 参数覆盖；固定地址沿用已保存设置 |
 | `/overtime` | [overlays/overtime.html](../../../public/pages/overlays/overtime.html) | 浏览器源、管理页预览 `<iframe>` | 加班机叠加层，支持 `?quality=low`（降帧/降动画） |
 | `/gift-effects` | [overlays/gift-effects.html](../../../public/pages/overlays/gift-effects.html) | 浏览器源、管理页预览 | 礼物掉落/摇摇乐、林间花信边框、官方特效与大航海感谢叠加层，平时透明（见 [overlays.md](overlays.md#14-礼物四方边框gift-effects)） |
 | `/gift-sprint` | [overlays/gift-sprint.html](../../../public/pages/overlays/gift-sprint.html) | 浏览器源、管理页预览 | 月底冲刺横幅（默认透明底，建议 600×80，`preview=1` 显示预览底色）；WS 快照驱动，断线清空旧数字 |
@@ -290,6 +290,7 @@ bindCopyUrl(button);
 | `shared/color-picker.js` / `shared/color-value.js` / `shared/color-control.js` | 统一选色弹层（桌面优先[全屏取色桥](../desktop/preload.md)，支持模态挂靠与一步撤回）、HEX/Alpha 解析，以及 `enhanceColorControls` 原位增强（`data-color-opacity` 关联不透明度字段） |
 | `shared/select-menu.js` | `enhanceSelects(root = document)` 将原生单选 `select` 增强为顶层 popover 弹层（`components/select-menu.css`），并支持名称搜索与字体预览（细则见表下） |
 | `shared/fit-text-to-width.js` | `fitTextToWidth(elements)` 按元素可用宽度收缩字号（礼物横幅与粉丝档案名单共用） |
+| `shared/blindbox-styles.js` | 盲盒盈亏榜 5 款内置样式（`classic` / `porcelain` / `layers` / `prism` / `podium`）目录、展示元数据与 `normalizeBlindboxStyle` |
 | `desktop.js` | 桌面外壳：更新检查/下载/安装、打开数据目录、`window.songAssistantDesktop` 检测 |
 | `license-resource-downloads.js` | 首次准备页的公共字体/大图内联进度与失败说明（见 [app.md](app.md#10-共享字体与资源下载)） |
 
@@ -323,7 +324,7 @@ bindCopyUrl(button);
 | `css/admin/*.css` | 管理后台分模块（`component-styles.css` 卡片与边框使用 `--color-border-default` 跟随客户端主题，并导入 `component-library-manager.css` 独立承载素材管理弹窗样式） |
 | `css/playback/*.css` | 播放助手分模块 |
 | `css/overlays/base.css` | 叠加层框架（classic/identity 队列主题、滚动动画、歌单板） |
-| `css/overlays/blindbox.css` | 盲盒叠加层动画与布局 |
+| `css/overlays/blindbox.css` | 盲盒叠加层视口外壳与滚动交互，导入 `css/shared/blindbox-card.css`（与客户端实时预览共用 5 款样式卡片） |
 | `css/overlays/overtime.css` | 加班机叠加层（cq 单位 + 容器查询，见 [overlays.md](overlays.md) §4） |
 | `css/overlays/clock.css` | 时钟各样式 CSS 入口，含纯时间极简样式与 `prefers-reduced-motion` 降级 |
 | `css/admin/workspace/song.css` | 按原顺序导入 `song-management.css` 与 `song-layout.css` |
@@ -346,7 +347,9 @@ bindCopyUrl(button);
 | --- | --- |
 | `img/overtime-machine/` | 加班机内置背景：`midnight-grid.svg`、`gift-placeholder.svg`（占位图），选型见 [ADR-0005](../../architecture/adr/0005-built-in-overtime-backgrounds.md) |
 | `img/admin/gifts/bilibili-guard-*.webp` | 大航海（总督/提督/舰长）图标，加班机内置三档守护礼物 |
-| `img/playback/qqmusic-icon.webp` / `img/playback/player-turntable-chassis.webp` / `img/admin/gifts/gift-section-icon.webp` | 播放器/礼物面板图标 |
+| `img/playback/qqmusic-icon.webp` / `img/playback/player-turntable-chassis.webp` | 播放器图标 |
+| `img/admin/gifts/recent-gifts-stamp.webp` / `img/admin/gifts/blindbox-profit-loss-stamp.webp` | 礼物页「最近礼物」和「今日盲盒盈亏」的标题图标 |
+| `img/admin/gifts/gift-section-icon.webp` | 最近礼物列表为空时显示的配图 |
 | `data/theme-presets.json` | 点歌板/歌单板主题预设，字段 schema 见 §6.1 |
 | `data/cache/overtime-gift-catalog-v2.json` / `data/cache/overtime-gift-images/` / `data/cache/overtime-gift-assets-state-v2.json` | 运行时用户数据（不属于 `public/` 静态资源）：分别保存服务器付费礼物元数据、按精确 ID 缓存的图片及扫描状态，不进入源码或安装包 |
 | 字体 | 管理界面沿用系统字体栈；所有字体选择入口共用 [font-catalog.js](../../../public/js/shared/font-catalog.js) 中的 19 款完整 OFL 字体，经 CDN 补齐后从本机缓存读取（来源与许可见[字体说明](../../../public/fonts/README.md)，加载与重试机制见 [app.md](app.md#10-共享字体与资源下载)）；两个微型标题裁剪字体由各组件随安装包提供 |
@@ -388,7 +391,7 @@ bindCopyUrl(button);
 | 字号 | `queueSongFontSize` / `queueTitleFontSize` | string 数字（px） |
 | 滚动 | `queueScrollSpeed`（像素/秒） | string |
 
-`default` 另含 `overlayLowPowerMode`、`overlayTitle`、`overlayShowIndex`、`overlayIndexThreshold`、`overlayIndexColor`、`queueFixedSixRows`、`queueScrollMode`，共 24 个键。
+`default` 另含 `overlayLowPowerMode`、`overlayTitle`、`overlayShowIndex`、`overlayIndexThreshold`、`overlayIndexColor`、`queueScrollMode`。
 
 `SongBoardSnapshot` 使用 `songBoardThemePrimary`、`songBoardThemeAccent`、`songBoardThemeText`、`songBoardThemeBackground`、`songBoardThemeOpacity`、`songBoardThemeRadius`、`songBoardBackdropBlur`、`songBoardGlowIntensity`、`songBoardEnableGradient`、`songBoardGradientEnd`、`songBoardFontFamily`、`songBoardFontWeight`、`songBoardSongColor`、`songBoardTitle`、`songBoardSongFontSize`、`songBoardTitleFontSize`、`scrollSeconds`，共 17 个键。`classicSwatches`/`songBoardSwatches` 每项为 4 元素数组 `["#背景","#主色","#强调色","#文字色"]`，用于预设选择器的色块预览。
 

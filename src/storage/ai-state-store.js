@@ -58,18 +58,6 @@ function createAiStateStore(db) {
     return Boolean(blacklistLookup.get(uid));
   }
 
-  function upsertBlacklistEntry(entry) {
-    db.prepare(`
-      INSERT INTO ai_blacklist (uid, user_name, reason, created_at)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(uid) DO UPDATE SET user_name = excluded.user_name, reason = excluded.reason
-    `).run(entry.uid, entry.userName, entry.reason, entry.createdAt);
-  }
-
-  function deleteBlacklistEntry(uid) {
-    db.prepare('DELETE FROM ai_blacklist WHERE uid = ?').run(uid);
-  }
-
   function readContext(uid) {
     return toExpiringRecord(db.prepare('SELECT payload, expires_at FROM ai_viewer_context WHERE uid = ?').get(uid));
   }
@@ -112,8 +100,6 @@ function createAiStateStore(db) {
     updateConfiguration,
     appendRequestLog,
     isBlacklisted,
-    upsertBlacklistEntry,
-    deleteBlacklistEntry,
     readContext,
     writeContext,
     deleteContext,

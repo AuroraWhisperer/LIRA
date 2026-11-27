@@ -7,10 +7,11 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-let CITIES, matchesCity, clockAt, dayDifference, sunDirection, isDaylight;
+let CITIES, cityFilter, clockAt, dayDifference, sunDirection, isDaylight;
 test.before(async () => {
   const directory = path.resolve(__dirname, '../../public/js/admin/world-clock');
-  ({ CITIES, matchesCity } = await loadModuleExports(path.join(directory, 'cities.js')));
+  ({ CITIES } = await loadModuleExports(path.join(directory, 'cities.js')));
+  ({ cityFilter } = await loadModuleExports(path.join(directory, 'base-cities.js')));
   ({ clockAt, dayDifference, sunDirection, isDaylight } = await loadModuleExports(path.join(directory, 'time.js')));
 });
 
@@ -58,13 +59,13 @@ test('catalog has distinct saved IDs and valid zones', () => {
 });
 
 test('Atlanta is searchable in Chinese and English with the correct seasonal clock', () => {
-  const cities = CITIES.filter(city => matchesCity(city, '亚特兰大'));
+  const cities = CITIES.filter(cityFilter('亚特兰大'));
   assert.equal(cities.length, 1);
   const atlanta = cities[0];
-  for (const query of [' ATLANTA ', '美国 Atlanta']) assert.ok(matchesCity(atlanta, query), query);
+  for (const query of [' ATLANTA ', '美国 Atlanta']) assert.ok(cityFilter(query)(atlanta), query);
   assert.equal(clockAt(atlanta.zone, new Date('2026-01-15T12:00:00Z')).hour, '07');
   assert.equal(clockAt(atlanta.zone, new Date('2026-07-15T12:00:00Z')).hour, '08');
-  assert.equal(matchesCity(atlanta, 'Atlanta Canada'), false);
+  assert.equal(cityFilter('Atlanta Canada')(atlanta), false);
 });
 
 test('catalog disambiguates repeated city names by region and zone', () => {
@@ -83,7 +84,7 @@ test('corrected catalog entries retain stable IDs and their seasonal local times
     ['ne-1159151737', '怀唐伊', 'Pacific/Chatham', ['01:45', '00:45']],
   ]) {
     const city = CITIES.find(value => value.id === id);
-    assert.ok(matchesCity(city, name));
+    assert.ok(cityFilter(name)(city));
     assert.equal(city.zone, zone);
     const winterClock = clockAt(city.zone, winter);
     const summerClock = clockAt(city.zone, summer);

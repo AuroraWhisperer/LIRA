@@ -26,7 +26,7 @@ export function createGiftDisplaySettings() {
   }
   const controller = createComponentConfigController({
     read: () => requestConfig(),
-    persist: draft => requestConfig(draft),
+    persist: (_draft, patch) => requestConfig(patch),
   });
   const sample = {
     eventId: 'sample',
@@ -64,36 +64,51 @@ export function createGiftDisplaySettings() {
       swatch.style.setProperty('--gift-end', end);
     });
 
-  async function requestConfig(draft) {
+  function formConfig(value) {
+    if (!value || !Array.isArray(value.thresholds) || value.thresholds.length !== 3
+      || !Object.hasOwn(value, 'visibleRows') || !Object.hasOwn(value, 'scrollSpeed')) {
+      throw new Error('服务端未返回完整的礼物显示设置。');
+    }
+    const { thresholds, ...fields } = value;
+    return { ...DEFAULT_GIFT_BANNER_APPEARANCE, minGiftAmountCents: 0, ...fields,
+      ...Object.fromEntries(thresholds.map((amount, index) => [`threshold${index + 1}`, amount])) };
+  }
+
+  async function requestConfig(patch) {
     const response = await fetch('/api/gifts/display-settings', {
-      ...(draft ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) } : {}),
+      ...(patch ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patch }) } : {}),
       signal: AbortSignal.timeout(10000),
     });
     const result = await readApiResponse(response, '礼物显示设置读取或保存失败。');
-    return { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...result.data };
+    const config = formConfig(result.data);
+    if (patch && Object.entries(patch).some(([key, value]) => config[key] !== value
+      || (!key.startsWith('threshold') && !Object.hasOwn(result.data, key)))) {
+      throw new Error('服务端未确认全部礼物显示参数，请重试。');
+    }
+    return config;
   }
 
-  function values() {
-    return {
-      palette: 'bilibili-four',
-      tailStyle: get('giftTailStyle').value,
-      textureStyle: get('giftTextureStyle').value,
-      sheen: get('giftSheen').checked,
-      thresholds: [1, 2, 3].map((n) => Math.round(Number(get(`giftTier${n}`).value) * 100)),
-      visibleRows: Number(get('giftFeedRows').value),
-      scrollSpeed: Number(get('giftFeedSpeed').value),
-      minGiftAmountCents: Math.round(Number(get('giftFeedMinAmount').value) * 100),
-    };
+  function editField(input) {
+    const boundary = input.dataset.giftBoundary;
+    const key = boundary ? `threshold${boundary}` : {
+      giftTailStyle: 'tailStyle', giftTextureStyle: 'textureStyle', giftSheen: 'sheen',
+      giftFeedRows: 'visibleRows', giftFeedSpeed: 'scrollSpeed', giftFeedMinAmount: 'minGiftAmountCents',
+    }[input.id];
+    if (!key) return;
+    const value = input.type === 'checkbox' ? input.checked
+      : input.type === 'number' ? Number(input.value) : input.value;
+    controller.edit({ [key]: boundary || key === 'minGiftAmountCents' ? Math.round(value * 100) : value });
   }
 
   function preview(draft) {
+    const appearance = { ...draft, thresholds: [1, 2, 3].map(n => draft[`threshold${n}`]) };
     if (previewRoot.childElementCount) {
-      for (const banner of previewRoot.children) applyGiftBannerAppearance(banner, draft);
+      for (const banner of previewRoot.children) applyGiftBannerAppearance(banner, appearance);
       return;
     }
-    if (!draft.thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) return;
+    if (!appearance.thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) return;
     for (const [start, end] of GIFT_PALETTE) {
-      const banner = createGiftBanner(sample, draft);
+      const banner = createGiftBanner(sample, appearance);
       banner.style.setProperty('--gift-start', start);
       banner.style.setProperty('--gift-end', end);
       previewRoot.append(banner);
@@ -106,17 +121,23 @@ export function createGiftDisplaySettings() {
     get('giftDisplayCancel').hidden = !state.error && !state.conflict;
   }
 
+  function fillNumber(id, value) {
+    const input = get(id);
+    // Native number inputs keep unfinished decimals outside their value string.
+    if (document.activeElement !== input) input.value = value;
+  }
+
   function fill(value) {
     get('giftTailStyle').value = value.tailStyle ?? DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle;
     get('giftTextureStyle').value = value.textureStyle ?? DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle;
     get('giftSheen').checked = value.sheen ?? DEFAULT_GIFT_BANNER_APPEARANCE.sheen;
     [1, 2, 3].forEach((n) => {
-      get(`giftTier${n}`).value = value.thresholds[n - 1] / 100;
-      get(`giftTierEnd${n - 1}`).value = value.thresholds[n - 1] / 100;
+      fillNumber(`giftTier${n}`, value[`threshold${n}`] / 100);
+      fillNumber(`giftTierEnd${n - 1}`, value[`threshold${n}`] / 100);
     });
-    get('giftFeedRows').value = value.visibleRows;
-    get('giftFeedSpeed').value = value.scrollSpeed;
-    get('giftFeedMinAmount').value = (value.minGiftAmountCents ?? 0) / 100;
+    fillNumber('giftFeedRows', value.visibleRows);
+    fillNumber('giftFeedSpeed', value.scrollSpeed);
+    fillNumber('giftFeedMinAmount', (value.minGiftAmountCents ?? 0) / 100);
     preview(value);
     updateCancelVisibility();
   }
@@ -127,8 +148,12 @@ export function createGiftDisplaySettings() {
     get('giftDisplayError').textContent = '';
   });
   get('giftDisplayDefaults')?.addEventListener('click', () => {
-    fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 });
-    controller.edit(values());
+    const defaults = formConfig({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 });
+    controller.edit(defaults);
+    fill(controller.getState().draft);
+  });
+  get('giftDisplayForm')?.addEventListener('focusout', event => {
+    if (event.target.type === 'number' && controller.getStatus().loaded) fill(controller.getState().draft);
   });
   get('giftDisplayForm')?.addEventListener('input', (event) => {
     if (event.target.tagName === 'SELECT') return;
@@ -138,24 +163,20 @@ export function createGiftDisplaySettings() {
         if (input !== event.target && input.dataset.giftBoundary === boundary) input.value = event.target.value;
       }
     }
-    const draft = values();
-    controller.edit(draft);
-    if (event.target.id === 'giftSheen') preview(draft);
+    editField(event.target);
+    if (event.target.id === 'giftSheen') preview(controller.getState().draft);
     updateCancelVisibility();
   });
   get('giftDisplayForm')?.addEventListener('change', (event) => {
     if (event.target.tagName !== 'SELECT') return;
-    const draft = values();
-    controller.edit(draft);
-    preview(draft);
+    editField(event.target);
+    preview(controller.getState().draft);
     updateCancelVisibility();
   });
   get('giftDisplayForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
     run(async () => {
       if (!controller.getStatus().loaded || controller.getStatus().saving) return;
-      const draft = values();
-      controller.edit(draft);
       if (!controller.getStatus().dirty) return;
       get('giftDisplayFields').disabled = true;
       try {
@@ -178,7 +199,7 @@ export function createGiftDisplaySettings() {
   const receiveSettings = event => {
     if (!controller.getStatus().loaded || !event.detail?.giftDisplayConfig) return;
     let next;
-    try { next = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...JSON.parse(event.detail.giftDisplayConfig) }; } catch { return; }
+    try { next = formConfig(JSON.parse(event.detail.giftDisplayConfig)); } catch { return; }
     if (controller.receive(next)) fill(controller.getState().draft);
   };
   window.addEventListener('app:settings-state', receiveSettings);

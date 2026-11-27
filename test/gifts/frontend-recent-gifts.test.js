@@ -197,7 +197,7 @@ test('failed gift artwork reads can retry after a bounded delay and valid empty 
 });
 
 test('recent blind-box icon names stay escaped at the HTML attribute boundary', async () => {
-  const { escapeHtml } = await loadModuleExports(path.join(__dirname, '../../public/js/shared/utils.js'));
+  const { escapeHtml } = await loadModuleExports(path.join(__dirname, '../../public/js/shared/html-escape.js'));
   const list = {
     innerHTML: '',
     classList: { toggle() {} },

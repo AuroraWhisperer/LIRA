@@ -123,7 +123,7 @@ test('danmaku region intent preserves current appearance and other regions', asy
 });
 
 test('overtime projection excludes configuration secrets and settlement data', async () => {
-  const { projectOvertimePreviewState } = await loadModuleExports(entry('admin/overtime-preview.js'));
+  const { projectOvertimePreviewState } = await loadModuleExports(entry('admin/overtime-preview-factory.js'));
   const projected = projectOvertimePreviewState({ revision: 5, status: 'paused', effectiveRemainingMs: 60000,
     background: { path: 'saved.png' }, settlements: [{ private: true }], token: 'private',
     rules: [{ giftId: '1', giftName: '礼物', internalId: 'private' }] });

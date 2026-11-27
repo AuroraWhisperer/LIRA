@@ -7,6 +7,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { TOUR_CONFIG_FIRST_RUN_SHOWN_KEY } = require('../../public/js/admin/interactive-tour-config.js');
 
 const openBrowserSession = useSharedBrowser();
 
@@ -49,7 +50,7 @@ test('tour auto-opens only once for a fresh installation profile', () => {
   const freshStorage = createStorage();
 
   assert.equal(tour.claimFirstRunTour(freshStorage), true);
-  assert.equal(freshStorage.getItem(tour.TOUR_FIRST_RUN_SHOWN_KEY), '1');
+  assert.equal(freshStorage.getItem(TOUR_CONFIG_FIRST_RUN_SHOWN_KEY), '1');
   assert.equal(tour.claimFirstRunTour(freshStorage), false);
 });
 

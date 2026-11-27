@@ -67,12 +67,6 @@ function createDeviceKeyStore(options = {}) {
     );
   }
 
-  function createNew() {
-    const pending = prepareNew();
-    pending.commit();
-    return pending.keyPair;
-  }
-
   function toKeyPair(existing) {
     if (existing) {
       const publicKeyPem = crypto.createPublicKey(existing).export({ type: 'spki', format: 'pem' });
@@ -105,7 +99,6 @@ function createDeviceKeyStore(options = {}) {
     keyPath,
     pendingKeyPath,
     loadPrivateKey,
-    createNew,
     prepareActivation,
     loadPendingActivation,
     getPublicKey() {

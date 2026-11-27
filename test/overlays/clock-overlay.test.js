@@ -19,7 +19,7 @@ const { assertClockRoundTrip } = require('../helpers/clock-round-trip');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const CLOCK_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'clock.js');
-const CLOCK_CARD_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'admin', 'clock-card.js');
+const CLOCK_PREVIEW_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'admin', 'clock-preview.js');
 const MOON_DEFAULTS = { moonMode: 'light', moonIntervalSeconds: 30 };
 const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
@@ -151,7 +151,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
 test('fixed clock URLs preserve explicit visibility, hour format and empty labels', async () => {
   const style = 'digital';
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
-  const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
+  const admin = await loadModuleExports(CLOCK_PREVIEW_ENTRY, { URL });
   const config = {
     ...FLIP_COLORS, ...MOON_DEFAULTS,
     style,
@@ -223,14 +223,14 @@ test('clock URLs select their saved style profile before applying explicit overr
 });
 
 test('clock card keeps custom text that matches another style default', async () => {
-  const module = await loadModuleExports(CLOCK_CARD_ENTRY);
+  const module = await loadModuleExports(CLOCK_PREVIEW_ENTRY);
   assert.equal(module.usesDefaultClockLabel('peach', DEFAULT_LABELS.peach), true);
   assert.equal(module.usesDefaultClockLabel('peach', DEFAULT_LABELS.starlight), false);
   assert.equal(module.usesDefaultClockLabel('timeline-horizontal', ''), true);
 });
 
 test('flip colors are validated, persisted and exposed only through the clock projection', async () => {
-  const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
+  const admin = await loadModuleExports(CLOCK_PREVIEW_ENTRY, { URL });
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   const config = { ...MOON_DEFAULTS, style: 'flip', showDate: true, showSeconds: true, hourFormat: '24', label: '',
     flipFrameColor: '#cb69e380', flipFaceColor: '#ffffff', flipTextColor: '#bc59d6' };
@@ -254,7 +254,7 @@ test('flip colors are validated, persisted and exposed only through the clock pr
 test('moon palettes round-trip through settings, scene appearances and scoped overlay responses', async () => {
   const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
   const { normalizeSceneConfig } = require('../../src/server/scene-components');
-  const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
+  const admin = await loadModuleExports(CLOCK_PREVIEW_ENTRY, { URL });
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   for (const mode of ['light', 'dark', 'auto']) {
     const config = { ...getClockConfig({ clockStyle: 'moonlit-fan' }), moonMode: mode, moonIntervalSeconds: 7 };

@@ -91,31 +91,6 @@ function shouldReplaceRoomField(current, incoming, nowMs) {
   return incoming.observedAt >= current.observedAt;
 }
 
-// Standalone legacy callers provide one verification bit for both room fields.
-function projectLegacyRequester(input, cached, nowMs) {
-  const previousRoom = cached.currentRoom ? roomEvidence(null, cached.source, cached.seenAt) : null;
-  const useIncomingRoom = input.currentRoom &&
-    shouldReplaceRoomField(previousRoom, roomEvidence(null, input.source, nowMs), nowMs);
-  const room = useIncomingRoom ? input : previousRoom ? cached : null;
-  const profile = profileEvidence(cached.source, cached.seenAt, {
-    quality: isMaskedDisplayName(cached.userName) ? 'masked' : 'full',
-  });
-  const useIncomingName = input.userName && shouldReplaceName(cached.userName && profile, input.userName, input.source, nowMs);
-  const useIncomingAvatar = input.avatarUrl && shouldReplaceProfileField(cached.avatarUrl && profile, input.source, nowMs);
-  const avatarUrl = useIncomingAvatar ? input.avatarUrl : cached.avatarUrl;
-  return {
-    uid: input.uid || cached.uid,
-    userName: useIncomingName ? input.userName : cached.userName,
-    ...(avatarUrl ? { avatarUrl } : {}),
-    guardLevel: room ? room.guardLevel : input.guardLevel || cached.guardLevel,
-    medalName: room ? room.medalName : input.medalName || cached.medalName,
-    medalLevel: room ? room.medalLevel : input.medalLevel || cached.medalLevel,
-    seenAt: Math.max(input.seenAt, cached.seenAt),
-    currentRoom: Boolean(room),
-    source: room?.source || input.source,
-  };
-}
-
 function normalizeFansMedal(value) {
   const name = cleanText(value && value.name);
   const level = normalizePositiveInteger(value && value.level);
@@ -151,7 +126,6 @@ module.exports = {
   normalizeUid,
   profileEvidence,
   roomEvidence,
-  projectLegacyRequester,
   shouldReplaceName,
   shouldReplaceProfileField,
   shouldReplaceRoomField,

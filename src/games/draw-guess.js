@@ -12,7 +12,6 @@ const MAX_TOTAL_ROUNDS = 12;
 const DEFAULT_ROUND_DURATION_SECONDS = 90;
 const MIN_ROUND_DURATION_SECONDS = 15;
 const MAX_ROUND_DURATION_SECONDS = 300;
-const ROUND_DURATION_MS = 90 * 1000;
 const SCORE_BY_RANK = [10, 7, 5];
 const LATER_CORRECT_SCORE = 3;
 function createDrawGuessState(options = {}) {
@@ -328,7 +327,6 @@ module.exports = {
   MAX_TOTAL_ROUNDS,
   MIN_ROUND_DURATION_SECONDS,
   MIN_TOTAL_ROUNDS,
-  ROUND_DURATION_MS,
   applyDrawOperation,
   chooseDrawGuessWord,
   createDrawGuessState,

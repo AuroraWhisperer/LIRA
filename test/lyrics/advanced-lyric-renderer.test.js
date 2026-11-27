@@ -9,7 +9,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const load = name => loadModuleExports(path.join(ROOT, `public/js/lyrics/advanced-lyric-${name}.js`));
 
 test('advanced text keeps graphemes and supplied token intervals while sweeping a multi-character token', async () => {
-  const { createAdvancedLyricText, advancedLyricUnitProgress } = await load('layouts');
+  const { createAdvancedLyricText } = await load('layouts');
   const text = '你 👨‍👩‍👧‍👦 Cafe\u0301';
   const units = createAdvancedLyricText({ text, startMs: 0, endMs: 5000, words: [
     { text: '你', startMs: 100, endMs: 600 }, { text: '👨‍👩‍👧‍👦', startMs: 800, endMs: 1300 },
@@ -21,9 +21,8 @@ test('advanced text keeps graphemes and supplied token intervals while sweeping 
   const cafe = units.filter(unit => unit.startMs === 2000);
   assert.equal(cafe.length, 4);
   assert.ok(cafe.every(unit => unit.endMs === 4000));
-  assert.equal(advancedLyricUnitProgress(cafe[0], 2750), 1);
-  assert.equal(advancedLyricUnitProgress(cafe[1], 2750), 0.5);
-  assert.equal(advancedLyricUnitProgress(cafe[2], 2750), 0);
+  assert.deepEqual(Array.from(cafe, unit => [unit.fillStart, unit.fillEnd]),
+    [[0, 0.25], [0.25, 0.5], [0.5, 0.75], [0.75, 1]]);
 });
 
 test('long text remains complete while the number of animated units is bounded', async () => {

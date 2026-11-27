@@ -5,7 +5,7 @@ import {
   createGiftArtworkResolver,
   readyGiftImages,
 } from '../../shared/gift-banner.js';
-import { EXPORT_SCALE, giftExportRowLayout } from '../../shared/gift-banner-layout.js';
+import { DEFAULT_EXPORT_GAP, EXPORT_SCALE, giftExportRowLayout } from '../../shared/gift-banner-layout.js';
 import { getRoomGuardState } from '../../shared/bilibili-room-guard.js';
 import { refreshParameterRange } from '../../shared/parameter-range.js';
 import { createGiftExportStyleEditor } from './export-style.js';
@@ -198,6 +198,7 @@ export function createGiftExportPreview({ showPane }) {
     const { adjustable, gap, height } = giftExportRowLayout(file.count, rowGap);
     const slider = get('giftExportRowGap');
     slider.disabled = !adjustable;
+    get('giftExportRowGapReset').disabled = !adjustable;
     if (slider.valueAsNumber !== gap) {
       slider.value = gap;
       refreshParameterRange(slider);
@@ -329,6 +330,15 @@ export function createGiftExportPreview({ showPane }) {
   });
   get('giftExportRowGap')?.addEventListener('input', (event) => renderSpacing(event.target.valueAsNumber));
   get('giftExportRowGap')?.addEventListener('change', (event) => configure({ rowGap: event.target.valueAsNumber }));
+  get('giftExportRowGapReset')?.addEventListener('click', (event) => {
+    const feedback = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? { opacity: [0.5, 1] }
+      : { transform: ['rotate(0deg)', 'rotate(-360deg)'] };
+    event.currentTarget.querySelector('svg').animate(feedback, { duration: 280, easing: 'ease-out' });
+    if (task.rowGap === DEFAULT_EXPORT_GAP) return;
+    renderSpacing(DEFAULT_EXPORT_GAP);
+    configure({ rowGap: DEFAULT_EXPORT_GAP });
+  });
   get('giftExportMergeAcrossDates')?.addEventListener('change', (event) => configure({ mergeAcrossDates: event.target.checked }));
   get('giftExportChoose')?.addEventListener('click', () => configure({ directoryAction: 'choose' }));
   get('giftExportDefault')?.addEventListener('click', () => configure({ directoryAction: 'default' }));

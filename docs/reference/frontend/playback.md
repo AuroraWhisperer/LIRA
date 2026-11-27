@@ -22,7 +22,7 @@ admin/app.js           显式导入并初始化播放助手，注入 UI 能力�
 | `queue/` | manager | `QueueManager`：普通/电台/歌单三种队列、shuffle 顺序、电台自动补量 |
 | `services/` | search / stream / lyric / match / import / home / wesing | 业务服务（§4） |
 | `features/` | search-handler / match-handler / stream-handler / playback-controls / radio-mode / home-handler / import-handler / pending-handler / output-device | UI 操作处理器与本机音频输出，注入渲染回调与队列回调 |
-| `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations | 横切操作：登录登出、状态持久化、收藏/歌单、缓存统计 |
+| `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations | 横切操作：登录登出、状态持久化、收藏/歌单、缓存清理 |
 | `ui/` | index / components / playback-bar / queue-popup / drawer / fullscreen | `UIRenderer` 与各 UI 组件（DOM 渲染主控） |
 | `content/` | loader | 首页/推荐/每日/电台/歌单内容加载（内存 → localStorage 缓存命中先渲染，后台刷新后回调 `homeService.applyBackgroundUpdate` 静默更新列表） |
 | `local/` | manager | 本地音频文件选择、缺失文件重选与授权 URL 解析 |
@@ -61,7 +61,7 @@ playbackControls → audio.load()/play()
         └─ error → streamHandler.handlePlaybackError（刷新 URL 重试，仍失败跳过）
 ```
 
-关键常量（[config.js](../../../public/js/playback/config.js)）：`STREAM_REFRESH_MARGIN_MS=30s`、`STREAM_MAX_RETRIES=1`、`RADIO_REFILL_THRESHOLD=3`、`RADIO_REFILL_BATCH_SIZE=10`、`HISTORY_MAX_SIZE=50`、`DISPLAY_HISTORY_MAX_SIZE=200`、`FULLSCREEN_BG_THEME_COUNT=30`。
+关键常量（[config.js](../../../public/js/playback/config.js)）：`STREAM_REFRESH_MARGIN_MS=30s`、`STREAM_MAX_RETRIES=1`、`RADIO_REFILL_THRESHOLD=3`、`RADIO_REFILL_BATCH_SIZE=10`、`HISTORY_MAX_SIZE=50`、`DISPLAY_HISTORY_MAX_SIZE=200`。
 
 **唯一播放实现**：[features/playback-controls.js](../../../public/js/playback/features/playback-controls.js) 处理实际播放命令；全屏歌词组件仅检查歌词时间是否处于可播放区间，并通过初始化器注入的回调提出跳转请求。播放按钮和歌词点击共用控制模块的恢复逻辑，输出设备准备期间切入全民 K 歌或换曲会使旧恢复请求失效；手动恢复仍允许在切音质或下一首解析期间继续播放当前音频。
 
@@ -162,7 +162,7 @@ QQ 收藏读取按 `nextOffset` 推进原始页，末页为 `null`。「我喜�
 - **播放模式**：UI 经 `getNextMode()` 在 `sequence`/`shuffle`/`repeat-one` 间轮换；服务端快照和本地 v2/v1 恢复均接受 `repeat-one`，旧值 `single` 归一化为 `repeat-one`，保留旧值 `loop` 的兼容接纳。shuffle 用 `shuffleOrder` 曲目键数组 + `shuffleCursor` 游标（`rebuildShuffleOrder` Fisher–Yates，游标越界回退顺序取队首）。普通曲目沿用 ID，导入请求使用 `request:<songRequestKey>`，区分同曲的不同请求。歌单游标按实际取出曲目对齐；相邻曲目键相同时保留顺序位置，避免切回顺序播放后仍高亮随机播放时的位置。明确插入下一首时，活动队列条目标记 `playNext`，快照保留该标记；重新打乱队列后仍先取出这批条目，取出时移除标记，歌单全量副本不保留临时优先级。
 - **电台补量**：`features/radio-mode.js` 在电台队列不足 3 首时按 10 首一批调用 `POST /api/music/home`（`action=radio`），过滤当前曲目、最近 30 首历史与队列内重复（请求归 `radio-mode`，去重入队和实际新增数量归 `QueueManager.refillRadioQueue`）。平台由当前电台的 `queueSourceKey` 固定；旧快照缺少来源时优先从当前曲目或电台曲目推断，浏览平台标签不改变补歌平台。每次建立电台的队列数组引用自带独立请求锁和失败通知状态；旧响应在入队前校验引用身份，同平台重开也会使旧请求失效，新电台补量不等待旧请求。
 - **收藏/歌单**：`playlist-operations.js` 通过 `/api/music/playlists/tracks/add|remove` 修改音乐 Provider 歌单，通过 `/api/music/home` 读取歌单；不调用本地 `/api/playback/favorites`。收藏/歌单展示数据经 `CacheManager` 24h 缓存跨启动保留。
-- **缓存统计**：`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。
+- **缓存清理**由 `cache-operations.js` 在用户确认后调用 `POST /api/music/cache/clear`。
 
 电台使用 `radioOffset` 记录已读取的上游位置，与剩余队列长度独立。首页首次读取或刷新后开始电台，位置按 Provider 实际请求窗口计算：页码限制在 1–50，每页 50 首；返回不足 50 首也不以返回数量缩小窗口。网易云补量按 10 首窗口计算页码并跳过已读前缀，页码超过 50 后环回；QQ 补量使用 `page: 2`，使 Provider 的 `firstplay` 保持 0，继续获取新歌，不裁剪返回前缀。非空有效响应推进读取窗口，即使全是重复曲目；失败、空响应和旧会话响应不推进。只有实际入队新增曲目才清除失败状态并提示恢复。
 
@@ -246,7 +246,7 @@ HTTP/IPC 曲目快照对已解析音源同时保存 `playbackTrial` 和 `playbac
 **设置页分组与三种布局**：
 
 - 外观片段为 `public/pages/admin/playback/appearance.html`，`ui/appearance.js` 由 `FullscreenPlayer.init` 初始化一次，负责设置规范化、本机保存、控件和示例预览；`css/playback/appearance.css` 负责设置页与样式变体，字体声明复用 `css/shared/display-fonts.css`。
-- 设置区由 `FormsService.initTabs` 管理「样式 / 配色 / 歌曲 / 歌词」标签及键盘导航；左侧沿用客户端设置页的分区标题、组间细分隔线和独立恢复操作区，与右侧预览以竖线区分（窄窗口上下排列时分界改为横线）。样式按播放器布局、封面外观、文字排版分组；配色区分背景与文字；歌曲区分字体与字号；歌词区分文字、行间排版与折叠的更多设置。
+- 设置区由 `FormsService.initTabs` 管理「样式 / 配色 / 歌曲 / 歌词」标签及键盘导航；整页采用一体化双栏工作台（左栏检查器 + 右栏画廊展台，窄窗口 `≤860px` 改为上预览下设置）。左栏顶部使用下划线分类标签，中部按分组独立滚动并在底部固定低干扰的恢复操作栏：样式按播放器布局、封面外观（2×2 橱窗网格、缩放滑块与旋转开关）、文字对齐分段键分组；配色按背景与文字分段键及取色器分组；歌曲区分字体与字号；歌词区分文字、行间排版与折叠的更多设置（含字重分段键）。
 - 样式通过示意图单选经典（左封面、右歌曲与歌词）、黑胶（上封面、下歌曲与歌词）或歌词（只显示歌词）布局。经典和黑胶共用默认唱片机、黑胶唱片、专辑封面和唱臂黑胶四种外观缩略图；歌词布局收起封面控件并保留外观偏好。
 - 经典布局的歌曲信息位于右侧，与歌词正文同一条起始线；黑胶布局以封面、歌名、歌手和当前一行歌词共用中轴，封面与下方文字间保留留白，文字区域按内容高度排列。黑胶布局固定居中，设置页对齐控件显示居中并禁用（保留其他布局的对齐偏好）；歌名、歌手和歌词均不换行，超宽省略，歌曲信息区域无滚动，无高亮时显示首句，并隐藏译文/罗马音副行、切换按钮、手动浏览按钮与歌词行左侧跳转图标。歌词布局隐藏歌名和歌手，保留手动浏览时的「返回当前歌词」按钮及歌词跳转；纯歌词隐藏滚动条而保留滚轮、键盘和点击浏览，首末行留足居中空间，当前句突出、相邻句淡化、上下边缘渐隐，手动浏览或焦点所在句恢复清晰。
 

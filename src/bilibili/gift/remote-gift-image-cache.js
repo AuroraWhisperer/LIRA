@@ -9,7 +9,6 @@ const { giftVariantId } = require('../../shared/gift-identity');
 const { resolveDataPaths } = require('../../shared/data-paths');
 const { pruneManagedFiles } = require('../../shared/file-retention');
 
-const CACHE_DIR_NAME = 'overtime-gift-images';
 const LOCAL_IMAGE_PREFIX = '/overtime-gift-images/';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -547,7 +546,6 @@ function positiveInteger(value, fallback) {
 }
 
 module.exports = {
-  CACHE_DIR_NAME,
   LOCAL_IMAGE_PREFIX,
   MAX_IMAGE_BYTES,
   createRemoteGiftImageCache,

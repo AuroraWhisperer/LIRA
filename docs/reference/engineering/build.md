@@ -244,7 +244,7 @@ flowchart LR
 | 脚本 | 内容 | 用途 |
 | --- | --- | --- |
 | [build-local.bat](../../../scripts/build-local.bat) | `ELECTRON_BUILDER_CACHE=%USERPROFILE%\.cache\electron-builder` → `npm run dist:win:local` | 复用本地 Electron 打包且不发布；失败返回非零，成功后列出 `release\*.exe` |
-| [build-debug.bat](../../../scripts/build-debug.bat) | `set DEBUG=electron-builder` + `DEBUG_COLORS=true` → `npx electron-builder --win nsis --x64 %*` | 输出 `electron-builder` 调试日志并透传额外参数（使用时应显式传入 `--publish never`） |
+| [build-debug.bat](../../../scripts/build-debug.bat) | `set DEBUG=electron-builder` + `DEBUG_COLORS=true` → `npx electron-builder --win nsis --x64 --publish never %*` | 在本机生成调试包，输出 `electron-builder` 调试日志并透传额外参数 |
 
 两个批处理均不改变 `app.asar` 打包行为，也不依赖全局安装的 CLI。
 

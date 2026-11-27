@@ -1,244 +1,956 @@
-/* ---- 盲盒盈亏榜投屏设置 ---- */
+@import url('../../shared/blindbox-card.css');
+
+/* ---- 盲盒盈亏榜投屏工作区 ---- */
 .gift-blindbox-broadcast-panel {
   container: blindbox-controls / inline-size;
-}
-
-.gift-blindbox-broadcast-panel > .panel-header {
-  padding: 0 0 16px;
-  border-bottom-color: var(--color-border-light, var(--border));
-}
-
-.blindbox-broadcast-heading {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
 
-.blindbox-broadcast-caption {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-regular);
-  line-height: var(--type-leading-caption);
+/* 顶栏：标题、自动保存状态、紧凑浏览器源复制按钮与画布入口收拢在一行 */
+.blindbox-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--color-border-light, var(--border));
+}
+
+.blindbox-toolbar-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  min-width: 0;
+}
+
+.blindbox-toolbar-heading .gift-section-title {
+  margin: 0;
 }
 
 .blindbox-save-state {
   margin: 0;
-  justify-content: flex-end;
-  text-align: right;
-}
-
-.blindbox-builder {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: var(--spacing-md) 0 0;
-}
-
-/* 字段标签用次级色，分区与行标题保持粗体，形成两级层次。 */
-.gift-blindbox-broadcast-panel :is(
-  .blindbox-builder-label,
-  .blindbox-field-label,
-  .blindbox-appearance-grid > label:not(.switch-control) > span:first-child,
-  .blindbox-url-label
-) {
-  color: var(--color-text-secondary, var(--text));
-  font-size: var(--type-size-control);
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
   font-weight: var(--type-weight-medium);
-  line-height: var(--type-leading-control);
+  line-height: 24px;
+  white-space: nowrap;
 }
 
-.gift-blindbox-broadcast-panel :is(.blindbox-heart-control, .blindbox-appearance-grid) .switch-control {
-  font-weight: var(--type-weight-regular);
+.blindbox-save-state:empty {
+  display: none;
 }
 
-.blindbox-builder-row {
+.blindbox-save-state[data-state='saved'] {
+  background: var(--color-success-light);
+  color: var(--color-success-dark, var(--color-success));
+}
+
+.blindbox-save-state[data-state='error'],
+.blindbox-save-state.is-error {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.blindbox-toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.blindbox-toolbar-actions button.blindbox-source-copy {
+  position: relative;
+  --copy-url-width: auto;
+  --copy-url-height: var(--component-control-height, 36px);
+  max-width: 300px;
+  padding: 0 32px 0 11px;
+  border-color: var(--color-border-light, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--type-size-caption);
+  line-height: calc(var(--component-control-height, 36px) - 2px);
+}
+
+.blindbox-toolbar-actions button.blindbox-source-copy::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 13px;
+  height: 13px;
+  transform: translateY(-50%);
+  background-color: currentColor;
+  opacity: 0.72;
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5.5' y='5.5' width='8' height='8' rx='1.5'/%3E%3Cpath d='M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2'/%3E%3C/svg%3E");
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  pointer-events: none;
+}
+
+.blindbox-toolbar-actions button.blindbox-source-copy:hover:not(:disabled) {
+  border-color: var(--color-button-border-hover, var(--color-border-strong));
+  background: var(--color-control-surface, var(--surface));
+  color: var(--text);
+}
+
+/* 主工作区：左实时舞台 + 右配置控制列 */
+.blindbox-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.92fr);
+  align-items: start;
+  gap: 18px;
+  min-width: 0;
 }
 
-.blindbox-builder-row label {
+/* 左栏：一体化实时预览与实况卡 */
+.blindbox-preview-card {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-tertiary);
 }
 
-.blindbox-builder-switches {
+.blindbox-preview-head {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 4px 32px;
+  gap: 8px 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--color-border-light, var(--border));
+  background: var(--surface);
 }
 
-.blindbox-builder-switches .switch-control {
+.blindbox-preview-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.blindbox-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-text-muted, var(--muted));
+  flex-shrink: 0;
+}
+
+.blindbox-live-dot[data-state='live'] {
+  background: var(--color-success);
+}
+
+.blindbox-live-dot[data-state='sample'] {
+  background: var(--color-warning);
+}
+
+.blindbox-preview-heading {
+  color: var(--text);
   font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  white-space: nowrap;
+}
+
+.blindbox-preview-meta {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.blindbox-preview-meta:empty {
+  display: none;
+}
+
+.blindbox-preview-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.blindbox-backdrop-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: 999px;
+  background: var(--color-bg-tertiary);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-backdrop-dot {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--text) 24%, transparent);
+  border-radius: 999px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.blindbox-backdrop-dot[data-blindbox-backdrop='dark'] {
+  background: linear-gradient(135deg, #1b1e2d, #0f111a);
+}
+
+.blindbox-backdrop-dot[data-blindbox-backdrop='checker'] {
+  background-color: #d6d3cd;
+  background-image: linear-gradient(45deg, #8b867f 25%, transparent 25%, transparent 75%, #8b867f 75%),
+    linear-gradient(45deg, #8b867f 25%, transparent 25%, transparent 75%, #8b867f 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 4px 4px;
+}
+
+.blindbox-backdrop-dot[data-blindbox-backdrop='light'] {
+  background: linear-gradient(135deg, #f8f5ef, #e5e8f0);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-backdrop-dot.is-active {
+  transform: scale(1.1);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--color-primary);
+}
+
+.blindbox-segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: 8px;
+  background: var(--surface-2);
+  gap: 2px;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-seg-btn {
+  min-height: 0;
+  height: 24px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-seg-btn.is-active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: var(--type-weight-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-refresh-btn {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  color: var(--muted);
+  display: inline-grid;
+  place-items: center;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-refresh-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.blindbox-refresh-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.blindbox-refresh-btn.is-loading svg {
+  animation: ui-spin 760ms linear infinite;
+}
+
+/* 卡片样式选择器：置顶固定在预览舞台上方，切换不同高度卡片时不抖动 */
+.blindbox-style-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 14px 12px;
+  border-bottom: 1px solid var(--color-border-light, var(--border));
+  background: var(--surface);
+}
+
+.blindbox-style-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
+.blindbox-style-heading {
+  color: var(--text);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.blindbox-style-desc {
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blindbox-style-desc:empty {
+  display: none;
+}
+
+.blindbox-style-picker {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-style-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 6px 7px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: 9px;
+  background: var(--color-bg-tertiary);
+  color: var(--text);
+  text-align: center;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 120ms ease;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-style-option:hover:not(:disabled) {
+  border-color: var(--color-border-strong, var(--border));
+  background: var(--surface);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-style-option:active:not(:disabled) {
+  transform: translateY(0.5px);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-style-option[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--components-accent, var(--color-selection-marker, var(--primary)));
+}
+
+.blindbox-style-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 16px;
+}
+
+.blindbox-style-option[aria-pressed='true'] .blindbox-style-label {
+  color: var(--text);
   font-weight: var(--type-weight-semibold);
 }
 
-/* 心动盲盒子面板：紧跟父开关，只在开启时出现。 */
-.blindbox-heart-settings {
+/* 预览舞台 */
+.blindbox-preview-stage {
   display: grid;
-  gap: 12px;
-  margin-top: -8px;
-  padding: 14px 16px 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px);
+  place-items: center;
+  min-height: 288px;
+  padding: 20px 16px;
+  transition: background 180ms ease;
+}
+
+.blindbox-preview-stage[data-backdrop='dark'] {
+  background:
+    radial-gradient(circle at 20% 22%, rgba(92, 108, 214, 0.2), transparent 52%),
+    radial-gradient(circle at 82% 78%, rgba(33, 182, 168, 0.16), transparent 54%),
+    linear-gradient(145deg, #161824 0%, #1d2030 56%, #141722 100%);
+}
+
+.blindbox-preview-stage[data-backdrop='checker'] {
+  background-color: var(--color-bg-tertiary);
+  background-image:
+    linear-gradient(45deg, color-mix(in srgb, var(--text) 6%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in srgb, var(--text) 6%, transparent) 75%),
+    linear-gradient(45deg, color-mix(in srgb, var(--text) 6%, transparent) 25%, transparent 25%, transparent 75%, color-mix(in srgb, var(--text) 6%, transparent) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 8px 8px;
+}
+
+.blindbox-preview-stage[data-backdrop='light'] {
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 214, 186, 0.32), transparent 52%),
+    radial-gradient(circle at 84% 80%, rgba(168, 214, 236, 0.28), transparent 54%),
+    linear-gradient(145deg, #f3efe9 0%, #f8f6f2 54%, #edf1f6 100%);
+}
+
+.blindbox-preview-canvas {
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+/* 忠实呈现 /blindbox 浏览器源的 5 套真实样式微缩预览 */
+.blindbox-preview-canvas .blindbox-panel.is-admin-preview {
+  --blindbox-scale: 0.88;
+  --overlay-font-scale: 1;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  max-height: none;
+  overflow: visible;
+  font-family: var(--overlay-font-family, var(--font-ui));
+}
+
+.blindbox-preview-canvas .blindbox-panel.is-admin-preview:is(:not([data-blindbox-style]), [data-blindbox-style='classic']) {
+  --blindbox-scale: 0.56;
+}
+
+/* 舞台底部：今日四格实况指标带 */
+.blindbox-live-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--color-border-light, var(--border));
+  background: var(--surface);
+}
+
+.blindbox-metric-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+.blindbox-metric-cell + .blindbox-metric-cell {
+  border-left: 1px solid var(--color-border-light, var(--border));
+}
+
+.blindbox-metric-cell.is-profit {
+  text-align: right;
+}
+
+.blindbox-metric-label {
+  color: var(--color-text-muted, var(--muted));
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.blindbox-metric-value {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: var(--type-weight-bold);
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blindbox-metric-value[data-tone='up'] {
+  color: var(--color-profit);
+}
+
+.blindbox-metric-value[data-tone='down'] {
+  color: var(--color-loss);
+}
+
+/* 右栏：精炼卡片堆栈 */
+.blindbox-controls-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.blindbox-control-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: var(--radius-lg);
   background: var(--color-bg-tertiary);
+}
+
+.blindbox-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.blindbox-card-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-size-card-title, 14px);
+  font-weight: var(--type-weight-semibold);
+  line-height: 20px;
+}
+
+.blindbox-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary-text, var(--color-primary));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+}
+
+.blindbox-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.blindbox-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gift-blindbox-broadcast-panel :is(.blindbox-builder-label, .blindbox-field-label) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary, var(--muted));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 18px;
+}
+
+.blindbox-field-meta {
+  color: var(--color-text-muted, var(--muted));
+  font-size: var(--type-size-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 排行人数：5 档预设胶囊 + 右侧自定义精确输入框 */
+.blindbox-top-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 62px;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.blindbox-preset-group {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-preset-chip {
+  min-height: 0;
+  height: 28px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-preset-chip:hover:not(:disabled) {
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-preset-chip.is-active {
+  border-color: var(--color-border-light, var(--border));
+  background: var(--surface);
+  color: var(--color-primary-text, var(--text));
+  font-weight: var(--type-weight-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-top-input {
+  padding-inline: 6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--type-weight-semibold);
+}
+
+/* 筛选开关列表：左说明、右开关，整洁对齐 */
+.blindbox-toggle-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--color-border-light, var(--border));
+  padding-top: 4px;
+}
+
+.blindbox-toggle-list .blindbox-toggle-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.blindbox-toggle-row + .blindbox-toggle-row {
+  border-top: 1px solid var(--color-border-light, var(--border));
+}
+
+.blindbox-toggle-row:last-child {
+  padding-bottom: 2px;
+}
+
+.blindbox-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.blindbox-toggle-copy strong {
+  color: var(--text);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: 20px;
+}
+
+.blindbox-toggle-copy small {
+  color: var(--color-text-muted, var(--muted));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: 17px;
+}
+
+/* 心动盲盒场控子卡 */
+.blindbox-heart-settings {
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--border));
+  background: color-mix(in srgb, var(--color-primary-light) 34%, var(--color-bg-tertiary));
 }
 
 .blindbox-heart-settings[hidden] {
   display: none;
 }
 
-.blindbox-subpanel-title {
+.blindbox-heart-stack {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blindbox-heart-item {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
-.blindbox-subpanel-title strong,
-.blindbox-section-title,
-.blindbox-row-title {
-  color: var(--text);
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-control);
+.blindbox-heart-item + .blindbox-heart-item {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-light, var(--border));
 }
 
-.blindbox-heart-fields {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
-  gap: 12px 24px;
-}
-
-.blindbox-heart-field {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-}
-
-.blindbox-heart-control {
+.blindbox-heart-item-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
-  min-height: var(--component-control-height, 36px);
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.blindbox-heart-control input[type='number'] {
-  width: 120px;
-  min-width: 0;
+.blindbox-heart-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-heart-input-wrap input {
+  width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .blindbox-unit {
   color: var(--muted);
-  font-size: var(--type-size-control);
+  font-size: var(--type-size-caption);
   white-space: nowrap;
 }
 
-/* 外观：排版 / 配色 / 布局三行，对齐四列栅格。 */
-.blindbox-appearance {
+.blindbox-mult-presets {
   display: grid;
-  gap: 14px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
 }
 
-.blindbox-section-head {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 10px;
+.live-components-page #giftBlindboxFeature .blindbox-mult-presets .blindbox-preset-chip {
+  height: 26px;
+  border-color: var(--color-border-light, var(--border));
+  background: var(--surface);
 }
 
-.blindbox-section-title {
+.live-components-page #giftBlindboxFeature .blindbox-mult-presets .blindbox-preset-chip.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+  color: var(--color-primary-text, var(--color-primary));
+}
+
+.blindbox-heart-switch {
+  gap: 8px;
+}
+
+.blindbox-stepper-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.blindbox-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--color-control-border, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--color-control-surface, var(--surface));
+  overflow: hidden;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-stepper-btn {
+  width: 30px;
+  min-width: 30px;
+  min-height: 0;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: var(--type-weight-semibold);
+  line-height: 1;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-stepper-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-stepper input[type='number'] {
+  width: 48px;
+  min-height: 0;
+  height: 32px;
+  padding: 0 4px;
+  border: 0;
+  border-left: 1px solid var(--color-border-light, var(--border));
+  border-right: 1px solid var(--color-border-light, var(--border));
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--type-weight-semibold);
+  appearance: textfield;
+}
+
+.blindbox-stepper input[type='number']::-webkit-outer-spin-button,
+.blindbox-stepper input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
   margin: 0;
+}
+
+.blindbox-opened-label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.blindbox-opened-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  font-size: var(--type-size-micro, 11px);
+  font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 布局与外观卡 */
+.live-components-page #giftBlindboxFeature .blindbox-theme-link {
+  min-height: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  color: var(--color-primary-text, var(--color-control-accent));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  line-height: 26px;
+}
+
+.live-components-page #giftBlindboxFeature .blindbox-theme-link:hover:not(:disabled) {
+  background: var(--color-primary-light);
+}
+
+.blindbox-theme-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border-light, var(--border));
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.blindbox-theme-swatches {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.blindbox-theme-swatches i {
+  display: block;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 1.5px solid var(--surface);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.blindbox-theme-swatches i + i {
+  margin-left: -4px;
+}
+
+.blindbox-theme-copy {
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .blindbox-appearance-fields {
   display: grid;
-  gap: 10px;
 }
 
 .blindbox-appearance-row {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  align-items: end;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-light, var(--border));
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
+  background: var(--surface);
 }
 
 .blindbox-row-title {
-  padding-bottom: 8px;
-}
-
-.blindbox-appearance-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: start;
-  gap: 12px 16px;
-}
-
-.blindbox-appearance-grid > label:not(.switch-control) {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* 浏览器源地址 */
-.blindbox-url-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 10px;
-}
-
-.blindbox-url-copy {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  flex: 1 1 240px;
-}
-
-.blindbox-url-label {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
   white-space: nowrap;
 }
 
-.blindbox-url-actions {
+.blindbox-appearance-grid {
   display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-  margin-left: auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 22px;
 }
 
-@container blindbox-controls (max-width: 759px) {
-  .blindbox-heart-fields {
+.blindbox-appearance-grid .switch-control {
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+}
+
+@container blindbox-controls (max-width: 820px) {
+  .blindbox-workspace {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
-  .blindbox-appearance-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
+@container blindbox-controls (max-width: 520px) {
+  .blindbox-style-picker {
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   }
 
-  .blindbox-row-title {
-    padding-bottom: 0;
+  .blindbox-style-desc {
+    white-space: normal;
   }
 
-  .blindbox-appearance-grid {
+  .blindbox-live-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
 
-@container blindbox-controls (max-width: 379px) {
-  .blindbox-builder-row,
-  .blindbox-appearance-grid {
+  .blindbox-metric-cell:nth-child(3) {
+    border-left: 0;
+  }
+
+  .blindbox-metric-cell:nth-child(n + 3) {
+    border-top: 1px solid var(--color-border-light, var(--border));
+  }
+
+  .blindbox-metric-cell.is-profit {
+    text-align: left;
+  }
+
+  .blindbox-top-control {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blindbox-mult-presets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 

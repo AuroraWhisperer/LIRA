@@ -43,10 +43,6 @@ HTML/属性转义由 `public/js/shared/html-escape.js` 负责，展示格式化�
 
 ## Bilibili 身份缓存兼容
 
-- **现状**：`IdentityCache` 过去混杂了 UID/昵称索引、最近与在线观众名单及字段合并策略，消息处理器和轮询器曾直接调用其中的合并方法。
-- **新代码规则**：`UserInfoService` 是生产环境唯一的合并策略归属模块（详见 [ADR-0010](../adr/0010-bilibili-user-info-facade.md)）。解析器与轮询器通过显式注入的接收器提交 `IdentityHint`；小游戏与运行时调用方统一经过门面或其注入的专用查询接口。
-- **按需迁移**：`IdentityCache` 暂留作为底层精确存储与索引兼容原语，所有被触及的生产方与调用方逐步迁至门面之后；旧方法仅保留给既有兼容测试，待直接调用方清零后移除。
-- **目标架构**：生产代码不得越过门面边界直接导入或调用缓存合并策略、资料查询提供方或头像代理内部实现，并移除 `onMessage()` 隐式触发头像拉取的旧机制。
-- **检查手段**：由 `test/bilibili/bilibili-user-info-service.test.js`、`test/bilibili/bilibili-user-info-pollers.test.js`、既有 B 站客户端/解析器/运行时测试套及架构评审共同保护。
+`IdentityCache` 的直接调用方已全部迁移，兼容投影已移除。`UserInfoService` 统一合并身份并维护房间观众索引。解析器与轮询器通过注入的接收器提交 `IdentityHint`，小游戏与运行时通过门面查询。详见 [ADR-0010](../adr/0010-bilibili-user-info-facade.md) 和[当前实现](../../reference/backend/bilibili/danmaku.md)。
 
 标注为“迁移目标”的条目有意不设人为数字基线。

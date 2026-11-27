@@ -328,7 +328,7 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 ### 本机客户端外观
 
-[client-appearance.js](../../../src/electron/client-appearance.js) 在创建运行时与主窗口前读取 `dataDir/client-appearance.json`。自选字体时保存 `fontId`。系统默认 `system` 省略此字段，沿用 `{ themeId }` 记录。旧字体组合取有效的 `fonts.han` 作为整个界面的字族，在下次成功保存外观时写入新格式。合法配色由 [shared/client-theme.js](../../../public/js/shared/client-theme.js) 唯一定义（[src/shared/client-theme.js](../../../src/shared/client-theme.js) 复导出），默认 `terracotta` 暖陶，支持别名映射解析。两项分别校验，读取时遇到无效值就使用该项默认值。保存串行调用 [atomic-file.js](../../../src/electron/atomic-file.js) 的 `writeAtomicFileAsync`，以队列中已提交的另一项合成新记录，采用同目录独占临时文件、刷盘后原子替换（`EPERM` / `EBUSY` 按 50/100/150/200ms 最多重试 4 次），关停前移除写入 IPC 并等待已接受写入完成。外观独立于账号、云同步与浏览器缓存。运行时获得只读 `getClientTheme()` 和 `getClientFont()`。主窗口原生底色取统一配色目录对应页面底（与 `desktop/palettes.css` 一致，浅/深配对主题分别保存独立主题 ID，渐变主题原生底色取对应页面渐变起色），主 frame 导航时重新选择，登录页固定 `#f7f3ef`，不修改 `nativeTheme`。
+[client-appearance.js](../../../src/electron/client-appearance.js) 在创建运行时与主窗口前读取 `dataDir/client-appearance.json`。自选字体时保存 `fontId`。系统默认 `system` 省略此字段，沿用 `{ themeId }` 记录。旧字体组合取有效的 `fonts.han` 作为整个界面的字族，在下次成功保存外观时写入新格式。合法配色由 [shared/client-theme.js](../../../public/js/shared/client-theme.js) 唯一定义（[src/shared/client-theme.js](../../../src/shared/client-theme.js) 复导出），默认 `terracotta` 暖陶。两项分别校验，读取时遇到无效值就使用该项默认值。保存串行调用 [atomic-file.js](../../../src/electron/atomic-file.js) 的 `writeAtomicFileAsync`，以队列中已提交的另一项合成新记录，采用同目录独占临时文件、刷盘后原子替换（`EPERM` / `EBUSY` 按 50/100/150/200ms 最多重试 4 次），关停前移除写入 IPC 并等待已接受写入完成。外观独立于账号、云同步与浏览器缓存。运行时获得只读 `getClientTheme()` 和 `getClientFont()`。主窗口原生底色取统一配色目录对应页面底（与 `desktop/palettes.css` 一致，浅/深配对主题分别保存独立主题 ID，渐变主题原生底色取对应页面渐变起色），主 frame 导航时重新选择，登录页固定 `#f7f3ef`，不修改 `nativeTheme`。
 
 ### 本机系统通知
 

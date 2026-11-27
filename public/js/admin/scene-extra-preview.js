@@ -18,6 +18,63 @@ import { RANKING_FLAGS, rankingSelection, singleRankingId } from '../shared/live
 import { mountGiftMotionCanvasSettings } from './gift-motion-canvas-settings.js';
 import { mountAdvancedLyricCanvasSettings } from './advanced-lyric-canvas-settings.js';
 import { NOW_PLAYING_PART_FIELDS, nowPlayingSize } from '../shared/now-playing-appearance.js';
+import { hasInstalledAppearance } from '../shared/scene-shared-appearance.js';
+import { BLINDBOX_STYLES, normalizeBlindboxStyle } from '../shared/blindbox-styles.js';
+
+const BLINDBOX_CLASSIC_COLOR_FIELDS = ['themeBackground', 'themeOpacity', 'themeText', 'themePrimary', 'themeAccent'];
+
+function buildBlindboxCanvasThumb(styleId) {
+  const thumb = previewElement('span', 'blindbox-style-thumb');
+  thumb.dataset.thumb = styleId;
+  thumb.setAttribute('aria-hidden', 'true');
+  if (styleId === 'porcelain') {
+    const split = previewElement('span', 'bb-th-split');
+    const left = previewElement('span', 'bb-th-left');
+    left.append(previewElement('span', 'bb-th-line'), previewElement('span', 'bb-th-kpi'), previewElement('span', 'bb-th-sub'));
+    const right = previewElement('span', 'bb-th-right');
+    for (let i = 0; i < 3; i += 1) {
+      const row = previewElement('span', 'bb-th-row');
+      row.append(previewElement('span', 'bb-th-dot'), previewElement('span', 'bb-th-bar'));
+      right.append(row);
+    }
+    split.append(left, right);
+    thumb.append(split);
+    return thumb;
+  }
+  if (styleId === 'layers') {
+    const top = previewElement('span', 'bb-th-top');
+    top.append(previewElement('span', 'bb-th-slab-title'), previewElement('span', 'bb-th-slab-kpi'));
+    const slabs = previewElement('span', 'bb-th-slabs');
+    for (let i = 0; i < 3; i += 1) {
+      const slab = previewElement('span', 'bb-th-slab');
+      slab.append(previewElement('span', 'bb-th-dot'), previewElement('span', 'bb-th-bar'));
+      slabs.append(slab);
+    }
+    thumb.append(top, slabs);
+    return thumb;
+  }
+  const head = previewElement('span', 'bb-th-head');
+  head.append(previewElement('span', 'bb-th-line'), previewElement('span', 'bb-th-kpi'));
+  if (styleId === 'podium') {
+    const seats = previewElement('span', 'bb-th-seats');
+    for (let i = 0; i < 3; i += 1) {
+      const seat = previewElement('span', 'bb-th-seat');
+      seat.append(previewElement('span', 'bb-th-seat-rank'), previewElement('span', 'bb-th-bar'));
+      seats.append(seat);
+    }
+    thumb.append(head, seats);
+    return thumb;
+  }
+  const rows = previewElement('span', 'bb-th-rows');
+  const badgeClass = styleId === 'prism' ? 'bb-th-ring' : 'bb-th-dot';
+  for (let i = 0; i < 3; i += 1) {
+    const row = previewElement('span', 'bb-th-row');
+    row.append(previewElement('span', badgeClass), previewElement('span', 'bb-th-bar'));
+    rows.append(row);
+  }
+  thumb.append(head, rows);
+  return thumb;
+}
 
 export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, hideStyleControl = false, fieldKeys, previewHint, restrictResourceStyle = false } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
@@ -86,7 +143,9 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
       const disposeFontPickers = [];
       const grid = previewElement('div', 'scene-extra-parameters');
       const initialConfig = target.getState().draft;
+      const nativeSettings = !hasInstalledAppearance(initialConfig);
       let rankingInput; let rankingLabel; let legacyRanking;
+      let blindboxStyleButtons = null; let blindboxStyleDesc = null;
       if (type === 'live-rankings') {
         rankingLabel = previewElement('label');
         rankingLabel.append(previewElement('span', 'desktop-lyric-control-copy', '榜单'));
@@ -121,8 +180,9 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         if (type === 'lyrics' && key === 'desktopLyricFallbackFontFamily') continue;
         if (type === 'lyrics' && key.startsWith('advancedLyric') && key !== 'advancedLyricEnabled') continue;
         const previewOnly = Object.hasOwn(previewFields, key);
-        const label = previewElement(field.allowEmpty ? 'div' : 'label');
-        label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));
+        const isBlindboxStyle = type === 'blindbox' && key === 'blindboxStyle';
+        const label = previewElement(field.allowEmpty || isBlindboxStyle ? 'div' : 'label');
+        if (!isBlindboxStyle) label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));
         let inherit;
         const fontFamily = ['desktopLyricFontFamily', 'nowPlayingFontFamily', 'songBoardFontFamily', 'overlayFontFamily'].includes(key);
         const input = previewElement(fontFamily ? 'select' : ['select', 'textarea'].includes(field.type) ? field.type : 'input');
@@ -142,12 +202,13 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         else input.dataset.componentParameter = key;
         if (field.type === 'number') {
           input.min = String(field.min * scale / (cents ? 100 : 1));
-          input.max = String(field.max * scale / (cents ? 100 : 1));
+          const max = nativeSettings ? field.settingsMax ?? field.max : field.max;
+          input.max = String(max * scale / (cents ? 100 : 1));
           input.step = String(field.step * scale / (cents ? 100 : 1));
           input.required = !field.optional;
           input.dataset.autosaveOptional = String(Boolean(field.optional));
         }
-        if (field.maxLength) input.maxLength = field.maxLength;
+        if (field.maxLength && !(nativeSettings && field.settingsText)) input.maxLength = field.maxLength;
         input.addEventListener('blur', () => render(target.getState()));
         const editsOpacity = Object.values(definition.fields).some(field => field.opacity === key);
         const saveEvent = fontFamily || !editsOpacity && ['select', 'checkbox', 'number'].includes(field.type) ? 'change' : 'input';
@@ -182,6 +243,32 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             && !['top', 'months', 'blindboxCastlesRemaining', 'desktopLyricVisibleLines'].includes(key),
         });
         slider?.addEventListener('input', () => { input.value = slider.value; save(); });
+        if (isBlindboxStyle) {
+          label.classList.add('blindbox-style-parameter-row');
+          input.tabIndex = -1;
+          const optionsGrid = previewElement('div', 'blindbox-canvas-style-options');
+          optionsGrid.setAttribute('role', 'group');
+          optionsGrid.setAttribute('aria-label', '选择盲盒卡片样式');
+          blindboxStyleButtons = BLINDBOX_STYLES.map(style => {
+            const button = previewElement('button', 'blindbox-canvas-style-option');
+            button.type = 'button';
+            button.dataset.blindboxStyleOption = style.id;
+            button.setAttribute('aria-pressed', 'false');
+            button.title = style.description;
+            button.append(
+              buildBlindboxCanvasThumb(style.id),
+              previewElement('span', 'blindbox-canvas-style-label', style.label),
+            );
+            button.addEventListener('click', () => {
+              if (button.disabled) return;
+              target.edit({ blindboxStyle: style.id });
+            });
+            optionsGrid.append(button);
+            return button;
+          });
+          blindboxStyleDesc = previewElement('p', 'hint blindbox-canvas-style-desc');
+          label.append(optionsGrid, blindboxStyleDesc);
+        }
         grid.append(label); fields.set(key, { input, slider, cents, scale, inherit, label });
       }
       const syncGroups = embedded && type === 'now-playing' ? () => {}
@@ -209,10 +296,23 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
       const render = ({ draft, loaded }) => {
         const nautical = draft.resourceStyle?.preset === 'nautical-guard-thanks';
         const ranking = type === 'live-rankings' ? singleRankingId(draft) : null;
+        const activeBlindboxStyle = type === 'blindbox' ? normalizeBlindboxStyle(draft.blindboxStyle) : null;
         if (rankingInput) {
           rankingInput.value = ranking || '';
           rankingInput.disabled = !loaded;
           legacyRanking.hidden = Boolean(ranking);
+        }
+        if (blindboxStyleButtons) {
+          for (const button of blindboxStyleButtons) {
+            const active = button.dataset.blindboxStyleOption === activeBlindboxStyle;
+            button.classList.toggle('is-active', active);
+            button.setAttribute('aria-pressed', String(active));
+            button.disabled = !loaded;
+          }
+          if (blindboxStyleDesc) {
+            const activeMeta = BLINDBOX_STYLES.find(item => item.id === activeBlindboxStyle);
+            blindboxStyleDesc.textContent = activeMeta?.description || '';
+          }
         }
         for (const [key, { input, slider, cents, scale, inherit, label }] of fields) {
           const playingPart = type === 'now-playing' ? draft.nowPlayingPart : null;
@@ -228,8 +328,9 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             || type === 'interactions' && ['interactionBarColor', 'interactionTrackColor'].includes(key) && draft.kind !== 'poll'
             || type === 'gift-wishes' && key.startsWith('ribbon') && draft.displayStyle !== 'ribbon'
             || type === 'heart-box-collection' && key === 'backgroundStyle' && draft.displayStyle === 'compact'
-            || type === 'blindbox' && key.startsWith('blindbox') && key !== 'blindboxOverlayTitle' && (!draft.heartBoxOnly
+            || type === 'blindbox' && key.startsWith('blindbox') && !['blindboxOverlayTitle', 'blindboxStyle'].includes(key) && (!draft.heartBoxOnly
               || key === 'blindboxCastlesRemaining' && ![true, 'true'].includes(draft.blindboxShowCastlesRemaining))
+            || type === 'blindbox' && activeBlindboxStyle !== 'classic' && BLINDBOX_CLASSIC_COLOR_FIELDS.includes(key)
             || type === 'guard-thanks' && (nautical ? ['style', 'textMode', 'months'].includes(key)
               : ['showAvatar', 'showUserName', 'nameFontSize'].includes(key))
             || Boolean(NOW_PLAYING_PART_FIELDS[playingPart]) && (['nowPlayingLayout', 'nowPlayingGap'].includes(key)
@@ -242,6 +343,12 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             ? draft.style === 'moonlit' ? '#93682f' : '#ffcf4a'
             : draft.songBoardThemeText;
           if (input.dataset.selectFontPreview !== undefined) ensureSavedFontOption(input, value);
+          if (type === 'guard-thanks' && key === 'textMode') {
+            const follow = input.querySelector('option[value="follow"]');
+            const sharedLanguage = ['aurora', 'classic'].includes(draft.style) && !hasInstalledAppearance(draft);
+            follow.hidden = sharedLanguage;
+            follow.disabled = sharedLanguage;
+          }
           if (input.tagName === 'SELECT' && ['style', 'displayStyle'].includes(key)) {
             const preset = COMPONENT_RESOURCE_PRESETS[draft.resourceStyle?.preset];
             for (const option of input.options) {

@@ -296,6 +296,24 @@ test('a blind-box save only clears the four submitted inputs while the draft is 
   assert.deepEqual(fields.map(node => node.value), ['', '', '', '']);
 });
 
+test('blind-box outputs accept full-width Chinese colons and commas', async () => {
+  const writes = [];
+  const { fill, add } = await blindboxEditor(async ({ giftBlindBoxCustomConfigV2 }) => {
+    writes.push(JSON.parse(giftBlindBoxCustomConfigV2));
+  });
+  fill(['', '星光盲盒', '15', '35207：幸运泡泡：1.5，35208：小星星']);
+  await add();
+  assert.deepEqual(writes, [[{
+    giftId: null,
+    name: '星光盲盒',
+    price: 15,
+    outputs: [
+      { giftId: '35207', name: '幸运泡泡', price: 1.5 },
+      { giftId: '35208', name: '小星星' },
+    ],
+  }]]);
+});
+
 test('retrying a failed blind-box addition saves one copy of the corrected box', async () => {
   const { normalizeGiftBlindBoxCustomConfigV2 } = require('../../src/bilibili/gift/blind-box-config');
   let offline = true;

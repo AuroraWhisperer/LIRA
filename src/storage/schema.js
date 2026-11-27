@@ -444,8 +444,6 @@ const GIFT_INDEX_SCHEMA = `
   END;
 `;
 
-const GIFT_SCHEMA = `${GIFT_TABLE_SCHEMA}\n${GIFT_INDEX_SCHEMA}`;
-
 // ── 播放器 DDL ──
 // 播放状态原先只在浏览器 localStorage，清缓存即丢失、多页面无法共享
 
@@ -555,7 +553,6 @@ module.exports = {
   SUPER_CHAT_SCHEMA,
   GIFT_TABLE_SCHEMA,
   GIFT_INDEX_SCHEMA,
-  GIFT_SCHEMA,
   MUSIC_SCHEMA,
   CHECKIN_SCHEMA,
 };

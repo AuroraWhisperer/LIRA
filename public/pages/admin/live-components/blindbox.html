@@ -1,97 +1,203 @@
 <section id="giftBlindboxFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantBlindboxTab" data-other-feature-panel hidden>
   <div class="other-feature-panel-body stack">
     <section class="gift-blindbox-broadcast-panel">
-      <div class="panel-header">
-        <div class="blindbox-broadcast-heading">
+      <header class="blindbox-toolbar">
+        <div class="blindbox-toolbar-heading">
           <h2 class="gift-section-title ui-section-title">盲盒盈亏榜</h2>
-          <span class="blindbox-broadcast-caption">观众画面</span>
+          <p id="blindboxSaveState" class="blindbox-save-state" role="status">修改后自动保存</p>
         </div>
-        <p id="blindboxSaveState" class="blindbox-save-state" role="status"></p>
-      </div>
-      <div class="panel-body blindbox-builder">
-        <div class="blindbox-url-bar">
-          <div class="blindbox-url-copy">
-            <span class="blindbox-url-label">浏览器源地址</span>
-            <button id="blindboxOverlayUrl" class="copy-url" type="button" aria-label="复制盲盒盈亏榜浏览器源地址" title="点击复制地址"></button>
-          </div>
-          <div class="blindbox-url-actions">
-            <button id="blindboxPreviewBtn" class="secondary" type="button">在画布中调整</button>
-          </div>
+        <div class="blindbox-toolbar-actions">
+          <button id="blindboxOverlayUrl" class="copy-url blindbox-source-copy" type="button" aria-label="复制盲盒盈亏榜浏览器源地址" title="点击复制地址"></button>
+          <button id="blindboxPreviewBtn" class="primary" type="button">在画布中调整</button>
         </div>
+      </header>
 
-        <div class="blindbox-builder-row">
-          <label>
-            <span class="blindbox-builder-label">投屏标题</span>
-            <input id="blindboxOverlayTitle" type="text" placeholder="默认：今日盲盒盈亏" />
-          </label>
-          <label>
-            <span class="blindbox-builder-label"
-              >排行人数 <lira-help>人数按筛选后的榜单计算。填 -1 不限人数，0 只显示汇总，1–10 最多显示所填人数。</lira-help></span
-            >
-            <input id="blindboxOverlayTop" type="number" min="-1" max="10" value="3" placeholder="3" />
-          </label>
-        </div>
-
-        <div class="blindbox-builder-switches">
-          <label class="switch-control">
-            <input id="blindboxWinnersOnly" type="checkbox" role="switch" checked />
-            <span class="switch-track" aria-hidden="true"></span>
-            <span>仅显示盈利</span>
-          </label>
-          <label class="switch-control">
-            <input id="blindboxHeartBoxOnly" type="checkbox" role="switch" />
-            <span class="switch-track" aria-hidden="true"></span>
-            <span>仅显示心动盲盒</span>
-          </label>
-        </div>
-
-        <div id="blindboxHeartBoxSettings" class="blindbox-heart-settings" hidden>
-          <div class="blindbox-subpanel-title">
-            <strong>心动盲盒</strong>
-            <span class="hint">仅统计今天</span>
+      <div class="blindbox-workspace">
+        <!-- 左栏：实时预览舞台 + 今日盲盒实况摘要 -->
+        <section class="blindbox-preview-card" aria-label="实时画面预览与今日统计">
+          <div class="blindbox-preview-head">
+            <div class="blindbox-preview-status">
+              <span class="blindbox-live-dot" id="blindboxLiveDot" aria-hidden="true"></span>
+              <span class="blindbox-preview-heading">画面预览</span>
+              <span id="blindboxPreviewMeta" class="blindbox-preview-meta"></span>
+            </div>
+            <div class="blindbox-preview-tools">
+              <div class="blindbox-backdrop-picker" role="group" aria-label="预览底色">
+                <button type="button" class="blindbox-backdrop-dot is-active" data-blindbox-backdrop="light" aria-pressed="true" title="亮色直播底色"></button>
+                <button type="button" class="blindbox-backdrop-dot" data-blindbox-backdrop="checker" aria-pressed="false" title="透明棋盘格"></button>
+                <button type="button" class="blindbox-backdrop-dot" data-blindbox-backdrop="dark" aria-pressed="false" title="深色直播底色"></button>
+              </div>
+              <div class="blindbox-segmented" role="group" aria-label="预览数据来源">
+                <button type="button" class="blindbox-seg-btn is-active" data-blindbox-preview-mode="live" aria-pressed="true">今日数据</button>
+                <button type="button" class="blindbox-seg-btn" data-blindbox-preview-mode="sample" aria-pressed="false">示例预览</button>
+              </div>
+              <button id="blindboxStatsRefresh" class="ghost icon blindbox-refresh-btn" type="button" aria-label="刷新今日盲盒数据" title="刷新今日盲盒数据">
+                <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M16.5 10a6.5 6.5 0 1 1-1.72-4.42M16.5 3.75v3.5h-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="blindbox-heart-fields">
-            <div class="blindbox-heart-field">
-              <label class="blindbox-field-label" for="blindboxCastleMultiplier">今天几倍堡</label>
-              <div class="blindbox-heart-control">
-                <input id="blindboxCastleMultiplier" type="number" min="0.01" max="1000" step="0.01" placeholder="留空不显示" />
-                <span class="blindbox-unit">倍堡</span>
+
+          <div class="blindbox-style-section" aria-labelledby="blindboxStyleHeading">
+            <div class="blindbox-style-head">
+              <span id="blindboxStyleHeading" class="blindbox-style-heading">卡片样式</span>
+              <span id="blindboxStyleDescription" class="blindbox-style-desc"></span>
+            </div>
+            <div id="blindboxStylePicker" class="blindbox-style-picker" role="group" aria-label="选择盲盒卡片样式"></div>
+          </div>
+
+          <div id="blindboxPreviewStage" class="blindbox-preview-stage" data-backdrop="light">
+            <div id="blindboxPreviewCanvas" class="blindbox-preview-canvas" aria-live="polite"></div>
+          </div>
+
+          <div class="blindbox-live-metrics" aria-label="今日盲盒统计摘要">
+            <div class="blindbox-metric-cell">
+              <span id="blindboxMetricBoxesLabel" class="blindbox-metric-label">今日开盒</span>
+              <strong id="blindboxMetricBoxes" class="blindbox-metric-value">0 盒</strong>
+            </div>
+            <div class="blindbox-metric-cell">
+              <span class="blindbox-metric-label">盲盒成本</span>
+              <strong id="blindboxMetricCost" class="blindbox-metric-value">¥0.00</strong>
+            </div>
+            <div class="blindbox-metric-cell">
+              <span class="blindbox-metric-label">开出价值</span>
+              <strong id="blindboxMetricValue" class="blindbox-metric-value">¥0.00</strong>
+            </div>
+            <div class="blindbox-metric-cell is-profit">
+              <span class="blindbox-metric-label">今日净盈亏</span>
+              <strong id="blindboxMetricProfit" class="blindbox-metric-value">¥0.00</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- 右栏：精炼分组配置面板 -->
+        <div class="blindbox-controls-rail">
+          <section class="blindbox-control-card" aria-labelledby="blindboxContentTitle">
+            <div class="blindbox-card-head">
+              <h3 id="blindboxContentTitle" class="blindbox-card-title">榜单与筛选</h3>
+            </div>
+
+            <label class="blindbox-field">
+              <span class="blindbox-builder-label">投屏标题</span>
+              <input id="blindboxOverlayTitle" type="text" placeholder="默认：今日盲盒盈亏" />
+            </label>
+
+            <div class="blindbox-field">
+              <div class="blindbox-field-head">
+                <label class="blindbox-builder-label" for="blindboxOverlayTop">
+                  排行人数
+                  <lira-help>人数按筛选后的榜单计算。填 -1 不限人数，0 只显示汇总，1–10 最多显示所填人数。</lira-help>
+                </label>
+                <span id="blindboxTopSummary" class="blindbox-field-meta">最多 3 人</span>
+              </div>
+              <div class="blindbox-top-control">
+                <div class="blindbox-preset-group" role="group" aria-label="快捷排行人数">
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-top-preset="0" aria-pressed="false">仅汇总</button>
+                  <button type="button" class="blindbox-preset-chip is-active" data-blindbox-top-preset="3" aria-pressed="true">Top 3</button>
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-top-preset="5" aria-pressed="false">Top 5</button>
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-top-preset="10" aria-pressed="false">Top 10</button>
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-top-preset="-1" aria-pressed="false">全部</button>
+                </div>
+                <input id="blindboxOverlayTop" class="blindbox-top-input" type="number" min="-1" max="10" value="3" placeholder="3" aria-label="自定义排行人数" />
               </div>
             </div>
-            <div class="blindbox-heart-field">
-              <span class="blindbox-field-label">还剩几个堡</span>
-              <div class="blindbox-heart-control">
-                <label class="switch-control">
+
+            <div class="blindbox-toggle-list">
+              <label class="switch-control blindbox-toggle-row">
+                <span class="blindbox-toggle-copy">
+                  <strong>仅显示盈利</strong>
+                  <small>隐藏亏损观众，只保留正收益上榜</small>
+                </span>
+                <input id="blindboxWinnersOnly" type="checkbox" role="switch" checked />
+                <span class="switch-track" aria-hidden="true"></span>
+              </label>
+              <label class="switch-control blindbox-toggle-row">
+                <span class="blindbox-toggle-copy">
+                  <strong>仅显示心动盲盒</strong>
+                  <small>仅统计今日心动盲盒，并启用城堡场控</small>
+                </span>
+                <input id="blindboxHeartBoxOnly" type="checkbox" role="switch" />
+                <span class="switch-track" aria-hidden="true"></span>
+              </label>
+            </div>
+          </section>
+
+          <section id="blindboxHeartBoxSettings" class="blindbox-control-card blindbox-heart-settings" aria-labelledby="blindboxHeartTitle" hidden>
+            <div class="blindbox-card-head">
+              <h3 id="blindboxHeartTitle" class="blindbox-card-title">心动盲盒 · 场控</h3>
+              <span class="blindbox-badge">仅统计今天</span>
+            </div>
+
+            <div class="blindbox-heart-stack">
+              <div class="blindbox-heart-item">
+                <div class="blindbox-heart-item-row">
+                  <label class="blindbox-field-label" for="blindboxCastleMultiplier">今天几倍堡</label>
+                  <div class="blindbox-heart-input-wrap">
+                    <input id="blindboxCastleMultiplier" type="number" min="0.01" max="1000" step="0.01" placeholder="留空隐藏" />
+                    <span class="blindbox-unit">倍堡</span>
+                  </div>
+                </div>
+                <div class="blindbox-mult-presets" role="group" aria-label="快捷倍堡预设">
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-mult-preset="" aria-pressed="false">不显示</button>
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-mult-preset="3" aria-pressed="false">3×</button>
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-mult-preset="4" aria-pressed="false">4×</button>
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-mult-preset="5" aria-pressed="false">5×</button>
+                  <button type="button" class="blindbox-preset-chip" data-blindbox-mult-preset="6" aria-pressed="false">6×</button>
+                </div>
+              </div>
+
+              <div class="blindbox-heart-item blindbox-heart-item-row">
+                <label class="switch-control blindbox-heart-switch">
                   <input id="blindboxShowCastlesRemaining" type="checkbox" role="switch" aria-label="显示剩余城堡" />
                   <span class="switch-track" aria-hidden="true"></span>
+                  <span class="blindbox-field-label">还剩几个堡</span>
                 </label>
-                <input id="blindboxCastlesRemaining" type="number" min="0" max="99999" step="1" value="0" aria-label="剩余城堡数，手动填写" disabled />
-                <span class="blindbox-unit">个堡</span>
+                <div class="blindbox-stepper-group">
+                  <div class="blindbox-stepper">
+                    <button id="blindboxCastlesDec" type="button" class="blindbox-stepper-btn" aria-label="剩余城堡减 1" title="出堡减 1" disabled>−</button>
+                    <input id="blindboxCastlesRemaining" type="number" min="0" max="99999" step="1" value="0" aria-label="剩余城堡数，手动填写" disabled />
+                    <button id="blindboxCastlesInc" type="button" class="blindbox-stepper-btn" aria-label="剩余城堡加 1" title="剩余城堡加 1" disabled>+</button>
+                  </div>
+                  <span class="blindbox-unit">个堡</span>
+                </div>
               </div>
-            </div>
-            <div class="blindbox-heart-field">
-              <span class="blindbox-field-label"
-                >出堡后已开盒数 <lira-help>统计今天上次爆出浪漫城堡后，又垫了多少个心动盲盒（再次出堡后归零，直接送的城堡不算）。</lira-help></span
-              >
-              <div class="blindbox-heart-control">
+
+              <div class="blindbox-heart-item blindbox-heart-item-row">
+                <div class="blindbox-opened-label">
+                  <span class="blindbox-field-label">
+                    出堡后已开盒数
+                    <lira-help>统计今天上次爆出浪漫城堡后，又垫了多少个心动盲盒（再次出堡后归零，直接送的城堡不算）。</lira-help>
+                  </span>
+                  <span id="blindboxOpenedCountBadge" class="blindbox-opened-badge" hidden></span>
+                </div>
                 <label class="switch-control">
                   <input id="blindboxShowOpenedSinceCastle" type="checkbox" role="switch" aria-label="显示出堡后已开盒数" />
                   <span class="switch-track" aria-hidden="true"></span>
-                  <span>显示</span>
                 </label>
               </div>
             </div>
-          </div>
-        </div>
+          </section>
 
-        <section class="blindbox-appearance" aria-labelledby="blindboxAppearanceTitle">
-          <div class="blindbox-section-head">
-            <h3 id="blindboxAppearanceTitle" class="blindbox-section-title">外观</h3>
-            <span class="hint">字体和配色与点歌板共用。</span>
-            <button class="secondary" type="button" data-main-page-link="songAssistantPage" data-song-tab-target="themePage">前往点歌板调整</button>
-          </div>
-          <div id="blindboxAppearanceFields" class="blindbox-appearance-fields"></div>
-        </section>
+          <section class="blindbox-control-card blindbox-appearance" aria-labelledby="blindboxAppearanceTitle">
+            <div class="blindbox-card-head">
+              <h3 id="blindboxAppearanceTitle" class="blindbox-card-title">布局与外观</h3>
+              <button class="ghost blindbox-theme-link" type="button" data-main-page-link="songAssistantPage" data-song-tab-target="themePage">
+                前往点歌板调整 ↗
+              </button>
+            </div>
+            <div id="blindboxThemeSummary" class="blindbox-theme-strip" aria-label="当前共用主题概览">
+              <span id="blindboxThemeSwatches" class="blindbox-theme-swatches" aria-hidden="true">
+                <i id="blindboxSwatchBg"></i>
+                <i id="blindboxSwatchPrimary"></i>
+                <i id="blindboxSwatchAccent"></i>
+                <i id="blindboxSwatchText"></i>
+              </span>
+              <span id="blindboxThemeFontLabel" class="blindbox-theme-copy">与点歌板共用字体和配色</span>
+            </div>
+            <div id="blindboxAppearanceFields" class="blindbox-appearance-fields"></div>
+          </section>
+        </div>
       </div>
     </section>
   </div>

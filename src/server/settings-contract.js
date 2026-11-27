@@ -64,6 +64,10 @@ function normalizeSettingValue(key, rawValue) {
   if (key === 'queueRequestRequesterColor' || key === 'queueRequestSongColor') {
     return typeof rawValue === 'string' && /^#[0-9a-f]{6}$/i.test(rawValue) ? rawValue.toLowerCase() : null;
   }
+  if (key === 'blindboxStyle') {
+    return typeof rawValue === 'string' && ['classic', 'porcelain', 'layers', 'prism', 'podium'].includes(rawValue.trim())
+      ? rawValue.trim() : null;
+  }
   if (['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxCompact', 'blindboxAutoPages', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'].includes(key)) {
     return [true, false, 'true', 'false'].includes(rawValue) ? String(rawValue) : null;
   }

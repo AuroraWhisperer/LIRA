@@ -45,7 +45,7 @@ function createLicenseStateStore(options = {}) {
     return next;
   }
 
-  return { statePath, read, write };
+  return { read, write };
 }
 
 function pickSafeFields(value) {

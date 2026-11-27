@@ -88,7 +88,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `lyrics` | 歌词展示设置、`lyricState`、`lyricTimeline` | `lyric-state`、`lyric-timeline` |
 | `now-playing` | `nowPlaying` 曲目展示字段及 `nowPlayingConfig` 外观字段白名单 | `now-playing`；不接收歌词、采集诊断或其他设置 |
 | `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`、`danmaku:superchat-delete`（另需 `topic=danmaku`） |
-| `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
+| `games` | 按需读取可选的 `games` 字段，提供该字段的上下文会投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
 | `wheel` | 空 `state` | `wheel:update` |
 | `interactions` | 本页互动外观设置；全局 snapshot 不含互动 session | `interaction:update`；公开状态与恢复规则见下方“类别 3 互动结果” |
 | `clock` | `overlay-projection.js` 的 clock 设置白名单，含 `clockMoonMode`、`clockMoonIntervalSeconds` 和 JSON 字符串 `clockStyleParameters`；不按前缀放行其他设置 | 无；通过 `settings` 快照更新 |

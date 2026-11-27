@@ -24,6 +24,7 @@ const PARAMETER_GROUPS = {
       'songBoardBackdropBlur', 'songBoardGlowIntensity', 'songBoardEnableGradient', 'songBoardGradientEnd']],
   ],
   blindbox: [
+    ['style', '卡片样式', ['blindboxStyle']],
     ['content', '榜单与筛选', ['blindboxOverlayTitle', 'top', 'winnersOnly', 'heartBoxOnly',
       'blindboxCastleMultiplier', 'blindboxShowCastlesRemaining', 'blindboxCastlesRemaining', 'blindboxShowOpenedSinceCastle']],
     ['appearance', '外观设置', ['compact', 'noScroll', 'overlayFontFamily', 'overlayFontWeight', 'themeFontScale',

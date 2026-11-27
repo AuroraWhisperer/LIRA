@@ -32,7 +32,7 @@ const SETTING_KEYS = {
     songBoardFontWeight songBoardGlowIntensity songBoardGradientEnd songBoardSongColor songBoardSongFontSize
     songBoardSortMode songBoardSyncTheme songBoardThemeAccent songBoardThemeBackground songBoardThemeOpacity
     songBoardThemePrimary songBoardThemeRadius songBoardThemeText songBoardTitle songBoardTitleFontSize`,
-  blindbox: `backdropBlur blindboxOverlayTitle blindboxOverlayTop blindboxWinnersOnly blindboxHeartBoxOnly blindboxCompact blindboxAutoPages
+  blindbox: `backdropBlur blindboxStyle blindboxOverlayTitle blindboxOverlayTop blindboxWinnersOnly blindboxHeartBoxOnly blindboxCompact blindboxAutoPages
     blindboxCastleMultiplier blindboxCastlesRemaining blindboxShowCastlesRemaining blindboxShowOpenedSinceCastle enableGradient glowIntensity gradientEnd
     overlayFontFamily overlayFontWeight overlayLowPowerMode overlayRequesterColor overlaySongColor
     themeAccent themeBackground themeFontScale themeOpacity themePrimary themeRadius themeText`,
@@ -319,8 +319,8 @@ function projectRoomGuard(roomGuard) {
 
 function getOverlayStateFields(scope) {
   if (!Object.hasOwn(STATE_SCHEMAS, scope)) return [];
-  // Legacy dedicated game contexts may supply an optional whole games snapshot.
-  if (scope === 'games') return null;
+  // Legacy game contexts may still provide this field without a full runtime snapshot.
+  if (scope === 'games') return ['games'];
   return [
     ...Object.keys(STATE_SCHEMAS[scope]),
     ...(ROOM_GUARD_SCOPES.has(scope) ? ['roomGuard'] : []),

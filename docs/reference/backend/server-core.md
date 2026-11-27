@@ -160,7 +160,7 @@ AI 配置写入经 `ai-runtime.js` 的 `updateConfig()` 进入服务，提交成
 | `fans` | 本地粉丝档案与点歌事实处理 | [storage.md](storage.md) |
 | `giftWishes` / `heartBoxCollection` / `overtimeGiftCatalog` | 本地礼物许愿、心动盲盒每周收集与共享礼物目录；收集服务复用许愿存储的窗口聚合 | [bilibili/gift.md](bilibili/gift.md)、[overtime.md](overtime.md) |
 | `data` | [data-maintenance-runtime.js](../../../src/server/data-maintenance-runtime.js) 负责清库后运行状态恢复、来源选择、保留策略与 schema 版本缓存 | [storage.md](storage.md) |
-| `playback` / `theme` / `cooldowns` | `playback-store` / `theme-store` / `cooldown-store` | [storage.md](storage.md) |
+| `playback` / `theme` | `playback-store` / `theme-store` | [storage.md](storage.md) |
 
 **动态抽奖运行时**：由 [dynamic-lottery-runtime.js](../../../src/server/dynamic-lottery-runtime.js) 组装专用账号端口、`lotteryDb` 存储层、串行请求预算与领域服务，`server.js` 仅持有资源句柄并向路由注入精简接口门面。启动或切换账号后，首次处理当前账号的抽奖请求时将中断的采集与开奖恢复为暂停并清理历史场次，不自动请求 B 站；库不可用时仅禁用该功能。关闭数据库前先取消并排空抽奖任务；独立 Node 启动缺少 Electron 专用账号端口，返回桌面版限制提示。认证生命周期的取消信号由专用账号模块提供，runtime 在创建或执行任务前等待已取消的旧任务释放占用并复核操作身份；取消传递到网络请求与退避但不清空请求预算，详见 [动态抽奖专用账号](../desktop/auth.md#14-动态抽奖专用账号)。
 

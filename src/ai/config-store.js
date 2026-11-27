@@ -220,21 +220,6 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
     return persistence.isBlacklisted(String(uid));
   }
 
-  function setBlacklist(uid, blocked, details = {}) {
-    const normalizedUid = String(uid || '').trim();
-    if (!normalizedUid) throw new Error('UID 不能为空。');
-    if (!blocked) {
-      persistence.deleteBlacklistEntry(normalizedUid);
-      return;
-    }
-    persistence.upsertBlacklistEntry({
-      uid: normalizedUid,
-      userName: String(details.userName || '').slice(0, 80),
-      reason: String(details.reason || '').slice(0, 200),
-      createdAt: now(),
-    });
-  }
-
   function getContext(uid, personaScope = '') {
     if (personaScope) uid = `persona:${hashCacheKey(JSON.stringify([String(uid), personaScope]))}`;
     const row = persistence.readContext(String(uid || ''));
@@ -304,7 +289,6 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
     exportPersona: () => exportPersona(getConfig()),
     logRequest,
     isBlacklisted,
-    setBlacklist,
     getContext,
     setContext,
     clearContext,

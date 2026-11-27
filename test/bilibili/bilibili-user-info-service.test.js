@@ -3,13 +3,11 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { IdentityCache } = require('../../src/bilibili/danmaku/identity-cache');
 const { UserInfoService } = require('../../src/bilibili/users/user-info-service');
 
 function createService(options = {}) {
   let nowMs = options.nowMs || 1_000;
   const service = new UserInfoService({
-    identityCache: new IdentityCache(),
     profileProvider: options.profileProvider,
     now: () => nowMs,
     diagnostics: options.diagnostics,
@@ -388,8 +386,7 @@ test('continuous identity ingestion evicts expired viewers without requiring a U
     advance(11 * 60 * 1000);
   }
   assert.equal(service.records.size, 1);
-  assert.equal(service.identityCache.identityByUid.size, 1);
-  assert.equal(service.identityCache.identityByName.size, 1);
+  assert.equal(service.recentSeenAt.size, 1);
   service.dispose();
 });
 
@@ -402,9 +399,7 @@ test('identity ingestion retains only the TTL window after one simulated week', 
     advance(60000);
   }
   assert.equal(service.records.size, 11);
-  assert.equal(service.identityCache.identityByUid.size, 11);
-  assert.equal(service.identityCache.identityByName.size, 11);
-  assert.equal(service.identityCache.recentByUid.size, 11);
+  assert.equal(service.recentSeenAt.size, 11);
   service.dispose();
 });
 

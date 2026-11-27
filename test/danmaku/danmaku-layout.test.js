@@ -104,10 +104,9 @@ test('older layouts gain each missing newer region at its default without moving
     'restored random regions keep filling the canvas after resizing');
 });
 
-test('the CommonJS layout and resolution entries use the browser contracts', async () => {
+test('the CommonJS layout entry uses the browser layout and resolution contracts', async () => {
   const browser = await import('../../public/js/shared/danmaku-layout.js');
   const { CANVAS_PRESETS } = await import('../../public/js/shared/canvas-presets.js');
   assert.equal(layout.normalizeLayout, browser.normalizeLayout);
   assert.equal(layout.CANVAS_PRESETS, CANVAS_PRESETS);
-  assert.equal(require('../../src/shared/canvas-presets').CANVAS_PRESETS, CANVAS_PRESETS);
 });

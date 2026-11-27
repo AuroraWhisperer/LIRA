@@ -229,17 +229,20 @@ body.desktop-shell .status-strip {
   margin-left: auto;
 }
 
-body.desktop-shell .status-strip .topbar-icon-button,
-body.desktop-shell .status-strip .topbar-live-status {
+body.desktop-shell .status-strip .topbar-icon-button {
   min-height: 26px;
   height: 26px;
   padding-block: 2px;
   font-size: var(--type-size-micro);
-}
-
-body.desktop-shell .status-strip .topbar-icon-button {
   width: 30px;
   flex-basis: 30px;
+}
+
+body.desktop-shell .status-strip .topbar-live-status {
+  min-height: 28px;
+  height: 28px;
+  padding: 2px 11px;
+  font-size: var(--type-size-caption);
 }
 
 body.desktop-shell .topbar-icon-button svg {

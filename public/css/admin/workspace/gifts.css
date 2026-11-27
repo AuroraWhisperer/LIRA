@@ -70,8 +70,8 @@ body.player-dock-expanded .gift-workspace {
   min-height: auto;
 }
 
-/* 统一「最近礼物」与「今日盲盒盈亏」标题栏：稳态不跳动，仅标题与折叠按钮触发折叠 */
-.gift-page .panel:is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header {
+/* 统一「最近礼物」「今日盲盒盈亏」与「盲盒设置」标题栏：稳态不跳动，仅标题与折叠按钮触发折叠 */
+.gift-page .panel:is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel) > .panel-header {
   cursor: default;
   min-height: 62px;
   padding: 12px 16px;
@@ -81,15 +81,19 @@ body.player-dock-expanded .gift-workspace {
   transition: border-color 160ms ease;
 }
 
-.gift-page .panel:is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header:is(:hover, :active) {
+.gift-page
+  .panel:is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel)
+  > .panel-header:is(:hover, :active) {
   background-color: transparent;
 }
 
-.gift-page .panel:is(.gift-recent-panel, .gift-blindbox-panel).is-collapsed > .panel-header {
+.gift-page
+  .panel:is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel).is-collapsed
+  > .panel-header {
   border-bottom-color: transparent;
 }
 
-.gift-page :is(.gift-recent-heading, .blind-stats-heading) {
+.gift-page :is(.gift-recent-heading, .blind-stats-heading, .blind-mapping-heading) {
   display: inline-flex;
   align-items: center;
   gap: 11px;
@@ -98,7 +102,7 @@ body.player-dock-expanded .gift-workspace {
   user-select: none;
 }
 
-.gift-page :is(.gift-recent-heading, .blind-stats-heading):hover .gift-section-title {
+.gift-page :is(.gift-recent-heading, .blind-stats-heading, .blind-mapping-heading):hover .gift-section-title {
   color: var(--color-primary-text, var(--color-accent));
 }
 
@@ -111,13 +115,16 @@ body.player-dock-expanded .gift-workspace {
   cursor: default;
 }
 
-.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .actions {
+.gift-page :is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel) > .panel-header .actions {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .section-toggle {
+.gift-page
+  :is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel)
+  > .panel-header
+  .section-toggle {
   width: 32px;
   height: 32px;
   min-width: 32px;
@@ -132,13 +139,22 @@ body.player-dock-expanded .gift-workspace {
     border-color 140ms ease;
 }
 
-.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .section-toggle:hover {
+.gift-page
+  :is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel)
+  > .panel-header
+  .section-toggle:hover {
   border-color: var(--color-border-strong);
   color: var(--text);
 }
 
-.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .section-toggle:focus-visible,
-.gift-page :is(.gift-recent-panel, .gift-blindbox-panel) > .panel-header .gift-history-open-btn:focus-visible {
+.gift-page
+  :is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel)
+  > .panel-header
+  .section-toggle:focus-visible,
+.gift-page
+  :is(.gift-recent-panel, .gift-blindbox-panel, .gift-blindbox-mapping-panel)
+  > .panel-header
+  .gift-history-open-btn:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
 }

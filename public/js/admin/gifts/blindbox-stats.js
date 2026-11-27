@@ -173,17 +173,38 @@ export function initBlindBoxStats() {
 
     body.innerHTML = users
       .slice(0, 10)
-      .map((user) => {
+      .map((user, index) => {
         const profitSign = user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
-        const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : '';
+        const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : 'profit-flat';
+        const rank = index + 1;
+        const rankClass = rank <= 3 ? ` is-top-${rank}` : '';
+        const userName = user.userName || '观众';
         return `
-        <tr class="blind-stats-user-row" tabindex="0" data-viewer="${escapeAttr(user.viewer || '')}" title="查看${escapeAttr(user.userName || '观众')}的开盒记录">
-          <td class="user-cell">${escapeHtml(user.userName || '观众')}</td>
-          <td>${Number(user.boxCount || 0)}</td>
-          <td>${Number(user.boxTypeCount || 0)} 种</td>
-          <td>${formatMoney(user.totalCost)}</td>
-          <td>${formatMoney(user.totalValue)}</td>
-          <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(user.totalProfit))}</td>
+        <tr class="blind-stats-user-row" tabindex="0" data-viewer="${escapeAttr(user.viewer || '')}" title="查看${escapeAttr(userName)}的开盒记录">
+          <td class="user-cell">
+            <div class="blind-stats-user">
+              <span class="blind-stats-rank${rankClass}" aria-hidden="true">${rank}</span>
+              <span class="blind-stats-user-name">${escapeHtml(userName)}</span>
+            </div>
+          </td>
+          <td class="blind-stats-boxes-cell">
+            <span class="blind-stats-boxes">
+              <span>${Number(user.boxCount || 0)} 盒</span>
+              <span class="blind-stats-box-type">${Number(user.boxTypeCount || 0)} 种</span>
+            </span>
+          </td>
+          <td class="blind-stats-cost-cell">${formatMoney(user.totalCost)}</td>
+          <td class="blind-stats-value-cell">${formatMoney(user.totalValue)}</td>
+          <td class="blind-stats-profit-cell">
+            <span class="blind-stats-profit-pill ${profitClass}">${profitSign}${formatMoney(Math.abs(user.totalProfit))}</span>
+          </td>
+          <td class="blind-stats-action-cell" aria-hidden="true">
+            <span class="blind-stats-chevron">
+              <svg viewBox="0 0 20 20" fill="none">
+                <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+          </td>
         </tr>
       `;
       })

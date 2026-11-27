@@ -69,10 +69,6 @@ class BilibiliApiClient {
     };
   }
 
-  async fetchOwnerName(uid) {
-    return (await this.fetchOwnerProfile(uid))?.name || '';
-  }
-
   async fetchOwnerProfile(uid) {
     const { payload } = await this.fetchJson(
       'master_info',

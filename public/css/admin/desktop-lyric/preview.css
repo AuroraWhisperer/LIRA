@@ -3,7 +3,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -35,7 +35,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 6px 12px;
   border-top: 1px solid var(--border);
 }
 
@@ -52,21 +52,22 @@
 }
 
 #desktopLyricCopyUrlBtn {
-  padding: 6px 10px;
+  min-height: 32px;
+  padding: 4px 10px;
   white-space: nowrap;
 }
 
 .desktop-lyric-preview-backgrounds {
   display: flex;
   gap: 2px;
-  padding: 3px;
+  padding: 2px;
   border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
 .desktop-lyric-preview-backgrounds button {
   min-height: 28px;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-color: transparent;
   background: transparent;
   color: var(--muted);
@@ -100,11 +101,10 @@
   white-space: nowrap;
 }
 
-.desktop-lyric-preview-size input {
+#desktopLyricLivePreview .desktop-lyric-preview-size input {
   width: 76px;
   min-height: 30px;
   padding-block: 4px;
-  padding-inline-start: 6px;
   font-size: inherit;
   font-variant-numeric: tabular-nums;
 }

@@ -370,6 +370,9 @@ test('runtime state selection skips unrelated domains and preserves the complete
     getState(['queue', 'superChats']);
     assert.deepEqual(reads.toSorted(), ['queue.getSnapshot', 'superChats.getSnapshot']);
     reads.length = 0;
+    const { getOverlayStateFields } = require('../../src/server/overlay-projection');
+    assert.deepEqual(Object.keys(getState(getOverlayStateFields('games'))), []);
+    assert.deepEqual(reads, []);
     const state = getState();
     assert.deepEqual(Object.keys(state).sort(), ['queue', 'superChats', 'gifts', 'giftSourceEpoch', 'giftSprint', 'giftDetection',
       'blindBoxMapping', 'overtime', 'settings', 'categories', 'tags', 'songCount', 'liveStatus', 'roomGuard',

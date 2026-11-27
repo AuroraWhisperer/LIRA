@@ -29,7 +29,7 @@ async function handleOverlayApi(context, principal, request, res) {
       case '/api/interactions/session':
         return reply(context.interactions.getState());
       case '/api/state':
-        return reply(context.system.getState(getOverlayStateFields(principal.scope) ?? undefined, { includeRecentGifts: false }));
+        return reply(context.system.getState(getOverlayStateFields(principal.scope), { includeRecentGifts: false }));
       case '/api/songs':
         return reply(context.songs.list({ enabledOnly: true, categories: query.getAll('category') }));
       case '/api/gifts/blind-box-stats':

@@ -17,7 +17,6 @@ const {
 } = require('./remote-catalog-image-policy');
 const { resolveDataPaths } = require('../../shared/data-paths');
 
-const CACHE_FILE_NAME = 'overtime-gift-catalog-v2.json';
 const DEFAULT_POLL_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_MIN_REFRESH_MS = 5 * 60 * 1000;
 
@@ -344,7 +343,6 @@ function currentTimeMs(clock) {
 }
 
 module.exports = {
-  CACHE_FILE_NAME,
   createRemoteGiftCatalogCache,
   normalizeImageBaseUrl,
   normalizeBilibiliImageUrl,

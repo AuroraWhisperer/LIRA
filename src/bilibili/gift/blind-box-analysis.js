@@ -213,9 +213,8 @@ function getBlindBoxAnalysis(context, options = {}) {
     sort,
     direction,
     items: allItems.slice(start, start + limit),
-    ...(filteredRows.some((row) => row.archived) ? { hasArchivedDetails: true } : {}),
-    ...(filteredRows.some((row) => row.legacyArchivedDate) ? { hasLegacyArchivedDates: true } : {}),
     ...(filteredRows.some((row) => row.archived) ? {
+      hasArchivedDetails: true,
       archiveTimeZones: [...new Set(filteredRows.filter(row => row.archived).map(row => row.archiveTimeZone))],
       hasArchivedTimezoneMismatch: filteredRows.some(row => row.archivedTimezoneMismatch),
       archivePrecision: 'day',

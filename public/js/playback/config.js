@@ -7,7 +7,6 @@
  */
 export const PlaybackConfig = {
   // 存储相关
-  STORAGE_KEY: 'songAssistantPlaybackState:v1',
   CLIENT_ID: 'default',
   STATE_SAVE_DEBOUNCE_MS: 1500,
   STATE_SAVE_MAX_WAIT_MS: 10000,
@@ -23,7 +22,4 @@ export const PlaybackConfig = {
   // 历史记录相关
   HISTORY_MAX_SIZE: 50,
   DISPLAY_HISTORY_MAX_SIZE: 200,
-
-  // UI 相关
-  FULLSCREEN_BG_THEME_COUNT: 30,
 };

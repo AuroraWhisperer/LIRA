@@ -453,11 +453,6 @@ function hasHistoryRows() {
   return historyLoaded && giftLedgerState.items.length > 0;
 }
 
-function setText(id, value) {
-  const element = get(id);
-  if (element) element.textContent = value;
-}
-
 function setButtonLabel(labelId, fallbackId, value) {
   const element = get(labelId) || get(fallbackId);
   if (element) element.textContent = value;

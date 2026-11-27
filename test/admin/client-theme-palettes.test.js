@@ -8,7 +8,6 @@ const {
   CLIENT_THEMES,
   CLIENT_THEME_CATEGORIES,
   CLIENT_THEME_CATEGORY_MAP,
-  getPairedClientTheme,
 } = require('../../src/shared/client-theme');
 
 const css = fs.readFileSync(path.resolve(__dirname, '../../public/css/desktop/palettes.css'), 'utf8');
@@ -159,10 +158,9 @@ test('client theme catalog, CSS layering, color-scheme and preview isolation inv
     assert.ok(validTemperatures.has(theme.temperature), `${theme.id}: valid temperature`);
 
     if (theme.family) {
-      const paired = getPairedClientTheme(theme.id);
-      assert.ok(paired, `${theme.id}: paired family theme must exist`);
-      assert.notEqual(paired.mode, theme.mode, `${theme.id}: paired theme must have opposite mode`);
-      assert.equal(getPairedClientTheme(paired.id)?.id, theme.id, `${theme.id}: pairing must be symmetric`);
+      const family = CLIENT_THEMES.filter(candidate => candidate.family === theme.family);
+      assert.equal(family.length, 2, `${theme.id}: paired family must contain two themes`);
+      assert.equal(new Set(family.map(candidate => candidate.mode)).size, 2, `${theme.id}: family must cover both modes`);
     }
 
     const palette = themeTokens(theme);

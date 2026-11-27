@@ -4,7 +4,7 @@
       <div class="panel-header">
         <div class="gift-recent-heading" id="giftRecentHeading">
           <span class="gift-recent-heading-icon" aria-hidden="true">
-            <img src="/img/admin/gifts/gift-section-icon.webp?v=20260801-01" alt="" />
+            <img src="/img/admin/gifts/recent-gifts-stamp.webp" width="30" height="30" alt="" />
           </span>
           <h2 class="gift-section-title ui-section-title">最近礼物</h2>
           <span id="giftSprintStatus" class="pill warn" hidden>统计已暂停</span>
@@ -67,15 +67,7 @@
       <div class="panel-header">
         <div class="blind-stats-heading" id="blindBoxStatsHeading">
           <span class="blind-stats-heading-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path
-                d="M4 19V9m6 10V5m6 14v-7m4 7H2"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
+            <img src="/img/admin/gifts/blindbox-profit-loss-stamp.webp" width="30" height="30" alt="" />
           </span>
           <h2 class="gift-section-title ui-section-title">今日盲盒盈亏</h2>
         </div>
@@ -121,24 +113,34 @@
               <span class="ui-caption">马上就好…</span>
             </div>
           </div>
-          <div class="gift-blind-stats-table-wrap" style="max-height: 420px; overflow-y: auto">
-            <table class="blind-stats-table" id="blindBoxStatsTable">
-              <thead>
-                <tr>
-                  <th>观众</th>
-                  <th>盒数</th>
-                  <th>盒型</th>
-                  <th>总成本</th>
-                  <th>开出价值</th>
-                  <th>观众盈亏</th>
-                </tr>
-              </thead>
-              <tbody id="blindBoxStatsBody">
-                <tr>
-                  <td colspan="6" class="empty">暂无数据</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="gift-blind-stats-table-wrap">
+            <div class="gift-blind-stats-table-scroll">
+              <table class="blind-stats-table" id="blindBoxStatsTable">
+                <colgroup>
+                  <col class="blind-stats-col-user" />
+                  <col class="blind-stats-col-boxes" />
+                  <col class="blind-stats-col-cost" />
+                  <col class="blind-stats-col-value" />
+                  <col class="blind-stats-col-profit" />
+                  <col class="blind-stats-col-action" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>观众</th>
+                    <th>开盒</th>
+                    <th>总成本</th>
+                    <th>开出价值</th>
+                    <th>观众盈亏</th>
+                    <th class="blind-stats-action-col" aria-label="查看明细"></th>
+                  </tr>
+                </thead>
+                <tbody id="blindBoxStatsBody">
+                  <tr>
+                    <td colspan="6" class="empty">暂无数据</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -146,43 +148,161 @@
 
     <section class="panel gift-blindbox-mapping-panel">
       <div class="panel-header">
-        <h2 class="gift-section-title ui-section-title">
-          盲盒设置
-          <lira-help>要刷新当前房间的在售盲盒，在设置中保存直播间号，再回到礼物助手。</lira-help>
-        </h2>
-        <button id="blindBoxAdvancedToggle" class="secondary" type="button" title="高级编辑">高级 ▾</button>
-      </div>
-      <div class="panel-body stack">
-        <p class="hint">盲盒的官方产物列表会自动同步。找不到盲盒时，可先点「展开其余盲盒」查找。官方尚未将该礼物收录为盲盒时，可在这里手动补充。</p>
-        <div class="blind-box-form-row">
-          <input id="blindBoxGiftId" type="text" inputmode="numeric" placeholder="盲盒 ID（可选）" />
-          <input id="blindBoxName" type="text" placeholder="盲盒名，如 星光盲盒" />
-          <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="成本（元）" />
-          <input id="blindBoxOutputs" type="text" placeholder="产物 ID:名称:价格" aria-describedby="blindBoxOutputsHint" />
-          <button id="blindBoxAddBtn" class="primary" type="button">+ 添加</button>
+        <div class="blind-mapping-heading" id="blindBoxMappingHeading">
+          <span class="blind-mapping-heading-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+              <path
+                d="M4.5 9.5h15v8.5a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2V9.5Z"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M3.5 7.2A1.7 1.7 0 0 1 5.2 5.5h13.6a1.7 1.7 0 0 1 1.7 1.7v2.3h-17V7.2Z"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linejoin="round"
+              />
+              <path d="M12 5.5V20" stroke="currentColor" stroke-width="1.8" />
+              <path
+                d="M12 5.5c-.45-1.7-1.95-2.85-3.15-2.45-1.15.38-1.4 1.72-.25 2.45H12Zm0 0c.45-1.7 1.95-2.85 3.15-2.45 1.15.38 1.4 1.72.25 2.45H12Z"
+                stroke="currentColor"
+                stroke-width="1.65"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <h2 class="gift-section-title ui-section-title">盲盒设置</h2>
+          <lira-help label="盲盒设置说明">默认优先展示当前直播间在售的盲盒。切换直播间后，在设置中保存新房间号，回到此页会自动刷新。</lira-help>
         </div>
-        <p id="blindBoxOutputsHint" class="hint">多个产物用逗号分隔。单个产物的写法如 35207:幸运泡泡:1.5。</p>
-        <div id="blindBoxMappingStatus" class="hint" role="status"></div>
-        <div id="blindBoxList" class="blind-box-list"></div>
-        <button
-          id="blindBoxListToggle"
-          class="secondary blind-box-list-toggle"
-          type="button"
-          aria-expanded="false"
-          aria-controls="blindBoxList"
-          hidden
-        >
-          展开其余盲盒 ▾
-        </button>
-        <div id="blindBoxAdvanced" hidden>
-          <p class="hint">此处仅编辑自定义配置。</p>
-          <textarea
-            id="giftBlindBoxCustomConfigV2"
-            aria-label="自定义盲盒配置 JSON"
-            rows="6"
-            placeholder="暂无自定义配置。可在上方添加盲盒，或在此输入 JSON 数组。"
-          ></textarea>
-          <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
+        <div class="actions">
+          <button
+            id="blindBoxComposerToggle"
+            class="gift-history-open-btn blind-box-composer-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="blindBoxComposer"
+          >
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M10 4.5v11M4.5 10h11"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span class="blind-box-composer-toggle-label">补充盲盒</span>
+          </button>
+          <button
+            id="blindBoxMappingToggle"
+            class="section-toggle"
+            type="button"
+            aria-controls="blindBoxMappingCollapsible"
+            aria-expanded="true"
+            title="折叠盲盒设置"
+          >
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="m6 12 4-4 4 4"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div id="blindBoxMappingCollapsible" class="blind-mapping-collapsible">
+        <div class="panel-body blind-box-mapping-body">
+          <div class="blind-box-intro-bar">
+            <p class="blind-box-intro-text">常见盲盒的成本与奖池会自动同步；没找到时可先展开其余盲盒，官方尚未支持的再手动补充。</p>
+            <div class="blind-box-meta-badges">
+              <span id="blindBoxCountSummary" class="pill blind-box-summary-pill" hidden></span>
+              <div id="blindBoxMappingStatus" class="pill blind-box-status-pill" role="status" hidden></div>
+            </div>
+          </div>
+
+          <div id="blindBoxComposer" class="blind-box-composer" hidden>
+            <div class="blind-box-composer-head">
+              <strong class="ui-card-title">补充自定义盲盒</strong>
+              <span class="ui-caption">仅在官方尚未收录该盲盒时填写，保存后会同步到当前账号。</span>
+            </div>
+            <div class="blind-box-form-grid">
+              <label class="blind-box-field blind-box-field-name" for="blindBoxName">
+                <span class="blind-box-field-label">盲盒名称 <em class="blind-box-required" aria-hidden="true">*</em></span>
+                <input id="blindBoxName" type="text" placeholder="例如：星光盲盒" />
+              </label>
+              <label class="blind-box-field blind-box-field-price" for="blindBoxPrice">
+                <span class="blind-box-field-label">单盒成本（元） <em class="blind-box-required" aria-hidden="true">*</em></span>
+                <input id="blindBoxPrice" type="number" min="0" step="0.01" placeholder="例如：15" />
+              </label>
+              <label class="blind-box-field blind-box-field-id" for="blindBoxGiftId">
+                <span class="blind-box-field-label">盲盒 ID <small>选填</small></span>
+                <input id="blindBoxGiftId" type="text" inputmode="numeric" placeholder="填写后匹配更准确" />
+              </label>
+              <label class="blind-box-field blind-box-field-outputs" for="blindBoxOutputs">
+                <span class="blind-box-field-label">能开出的礼物 <em class="blind-box-required" aria-hidden="true">*</em></span>
+                <input
+                  id="blindBoxOutputs"
+                  type="text"
+                  placeholder="礼物 ID:名称:价格（如 35207:幸运泡泡:1.5），多个用逗号隔开"
+                  aria-describedby="blindBoxOutputsHint"
+                />
+              </label>
+            </div>
+            <p id="blindBoxOutputsHint" class="blind-box-outputs-hint">
+              格式：<code>礼物 ID:名称:价格</code>（价格单位为元，可省略），多个礼物用逗号隔开，如 <code>35207:幸运泡泡:1.5</code>。
+            </p>
+            <div id="blindBoxOutputsPreview" class="blind-box-outputs-preview" aria-live="polite" hidden></div>
+            <div class="blind-box-composer-footer">
+              <button
+                id="blindBoxAdvancedToggle"
+                class="ghost blind-box-advanced-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="blindBoxAdvanced"
+                title="查看或批量编辑自定义盲盒 JSON"
+              >
+                编辑 JSON ▾
+              </button>
+              <div class="blind-box-composer-actions">
+                <button id="blindBoxComposerCancel" class="secondary" type="button">收起</button>
+                <button id="blindBoxAddBtn" class="primary" type="button">保存盲盒</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="blindBoxAdvanced" class="blind-box-advanced" hidden>
+            <div class="blind-box-advanced-head">
+              <div class="blind-box-advanced-copy">
+                <strong class="ui-control-label">自定义盲盒 JSON</strong>
+                <span class="ui-caption">仅用于查看或批量编辑自定义盲盒，不影响官方自动同步的数据。</span>
+              </div>
+              <button id="blindBoxAdvancedClose" class="ghost blind-box-advanced-close" type="button">收起</button>
+            </div>
+            <textarea
+              id="giftBlindBoxCustomConfigV2"
+              aria-label="自定义盲盒配置 JSON"
+              rows="6"
+              placeholder="暂无自定义盲盒。可使用上方表单添加，或直接粘贴 JSON 数组。"
+            ></textarea>
+            <div class="blind-box-advanced-actions">
+              <button id="giftBlindBoxSaveBtn" class="primary" type="button">保存 JSON</button>
+            </div>
+          </div>
+
+          <div id="blindBoxList" class="blind-box-list"></div>
+          <button
+            id="blindBoxListToggle"
+            class="secondary blind-box-list-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="blindBoxList"
+            hidden
+          >
+            展开其余盲盒 ▾
+          </button>
         </div>
       </div>
     </section>

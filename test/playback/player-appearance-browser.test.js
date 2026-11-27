@@ -116,6 +116,20 @@ test('player appearance preview follows playback while respecting rotation and c
   assert.deepEqual(state.preview, state.player);
   assert.equal(state.preview.animation, 'none');
   assert.equal(state.preview.armDisplay, 'none');
+
+  // Vinyl layout disables text-align radios as centered without overwriting saved left preference.
+  await page.locator('[name="playerAppearanceLayout"][value="vinyl"]').check();
+  const vinylAlign = await page.evaluate(() => ({
+    leftDisabled: document.querySelector('[name="playerAppearanceTextAlign"][value="left"]').disabled,
+    centerChecked: document.querySelector('[name="playerAppearanceTextAlign"][value="center"]').checked,
+  }));
+  assert.deepEqual(vinylAlign, { leftDisabled: true, centerChecked: true });
+  await page.locator('[name="playerAppearanceLayout"][value="classic"]').check();
+  const classicAlign = await page.evaluate(() => ({
+    leftDisabled: document.querySelector('[name="playerAppearanceTextAlign"][value="left"]').disabled,
+    leftChecked: document.querySelector('[name="playerAppearanceTextAlign"][value="left"]').checked,
+  }));
+  assert.deepEqual(classicAlign, { leftDisabled: false, leftChecked: true });
   assert.deepEqual(errors, []);
 });
 

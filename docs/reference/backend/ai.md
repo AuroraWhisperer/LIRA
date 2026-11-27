@@ -395,7 +395,7 @@ Kimi 官方预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来
 | `ai_api_usage` | 月度配额计数 | [ai-api-usage-store.js](../../../src/storage/ai-api-usage-store.js)、[api-quota-store.js](../../../src/ai/api-quota-store.js) |
 | `ai_viewer_context` | 观众/角色上下文（`uid` 列存作用域摘要，`expires_at`） | [ai-state-store.js](../../../src/storage/ai-state-store.js) |
 | `ai_query_cache` | 查询缓存（`cache_key = sha256`） | [ai-state-store.js](../../../src/storage/ai-state-store.js) |
-| `ai_blacklist` | 黑名单（`uid` 主键、`reason`） | [ai-state-store.js](../../../src/storage/ai-state-store.js) |
+| `ai_blacklist` | 历史黑名单（`uid` 主键、`reason`）。已有记录继续拦截点名问答和自动接话，当前客户端只读取这些记录 | [ai-state-store.js](../../../src/storage/ai-state-store.js) |
 
 上下文与查询缓存由 [config-store.js](../../../src/ai/config-store.js) 在初始化、命中过期读取及写入时按需调用存储适配器删除 `expires_at <= now()` 的行（写入清理间隔至少 60 秒，检测到时钟回拨则立即检查）。[ai-runtime.js](../../../src/server/ai-runtime.js) 另每 60 秒定时触发同一清理（定时器 `unref`，关闭开始时同步取消），确保无人发言时也能回收过期记录。逻辑过期立即生效，物理清理最多延迟一个周期；配置、黑名单、月度配额、审计及豆包网页记录不在此清理范围内。
 

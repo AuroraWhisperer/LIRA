@@ -39,12 +39,14 @@ export function initDanmakuDailyBots({
     generation = 0,
     contextId = null,
     saved = null,
-    busy = false,
+    pendingAction = null,
     stale = true,
     disposed = false;
   const libraries = createDailyLibraryEditor({ documentRef, windowRef, request: invoke });
   function render() {
-    libraries?.availability({ enabled: Boolean(owner && contextId && bridge && !stale), busy });
+    const busy = pendingAction !== null;
+    const settingsReady = Boolean(owner && bridge && contextId && saved && !stale);
+    const canToggle = settingsReady && saved.takeover.state !== 'importing';
     let sharedStatus = notice;
     if (!sharedStatus) {
       if (!bridge) sharedStatus = '请升级桌面客户端后设置。';
@@ -55,7 +57,8 @@ export function initDanmakuDailyBots({
     }
     for (const kind of ['checkin', 'fortune']) {
       toggles[kind].checked = saved?.[kind].enabled === true;
-      toggles[kind].disabled = !owner || !bridge || busy || stale || !saved || saved.takeover.state === 'importing';
+      toggles[kind].disabled = !canToggle || busy;
+      toggles[kind].dataset.switchPending = String(canToggle && busy);
       const status = documentRef.getElementById(`dailyBot${kind}Status`);
       status.ariaBusy = String(Boolean(bridge && !notice && (owner === null || (busy && !saved))));
       status.textContent = sharedStatus || REASONS[saved[kind].reason];
@@ -69,11 +72,16 @@ export function initDanmakuDailyBots({
           : busy ? '正在与云端同步…' : '切换后自动保存';
     }
     refreshButton.disabled = !owner || !bridge || busy;
+    libraries?.availability({
+      enabled: settingsReady,
+      busy,
+      recheckingSettings: settingsReady && pendingAction === 'open',
+    });
   }
   async function invoke(action, payload = {}) {
-    if (busy || !owner || !bridge || disposed) return;
+    if (pendingAction || !owner || !bridge || disposed) return;
     const requested = generation;
-    busy = true;
+    pendingAction = action;
     render();
     let reload = false;
     try {
@@ -111,7 +119,7 @@ export function initDanmakuDailyBots({
       reload = error.code === 'DAILY_BOT_REVISION_CONFLICT';
     } finally {
       if (!disposed && generation === requested) {
-        busy = false;
+        pendingAction = null;
         render();
       }
     }
@@ -143,7 +151,7 @@ export function initDanmakuDailyBots({
     contextId = null;
     saved = null;
     libraries?.reset();
-    busy = false;
+    pendingAction = null;
     stale = true;
     render();
     if (owner) void refresh();

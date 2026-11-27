@@ -728,19 +728,3 @@ export function exportForm() {
     read: (form) => ({ fields: [...new FormData(form).keys()] }),
   };
 }
-
-export function legacyForm(profile) {
-  return {
-    title: '导入以前的点歌',
-    hint: '导入前会列出记录，请确认这些点歌来自你的直播间。',
-    fields:
-      `<p class="fan-field-wide">查找这位粉丝以前在本机留下的点歌记录（UID ${html(profile.identity?.value || '')}）。</p>` +
-      field('from', '开始日期', '2000-01-01', 'date', 'required') +
-      field('to', '结束日期', day(), 'date', 'required'),
-    read: (form) => ({
-      profileId: profile.id,
-      from: form.elements.from.value,
-      to: form.elements.to.value,
-    }),
-  };
-}

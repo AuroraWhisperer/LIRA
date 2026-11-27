@@ -10,6 +10,7 @@ import { startOverlayPages } from './auto-pages.js';
 import { isComponentPreview } from './component-preview-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
+import { normalizeBlindboxStyle } from '../shared/blindbox-styles.js';
 
 let state = null;
 let stateRevision = 0;
@@ -27,7 +28,7 @@ let initialBlindboxViewportWidth = 0;
 let initialBlindboxViewportHeight = 0;
 let blindboxViewportResized = false;
 
-// URL 参数解析 — 支持短别名：t=top, w=winners, c=compact, tt=title
+// URL 参数解析 — 支持短别名：t=top, w=winners, c=compact, tt=title, s=style
 const urlParams = new URLSearchParams(location.search);
 const param = (longKey, shortKey) => urlParams.get(longKey) || urlParams.get(shortKey);
 const requestedTop = Number.parseInt(param('top', 't') || '3', 10);
@@ -41,6 +42,7 @@ let HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
 const requestedRefresh = Number.parseInt(param('refresh', 'r'), 10);
 const REFRESH_SEC = requestedRefresh > 0 ? Math.max(10, requestedRefresh) : 0;
 let NO_SCROLL = param('noScroll', 'ns') !== '0';
+let STYLE = normalizeBlindboxStyle(param('style', 's'));
 
 document.addEventListener('DOMContentLoaded', () => {
   const panel = document.querySelector('.blindbox-panel');
@@ -49,7 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const width = SCENE_EXTRA_COMPONENTS.blindbox.size[0];
       const scale = window.innerWidth / width;
       panel.style.width = `${width}px`;
-      panel.style.height = `${window.innerHeight / scale}px`;
+      panel.style.height = 'auto';
+      panel.style.maxHeight = `${window.innerHeight / scale}px`;
+      panel.style.margin = '0';
       panel.style.transformOrigin = 'top left';
       panel.style.transform = `scale(${scale})`;
     };
@@ -61,7 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
         TOP_N = config.top; SUMMARY_ONLY = TOP_N === 0; COMPACT = config.compact;
         WINNERS_ONLY = config.winnersOnly; HIDE_LOSS = config.hideLoss; NO_SCROLL = config.noScroll;
         HEART_BOX_ONLY = config.heartBoxOnly;
+        STYLE = normalizeBlindboxStyle(config.blindboxStyle);
         for (const [name, active] of [['compact', COMPACT], ['winners-only', WINNERS_ONLY], ['no-scroll', NO_SCROLL], ['summary-only', SUMMARY_ONLY]]) panel.classList.toggle(name, active);
+        if (panel?.dataset) panel.dataset.blindboxStyle = STYLE;
         stopPages?.(); stopPages = NO_SCROLL ? startOverlayPages(panel) : null;
         lastContentKey = null;
         render(lastStats || { summary: {}, perUser: [] });
@@ -79,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (NO_SCROLL) panel.classList.add('no-scroll');
   if (NO_SCROLL) stopPages = startOverlayPages(panel);
   if (SUMMARY_ONLY) panel.classList.add('summary-only');
+  if (panel?.dataset) panel.dataset.blindboxStyle = STYLE;
 
   if (CUSTOM_TITLE) {
     document.getElementById('blindboxTitle').textContent = CUSTOM_TITLE;
@@ -199,6 +206,7 @@ function receiveAppearance() {
   if (param('winners', 'w') === null && !urlParams.has('show')) WINNERS_ONLY = settings.blindboxWinnersOnly === 'true';
   if (param('heartBox', 'hb') === null) HEART_BOX_ONLY = settings.blindboxHeartBoxOnly === 'true';
   if (param('compact', 'c') === null) COMPACT = settings.blindboxCompact === 'true';
+  if (param('style', 's') === null) STYLE = normalizeBlindboxStyle(settings.blindboxStyle);
   if (param('noScroll', 'ns') === null) {
     const autoPages = settings.blindboxAutoPages !== 'false';
     if (autoPages !== NO_SCROLL) {
@@ -213,6 +221,7 @@ function receiveAppearance() {
   panel?.classList.toggle('no-scroll', NO_SCROLL);
   panel?.classList.toggle('winners-only', WINNERS_ONLY);
   panel?.classList.toggle('summary-only', SUMMARY_ONLY);
+  if (panel?.dataset) panel.dataset.blindboxStyle = STYLE;
   return previousTop !== TOP_N || previousHideLoss !== HIDE_LOSS || previousHeartBox !== HEART_BOX_ONLY;
 }
 
@@ -242,18 +251,26 @@ function render(stats) {
   if (TOP_N > 0) {
     users = users.slice(0, TOP_N);
   }
-  const contentKey = JSON.stringify([SUMMARY_ONLY, summary, users]);
-  if (contentKey === lastContentKey) return;
-  lastContentKey = contentKey;
-
-  // ── 汇总 ──
-  const summaryEl = document.getElementById('blindboxSummary');
   const summaryValues = summary || {
     boxCount: 0,
     totalCost: 0,
     totalValue: 0,
     totalProfit: 0,
   };
+  const panel = document.querySelector('.blindbox-panel');
+  if (panel?.dataset) {
+    const boxCount = Number(summaryValues.boxCount) || 0;
+    const totalProfit = Number(summaryValues.totalProfit) || 0;
+    panel.dataset.blindboxStyle = STYLE;
+    panel.dataset.profitTone = boxCount === 0 ? 'flat' : (totalProfit >= 0 ? 'up' : 'down');
+    panel.dataset.userCount = String(users.length);
+  }
+  const contentKey = JSON.stringify([SUMMARY_ONLY, summary, users]);
+  if (contentKey === lastContentKey) return;
+  lastContentKey = contentKey;
+
+  // ── 汇总 ──
+  const summaryEl = document.getElementById('blindboxSummary');
   if (SUMMARY_ONLY || summaryValues.boxCount > 0) {
     const profitClass = summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
     const profitSign = summaryValues.totalProfit >= 0 ? '+' : '-';
@@ -336,6 +353,8 @@ function renderHeartBoxProgress(settings, stats) {
   const html = parts.join('');
   if (progress.innerHTML !== html) progress.innerHTML = html;
   progress.hidden = !parts.length;
+  const panel = document.querySelector('.blindbox-panel');
+  if (panel?.dataset) panel.dataset.hasHeart = String(!progress.hidden);
 }
 
 function applyTheme(settings) {
@@ -343,8 +362,16 @@ function applyTheme(settings) {
   const panel = document.querySelector('.blindbox-panel');
   const root = document.documentElement;
   applyOverlayTheme(root, panel, settings);
+  if (param('style', 's') === null && settings.blindboxStyle !== undefined) {
+    STYLE = normalizeBlindboxStyle(settings.blindboxStyle);
+  }
+  if (panel?.dataset) panel.dataset.blindboxStyle = STYLE;
 
-  panel.style.backgroundColor = hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity ?? 0.76);
+  if (STYLE === 'classic') {
+    panel.style.backgroundColor = hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity ?? 0.76);
+  } else {
+    panel.style.backgroundColor = '';
+  }
 }
 
 // ── 工具函数 ──

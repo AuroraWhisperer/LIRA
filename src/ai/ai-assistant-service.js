@@ -9,7 +9,6 @@ const { resolvePersona } = require('./personas');
 const { isAiReady, applyModelProviderPreset, assertSavedModelKeyOrigin, usesAccountModel } = require('./config');
 const { createOrderedAsyncCoordinator } = require('./async-coordinator');
 const { appendConversationExchange } = require('./conversation-context');
-const assistantHelpers = require('./ai-assistant-helpers');
 const {
   MIN_CHUNK_INTERVAL_MS,
   MAX_CHUNK_INTERVAL_MS,
@@ -17,16 +16,11 @@ const {
   randomIntervalMs,
   extractTriggeredQuestion,
   normalizeDanmaku,
-  buildConversationInput,
-  buildReplyInstructions,
-  getReplyLengthBudget,
-  truncateReply,
   codedError,
   createShutdownError,
   isShutdownError,
   publicError,
-  failureReply,
-} = assistantHelpers;
+} = require('./ai-assistant-helpers');
 
 const MAX_DELIVERY_ATTEMPTS = 3;
 const DELIVERY_CONFIRM_TIMEOUT_MS = 10000;
@@ -539,12 +533,4 @@ function raceCancellation(operation, signal) {
   });
 }
 
-module.exports = {
-  createAiAssistantService,
-  extractTriggeredQuestion,
-  truncateReply,
-  buildConversationInput,
-  buildReplyInstructions,
-  getReplyLengthBudget,
-  failureReply,
-};
+module.exports = { createAiAssistantService };

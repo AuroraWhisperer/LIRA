@@ -8,7 +8,8 @@ const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canv
 
 test('opening settings preview reuses a canvas layer and published output follows opening configuration', { timeout: 60000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  Object.assign(fixture.runtime.settings, { openingEnabled: 'true', openingTitle: '开播准备中', openingName: 'LIRA' });
+  const settings = fixture.runtime.settings;
+  Object.assign(settings, { openingEnabled: 'true', openingStyle: 'classic', openingQuality: 'high', openingTitle: '开播准备中', openingName: 'LIRA' });
   const browser = await chromium.launch({ headless: true });
   t.after(async () => { await browser.close(); await fixture.close(); });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
@@ -57,8 +58,34 @@ test('opening settings preview reuses a canvas layer and published output follow
   const opening = page.frameLocator('.scene-editor-item.is-selected iframe');
   await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   assert.equal(await page.locator('.scene-editor-item').count(), 1);
-  await desktop.locator('#openingTitle').fill('新的开播标题');
-  await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
+  const title = '新的开播标题';
+  const releaseTitle = Promise.withResolvers();
+  const holdTitle = async route => {
+    if (route.request().postDataJSON()?.openingTitle === title) await releaseTitle.promise;
+    await route.fallback();
+  };
+  await desktop.route('**/api/settings', holdTitle);
+  try {
+    const [titleRequest] = await Promise.all([
+      desktop.waitForRequest(request => request.url().endsWith('/api/settings') && request.postDataJSON()?.openingTitle === title),
+      desktop.locator('#openingTitle').fill(title),
+    ]);
+    const [qualityResponse] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === '/api/component-preview/opening/config'
+        && response.request().postDataJSON()?.quality === 'normal'),
+      page.locator('[data-opening-parameter="quality"]').selectOption('normal'),
+    ]);
+    assert.equal(qualityResponse.status(), 200);
+    assert.equal(settings.openingQuality, 'normal');
+    releaseTitle.resolve();
+    assert.equal((await titleRequest.response())?.status(), 200);
+    assert.equal(settings.openingTitle, title);
+    assert.equal(settings.openingQuality, 'normal');
+  } finally {
+    releaseTitle.resolve();
+    await desktop.unroute('**/api/settings', holdTitle);
+  }
+  await opening.getByText(title, { exact: true }).waitFor({ state: 'visible' });
   const disabled = desktop.waitForResponse(response => response.url().endsWith('/api/settings')
     && response.request().postDataJSON()?.openingEnabled === 'false' && response.ok());
   await desktop.locator('#openingEnabled').uncheck();
@@ -68,7 +95,7 @@ test('opening settings preview reuses a canvas layer and published output follow
   await desktop.getByRole('button', { name: '像素卡带', exact: true }).click();
   await opening.locator('#openingPixel').waitFor({ state: 'visible' });
   await desktop.getByRole('button', { name: '经典舞台', exact: true }).click();
-  await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
+  await opening.getByText(title, { exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('960');
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');
   await page.getByRole('spinbutton', { name: '高度', exact: true }).fill('540');
@@ -86,7 +113,7 @@ test('opening settings preview reuses a canvas layer and published output follow
   const output = await context.newPage();
   await output.goto(outputUrl);
   const published = output.frameLocator('.scene-version:not(.is-staging) iframe');
-  await published.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
+  await published.getByText(title, { exact: true }).waitFor({ state: 'visible' });
   await updateSettings({ openingEnabled: 'false' });
   await published.locator('#openingStage.is-disabled').waitFor({ state: 'attached' });
   await updateSettings({ openingEnabled: 'true', openingStyle: 'pixel-cassette' });

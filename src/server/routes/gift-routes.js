@@ -7,6 +7,7 @@ const {
   GIFT_DISPLAY_SETTING,
   readGiftDisplaySettings,
   validateGiftDisplaySettings,
+  patchGiftDisplaySettings,
 } = require('../../bilibili/gift/display-settings');
 const { buildGiftFramePreviewEvent } = require('../../bilibili/gift/frame-config');
 const { buildGuardThanksPreviewEvent } = require('../../bilibili/gift/guard-thanks-config');
@@ -30,7 +31,11 @@ const routes = {
   async 'POST /api/gifts/display-settings'(context, request, res) {
     let config;
     try {
-      config = validateGiftDisplaySettings(await request.body());
+      const body = await request.body();
+      if (body && Object.hasOwn(body, 'patch')) {
+        if (Object.keys(body).length !== 1) throw new Error('礼物显示设置补丁请求无效。');
+        config = patchGiftDisplaySettings(context.settings.get(), body.patch);
+      } else config = validateGiftDisplaySettings(body);
     } catch (error) {
       if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       return sendJson(res, 400, { ok: false, error: error.message });

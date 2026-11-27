@@ -154,10 +154,11 @@ test('desktop and canvas share local settings and imported resources across inst
   await add('songlist', '展示板');
   const title = canvas.locator('[data-component-parameter="songBoardTitle"]');
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="songBoardTitle"]').value === '客户端已保存');
-  await title.fill('画布修改');
-  await desktop.waitForFunction(() => document.getElementById('songBoardTitle').value === '画布修改');
+  const canvasTitle = '画布填写的长标题'.repeat(12);
+  await title.fill(canvasTitle);
+  await desktop.waitForFunction(value => document.getElementById('songBoardTitle').value === value, canvasTitle);
   await add('songlist', '展示板');
-  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="songBoardTitle"]').value === '画布修改');
+  await canvas.waitForFunction(value => document.querySelector('[data-component-parameter="songBoardTitle"]').value === value, canvasTitle);
   await desktop.locator('#songBoardTitle').fill('客户端修改');
   await desktop.locator('#songBoardFontSizeNumber').fill('38');
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="songBoardTitle"]').value === '客户端修改'
@@ -181,10 +182,18 @@ test('desktop and canvas share local settings and imported resources across inst
   await canvasTitleSize.fill('58'); await canvasTitleSize.dispatchEvent('change'); await canvasTitleSize.blur();
   await desktop.waitForFunction(() => document.querySelector('#nowPlayingParameters [data-component-parameter="nowPlayingTitleFontSize"]').value === '58');
   const desktopTitleSize = desktop.locator('#nowPlayingParameters [data-component-parameter="nowPlayingTitleFontSize"]');
+  const desktopPost = Promise.withResolvers();
+  await desktop.route('**/api/now-playing/config', route => desktopPost.resolve(route), { times: 1 });
   await desktopTitleSize.fill('64'); await desktopTitleSize.dispatchEvent('change');
-  await desktop.getByRole('checkbox', { name: '显示歌手', exact: true }).uncheck();
-  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nowPlayingTitleFontSize"]').value === '64'
-    && !document.querySelector('[data-component-parameter="nowPlayingShowArtist"]').checked);
+  const delayed = await desktopPost.promise;
+  assert.deepEqual(delayed.request().postDataJSON(), { patch: { nowPlayingTitleFontSize: 64 } });
+  await canvas.getByRole('checkbox', { name: '显示歌手', exact: true }).uncheck();
+  await desktop.waitForFunction(() => !document.querySelector('#nowPlayingParameters [data-component-parameter="nowPlayingShowArtist"]').checked);
+  await delayed.continue();
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nowPlayingTitleFontSize"]').value === '64');
+  const savedSong = await app.evaluate(() => JSON.parse(global.canvasTest.openingSettings.nowPlayingAppearance));
+  assert.equal(savedSong.nowPlayingTitleFontSize, 64);
+  assert.equal(savedSong.nowPlayingShowArtist, false);
   assert.equal(await canvas.locator('[data-component-parameter="style"]').isVisible(), false);
   assert.equal(await desktop.locator('[data-now-playing-style="vinyl"]').getAttribute('aria-pressed'), 'true');
   const resource = desktop.getByRole('region', { name: '航海旗帜设置', exact: true });

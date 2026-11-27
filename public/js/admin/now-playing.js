@@ -40,8 +40,8 @@ export function initNowPlaying() {
       const payload = await readApiResponse(response, '歌曲信息外观读取失败，请重试。');
       return payload.data;
     },
-    persist: async config => {
-      const { data } = await api('/api/now-playing/config', config, { notifyError: false, signal });
+    persist: async (_draft, patch) => {
+      const { data } = await api('/api/now-playing/config', { patch }, { notifyError: false, signal });
       return data;
     },
   });

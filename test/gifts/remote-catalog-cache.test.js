@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { CACHE_FILE_NAME } = require('../../src/bilibili/gift/remote-catalog-cache');
+const { resolveDataPaths } = require('../../src/shared/data-paths');
 const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
 const { QUIET_LOGGER, UPDATED_AT, createRemoteGiftCatalogCache } = require('../helpers/remote-catalog-fixture');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
@@ -99,7 +99,7 @@ test('persists and coalesces remote catalog refreshes', async () => {
     assert.equal(first.gifts[0].rmb, 1);
     assert.equal(updates.length, 1);
 
-    const cacheFile = path.join(dataDir, 'cache', CACHE_FILE_NAME);
+    const cacheFile = resolveDataPaths(dataDir).giftCatalogPath;
     assert.equal(fs.existsSync(cacheFile), true);
     const persisted = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
     assert.equal(persisted.version, '7');
@@ -165,7 +165,7 @@ test('uses the persisted etag for 304 and keeps the previous gifts', async (t) =
     await cache.refresh({ force: true });
     assert.equal(commits.mock.callCount(), 1);
     assert.equal(cache.getRevision(), revision);
-    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
+    const persisted = JSON.parse(fs.readFileSync(resolveDataPaths(dataDir).giftCatalogPath, 'utf8'));
     assert.equal(persisted.etag, '"catalog-9-new"');
     assert.equal(persisted.checkedAt, new Date(now).toISOString());
   } finally {
@@ -337,7 +337,7 @@ test('stopping the cache suppresses late writes and update notifications', async
     const snapshot = await pending;
     assert.equal(snapshot, null);
     assert.deepEqual(updates, []);
-    assert.equal(fs.existsSync(path.join(dataDir, 'cache', CACHE_FILE_NAME)), false);
+    assert.equal(fs.existsSync(resolveDataPaths(dataDir).giftCatalogPath), false);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
@@ -352,7 +352,7 @@ for (const [label, checkedAt] of [
     try {
       fs.mkdirSync(path.join(dataDir, 'cache'), { recursive: true });
       fs.writeFileSync(
-        path.join(dataDir, 'cache', CACHE_FILE_NAME),
+        resolveDataPaths(dataDir).giftCatalogPath,
         JSON.stringify({
           etag: '"old"',
           schemaVersion: 2,
@@ -433,7 +433,7 @@ test('persists and notifies a relation-only catalog update', async () => {
 
     assert.equal(updates.length, 2);
     assert.deepEqual(cache.getSnapshot().blindBoxes, [{ giftId: '601', outputGiftIds: ['603'] }]);
-    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
+    const persisted = JSON.parse(fs.readFileSync(resolveDataPaths(dataDir).giftCatalogPath, 'utf8'));
     assert.deepEqual(persisted.blindBoxes, cache.getSnapshot().blindBoxes);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -537,7 +537,7 @@ test('does not persist or use a response-advertised image origin without configu
 
     const snapshot = await cache.refresh({ force: true });
     assert.equal(snapshot.gifts[0].imagePath, '');
-    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
+    const persisted = JSON.parse(fs.readFileSync(resolveDataPaths(dataDir).giftCatalogPath, 'utf8'));
     assert.equal(persisted.imageBaseUrl, '');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -576,7 +576,7 @@ test('rejects an empty replacement and keeps the last usable remote snapshot', a
       cache.getSnapshot().gifts.map((gift) => gift.id),
       ['500'],
     );
-    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
+    const persisted = JSON.parse(fs.readFileSync(resolveDataPaths(dataDir).giftCatalogPath, 'utf8'));
     assert.equal(persisted.version, '1');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -671,7 +671,7 @@ test('over-limit streaming catalog is cancelled and the previous memory and disk
   t.after(() => cache.stop());
   await cache.refresh({ force: true });
   const previous = cache.getSnapshot();
-  const cachePath = path.join(dataDir, 'cache', CACHE_FILE_NAME);
+  const cachePath = resolveDataPaths(dataDir).giftCatalogPath;
   const persisted = fs.readFileSync(cachePath);
   overflow = true;
   await assert.rejects(cache.refresh({ force: true }), { code: 'RESPONSE_TOO_LARGE' });

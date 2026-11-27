@@ -10,6 +10,9 @@
   color: var(--text);
   font-size: var(--type-size-body);
 }
+#otherDanmakuFeature.active {
+  animation: none;
+}
 #otherDanmakuFeature > .danmaku-tool-panel {
   row-gap: var(--spacing-md);
 }

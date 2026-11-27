@@ -5,6 +5,7 @@
 const { app, BrowserWindow, ipcMain, nativeImage, session } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const { version } = require('../../package.json');
 const { createServerRuntime } = require('../../src/server');
 const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
 const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
@@ -42,7 +43,7 @@ const fixture = {
 };
 const overlayUrl = 'https://demo.example.test/overlay/EXAMPLE000000000';
 const defaults = {
-  'desktop:get-info': () => ({ version: '5.0.3', isPackaged: true, autoUpdate: false, updateState: fixture.update }),
+  'desktop:get-info': () => ({ version, isPackaged: true, autoUpdate: false, updateState: fixture.update }),
   'bilibili:get-auth-state': () => ({ loggedIn: false }),
   'bilibili:get-profile': () => null,
   'guard-expiry:get-state': () => ({ ok: true, account: { source: 'shared', loggedIn: false } }),

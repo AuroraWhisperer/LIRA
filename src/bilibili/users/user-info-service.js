@@ -28,8 +28,6 @@ const CACHE_CLEANUP_INTERVAL_MS = 30000;
 
 class UserInfoService {
   constructor(options = {}) {
-    this.identityCache = options.identityCache;
-    this.identityCache?.useServiceProjections();
     this.recentSeenAt = new Map();
     this.onlineUids = new Set();
     this.profileProvider = options.profileProvider || null;
@@ -101,8 +99,7 @@ class UserInfoService {
 
     record.seenAt = observedAt;
     if (changed.size > 0) record.updatedAt = observedAt;
-    if (this.identityCache) this.storeCompatibilityRecord(record, source !== 'profile');
-    else if (source !== 'profile') this.recentSeenAt.set(uid, observedAt);
+    if (source !== 'profile') this.recentSeenAt.set(uid, observedAt);
 
     const changedFields = ALL_FIELDS.filter((field) => changed.has(field));
     if (changedFields.length > 0) this.notify(record, changedFields);
@@ -191,10 +188,9 @@ class UserInfoService {
     const selection = normalizeFields(options.fields, ALL_FIELDS);
     if (!this.matchesRequestedRoom(options.roomId)) return [];
     this.cleanupExpired();
-    const uids = this.identityCache ? this.identityCache.listRecentUids()
-      : [...this.recentSeenAt].sort((left, right) => right[1] - left[1]).map(([uid]) => uid);
-    return uids
-      .map((uid) => this.records.get(uid))
+    return [...this.recentSeenAt]
+      .sort((left, right) => right[1] - left[1])
+      .map(([uid]) => this.records.get(uid))
       .filter(Boolean)
       .map((record) => this.project(record, selection));
   }
@@ -203,7 +199,7 @@ class UserInfoService {
     const selection = normalizeFields(options.fields, ALL_FIELDS);
     if (!this.matchesRequestedRoom(options.roomId)) return [];
     this.cleanupExpired();
-    return (this.identityCache ? this.identityCache.listOnlineUids() : [...this.onlineUids])
+    return [...this.onlineUids]
       .map((uid) => this.records.get(uid))
       .filter(Boolean)
       .map((record) => this.project(record, selection))
@@ -212,7 +208,7 @@ class UserInfoService {
 
   replaceOnlineSnapshot(uids = [], context = {}) {
     if (this.disposed || !this.matchesActiveRun(context)) return false;
-    this.setOnlineUids((Array.isArray(uids) ? uids : []).map(normalizeUid).filter(Boolean));
+    this.onlineUids = new Set((Array.isArray(uids) ? uids : []).map(normalizeUid).filter(Boolean));
     return true;
   }
 
@@ -268,22 +264,13 @@ class UserInfoService {
     this.activeRoomRun = null;
     this.recentSeenAt.clear();
     this.onlineUids.clear();
-    if (this.identityCache) {
-      this.identityCache.clearRoomIndexes();
-      for (const record of this.records.values()) this.storeCompatibilityRecord(record, false);
-    }
     for (const item of invalidated) this.notify(item.record, item.changedFields);
     return this.roomScope ? { ...this.roomScope } : { roomId: '', ownerUid: '', generation: this.generation };
   }
 
-  setOnlineUids(uids) {
-    if (this.identityCache) this.identityCache.replaceOnlineSnapshot(uids);
-    else this.onlineUids = new Set(uids);
-  }
-
   beginRoomRun() {
     if (!this.roomScope) throw new Error('Cannot begin room run without a room scope.');
-    this.setOnlineUids([]);
+    this.onlineUids.clear();
     this.activeRoomRun = Object.freeze({
       ...this.roomScope,
       runToken: ++this.nextRunToken,
@@ -294,7 +281,7 @@ class UserInfoService {
   endRoomRun(context = {}) {
     if (!this.matchesActiveRun(context)) return false;
     this.activeRoomRun = null;
-    this.setOnlineUids([]);
+    this.onlineUids.clear();
     return true;
   }
 
@@ -303,7 +290,7 @@ class UserInfoService {
     this.disposed = true;
     this.lifecycleToken += 1;
     this.activeRoomRun = null;
-    this.setOnlineUids([]);
+    this.onlineUids.clear();
     this.subscriptions.clear();
     this.profileRequests.clear();
     this.profileFailures.clear();
@@ -407,22 +394,6 @@ class UserInfoService {
     );
   }
 
-  storeCompatibilityRecord(record, recent) {
-    const medal = record.room.fansMedal && record.room.fansMedal.value;
-    this.identityCache.storeMerged(
-      {
-        uid: record.uid,
-        userName: record.name,
-        avatarUrl: record.avatarUrl,
-        guardLevel: record.room.guard ? record.room.guard.value : 0,
-        medalName: medal ? medal.name : '',
-        medalLevel: medal ? medal.level : 0,
-        seenAt: record.seenAt,
-      },
-      { recent },
-    );
-  }
-
   readRecord(uid, nowMs = this.now()) {
     if (nowMs >= this.nextCleanupAt) this.cleanupExpired();
     const record = this.records.get(uid);
@@ -450,13 +421,11 @@ class UserInfoService {
     for (const [uid, seenAt] of this.recentSeenAt) {
       if (seenAt < cutoff) this.recentSeenAt.delete(uid);
     }
-    this.identityCache?.cleanup();
   }
 
   deleteIndexes(uid) {
     this.recentSeenAt.delete(uid);
     this.onlineUids.delete(uid);
-    this.identityCache?.deleteMerged(uid);
   }
 
   recordDiagnostic(kind, uid, error) {

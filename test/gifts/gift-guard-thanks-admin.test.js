@@ -27,18 +27,21 @@ async function createFixture() {
   }
   const handlers = new Map();
   const requests = [];
+  const clock = createClock();
   let settings = {};
   const module = await loadModuleExports(path.resolve('public/js/admin/gift-guard-thanks.js'), {
     document: Object.assign(documentRef, { getElementById: id => id === 'toast' ? toasts : node(id) }),
     window: Object.assign(windowRef, { addEventListener: (name, fn) => handlers.set(name, fn) }),
-    ...createClock(), location: { protocol: 'http:', port: '3000' },
+    ...clock, location: { protocol: 'http:', port: '3000' },
     fetch: (url, options) => {
       if (url === '/api/state') return Promise.resolve({ ok: true, json: async () => ({ ok: true, data: { settings } }) });
       const body = JSON.parse(options.body);
-      const acknowledged = { ...settings, ...body };
-      settings = acknowledged;
-      return new Promise((resolve, reject) => requests.push({ url, body, reject,
-        resolve: () => resolve({ ok: true, text: async () => JSON.stringify({ ok: true, data: { settings: acknowledged } }) }) }));
+      const deliver = () => {
+        settings = { ...settings, ...body };
+        return settings;
+      };
+      return new Promise((resolve, reject) => requests.push({ url, body, reject, deliver,
+        resolve: (acknowledged = deliver()) => resolve({ ok: true, text: async () => JSON.stringify({ ok: true, data: { settings: acknowledged } }) }) }));
     },
   });
   module.initGuardThanks();
@@ -48,11 +51,11 @@ async function createFixture() {
     node('guardThanksPanel').handlers.get('input')({ target: node(id) });
   };
   const click = id => node(id).handlers.get('click')();
-  return { node, requests, render, edit, click };
+  return { node, requests, render, edit, click, clock, getSettings: () => settings };
 }
 
-test('each style saves only its own fields and leaves the other draft intact', async () => {
-  const { node, requests, render, edit, click } = await createFixture();
+test('each style saves only its edited fields and leaves the other draft intact', async () => {
+  const { node, requests, render, edit, click, getSettings } = await createFixture();
   render({ guardThanksEnabled: 'true', guardThanksStyle: 'classic', guardThanksTextMode: 'en' });
   assert.equal(node('guardThanksAuroraEnabled').checked, false);
   assert.equal(node('guardThanksClassicEnabled').checked, true);
@@ -70,8 +73,26 @@ test('each style saves only its own fields and leaves the other draft intact', a
   assert.equal(node('guardThanksClassicTextMode').dataset.dirty, 'true');
   assert.equal(node('guardThanksAuroraTextMode').dataset.dirty, 'false');
   const classic = click('guardThanksClassicSaveBtn');
-  assert.deepEqual(requests[1].body, { guardThanksClassicEnabled: 'true', guardThanksClassicTextMode: 'bilingual' });
+  assert.deepEqual(requests[1].body, { guardThanksClassicTextMode: 'bilingual' });
   requests[1].resolve(); await classic;
+  render({ ...getSettings(), guardThanksEnabled: 'false' });
+  assert.equal(node('guardThanksClassicEnabled').checked, false);
+});
+
+test('a delayed classic enable autosave preserves the language already saved by the canvas', async () => {
+  const { node, requests, render, edit, clock, getSettings } = await createFixture();
+  render({ guardThanksClassicEnabled: 'false', guardThanksClassicTextMode: 'bilingual' });
+  edit('guardThanksClassicEnabled', true);
+  clock.tick(600);
+  assert.equal(requests.length, 1);
+  render({ ...getSettings(), guardThanksClassicTextMode: 'en' });
+  assert.equal(node('guardThanksClassicTextMode').value, 'en');
+  requests[0].resolve();
+  await new Promise(setImmediate);
+  assert.equal(getSettings().guardThanksClassicEnabled, 'true');
+  assert.equal(getSettings().guardThanksClassicTextMode, 'en', `desktop POST ${JSON.stringify(requests[0].body)}`);
+  assert.equal(node('guardThanksClassicTextMode').value, 'en');
+  assert.deepEqual(requests[0].body, { guardThanksClassicEnabled: 'true' });
 });
 
 test('settings pushes and pending saves preserve later edits and reconcile newer canvas values', async () => {
@@ -80,28 +101,39 @@ test('settings pushes and pending saves preserve later edits and reconcile newer
   const save = click('guardThanksAuroraSaveBtn');
   await click('guardThanksAuroraSaveBtn');
   assert.equal(requests.length, 1);
+  const firstReceipt = requests[0].deliver();
   edit('guardThanksAuroraTextMode', 'en');
   render({ guardThanksAuroraTextMode: 'zh', guardThanksClassicEnabled: 'true' });
-  requests[0].resolve(); await save;
+  requests[0].resolve(firstReceipt); await save;
   assert.equal(node('guardThanksAuroraTextMode').value, 'en');
   assert.equal(node('guardThanksClassicEnabled').checked, true);
   assert.equal(node('guardThanksAuroraSaveBtn').disabled, false);
   const retry = click('guardThanksAuroraSaveBtn');
+  const secondReceipt = requests[1].deliver();
   render({ guardThanksAuroraTextMode: 'en', guardThanksClassicEnabled: 'true' });
   render({ guardThanksAuroraTextMode: 'bilingual', guardThanksClassicEnabled: 'true' });
-  requests[1].resolve(); await retry;
+  requests[1].resolve(secondReceipt); await retry;
   assert.equal(node('guardThanksAuroraTextMode').value, 'bilingual');
   assert.equal(node('guardThanksAuroraTextMode').dataset.dirty, 'false');
 });
 
-test('a failed save keeps the style draft', async () => {
-  const { node, requests, edit, click } = await createFixture();
-  edit('guardThanksClassicTextMode', 'en');
+test('a failed enable save keeps the draft and retries without pinning the inherited language', async () => {
+  const { node, requests, render, edit, click, getSettings } = await createFixture();
+  render({ guardThanksTextMode: 'zh', guardThanksClassicTextMode: '' });
+  edit('guardThanksClassicEnabled', true);
   const save = click('guardThanksClassicSaveBtn');
   requests[0].reject(new Error('Synthetic offline failure'));
   await save;
-  assert.equal(node('guardThanksClassicTextMode').dataset.dirty, 'true');
+  assert.equal(node('guardThanksClassicEnabled').dataset.dirty, 'true');
   assert.equal(node('guardThanksClassicSaveBtn').disabled, false);
+  render({ ...getSettings(), guardThanksTextMode: 'en' });
+  const retry = click('guardThanksClassicSaveBtn');
+  assert.deepEqual(requests[1].body, { guardThanksClassicEnabled: 'true' });
+  requests[1].resolve(); await retry;
+  assert.equal(getSettings().guardThanksClassicEnabled, 'true');
+  assert.equal(getSettings().guardThanksClassicTextMode, '');
+  assert.equal(node('guardThanksClassicTextMode').value, 'en');
+  assert.equal(node('guardThanksClassicEnabled').dataset.dirty, 'false');
 });
 
 test('previews never save the settings draft and restored values are no longer dirty', { timeout: 20000 }, async t => {

@@ -5,7 +5,7 @@ const { getBackgroundAppearance } = require('../../public/js/shared/background-a
 const { validateGiftDisplaySettings } = require('../bilibili/gift/display-settings');
 const { LYRIC_VISUAL_DEFAULTS, normalizeLyricVisualSetting } = require('../../public/js/shared/advanced-lyric-appearance.js');
 
-function normalizeSceneExtraConfig(type, config) {
+function normalizeSceneExtraConfig(type, config, { sharedSettings = false } = {}) {
   const fields = SCENE_EXTRA_COMPONENTS[type].fields;
   const invalid = () => Object.assign(new Error('组件展示参数无效。'), { code: 'INVALID_SCENE_CONFIG', statusCode: 400 });
   if (!config || typeof config !== 'object' || Array.isArray(config)
@@ -28,7 +28,8 @@ function normalizeSceneExtraConfig(type, config) {
       }
       if (!['string', 'number'].includes(typeof raw) || String(raw).trim() === '') throw invalid();
       value = Number(raw);
-      if (!Number.isFinite(value) || value < field.min || value > field.max
+      const max = sharedSettings ? field.settingsMax ?? field.max : field.max;
+      if (!Number.isFinite(value) || value < field.min || value > max
         || Math.abs((value - field.min) / field.step - Math.round((value - field.min) / field.step)) > 0.000001) throw invalid();
     } else if (field.type === 'checkbox') {
       if (![true, false, 'true', 'false'].includes(raw)) throw invalid();
@@ -37,14 +38,17 @@ function normalizeSceneExtraConfig(type, config) {
     if (field.type === 'color' && !(field.allowEmpty && value === '')
       && !(field.opacity ? /^#[\da-f]{6}$/i : /^#[\da-f]{6}(?:[\da-f]{2})?$/i).test(value)) throw invalid();
     if (field.type === 'select' && !Object.hasOwn(field.options, value)) throw invalid();
-    if (['text', 'textarea'].includes(field.type) && (Array.from(value).length > field.maxLength || /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value))) throw invalid();
+    if (['text', 'textarea'].includes(field.type)) {
+      if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(value)) throw invalid();
+      if (!(sharedSettings && field.settingsText) && Array.from(value).length > field.maxLength) throw invalid();
+    }
     result[key] = typeof field.default === 'string' ? String(value) : value;
   }
   if (type === 'background') {
     if (result.inputBlack >= result.inputWhite || result.outputBlack >= result.outputWhite) throw invalid();
     result.colorProcessing = getBackgroundAppearance(config).colorProcessing;
   }
-  if (type === 'gift-feed') {
+  if (type === 'gift-feed' && !sharedSettings) {
     try { validateGiftDisplaySettings({ ...result, palette: 'bilibili-four', thresholds: [result.threshold1, result.threshold2, result.threshold3] }); }
     catch { throw invalid(); }
   }

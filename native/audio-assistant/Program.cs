@@ -92,7 +92,6 @@ internal sealed class AssistantContext : ApplicationContext
         case "stop": session.Stop(); break;
         case "refresh": session.Refresh(); break;
         case "recover": session.Recover(); break;
-        case "close": Close(); return;
         default: throw new ArgumentException("未知电音助手操作。");
       }
       output.Reply(id);

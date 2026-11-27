@@ -65,6 +65,52 @@ async function choose(page, name, option) {
   await page.getByRole('option', { name: option, exact: true }).click();
 }
 
+test('song board refills an untouched focused title and saves only the edited font size', async (t) => {
+  const page = await fixture(t, { songBoardSyncTheme: 'false', songBoardTitle: 'A' });
+  const title = page.locator('#songBoardTitle');
+  const size = page.locator('#songBoardFontSizeNumber');
+  await title.focus();
+  await page.evaluate(() => {
+    window.savedSettings.songBoardTitle = 'B';
+    window.emitSettings(window.savedSettings);
+  });
+  assert.equal(await title.inputValue(), 'A');
+  await size.focus();
+  const titleAfterBlur = await title.inputValue();
+  await size.fill('39');
+  await page.waitForFunction(() => window.writes.length === 1);
+  const patch = await page.evaluate(() => window.writes[0].body);
+  assert.equal(patch.songBoardFontSize, '39');
+  assert.equal(Object.hasOwn(patch, 'songBoardTitle'), false);
+  assert.equal(titleAfterBlur, 'B');
+  await page.evaluate(() => window.writes[0].finish());
+  await page.waitForFunction(() => !window.controller.getState().dirty);
+  assert.equal(await page.evaluate(() => window.savedSettings.songBoardTitle), 'B');
+});
+
+test('song board retries the dirty field without collecting a stale focused title', async (t) => {
+  const page = await fixture(t, { songBoardSyncTheme: 'false', songBoardTitle: 'A' });
+  await page.locator('#songBoardFontSizeNumber').fill('39');
+  await page.waitForFunction(() => window.writes.length === 1);
+  await page.evaluate(() => window.writes[0].finish(false));
+  await page.waitForFunction(() => window.controller.getState().error);
+  const title = page.locator('#songBoardTitle');
+  await title.focus();
+  await page.evaluate(() => {
+    window.savedSettings.songBoardTitle = 'B';
+    window.emitSettings(window.savedSettings);
+  });
+  await title.press('Enter');
+  await page.waitForFunction(() => window.writes.length === 2);
+  const patch = await page.evaluate(() => window.writes[1].body);
+  assert.equal(patch.songBoardFontSize, '39');
+  assert.equal(Object.hasOwn(patch, 'songBoardTitle'), false);
+  await page.evaluate(() => window.writes[1].finish());
+  await page.waitForFunction(() => !window.controller.getState().dirty);
+  await title.blur();
+  assert.equal(await title.inputValue(), 'B');
+});
+
 test('song board protects paired fields and enhanced selects through old snapshots and serial autosaves', async (t) => {
   const page = await fixture(t);
   await page.locator('#songBoardFontSizeNumber').fill('40');

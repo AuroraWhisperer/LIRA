@@ -23,10 +23,10 @@ import {
   scaleToFontSize,
   superChatPriceClass,
 } from './queue-utils.js';
-import { applyTheme, setIdentityRuleThemeVars } from './queue-theme.js';
+import { applyTheme } from './queue-theme.js';
 import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
 
-export { applyTheme, setIdentityRuleThemeVars };
+export { applyTheme };
 
 function displaySongName(value) {
   return String(value ?? '').trimStart();

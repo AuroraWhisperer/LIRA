@@ -6,10 +6,16 @@ import { GIFT_WISH_RIBBON_FIELDS } from './gift-wish-ribbon-appearance.js';
 import { ADVANCED_LYRIC_FIELDS, LYRIC_DISPLAY_FIELDS } from './advanced-lyric-appearance.js';
 import { LIVE_RANKING_COMPONENT } from './live-rankings.js';
 import { HEART_COLLECTION_BACKGROUNDS } from './heart-box-collection-appearance.js';
+import { BLINDBOX_STYLE_OPTIONS, DEFAULT_BLINDBOX_STYLE } from './blindbox-styles.js';
 
 // Canvas appearance only. Sessions, gift accounting and library edits keep their existing owners.
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
+// Native settings own the editable text limit; maxLength still bounds a stored scene or style.
+const settingsText = (...args) => ({ ...text(...args), settingsText: true });
 const number = (label, value, min, max, step = 1) => ({ label, type: 'number', default: value, min, max, step });
+const giftAmount = (label, value, min, step = 1) => ({
+  ...number(label, value, min, 100000000, step), settingsMax: Number.MAX_SAFE_INTEGER,
+});
 const check = (label, value = true) => ({ label, type: 'checkbox', default: value });
 const color = (label, value, opacity) => ({ label, type: 'color', default: value, ...(opacity ? { opacity } : {}) });
 const select = (label, value, options) => ({ label, type: 'select', default: value, options });
@@ -38,7 +44,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     title: '展示板', size: [480, 800], path: '/songlist',
     variants: [variant('default', '展示板', '可点歌单')],
     fields: {
-      songBoardTitle: text('标题', '可点歌单'), category: text('曲风（留空显示全部）'),
+      songBoardTitle: settingsText('标题', '可点歌单'), category: text('曲风（留空显示全部）'),
       songBoardSortMode: select('歌曲排序', 'initial', { initial: '首字母', category: '曲风', artist: '歌手', language: '语种', length: '歌名长度' }),
       scrollSeconds: number('滚动速度（1–100，数值越大越快）', '20', 1, 100),
       songBoardFontFamily: text('字体', 'Microsoft YaHei'), songBoardFontWeight: fontWeight,
@@ -133,8 +139,8 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     variants: [variant('poll', '弹幕投票', 'A / B / C'), variant('rating', '观众评分', '1—10')],
     fields: {
       kind: select('互动类型', 'poll', { poll: '弹幕投票', rating: '观众评分' }),
-      interactionOverlayTitle: text('标题', '', 60), interactionOverlayHint: text('参与提示', '', 80),
-      interactionRatingRules: { ...text('画面上的评分说明', '弹幕发送整数 1–10\n重复评分取最后一次', 300), type: 'textarea' },
+      interactionOverlayTitle: settingsText('标题', '', 60), interactionOverlayHint: settingsText('参与提示', '', 80),
+      interactionRatingRules: { ...settingsText('画面上的评分说明', '弹幕发送整数 1–10\n重复评分取最后一次', 300), type: 'textarea' },
       interactionTextColor: color('文字颜色', '#172b3a'), interactionBackgroundColor: color('背景颜色', '#ffffff', 'interactionBackgroundOpacity'),
       interactionBackgroundOpacity: number('背景不透明度（%）', '100', 0, 100),
       interactionOverallOpacity: number('整体不透明度（%）', '100', 0, 100),
@@ -170,17 +176,18 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       textureStyle: select('条带内部', DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle, GIFT_BANNER_TEXTURES),
       sheen: check('白色扫光', DEFAULT_GIFT_BANNER_APPEARANCE.sheen),
       visibleRows: number('显示行数', 3, 1, 10), scrollSpeed: number('滚动速度', 12, 1, 50),
-      minGiftAmountCents: number('最低礼物金额（元）', 0, 0, 100000000, 10),
-      threshold1: number('第二档金额（元）', 3000, 1, 100000000),
-      threshold2: number('第三档金额（元）', 10000, 1, 100000000),
-      threshold3: number('第四档金额（元）', 100000, 1, 100000000),
+      minGiftAmountCents: giftAmount('最低礼物金额（元）', 0, 0, 10),
+      threshold1: giftAmount('第二档金额（元）', 3000, 1),
+      threshold2: giftAmount('第三档金额（元）', 10000, 1),
+      threshold3: giftAmount('第四档金额（元）', 100000, 1),
     },
   },
   blindbox: {
     title: '盲盒盈亏榜', size: [720, 640], path: '/blindbox',
     variants: [variant('default', '盲盒盈亏榜', '今日盲盒盈亏')],
     fields: {
-      blindboxOverlayTitle: text('标题', '今日盲盒盈亏'), top: number('排行人数（-1 不限，0 仅汇总）', 3, -1, 10),
+      blindboxStyle: select('卡片样式', DEFAULT_BLINDBOX_STYLE, BLINDBOX_STYLE_OPTIONS),
+      blindboxOverlayTitle: settingsText('标题', '今日盲盒盈亏'), top: number('排行人数（-1 不限，0 仅汇总）', 3, -1, 10),
       compact: check('紧凑布局', false), winnersOnly: check('仅显示盈利', false), hideLoss: check('隐藏亏损观众', false),
       heartBoxOnly: check('只看心动盲盒', false),
       blindboxCastleMultiplier: { ...number('今天几倍堡（留空隐藏）', '', 0.01, 1000, 0.01), optional: true },

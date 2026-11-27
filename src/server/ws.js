@@ -41,8 +41,8 @@ function receivesOverlaySnapshot(scope, reason, feedDeliveredByEvents = false) {
   if (OVERLAY_REASON_SCOPES.has(reason)) return OVERLAY_REASON_SCOPES.get(reason).includes(scope);
   if (!Object.hasOwn(HOT_SNAPSHOT_FIELDS, reason)) return true;
   if (scope === 'blindbox' && reason === 'bilibili:gift') return true;
-  return getOverlayStateFields(scope)?.some(field =>
-    !(feedDeliveredByEvents && field === 'danmakuFeed') && HOT_SNAPSHOT_FIELDS[reason].includes(field)) === true;
+  return getOverlayStateFields(scope).some(field =>
+    !(feedDeliveredByEvents && field === 'danmakuFeed') && HOT_SNAPSHOT_FIELDS[reason].includes(field));
 }
 
 function isValidHandshake(req) {
@@ -455,7 +455,6 @@ function createWebSocketHub(options = {}) {
 function readSnapshot(context, sockets, incremental = false, changed = null) {
   const fields = new Set();
   let admin = false;
-  let legacyGameState = false;
   for (const socket of sockets) {
     if (socket._wsPrincipal?.type === 'admin') {
       if (!incremental || !socket._wsMusicEvents) return context.getState();
@@ -463,10 +462,8 @@ function readSnapshot(context, sockets, incremental = false, changed = null) {
       continue;
     }
     const requested = getOverlayStateFields(socket._wsPrincipal?.scope);
-    if (requested === null) legacyGameState = true;
-    else for (const field of requested) fields.add(field);
+    for (const field of requested) fields.add(field);
   }
-  if (legacyGameState) return context.getState(undefined, { includeRecentGifts: admin });
   if (admin) {
     if (!changed) return context.getState(undefined, { exclude: MUSIC_EVENT_FIELDS.filter(field => !fields.has(field)) });
     for (const field of changed) fields.add(field);

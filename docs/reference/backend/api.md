@@ -49,7 +49,8 @@ API 响应均为 `no-store`：400 为格式/清单/文件错误，401 为管理�
 `POST /api/component-preview/appearance?id=…&attachmentId=…` 要求当前已连接 canvas 会话的 Bearer；拒绝管理令牌、其他组件访问凭证、外站及不透明源（`Origin: null`），读取请求体后再次授权。JSON 最大 2 MiB，响应 `{ok:true,data}`，禁止缓存。
 
 - `{action:'read',items:[{type,config}]}`：最多 100 项，逐项按场景配置契约校验，返回以 `sceneAppearanceKey(type,config)` 为键的公共参数。
-- `{action:'patch',type,config,patch}`：仅写入该样式已公开的公共字段。资源型样式复用库 config 校验；礼物滚动复用礼物显示配置校验；展示板、歌词、互动、盲盒、开播与感谢语言复用各自 settings 键；礼物掉落/摇摇乐仅公开所选效果的既有启用、金额与动效键，禁止跨效果写入；心动收集仅共享 `showRewards`，榜单仅共享 `range`。全部补丁校验后再写入，禁止其他业务字段及素材身份替换。
+- `{action:'patch',type,config,patch}` 只写入该样式已公开的公共字段。资源型样式使用样式库校验，滚动礼物按改动字段合并最新礼物显示配置，并校验金额和档位顺序。展示板、歌词、互动、盲盒、开播与感谢语言复用各自的 settings 键。礼物掉落和摇摇乐分别公开本款的启用、金额与动效键。心动收集共享 `showRewards` 和 `backgroundStyle`，榜单共享 `range`。服务端校验整批后写入，拒绝其他业务字段及素材身份替换。
+- 原生展示板标题、盲盒榜标题和评分说明沿用客户端文本限制。投票及评分的标题和提示按字素计算，分别限 60 和 80 个。场景快照、模板和导入样式按各自的字段长度、金额上限和体积校验。
 - 原生歌词公开完整高级视觉字段、轮换及 `advancedLyricSavedPresets`（预设库沿用 settings 校验，仅返回编辑接口，不进入场景配置或直播投影）；资源歌词仍写样式库，`lyricLayer` 保留为实例字段。
 - 原生 clock/queue/danmaku/overtime 写入仍经桌面会话控制器；该入口不替代远端弹幕授权。保存广播 `settings` 更新，失败保留客户端草稿。400 参数无效，403 权限或 Origin 无效，404 样式已移除，409 接管冲突，410 会话失效，413 体积超限，503 暂不可用。
 
@@ -427,7 +428,7 @@ Electron 主进程经 [remote-license-client.js](../../../src/electron/license/r
 | 接口 | 权限与输入 | 结果 |
 | --- | --- | --- |
 | `GET /api/now-playing/config` | Admin 或 now-playing 页面能力 | 已保存外观；缺失时使用默认黑胶横排 |
-| `POST /api/now-playing/config` | 仅 Admin，请求体直接为配置对象 | 校验字段后整体保存，广播 settings 快照；非法字段/范围返回 400 |
+| `POST /api/now-playing/config` | 仅 Admin。桌面表单提交 `{patch:{...}}`，可改默认唱片 `style`。`nowPlayingPart` 属于图层，补丁中提交此字段返回 400。旧调用方可直接提交配置对象 | 字段补丁与最新歌曲信息配置合并后校验并保存，直接提交配置对象仍为整体替换。成功返回完整配置并广播 settings 快照，空补丁、未知字段或非法范围返回 400 |
 
 字段、默认值与范围由 [now-playing-appearance.js](../../../public/js/shared/now-playing-appearance.js) 唯一声明；`normalizeSceneExtraConfig` 校验写入，`now-playing-settings.js` 保存本机 `nowPlayingAppearance` JSON。页面不能写外观或选择音乐来源。当前歌曲数据使用独立 `nowPlaying` 快照/消息，见[音乐服务](music/services.md#正在播放展示数据)。
 
@@ -642,6 +643,8 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, themeId?}`；themeId 仅支持 `woodland-bloom`（默认），num 默认 1 | 广播 `gift:frame` 预览事件，不读取实时开关/阈值；不再需要金额（内部占位 1 分且不展示），旧金额若提供仍须大于 0，旧 motionMode 忽略 | 400(数量、主题或显式旧金额无效) |
 | `POST /api/gifts/guard-thanks/preview` | `{tier, userName?, months?, textMode?}`；tier 为 `captain/admiral/governor`，months 为 1–999 整数（默认 1），textMode 为 `bilingual/zh/en`（默认 `bilingual`） | 广播独立 `gift:guard-thanks` 预览事件（`preview:true`，不带头像），不读取实时开关 | 400(等级、月数或文字模式无效) |
 | `POST /api/gifts/clear-recent`      | `{confirm: true}`(必须)                                                                                                       | 清空最近礼物;广播 `gift:clear-recent`               | 400(`缺少清空确认。`)               |
+
+`POST /api/gifts/display-settings` 也接受 `{patch:{...}}`。客户端表单用这个格式提交改动。可改字段为 `tailStyle`、`textureStyle`、`sheen`、`visibleRows`、`scrollSpeed` 和金额字段 `minGiftAmountCents`、`threshold1`、`threshold2`、`threshold3`（单位为分）。服务端读完请求体后，将补丁与最新配置合并，再校验三档金额的顺序和其他字段。成功时一次保存并返回完整配置。空补丁、未知字段或无效组合返回 400。
 
 `GET /api/gifts/blind-box-stats?boxName=心动盲盒` 的 `heartBoxProgress` 为 `{openedSinceCastle: 非负整数}`；其他盒型或不筛选时为 `null`。它表示今天最近一次开出浪漫城堡之后的心动盲盒数，未出堡则为今日累计；无记录为 0。身份、未知盈亏和时间顺序规则见[盲盒统计](bilibili/gift.md#4-盲盒服务器结果与客户端展示)。礼物首页取 `top=10&includeRecords=0`。独立盲盒源与场景均按不含明细的模式读取公开汇总、排行和此进度值。
 

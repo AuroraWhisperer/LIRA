@@ -18,7 +18,10 @@ const { startComponentPreviewServer } = require('../helpers/component-preview-se
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { readNowPlayingConfig, saveNowPlayingConfig } = require('../../src/server/now-playing-settings');
+const { routes: nowPlayingRoutes } = require('../../src/server/routes/now-playing-routes');
+const { invokeBodyRoute } = require('../helpers/route-invoke');
 const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
+const { patchGiftDisplaySettings } = require('../../src/bilibili/gift/display-settings');
 const { buildGiftMotionEvents } = require('../../src/bilibili/gift/motion-config');
 
 function context(t) {
@@ -166,6 +169,71 @@ test('shared projections prefer desktop settings without rewriting snapshots and
   assert.equal(ctx.values.desktopLyricKaraokeEnabled, 'false');
 });
 
+test('native shared text follows desktop rules without weakening scene snapshots', async t => {
+  for (const [type, key, text, otherKey, settingKey, value] of [
+    ['songlist', 'songBoardTitle', '展'.repeat(81), 'songBoardFontSize', 'songBoardFontSize', '40'],
+    ['blindbox', 'blindboxOverlayTitle', '榜'.repeat(81), 'compact', 'blindboxCompact', 'true'],
+    ['interactions', 'interactionRatingRules', '评'.repeat(301), 'interactionFontSize', 'interactionFontSize', '22'],
+    ['interactions', 'interactionOverlayTitle', '👍🏻'.repeat(40), 'interactionFontSize', 'interactionFontSize', '22'],
+    ['interactions', 'interactionOverlayHint', '👍🏻'.repeat(50), 'interactionFontSize', 'interactionFontSize', '22'],
+  ]) await t.test(key, t => {
+    const ctx = context(t);
+    const config = createSceneExtraDefaults(type);
+    const snapshotText = config[key];
+    const desktop = normalizeSettingsPatch({ [key]: text }, DEFAULT_SETTINGS);
+    assert.equal(desktop.error, undefined);
+    ctx.settings.setMany(desktop.values);
+    const owner = createSceneSharedAppearance(ctx);
+    assert.equal(owner.read(type, config)[key], text);
+    assert.throws(() => normalizeSceneConfig(type, { ...config, [key]: text }), { code: 'INVALID_SCENE_CONFIG' },
+      'shared settings must not relax the scene contract used by snapshots, templates and imported styles');
+
+    const updated = owner.patch(type, config, { [otherKey]: value });
+    assert.equal(ctx.values[settingKey], value);
+    assert.equal(updated[key], text, 'editing another field must preserve the saved text');
+    const editedText = `${text}改`;
+    const saved = createSceneSharedAppearance(ctx).patch(type, config, { [key]: editedText });
+    assert.equal(saved[key], editedText);
+    assert.equal(ctx.values[key], editedText);
+    assert.equal(ctx.values[settingKey], value);
+    const item = { id: 'text', type, appearance: { mode: 'independent', config } };
+    assert.equal(readSceneSharedAppearances(ctx, [item]).text[key], editedText);
+    assert.equal(config[key], snapshotText, 'live shared text must not be copied into the scene snapshot');
+  });
+});
+
+test('native interaction text keeps settings normalization and rejects invalid titles atomically', t => {
+  const ctx = context(t);
+  const config = createSceneExtraDefaults('interactions');
+  const normalized = createSceneSharedAppearance(ctx).patch('interactions', config, {
+    interactionOverlayTitle: '  e\u0301 👩‍💻  ', interactionRatingRules: 'e\u0301\r\n第二行',
+  });
+  assert.equal(normalized.interactionOverlayTitle, 'é 👩‍💻');
+  assert.equal(normalized.interactionRatingRules, 'é\n第二行');
+  const previousFontSize = ctx.values.interactionFontSize;
+  for (const title of ['👍🏻'.repeat(61), 'A\u200bB']) {
+    assert.ok(normalizeSettingsPatch({ interactionOverlayTitle: title }, DEFAULT_SETTINGS).error);
+    assert.throws(() => createSceneSharedAppearance(ctx).patch('interactions', config, {
+      interactionOverlayTitle: title, interactionFontSize: '22',
+    }), { statusCode: 400 });
+    assert.equal(ctx.values.interactionOverlayTitle, 'é 👩‍💻');
+    assert.equal(ctx.values.interactionFontSize, previousFontSize);
+  }
+});
+
+test('native shared patches do not revalidate untouched legacy settings', t => {
+  const ctx = context(t);
+  const config = createSceneExtraDefaults('interactions');
+  const legacyTitle = '旧'.repeat(61);
+  ctx.values.interactionOverlayTitle = legacyTitle;
+  assert.ok(normalizeSettingsPatch({ interactionOverlayTitle: legacyTitle }, DEFAULT_SETTINGS).error);
+  createSceneSharedAppearance(ctx).patch('interactions', config, { interactionFontSize: '22' });
+  assert.equal(ctx.values.interactionFontSize, '22');
+  assert.equal(ctx.values.interactionOverlayTitle, legacyTitle);
+  createSceneSharedAppearance(ctx).patch('interactions', config, { interactionOverlayTitle: '已修正' });
+  assert.equal(ctx.values.interactionOverlayTitle, '已修正');
+});
+
 test('heart box display parameters share desktop values and canvas edits without changing layout', t => {
   const ctx = context(t);
   const config = createSceneExtraDefaults('blindbox');
@@ -182,6 +250,12 @@ test('heart box display parameters share desktop values and canvas edits without
   owner.patch('blindbox', config, { blindboxCastleMultiplier: '' });
   assert.equal(ctx.values.blindboxCastleMultiplier, '');
   assert.throws(() => owner.patch('blindbox', config, { blindboxCastleMultiplier: '-1' }));
+  owner.patch('blindbox', config, { blindboxStyle: 'podium' });
+  assert.equal(ctx.values.blindboxStyle, 'podium');
+  assert.equal(createSceneSharedAppearance(ctx).read('blindbox', config).blindboxStyle, 'podium');
+  assert.throws(() => owner.patch('blindbox', config, { blindboxStyle: 'invalid-style' }));
+  assert.equal(ctx.values.blindboxStyle, 'podium');
+  assert.equal(config.blindboxStyle, 'classic');
   assert.equal(config.heartBoxOnly, false);
 });
 
@@ -212,15 +286,45 @@ test('now-playing settings are shared by desktop and canvas while each scene ret
   assert.deepEqual(snapshots, ['settings']);
 });
 
-test('invalid now-playing appearance cannot replace saved configuration through either settings writer', t => {
+test('now-playing POST merges desktop patches after reading the body and keeps direct replacement compatible', async t => {
   const ctx = context(t);
-  ctx.broadcastSnapshot = () => {};
+  const writes = t.mock.method(ctx.settings, 'setMany');
+  ctx.broadcastSnapshot = t.mock.fn();
+  const post = nowPlayingRoutes['POST /api/now-playing/config'];
+  const body = Promise.withResolvers();
+  const pending = invokeBodyRoute(post, ctx, body.promise);
+  createSceneSharedAppearance(ctx).patch('now-playing', { nowPlayingPart: 'text' }, { nowPlayingShowArtist: false });
+  body.resolve({ patch: { style: 'turntable' } });
+  const receipt = await pending;
+  assert.equal(receipt.status, 200);
+  assert.equal(receipt.body.data.style, 'turntable');
+  assert.equal(receipt.body.data.nowPlayingShowArtist, false);
+  assert.equal(writes.mock.callCount(), 2); // One canvas write and one desktop write.
+  assert.equal(ctx.broadcastSnapshot.mock.callCount(), 1);
+
+  await invokeBodyRoute(post, ctx, { nowPlayingPart: 'record' });
+  const replaced = readNowPlayingConfig(ctx.values);
+  assert.equal(replaced.nowPlayingPart, 'record');
+  assert.equal(replaced.nowPlayingShowArtist, true);
+});
+
+test('invalid now-playing appearance cannot replace saved configuration through either settings writer', async t => {
+  const ctx = context(t);
+  ctx.broadcastSnapshot = t.mock.fn();
   saveNowPlayingConfig(ctx, { ...createSceneExtraDefaults('now-playing'), nowPlayingShowRecord: false });
   const before = ctx.values.nowPlayingAppearance;
   assert.throws(() => saveNowPlayingConfig(ctx, { nowPlayingRotationSeconds: -1 }));
   assert.throws(() => createSceneSharedAppearance(ctx).patch('now-playing', createSceneExtraDefaults('now-playing'), { style: 'cover' }));
   const invalid = normalizeSettingsPatch({ nowPlayingAppearance: JSON.stringify({ arbitraryFile: 'private' }) }, DEFAULT_SETTINGS);
   assert.ok(invalid.error);
+  const writes = t.mock.method(ctx.settings, 'setMany');
+  for (const body of [{ patch: {} }, { patch: [] }, { patch: null }, { patch: { style: 'cover', nowPlayingPart: 'text' } },
+    { patch: { style: 'cover', x: 42 } }, { patch: { style: 'cover', nowPlayingTitleFontSize: 0 } },
+    { patch: { style: 'cover' }, nowPlayingShowArtist: false }]) {
+    await assert.rejects(invokeBodyRoute(nowPlayingRoutes['POST /api/now-playing/config'], ctx, body), { statusCode: 400 });
+  }
+  assert.equal(writes.mock.callCount(), 0);
+  assert.equal(ctx.broadcastSnapshot.mock.callCount(), 1);
   assert.equal(ctx.values.nowPlayingAppearance, before);
 });
 
@@ -336,6 +440,19 @@ test('gift display validation and field allowlists reject the complete patch bef
     ['clock', getClockConfig(ctx.values), { label: '不能绕过客户端控制器' }],
   ]) assert.throws(() => owner.patch(type, appearance, patch));
   assert.equal(JSON.stringify(ctx.values), before);
+
+  const desktop = patchGiftDisplaySettings(ctx.values, { threshold3: 100_000_001 });
+  ctx.settings.setMany({ giftDisplayConfig: JSON.stringify(desktop) });
+  assert.throws(() => normalizeSceneConfig('gift-feed', { threshold3: 100_000_001 }), { code: 'INVALID_SCENE_CONFIG' });
+  createSceneSharedAppearance(ctx).patch('gift-feed', config, { visibleRows: 4 });
+  const afterRows = JSON.parse(ctx.values.giftDisplayConfig);
+  assert.equal(afterRows.visibleRows, 4);
+  assert.equal(afterRows.thresholds[2], 100_000_001);
+
+  createSceneSharedAppearance(ctx).patch('gift-feed', config, { threshold3: 100_000_002 });
+  const afterThreshold = JSON.parse(ctx.values.giftDisplayConfig);
+  assert.equal(afterThreshold.thresholds[2], 100_000_002);
+  assert.equal(afterThreshold.visibleRows, 4);
 });
 
 test('canvas appearance access is bounded to a current canvas attachment and rechecked after body read', async t => {

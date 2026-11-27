@@ -29,7 +29,7 @@ export function createInitializer(deps) {
 
   let playbackInitialized = false;
 
-  async function init(setupEventHandlers, restorePlaybackState, refreshPlaybackMusicCacheStats) {
+  async function init(setupEventHandlers, restorePlaybackState) {
     if (playbackInitialized) return;
     playbackInitialized = true;
 
@@ -69,7 +69,6 @@ export function createInitializer(deps) {
 
     renderPlayback();
     void refreshSelectedMusicProviderState();
-    refreshPlaybackMusicCacheStats();
   }
 
   function setupAudioEventListeners(audio) {

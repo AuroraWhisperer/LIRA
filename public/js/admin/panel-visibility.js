@@ -1,7 +1,7 @@
 // Some inline libraries use display: contents. Their containing panels own visibility.
 export function isPanelVisible(element) {
   return element.isConnected && !document.hidden && !element.closest(
-    '[hidden], .main-page:not(.active), .tab-page:not(.active), dialog:not([open]), .gift-recent-panel.is-collapsed',
+    '[hidden], .main-page:not(.active), .tab-page:not(.active), dialog:not([open]), .gift-recent-panel.is-collapsed, .gift-blindbox-mapping-panel.is-collapsed',
   );
 }
 

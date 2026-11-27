@@ -31,7 +31,8 @@ function fixture(t, { existingIdentity = true } = {}) {
   };
   const createStore = () => createDeviceKeyStore({ dataDir, safeStorage });
   const keyStore = createStore();
-  const oldKey = keyStore.createNew();
+  const initial = keyStore.prepareActivation();
+  initial.commit();
   const originalCipher = fs.readFileSync(keyStore.keyPath);
   fs.writeFileSync(keyStore.keyPath, 'synthetic-corrupt-installed-key');
   const original = fs.readFileSync(keyStore.keyPath);
@@ -43,11 +44,11 @@ function fixture(t, { existingIdentity = true } = {}) {
       licenseId: 'fixture-license',
       streamerId: 1,
       accountName: 'fixture',
-      publicKeyPem: oldKey.publicKeyPem,
+      publicKeyPem: initial.keyPair.publicKeyPem,
       keyProtection: 'dpapi',
     });
   const calls = { activate: [], verify: 0 };
-  let boundPublicKey = oldKey.publicKeyPem;
+  let boundPublicKey = initial.keyPair.publicKeyPem;
   const remote = {
     baseUrl: 'https://api.example.test',
     activate: async (body) => {

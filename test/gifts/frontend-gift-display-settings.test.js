@@ -4,12 +4,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
+const { patchGiftDisplaySettings } = require('../../src/bilibili/gift/display-settings');
 
 const fixture = createUiFixture();
 const html = readAdminFragmentHtml('pages/admin/live-components/page.html');
 
 async function openSettings(t, { tabs = false } = {}) {
   const page = await fixture(t, 'gift-display');
+  await page.exposeFunction('applyDisplayPatch', (current, patch) =>
+    patchGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(current) }, patch));
   await page.setContent(html);
   await page.evaluate(async tabs => {
     document.getElementById('liveComponentsPage').classList.add('active');
@@ -24,12 +27,15 @@ async function openSettings(t, { tabs = false } = {}) {
     };
     window.displayReads = [];
     window.displaySaves = [];
+    window.displayRequests = [];
     window.fetch = async (url, options = {}) => {
       if ((options.method ?? 'GET') === 'GET') window.displayReads.push(url);
       if (url !== '/api/gifts/display-settings') throw new Error(`Unexpected fetch: ${url}`);
       if (options.method === 'POST') {
+        const body = JSON.parse(options.body);
+        window.displayRequests.push(body);
         if (window.failDisplaySave) return { ok: false, json: async () => ({ ok: false, error: 'offline' }) };
-        window.savedDisplay = JSON.parse(options.body);
+        window.savedDisplay = await window.applyDisplayPatch(window.savedDisplay, body.patch);
         window.displaySaves.push(window.savedDisplay);
       }
       return { ok: true, json: async () => ({ ok: true, data: window.savedDisplay }) };
@@ -55,6 +61,201 @@ async function saveEdits(page) {
   if (await retry.isVisible()) await retry.click();
   else await page.clock.runFor(600);
 }
+
+test('gift concurrency keeps dirty thresholds and canvas fields across an in-flight save', async t => {
+  const page = await openSettings(t);
+  await page.evaluate(() => {
+    const fetchConfig = window.fetch;
+    window.fetch = async (url, options = {}) => {
+      if (options.method !== 'POST' || window.finishDisplaySave) return fetchConfig(url, options);
+      const body = JSON.parse(options.body);
+      window.displayRequests.push(body);
+      const submitted = await window.applyDisplayPatch(window.savedDisplay, body.patch);
+      window.savedDisplay = structuredClone(submitted);
+      window.displaySaves.push(submitted);
+      return new Promise(resolve => {
+        window.finishDisplaySave = () => resolve({ ok: true, json: async () => ({ ok: true, data: submitted }) });
+      });
+    };
+  });
+  await page.locator('#giftTier1').fill('125.25');
+  await page.evaluate(() => {
+    window.savedDisplay.scrollSpeed = 40;
+    window.dispatchEvent(new CustomEvent('app:settings-state', {
+      detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+    }));
+  });
+  await saveEdits(page);
+  await page.waitForFunction(() => typeof window.finishDisplaySave === 'function');
+  assert.equal(await page.evaluate(() => window.displaySaves[0].thresholds[0]), 12525);
+  assert.equal(await page.evaluate(() => window.displaySaves[0].scrollSpeed), 40);
+  assert.deepEqual(await page.evaluate(() => window.displayRequests[0]), { patch: { threshold1: 12525 } });
+  await page.locator('#giftTier1').fill('150.25');
+  await page.evaluate(() => {
+    window.savedDisplay.visibleRows = 5;
+    window.dispatchEvent(new CustomEvent('app:settings-state', {
+      detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+    }));
+    window.finishDisplaySave();
+  });
+  await page.clock.runFor(1300);
+  await page.waitForFunction(() => window.displaySaves.length === 2);
+  assert.equal(await page.evaluate(() => window.savedDisplay.thresholds[0]), 15025);
+  assert.equal(await page.evaluate(() => window.savedDisplay.scrollSpeed), 40);
+  assert.equal(await page.evaluate(() => window.savedDisplay.visibleRows), 5);
+  assert.equal(await page.locator('#giftTierEnd0').inputValue(), '150.25');
+});
+
+test('gift concurrency preserves native decimal input across canvas snapshots and save receipts', async t => {
+  for (const [id, field] of [
+    ['giftTier1', 'threshold1'], ['giftTierEnd0', 'threshold1'], ['giftFeedMinAmount', 'minGiftAmountCents'],
+  ]) {
+    await t.test(id, async t => {
+      const page = await openSettings(t);
+      const amount = page.locator(`#${id}`);
+      await amount.fill('12');
+      await amount.press('End');
+      await amount.press('.');
+      await page.evaluate(() => {
+        window.savedDisplay.scrollSpeed = 34;
+        window.savedDisplay.thresholds[1] = 60000;
+        window.dispatchEvent(new CustomEvent('app:settings-state', {
+          detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+        }));
+      });
+      assert.equal(await page.locator('#giftFeedSpeed').inputValue(), '34');
+      assert.equal(await page.locator('#giftTier2').inputValue(), '600');
+      await saveEdits(page);
+      await page.waitForFunction(() => window.displaySaves.length === 1);
+      await page.clock.runFor(650);
+      await amount.press('3');
+      assert.equal(await amount.inputValue(), '12.3');
+      await saveEdits(page);
+      await page.waitForFunction(() => window.displaySaves.length === 2);
+      assert.equal(await page.evaluate(() => window.savedDisplay.scrollSpeed), 34);
+      assert.equal(await page.evaluate(() => window.savedDisplay.thresholds[1]), 60000);
+      assert.equal(await page.evaluate(field => field === 'threshold1'
+        ? window.savedDisplay.thresholds[0] : window.savedDisplay[field], field), 1230);
+      assert.deepEqual(await page.evaluate(() => window.displayRequests), [
+        { patch: { [field]: 1200 } }, { patch: { [field]: 1230 } },
+      ]);
+    });
+  }
+});
+
+test('gift snapshots refill a focused unedited number on blur without submitting its old value', async t => {
+  const page = await openSettings(t);
+  const threshold = page.locator('#giftTier1');
+  await threshold.focus();
+  await page.evaluate(() => {
+    window.savedDisplay.thresholds[0] = 12000;
+    window.savedDisplay.scrollSpeed = 34;
+    window.dispatchEvent(new CustomEvent('app:settings-state', {
+      detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+    }));
+  });
+  assert.equal(await threshold.inputValue(), '100');
+  assert.equal(await page.locator('#giftTierEnd0').inputValue(), '120');
+  assert.equal(await page.locator('#giftFeedSpeed').inputValue(), '34');
+  await threshold.press('Enter');
+  await page.clock.runFor(650);
+  assert.equal(await page.evaluate(() => window.displayRequests.length), 0);
+  await page.locator('#giftFeedRows').fill('5');
+  assert.equal(await threshold.inputValue(), '120');
+  await saveEdits(page);
+  await page.waitForFunction(() => window.displaySaves.length === 1);
+  assert.deepEqual(await page.evaluate(() => window.displayRequests[0]), { patch: { visibleRows: 5 } });
+  assert.equal(await page.evaluate(() => window.savedDisplay.thresholds[0]), 12000);
+});
+
+test('gift concurrency preserves another threshold when saving the local threshold edit', async t => {
+  const page = await openSettings(t);
+  await page.locator('#giftTier1').fill('125.25');
+  await page.evaluate(() => {
+    window.savedDisplay.thresholds[1] = 60000;
+    window.dispatchEvent(new CustomEvent('app:settings-state', {
+      detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+    }));
+  });
+  await saveEdits(page);
+  await page.waitForFunction(() => window.displaySaves.length === 1);
+  assert.equal(await page.evaluate(() => window.savedDisplay.thresholds[0]), 12525);
+  assert.equal(await page.evaluate(() => window.savedDisplay.thresholds[1]), 60000);
+  assert.deepEqual(await page.evaluate(() => window.displayRequests[0]), { patch: { threshold1: 12525 } });
+});
+
+test('gift concurrency preserves a canvas update that lands before a pending desktop write', async t => {
+  const page = await openSettings(t);
+  await page.evaluate(() => {
+    const fetchConfig = window.fetch;
+    window.fetch = (url, options = {}) => {
+      if (options.method !== 'POST') return fetchConfig(url, options);
+      const body = JSON.parse(options.body);
+      window.displayRequests.push(body);
+      return new Promise(resolve => {
+        window.applyPendingDisplay = async () => {
+          window.savedDisplay = await window.applyDisplayPatch(window.savedDisplay, body.patch);
+          window.displaySaves.push(structuredClone(window.savedDisplay));
+          window.dispatchEvent(new CustomEvent('app:settings-state', {
+            detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+          }));
+          resolve({ ok: true, json: async () => ({ ok: true, data: structuredClone(window.savedDisplay) }) });
+        };
+      });
+    };
+  });
+  await page.locator('#giftFeedRows').fill('5');
+  await saveEdits(page);
+  await page.waitForFunction(() => typeof window.applyPendingDisplay === 'function');
+  await page.evaluate(() => {
+    window.savedDisplay.scrollSpeed = 40;
+    window.dispatchEvent(new CustomEvent('app:settings-state', {
+      detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+    }));
+  });
+  assert.equal(await page.locator('#giftFeedSpeed').inputValue(), '40');
+  await page.evaluate(() => window.applyPendingDisplay());
+  await page.clock.runFor(650);
+  assert.equal(await page.evaluate(() => window.savedDisplay.visibleRows), 5);
+  assert.equal(await page.evaluate(() => window.savedDisplay.scrollSpeed), 40);
+});
+
+test('gift display retains its patch after an incomplete or mismatched receipt and retries against current settings', async t => {
+  for (const receipt of ['missing', 'mismatched']) {
+    await t.test(receipt, async t => {
+      const page = await openSettings(t);
+      await page.evaluate(receipt => {
+        const fetchConfig = window.fetch;
+        window.fetch = (url, options = {}) => {
+          if (options.method !== 'POST' || window.displayRequests.length) return fetchConfig(url, options);
+          window.displayRequests.push(JSON.parse(options.body));
+          return Promise.resolve({ ok: true, json: async () => ({ ok: true,
+            ...(receipt === 'mismatched' ? { data: structuredClone(window.savedDisplay) } : {}) }) });
+        };
+      }, receipt);
+      await page.locator('#giftTier1').fill('125.25');
+      await saveEdits(page);
+      await page.locator('#giftDisplayCancel').waitFor();
+      assert.equal(await page.locator('#giftTier1').inputValue(), '125.25');
+      assert.equal(await page.evaluate(() => window.displaySaves.length), 0);
+      await page.evaluate(() => {
+        window.savedDisplay.scrollSpeed = 40;
+        window.savedDisplay.thresholds[1] = 60000;
+        window.dispatchEvent(new CustomEvent('app:settings-state', {
+          detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+        }));
+      });
+      await saveEdits(page);
+      await page.waitForFunction(() => window.displaySaves.length === 1);
+      assert.equal(await page.evaluate(() => window.savedDisplay.thresholds[0]), 12525);
+      assert.equal(await page.evaluate(() => window.savedDisplay.thresholds[1]), 60000);
+      assert.equal(await page.evaluate(() => window.savedDisplay.scrollSpeed), 40);
+      assert.deepEqual(await page.evaluate(() => window.displayRequests), [
+        { patch: { threshold1: 12525 } }, { patch: { threshold1: 12525 } },
+      ]);
+    });
+  }
+});
 
 test('gift feed speed auto-saves and failed edits can be discarded without replacing saved values', async (t) => {
   const page = await openSettings(t);
@@ -114,9 +315,11 @@ test('gift appearance choices preview independently, save, and restore without l
   assert.equal(await page.locator('#giftFeedRows').inputValue(), '5');
   await page.evaluate(() => {
     const fetchConfig = window.fetch;
-    window.fetch = (url, options = {}) => {
+    window.fetch = async (url, options = {}) => {
       if (options.method !== 'POST') return fetchConfig(url, options);
-      const submitted = JSON.parse(options.body);
+      const body = JSON.parse(options.body);
+      window.displayRequests.push(body);
+      const submitted = await window.applyDisplayPatch(window.savedDisplay, body.patch);
       window.displaySaves.push(submitted);
       return new Promise(resolve => {
         window.finishDisplaySave = () => {
@@ -133,6 +336,7 @@ test('gift appearance choices preview independently, save, and restore without l
   await saveEdits(page);
   await page.waitForFunction(() => typeof window.finishDisplaySave === 'function');
   await page.evaluate(() => window.finishDisplaySave());
+  await page.locator('#giftFeedSpeed').blur();
   await page.waitForFunction(() => document.getElementById('giftFeedSpeed').value === '40');
   assert.equal(await page.locator('#giftFeedSpeed').inputValue(), '40');
   await page.locator('#giftDisplayDefaults').click();

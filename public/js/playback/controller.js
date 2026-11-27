@@ -508,7 +508,6 @@ export function createPlaybackController(initialOptions = {}) {
       await playbackInitializer.init(
         eventHandlersModule.setupEventHandlers,
         restorePlaybackState,
-        cacheOperations.refreshPlaybackMusicCacheStats,
       );
     },
 

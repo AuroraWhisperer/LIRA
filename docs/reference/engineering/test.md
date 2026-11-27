@@ -202,7 +202,7 @@ npm run verify
 | [ai-assistant-lifecycle.test.js](../../../test/ai/ai-assistant-lifecycle.test.js) | 关闭时中止直连 Provider 调用、排空与回复缓存失效 | 同上 |
 | **Bilibili 弹幕/协议** | | [backend/bilibili/danmaku.md](../backend/bilibili/danmaku.md) |
 | [bilibili-danmaku-send.test.js](../../../test/bilibili/bilibili-danmaku-send.test.js) | `bilibili/danmaku/api-client`（发弹幕） | 同上 |
-| [bilibili-identity-cache.test.js](../../../test/bilibili/bilibili-identity-cache.test.js) | `bilibili/danmaku/identity-cache`（身份缓存） | 同上 |
+| [bilibili-user-info-service.test.js](../../../test/bilibili/bilibili-user-info-service.test.js) | 用户资料合并、房间观众索引与 TTL 清理 | 同上 |
 | [bilibili-diagnostics.test.js](../../../test/bilibili/bilibili-diagnostics.test.js) | `bilibili/bilibili-message-handler`（消息日志格式） | 同上 |
 | [bilibili-runtime.test.js](../../../test/bilibili/bilibili-runtime.test.js) | `server/bilibili-runtime` 的认证缓存、客户端替换与关闭生命周期 | [backend/server-core.md](../backend/server-core.md) |
 | [bilibili-user-meta.test.js](../../../test/bilibili/bilibili-user-meta.test.js) | `bilibili/utils/user-meta-extractor`（用户信息提取） | 同上 |

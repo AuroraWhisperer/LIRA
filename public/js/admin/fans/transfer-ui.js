@@ -1,8 +1,8 @@
 import { toast } from '../../shared/utils.js';
-import { html, dateLabel } from './view.js';
-import { legacyForm, exportForm } from './forms.js';
+import { html } from './view.js';
+import { exportForm } from './forms.js';
 
-export function createFanTransferUi({ request, openForm, beginIntent, getProfile, onProfile, onReset }) {
+export function createFanTransferUi({ request, openForm, beginIntent, onProfile, onReset }) {
   async function mergeDraft(patch, targetId) {
     const isCurrent = beginIntent();
     const input = { id: patch.id, revision: patch.revision, targetId, patch };
@@ -169,29 +169,6 @@ export function createFanTransferUi({ request, openForm, beginIntent, getProfile
     );
   }
 
-  function legacy() {
-    openForm({ ...legacyForm(getProfile()), saveLabel: '预览记录' }, async (range) => {
-      const preview = await request('preview-legacy', range);
-      openForm(
-        {
-          title: '确认要导入的点歌',
-          saveLabel: '确认补录',
-          fields: `<p class="fan-field-wide">${html(range.from)} 至 ${html(range.to)} 共 ${preview.count} 条点歌${preview.unownedCount ? `，其中 ${preview.unownedCount} 条需要确认来自你的直播间` : ''}。</p><label class="fan-check"><input type="checkbox" name="confirm" required />我已核对，这些点歌来自我的直播间</label>
-          <details class="fan-field-wide"><summary>查看记录</summary><ul>${preview.records.map((r) => `<li>${html(dateLabel(r.occurredAt))} · ${html(r.songName)}${r.artist ? ` · ${html(r.artist)}` : ''}</li>`).join('')}</ul></details>`,
-          read: (value) => ({
-            ...range,
-            digest: preview.digest,
-            confirmOwnership: value.elements.confirm.checked,
-          }),
-        },
-        async (payload) => {
-          await onProfile(await request('import-legacy', payload));
-        },
-      );
-      return { keepOpen: true };
-    });
-  }
-
   async function backup() {
     const data = await request('backup');
     download(JSON.stringify(data, null, 2), 'LIRA-粉丝档案备份.json', 'application/json');
@@ -203,5 +180,5 @@ export function createFanTransferUi({ request, openForm, beginIntent, getProfile
     );
   }
 
-  return { mergeDraft, snapshots, suppressions, backup, exportList, restoreFile, legacy };
+  return { mergeDraft, snapshots, suppressions, backup, exportList, restoreFile };
 }

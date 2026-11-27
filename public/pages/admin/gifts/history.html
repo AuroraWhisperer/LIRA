@@ -376,7 +376,24 @@
                   </div>
                 </div>
                 <div class="gift-export-setting-row" title="当前图片有两张或更多卡片时可调整间距">
-                  <label for="giftExportRowGap" class="gift-export-row-label">词条间距</label>
+                  <div class="gift-export-spacing-label">
+                    <label for="giftExportRowGap" class="gift-export-row-label">词条间距</label>
+                    <button id="giftExportRowGapReset" type="button" aria-label="重置词条间距" title="恢复默认间距（16 px）" disabled>
+                      <svg
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 12a9 9 0 1 0 3-6.7L3 8m0-5v5h5" />
+                      </svg>
+                    </button>
+                  </div>
                   <div class="gift-export-spacing">
                     <input id="giftExportRowGap" class="parameter-range" type="range" min="0" max="32" value="16" disabled />
                     <output id="giftExportRowGapValue" for="giftExportRowGap">16 px</output>

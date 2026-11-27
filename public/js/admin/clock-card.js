@@ -7,13 +7,12 @@ import { clockSettingsPayload, clockConfigFromSettings } from '../shared/clock-s
 import { createComponentConfigController } from './component-config-controller.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
-import { bindClockParameters, buildClockUrl, clockStyleChange, createClockPreview, usesDefaultClockLabel } from './clock-preview.js';
+import { bindClockParameters, buildClockUrl, createClockPreview } from './clock-preview.js';
 import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
 import { readComponentOutputSize } from './scene-api.js';
 import { bindComponentAutosave } from './settings-autosave.js';
-export { buildClockUrl, clockStyleChange, createClockPreview, usesDefaultClockLabel };
 
 let initialized = false;
 
@@ -85,4 +84,4 @@ function initClockCard() {
   return controller;
 }
 
-export { clockSettingsPayload, initClockCard };
+export { initClockCard };

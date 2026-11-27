@@ -87,10 +87,10 @@ export function initInteractionAppearance() {
   }
   function edit() {
     const state = controller.getStatus();
-    if (!state.loaded || state.saving) return;
+    if (!state.loaded) return;
     controller.edit(draft());
     const dirty = controller.getStatus().dirty;
-    apply.disabled = !dirty;
+    apply.disabled = state.saving || !dirty;
     preview();
   }
   async function load() {

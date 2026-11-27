@@ -1,7 +1,7 @@
 /* 桌面歌词设置页实时预览；时间轴算法位于 shared/lyric-word-renderer.js。 */
 #desktopLyricPage > .other-feature-panel-body {
   padding-inline: 8px;
-  padding-top: 12px;
+  padding-block: 12px;
   scrollbar-width: none;
   scrollbar-gutter: auto;
 }

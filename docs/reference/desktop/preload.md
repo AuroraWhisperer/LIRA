@@ -47,7 +47,7 @@
 | `desktop:open-data-dir` | `openDataDir()` | 成功返回空字符串；目录未就绪或 `shell.openPath` 返回错误文本时 reject，由桌面入口提示失败 |
 | `desktop:open-log-dir` | `openLogDir()` | 同上 |
 | `desktop:open-github` | `openGithub()` | `undefined`（调用系统浏览器打开固定仓库地址） |
-| `desktop:set-auto-update` | `setAutoUpdate(enabled)`，布尔值 | `undefined`；处理器仅记录 `Boolean(enabled)`，设置另经 HTTP 持久化 |
+| `desktop:set-auto-update` | `setAutoUpdate(enabled)`，布尔值 | `undefined`；处理器仅记录 `Boolean(enabled)`（兼容保留，当前无内置业务调用方），设置另经 HTTP 持久化 |
 | `desktop:gift-display` | `reportGiftDisplay(gift)`，兼容旧参数 | 返回 `{ok:true}`，空操作（历史兼容保留，当前无业务调用方） |
 | `desktop:restart` | `restart()` | `undefined`；受控关停后重启或退出 |
 | `desktop:close-window` | `closeWindow()` | `undefined` |
@@ -70,7 +70,7 @@
 | `music:clear-cache` | `musicAPI.clearCache()` | `{cleared:[platform]}`，只清浏览器缓存 |
 | `music:provider-health` | `musicAPI.providerHealth(platform?)` | 单个 `{source,name,ok,status,message,auth}` 或数组；`status` 为 `logged-in` / `public-ok` / `api-error`，`auth` 为脱敏登录摘要（见 [provider-registry.js](../../../src/music/provider-registry.js)） |
 | `music:select-local-files` | `musicAPI.selectLocalFiles()` | `{ok:true,canceled,files:[{path,name,ext}]}`；取消时 `files=[]`；原生对话框限选 `mp3`/`flac`/`wav`/`aac`/`ogg`/`m4a`/`wma`，选中路径加入本地媒体允许列表 |
-| `music:get-recent-local-files` | `musicAPI.getRecentLocalFiles()` | `{files:[{path,name,ext}]}`，仅仍存在的已允许路径 |
+| `music:get-recent-local-files` | `musicAPI.getRecentLocalFiles()` | `{files:[{path,name,ext}]}`，仅仍存在的已允许路径（兼容保留，当前无内置业务调用方） |
 | `music:select-wesing-cache` | `musicAPI.selectWeSingCacheDirectory()` | `{ok:true,canceled,path}`；取消时 `path=''`，选目录不等于保存配置 |
 | `music:resolve-local-media-urls` | `musicAPI.resolveLocalMediaUrls(paths)`，字符串数组（非数组按 `[]`） | `{results:{[path]:{ok:true,url} 或 {ok:false,reason}}}`；`reason` 为 `missing` / `not-allowed` / `error`，URL 为 `local-media://media/<base64url>` |
 | `playback:save-state` | `musicAPI.savePlaybackState(clientId,payload)` → `{clientId,payload}` | `{saved:true,bytes}`（`bytes` 为 JSON 文本的 `String.length`）或 `{saved:false,reason:'stale-snapshot'}`；异常为 `{ok:false,error}`，运行时未就绪返回 `{ok:false,error:'Playback store not available'}`；缺省 `clientId='default'`、`payload={}`，快照格式见 [播放文档](../frontend/playback.md) |
@@ -110,8 +110,8 @@
 | `license:get-gift-catalog-state` | `getGiftCatalogState()` | `{ok:true,...CatalogSnapshot}` | `license.js`、[catalog-update-toast.js](../../../public/js/admin/gifts/catalog-update-toast.js) |
 | `license:retry-gift-catalog` | `retryGiftCatalog()` | `{ok,...CatalogSnapshot}`，`ok` 表示就绪；未授权 `LICENSE_REQUIRED` | 同上 |
 | `license:get-profile` | `getProfile()` | `{ok:true,...LicenseSnapshot}`；同授权生命周期在途读取并发复用（见 [main.md](main.md#21-设备授权生命周期)） | `settings-license`、`server-overlay-url` |
-| `license:get-overlay-settings` | `getOverlaySettings()` | `OverlaySettings` | [danmaku-overlay-settings.js](../../../public/js/admin/danmaku-overlay-settings.js)、`server-overlay-url` |
-| `license:update-overlay-settings` | `updateOverlaySettings({style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?})` | `OverlaySettings`；`INVALID_OVERLAY_STYLE` / `INVALID_OVERLAY_DURATION` / `INVALID_OVERLAY_LAYOUT` / `INVALID_STYLE_PARAMETERS` | `danmaku-overlay-settings` |
+| `license:get-overlay-settings` | `getOverlaySettings()` | `OverlaySettings` | [server-overlay-url.js](../../../public/js/admin/server-overlay-url.js) |
+| `license:update-overlay-settings` | `updateOverlaySettings({style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?})` | `OverlaySettings`；`INVALID_OVERLAY_STYLE` / `INVALID_OVERLAY_DURATION` / `INVALID_OVERLAY_LAYOUT` / `INVALID_STYLE_PARAMETERS` | 服务器设置兼容入口。桌面弹幕编辑器使用[本机外观 API](../../../public/js/admin/danmaku-appearance-api.js) |
 | `license:get-overlay-filters` | `getOverlayFilters()` | `{ok:true,blockedUsers:[{uid,name}],blockedKeywords:[]}` | [danmaku-overlay-filters.js](../../../public/js/admin/danmaku-overlay-filters.js) |
 | `license:update-overlay-filters` | `updateOverlayFilters(patch)` | 同上；错误见下文过滤设置 | 同上 |
 | `license:get-overlay-viewers` | `getOverlayViewers()` | `{ok:true,roomId,viewers:[{uid,name}]}` | 同上 |
@@ -129,7 +129,7 @@
 | `license:sync-songs` | `syncSongs(songs)`，数组 ≤ 5000；归一化后 `{songs}` UTF-8 ≤ 5 MiB | `{ok,count?,index?,songPageUrl?}`；`SONG_LIST_INVALID` / `PAYLOAD_TOO_LARGE` / `SONG_*_TOO_LONG`（含零基 `index`） | 兼容入口 |
 | `license:get-local-song-count` | `getLocalSongCount()` | `{ok:true,count,generation}`；本机完整歌库数量及确认代次 | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
 | `license:sync-current-songs` | `syncCurrentSongs(generation)`，非负安全整数；共用 5 MiB UTF-8 上限 | `{ok,count,index?,songPageUrl?}`；`CLOUD_SONGS_CHANGED` / `CLOUD_SYNC_NOT_READY` / `PAYLOAD_TOO_LARGE` / `SONG_*_TOO_LONG`（含零基 `index`） | 同上 |
-| `license:get-cloud-songs` | `getCloudSongs()` | `{songs:[SongPublic]}`（无统一 `ok` 外层） | 同上 |
+| `license:get-cloud-songs` | `getCloudSongs()` | `{songs:[SongPublic]}`（无统一 `ok` 外层） | 保留完整歌库查询。管理页通过 `getCloudSongCount()` 读取数量 |
 | `license:get-cloud-song-count` | `getCloudSongCount()` | `{ok:true,count}`；优先读 `cloud-state.songs.count`，旧服务器缺字段时回退完整歌库；非法报 `INVALID_RESPONSE` | `cloud-song-sync` |
 | `license:get-song-page-access` / `license:set-song-page-access` | `getSongPageAccess()` / `setSongPageAccess(enabled)`（仅布尔值） | `{ok:true,enabled:boolean}`；`INVALID_SONG_PAGE_ACCESS` / `INVALID_RESPONSE` | 同上 |
 | `license:get-song-page-background` | `getSongPageBackground()` | `BackgroundResponse` | [song-background.js](../../../public/js/admin/song-background.js) |
@@ -145,7 +145,7 @@
 - **`LicenseSnapshot`**：`{state,error,streamer?,device?}`；`state` 为 `checking` / `needs_activation` / `needs_connection` / `authorizing` / `authorized` / `blocked`，`error` 为受限代码或 `null`。`streamer` 仅含 `accountName`(32)、`displayName`(80)、`subdomain`(63)、`songPageUrl?`、`manageUrl?`；`device` 仅含 `id`(128)、`name`(100)、`status`(32)、`licenseId`(128)（括号内为字符串截断上限）。`activate` 三字段均要求非空（上限 64 / 256 / 256），不接受渲染进程指定服务器地址。
 - **`FontLibrarySnapshot`**：`{status,total,completed,failed,currentFont,totalBytes,downloadedBytes,completedAt}`；覆盖共享字体包与公共大图，`status` 为 `idle` / `checking` / `downloading` / `ready` / `error`，计数与字节数非负且 `completed ≤ total`、`failed ≤ completed`、`downloadedBytes ≤ totalBytes`，`currentFont` 最长 100 字符。不透传原始异常、下载地址或磁盘路径。
 - **`CatalogSnapshot`**：`{status,background,phase,completed,total,available,failed,percent,currentGiftId,currentGiftName,completedAt,error,warning}`；`status` 为 `required` / `running` / `updating` / `ready` / `error`，`phase` 为 `idle` / `catalog` / `images` / `complete` / `error`，礼物 ID/名称上限 32/100，`background` 严格布尔值，`completedAt` 为 ISO 时间或 `null`。
-- **`OverlaySettings`**：`{ok:true,style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?,overlayUrl}`。`style` 与 `styleOptions` 由 [danmaku-style-options.js](../../../src/shared/danmaku-style-options.js) 校验，时长为 `2–30` 整数，`layout` 与 `styleParameters` 分由 [danmaku-layout.js](../../../src/shared/danmaku-layout.js) 和 [component-style-parameters.js](../../../src/shared/component-style-parameters.js) 校验，省略的可选字段不由 IPC 补写。`overlayUrl` 由 IPC 与场景云控制器共用 [remote-url-policy.js](../../../src/shared/remote-url-policy.js) 的 `normalizeRemoteOverlayUrl` 校验，为无凭据/查询参数/片段、DNS 主机名的 HTTPS `/overlay/<16位base64url>`，是只读叠加层访问凭证，不能代替 Device 令牌。
+- **`OverlaySettings`**：`{ok:true,style,fullscreenDurationSeconds,styleOptions?,layout?,styleParameters?,overlayUrl}`。`style` 与 `styleOptions` 由 [danmaku-style-options.js](../../../src/shared/danmaku-style-options.js) 校验，时长为 `2–30` 整数，`layout` 与 `styleParameters` 分由 [danmaku-layout.js](../../../src/shared/danmaku-layout.js) 和 [component-style-parameters.js](../../../src/shared/component-style-parameters.js) 校验，省略的可选字段不由 IPC 补写。`overlayUrl` 由 IPC 与场景云控制器共用 [remote-url-policy.js](../../../src/shared/remote-url-policy.js) 的 `normalizeRemoteOverlayUrl` 校验，为无凭据/查询参数/片段、DNS 主机名的 HTTPS `/overlay/<16位base64url>`。其中的 token 仅用于订阅只读事件流，Device 接口另用设备令牌鉴权。直播软件的画面地址由本机组件或场景提供。
 - **过滤设置**：校验归属 [overlay-filters-contract.js](../../../src/shared/overlay-filters-contract.js)。非空 patch 仅含 `blockedUsers` / `blockedKeywords`（最多 500 人 / 200 词，UID 为 1–20 位非零开头数字，`name ≤ 80`，词 `≤ 100`）；在线榜候选 `≤ 200`（请求 `/api/device/overlay-viewers?limit=200`）。404/405 映射 `OVERLAY_FILTERS_UNSUPPORTED`。
 - **欢迎配置（V1 / V2 及全部扩展）**：校验与 `fieldErrors` 白名单归属 [welcome-settings-contract.js](../../../src/shared/welcome-settings-contract.js)，并发草稿与业务调度见 [main.md](main.md#服务器进场欢迎设置)。
   - **V1**：非空 patch 仅含 `enabled`（布尔）与 `messages`（1–30 条，每条非空、无控制字符、`≤ 80` Unicode 码位并 trim）。

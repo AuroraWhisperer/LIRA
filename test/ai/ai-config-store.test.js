@@ -313,24 +313,39 @@ test('AI config accepts a QWeather host without an HTTPS scheme', () => {
   assert.throws(() => store.updateConfig({ qweatherApiHost: 'javascript://alert' }), /HTTP/);
 });
 
-test('AI context, cache and blacklist use TTL and bound keys', (t) => {
+test('AI context and cache expire while persisted blacklist entries remain effective', (t) => {
   let now = 1000;
   const { db, store } = createStore({ now: () => now });
   t.after(() => db.close());
   store.setContext('42', { city: '苏州' }, 10);
   store.setCache('weather 苏州', { text: '晴' }, 10);
-  store.setBlacklist('42', true, { userName: 'Alice', reason: 'spam' });
+  db.prepare('INSERT INTO ai_blacklist (uid, user_name, reason, created_at) VALUES (?, ?, ?, ?)')
+    .run('42', 'Alice', 'spam', now);
   assert.deepEqual(store.getContext('42'), { city: '苏州' });
   assert.deepEqual(store.getCache('weather 苏州'), { text: '晴' });
   assert.equal(store.isBlacklisted('42'), true);
   now = 12000;
   assert.equal(store.getContext('42'), null);
   assert.equal(store.getCache('weather 苏州'), null);
+  assert.equal(store.isBlacklisted('42'), true);
   db.exec('DELETE FROM ai_blacklist');
   assert.equal(store.isBlacklisted('42'), false);
-  store.setBlacklist('42', true);
-  store.setBlacklist('42', false);
-  assert.equal(store.isBlacklisted('42'), false);
+});
+
+test('stored AI blacklist rejects directed and automatic replies', async (t) => {
+  const { db, persistence } = createStore();
+  db.prepare('INSERT INTO ai_blacklist (uid, created_at) VALUES (?, ?)').run('42', 0);
+  const store = createAiConfigStore(persistence, {});
+  const service = createTestService({
+    config: { autoReplyEnabled: true },
+    store: { isBlacklisted: store.isBlacklisted },
+  });
+  t.after(async () => { await service.shutdown(); db.close(); });
+  for (const message of ['小米 你好', '大家好']) {
+    assert.deepEqual(service.handleDanmaku({ uid: '42', message, source: 'danmaku' }), {
+      accepted: false, reason: 'blacklisted',
+    });
+  }
 });
 
 // Cache and context retention runs on a virtual clock so the expiry sweeps are deterministic.
@@ -374,7 +389,7 @@ test('AI initialization removes expired cache and context while preserving live 
   f.store.setContext('expired-viewer', { answer: 'old' }, 60);
   f.store.setCache('live-query', { text: 'retained' }, 86400);
   f.store.setContext('live-viewer', { answer: 'retained' }, 86400);
-  f.store.setBlacklist('blocked-viewer', true);
+  f.db.prepare('INSERT INTO ai_blacklist (uid, created_at) VALUES (?, ?)').run('blocked-viewer', 0);
   f.store.logRequest({ uid: 'logged-viewer', status: 'generated' });
   f.db.prepare('INSERT INTO ai_configuration (key, value, updated_at) VALUES (?, ?, ?)')
     .run('model', 'synthetic-model', new Date(0).toISOString());

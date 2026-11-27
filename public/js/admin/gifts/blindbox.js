@@ -37,8 +37,10 @@ export const giftBlindbox = (() => {
     const textarea = document.getElementById('giftBlindBoxCustomConfigV2');
     if (!textarea) return;
     const toggle = document.getElementById('blindBoxListToggle');
+    const summary = document.getElementById('blindBoxCountSummary');
     const expanded = toggle?.getAttribute('aria-expanded') === 'true';
     if (toggle) toggle.hidden = true;
+    if (summary) summary.hidden = true;
 
     const raw = (textarea.value || '').trim();
     let config = [];
@@ -50,7 +52,7 @@ export const giftBlindbox = (() => {
       }
       config = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
-      container.innerHTML = '<span class="hint">配置格式错误</span>';
+      container.innerHTML = '<div class="blind-box-empty-notice is-error">自定义配置 JSON 格式有误，请修正后再查看</div>';
       return;
     }
 
@@ -63,13 +65,27 @@ export const giftBlindbox = (() => {
         String(left.name || '未命名').localeCompare(String(right.name || '未命名'), 'zh-Hans-CN'),
     );
     const otherCount = entries.filter((item) => !isBlindBoxAvailable(item)).length;
+    const saleCount = entries.length - otherCount;
+    if (summary) {
+      if (entries.length === 0) {
+        summary.hidden = true;
+      } else {
+        summary.hidden = false;
+        summary.textContent =
+          saleCount > 0
+            ? otherCount > 0
+              ? `在售 ${saleCount} 项 · 共 ${entries.length} 项`
+              : `在售 ${saleCount} 项`
+            : `共 ${entries.length} 项`;
+      }
+    }
     if (toggle) {
       toggle.hidden = otherCount === 0;
       toggle.textContent = expanded ? `收起其余盲盒（${otherCount}） ▴` : `展开其余盲盒（${otherCount}） ▾`;
     }
     renderBlindBoxMappingStatus();
     if (entries.length === 0) {
-      container.innerHTML = '<span class="hint">暂无盲盒配置</span>';
+      container.innerHTML = '<div class="blind-box-empty-notice">暂无盲盒配置</div>';
       return;
     }
 
@@ -97,6 +113,8 @@ export const giftBlindbox = (() => {
           blind_box_name: item.name || '',
         });
         const iconHtml = `<img class="bb-chip-icon" src="${escapeAttr(icon?.src || GIFT_PLACEHOLDER)}" alt="${escapeAttr(icon?.name || item.name || '礼物图片')}">`;
+        const idTag = item.giftId ? `<small class="bb-chip-id">#${escapeHtml(String(item.giftId))}</small>` : '';
+        const customBadge = item.official ? '' : '<span class="bb-chip-badge">自定义</span>';
 
         return `
         <div class="blind-box-chip" data-blind-box-theme="${icon?.theme || 'default'}"${!expanded && !isBlindBoxAvailable(item) ? ' hidden' : ''}>
@@ -104,12 +122,13 @@ export const giftBlindbox = (() => {
           <div class="bb-chip-body">
             <div class="bb-chip-head">
               <span class="bb-chip-name">${name}</span>
-              ${item.official ? `<small class="hint">#${escapeHtml(String(item.giftId))}</small>` : ''}
+              ${customBadge}
+              ${idTag}
               <span class="bb-chip-price">${price}</span>
             </div>
             <div class="bb-chip-outputs">${outputs}</div>
           </div>
-          ${item.official ? '' : `<button class="chip-delete" data-blind-index="${item.index}" title="删除">✕</button>`}
+          ${item.official ? '' : `<button class="chip-delete" data-blind-index="${item.index}" type="button" title="删除自定义盲盒" aria-label="删除自定义盲盒 ${escapeAttr(item.name || '未命名')}">✕</button>`}
         </div>
       `;
       })
@@ -117,9 +136,9 @@ export const giftBlindbox = (() => {
     let hint = '';
     if (!expanded && otherCount === entries.length) {
       const message = saleRoomId
-        ? '暂未获取到当前直播间可送的盲盒，可展开查看其余映射'
-        : '尚未设置直播间，可展开查看全部盲盒设置';
-      hint = `<span class="hint">${message}</span>`;
+        ? '当前直播间暂未检测到在售盲盒，可展开查看其余盲盒'
+        : '尚未绑定直播间，可展开查看全部盲盒';
+      hint = `<div class="blind-box-empty-notice">${message}</div>`;
     }
     container.innerHTML = hint + chips;
     setGiftArtworkFallbacks(container);
@@ -131,18 +150,20 @@ export const giftBlindbox = (() => {
     const mapping = stateService.getAppState()?.blindBoxMapping;
     if (!mapping) {
       status.hidden = false;
-      status.textContent = '正在读取服务器映射状态';
+      status.textContent = '正在同步盲盒配置…';
+      if (status.dataset) status.dataset.tone = 'pending';
       return;
     }
-    const parts = mapping.applied ? [] : ['等待服务器应用盲盒映射'];
+    const parts = mapping.applied ? [] : ['配置已保存，等待云端生效'];
     if (Number(mapping.customCount) > 0) {
       parts.push(`自定义 ${Number(mapping.customCount)} 项`);
     }
     if (Number(mapping.takenOverCount) > 0) {
-      parts.push(`服务器已接管 ${Number(mapping.takenOverCount)} 项`);
+      parts.push(`官方已接管 ${Number(mapping.takenOverCount)} 项`);
     }
     status.textContent = parts.join(' · ');
     status.hidden = parts.length === 0;
+    if (status.dataset) status.dataset.tone = mapping.applied ? '' : 'pending';
   }
 
   function applyOfficialCatalogSnapshot(snapshot) {
@@ -291,6 +312,30 @@ export const giftBlindbox = (() => {
 
   function init() {
     if (disposeMapping) return disposeMapping;
+    const section = document.querySelector?.('.gift-blindbox-mapping-panel');
+    const toggle = document.getElementById('blindBoxMappingToggle');
+    const panelHeader = section?.querySelector?.('.panel-header');
+    const collapsible = document.getElementById('blindBoxMappingCollapsible');
+    const setCollapsed = (collapsed) => {
+      if (collapsed && collapsible?.contains?.(document.activeElement)) toggle?.focus?.();
+      section?.classList?.toggle('is-collapsed', collapsed);
+      if (collapsible) {
+        collapsible.inert = collapsed;
+        collapsible.setAttribute?.('aria-hidden', String(collapsed));
+      }
+      if (toggle) {
+        toggle.setAttribute?.('aria-expanded', String(!collapsed));
+        toggle.title = collapsed ? '展开盲盒设置' : '折叠盲盒设置';
+      }
+    };
+    setCollapsed(section?.classList?.contains('is-collapsed') || false);
+    const onHeaderClick = (event) => {
+      if (event.target?.closest?.('lira-help')) return;
+      if (!event.target?.closest?.('#blindBoxMappingHeading, #blindBoxMappingToggle')) return;
+      setCollapsed(!section?.classList?.contains('is-collapsed'));
+    };
+    panelHeader?.addEventListener?.('click', onHeaderClick);
+
     const list = document.getElementById('blindBoxList');
     const stopVisibility = list && observePanelVisibility(list, visible => {
       saleVisible = visible;
@@ -306,6 +351,7 @@ export const giftBlindbox = (() => {
     document.addEventListener('app:bilibili-auth-changed', onAuth);
     const dispose = () => {
       if (disposeMapping !== dispose) return;
+      panelHeader?.removeEventListener?.('click', onHeaderClick);
       unsubscribeCatalog();
       unsubscribeSaved();
       window.removeEventListener('app:settings-state', onSettings);

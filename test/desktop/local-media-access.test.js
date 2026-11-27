@@ -23,7 +23,7 @@ test('explicit local media access survives a cold start and remains path-specifi
 
   const firstRun = createLocalMediaAccess(dataDir);
   assert.equal(firstRun.isAllowed(selectedPath), false);
-  firstRun.allowPath(selectedPath);
+  firstRun.allowPaths([selectedPath]);
   assert.equal(firstRun.isAllowed(selectedPath), true);
   assert.equal(firstRun.isAllowed(siblingPath), false);
 
@@ -41,7 +41,7 @@ test('failed allowlist persistence keeps memory unchanged and retries the same f
   fs.writeFileSync(selected, 'audio');
   fs.writeFileSync(existing, 'audio');
   const access = createLocalMediaAccess(root);
-  access.allowPath(existing);
+  access.allowPaths([existing]);
   const write = fs.writeFileSync;
   let fail = true;
   t.mock.method(fs, 'writeFileSync', (...args) => {
@@ -51,10 +51,10 @@ test('failed allowlist persistence keeps memory unchanged and retries the same f
     }
     return write(...args);
   });
-  assert.throws(() => access.allowPath(selected), /temporary write failure/);
+  assert.throws(() => access.allowPaths([selected]), /temporary write failure/);
   assert.equal(access.isAllowed(selected), false);
   assert.equal(access.isAllowed(existing), true);
-  access.allowPath(selected);
+  access.allowPaths([selected]);
   const cold = createLocalMediaAccess(root);
   assert.equal(cold.isAllowed(selected), true);
   assert.equal(cold.isAllowed(existing), true);
@@ -158,7 +158,7 @@ test('local media protocol enforces authorization and serves byte ranges', async
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
 
   const access = createLocalMediaAccess(tempDir);
-  access.allowPath(allowedPath);
+  access.allowPaths([allowedPath]);
   let handler = null;
   registerLocalMediaProtocol(
     {

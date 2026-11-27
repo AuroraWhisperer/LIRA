@@ -124,7 +124,7 @@ function createDom() {
         document, window, fetch: (url, options) => String(url).includes('/api/component-styles/list')
           ? Promise.resolve(reply([])) : fetch(url, options), URL, URLSearchParams, AbortController,
         performance, Date: class extends Date { static now() { return now; } },
-        MutationObserver: class { observe() {} disconnect() {} },
+        HTMLElement: class {}, MutationObserver: class { observe() {} disconnect() {} },
         location: new URL(`http://127.0.0.1:3000/opening${search}`),
         matchMedia: () => motion,
         setTimeout: window.setTimeout,
@@ -355,8 +355,7 @@ for (const failure of ['http', 'payload', 'network']) {
     await form.dispatch('input', { target: volume });
     await dom.tick(220);
     assert.equal(writes.length, 1);
-    assert.equal(writes[0].openingTitle, '已保存的标题');
-    assert.equal(writes[0].openingAudioVolume, '0.8');
+    assert.deepEqual(writes[0], { openingAudioVolume: '0.8' });
   });
 }
 
@@ -623,8 +622,7 @@ test('opening style selection saves while retaining classic-only settings', asyn
   style.value = 'pixel-cassette';
   await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: style });
   await dom.tick(220);
-  assert.equal(writes[0].openingStyle, 'pixel-cassette');
-  assert.equal(writes[0].openingTitle, '保留的标题');
+  assert.deepEqual(writes[0], { openingStyle: 'pixel-cassette' });
   style.value = 'classic';
   await dom.document.getElementById('openingAnimationForm').dispatch('change', { target: style });
   assert.equal(dom.document.getElementById('openingTitle').value, '保留的标题');

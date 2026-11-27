@@ -117,26 +117,12 @@ export const initSettingsForm = () => {
   initLicenseAgreement({ documentRef, fetchRef });
   return settingsForm.init();
 };
-export const collectSettings = settingsForm.collectSettings;
-export const initLicenseAccountDevice = () =>
-  initLicenseAccountDeviceImpl({
-    documentRef,
-    licenseBridge: windowRef.liraLicense,
-  });
-export const { clearDatabase, clearSuperChats, clearAll, renderShutdownScreen, shutdownServer, reconnectBilibili } =
-  operations;
+export const { reconnectBilibili } = operations;
 export const updateBlindboxOverlayUrl = blindboxSettings.updateOverlayUrl;
 
 export const settings = {
   initBilibiliAuth,
   initSettingsForm,
-  initLicenseAccountDevice,
-  collectSettings,
-  clearDatabase,
-  clearSuperChats,
-  clearAll,
-  shutdownServer,
   reconnectBilibili,
-  renderShutdownScreen,
   updateBlindboxOverlayUrl,
 };

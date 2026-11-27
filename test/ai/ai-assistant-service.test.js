@@ -7,7 +7,7 @@ const {
   truncateReply,
   buildReplyInstructions,
   getReplyLengthBudget,
-} = require('../../src/ai/ai-assistant-service');
+} = require('../../src/ai/ai-assistant-helpers');
 const { ANSWER_QUALITY_POLICY, buildTools } = require('../../src/ai/prompt');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');

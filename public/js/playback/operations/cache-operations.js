@@ -12,22 +12,6 @@ export function createCacheOperations(deps) {
   const { readJsonResponse, formatBytes, toast, showError } = deps;
 
   /**
-   * 刷新音乐缓存统计信息
-   */
-  async function refreshPlaybackMusicCacheStats() {
-    const status = document.getElementById('playbackCacheStatus');
-    if (!status) return;
-    try {
-      const response = await fetch('/api/music/cache');
-      const payload = await readJsonResponse(response, '读取音乐缓存失败');
-      assertApiResponse(response, payload, '读取音乐缓存失败');
-      status.textContent = `缓存大小：${formatBytes(payload.data.totalBytes || 0)} · ${payload.data.totalFiles || 0} 个文件`;
-    } catch (error) {
-      status.textContent = error.message || String(error);
-    }
-  }
-
-  /**
    * 清理音乐缓存
    */
   async function clearPlaybackMusicCache() {
@@ -42,7 +26,6 @@ export function createCacheOperations(deps) {
       const payload = await readJsonResponse(response, '清理音乐缓存失败');
       assertApiResponse(response, payload, '清理音乐缓存失败');
       toast(`已清理 ${formatBytes(payload.data.clearedBytes || 0)} 音乐缓存`);
-      await refreshPlaybackMusicCacheStats();
     } catch (error) {
       showError(error);
     } finally {
@@ -51,7 +34,6 @@ export function createCacheOperations(deps) {
   }
 
   return {
-    refreshPlaybackMusicCacheStats,
     clearPlaybackMusicCache,
   };
 }

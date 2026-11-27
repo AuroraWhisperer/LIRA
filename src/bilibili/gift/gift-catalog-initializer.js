@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { resolveDataPaths } = require('../../shared/data-paths');
 
-const STATE_FILE_NAME = 'overtime-gift-assets-state-v2.json';
 const STATE_SCHEMA_VERSION = 2;
 
 function createGiftCatalogInitializer(options = {}) {
@@ -350,7 +349,6 @@ function isoTime(value) {
 }
 
 module.exports = {
-  STATE_FILE_NAME,
   createGiftCatalogInitializer,
   readCompletion,
 };

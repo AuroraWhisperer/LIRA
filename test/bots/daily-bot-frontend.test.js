@@ -25,6 +25,7 @@ async function libraryFixture(t) {
     };
     const bridge = { async invoke(request) {
       window.libraryRequests.push(structuredClone(request));
+      if (window.holdSettings && request.action === 'open') await new Promise(resolve => { window.finishSettings = resolve; });
       if (request.action === 'open') return { ok: true, contextId: 'one', data: {
         checkin: { enabled: false, revision: 0, reason: 'disabled' },
         fortune: { enabled: false, revision: 0, reason: 'disabled' },
@@ -61,6 +62,31 @@ async function saveEdits(page, selector) {
   if (await button.isVisible()) await button.click();
   else await page.clock.runFor(600);
 }
+
+test('daily editors stay accessible while settings refresh and read only the library still open', async (t) => {
+  const page = await libraryFixture(t);
+  await page.evaluate(() => { window.holdSettings = true; });
+  await page.locator('#dailyBotRefresh').click();
+
+  const checkin = page.getByRole('button', { name: '编辑签到词库', exact: true });
+  assert.equal(await checkin.isEnabled(), true);
+  await checkin.click();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '编辑抽签设置', exact: true }).click();
+  assert.equal(await page.locator('#danmakuFixedEditorDialog').isVisible(), true);
+  assert.deepEqual(await page.evaluate(() => window.libraryRequests.map(r => r.action)), ['open', 'open']);
+
+  await page.evaluate(() => window.finishSettings());
+  assert.equal(await page.getByLabel('第 1 条签级', { exact: true }).inputValue(), '上签');
+  await page.keyboard.press('Escape');
+  await page.locator('#dailyBotRefresh').click();
+  await checkin.click();
+  await page.evaluate(() => {
+    document.getElementById('danmakuFixedEditorDismiss').click();
+    window.finishSettings();
+  });
+  assert.deepEqual(await page.evaluate(() => window.libraryRequests.filter(r => r.action === 'library-read').map(r => r.payload.kind)), ['fortune']);
+});
 
 test('deleting the last daily reply shows the validation message and preserves the confirmed library', async (t) => {
   const page = await libraryFixture(t);

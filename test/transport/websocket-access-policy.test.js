@@ -125,13 +125,13 @@ test('admin subscribers retain full reads alongside overlay subscribers', async 
   assert.equal(messages(socket).at(-1).state.arbitrarySecret, 'private-root');
 });
 
-test('legacy game contexts retain their game baseline and skip unrelated hot snapshots', async (t) => {
+test('legacy game contexts read only their game baseline and skip unrelated hot snapshots', async (t) => {
   const reads = [];
   const { hub, socket } = overlayConnection(t, 'games', { context: { getState(fields) {
     reads.push(fields);
     return { games: { game: 'number-bomb', state: { min: 1, max: 10 } } };
   } } });
-  assert.deepEqual(reads, [undefined]);
+  assert.deepEqual(reads, [['games']]);
   assert.ok(Object.hasOwn(messages(socket)[0].state, 'games'));
   hub.broadcastSnapshot({ getState() { assert.fail('a gift cannot change the game'); } }, 'bilibili:gift');
   await new Promise(queueMicrotask);

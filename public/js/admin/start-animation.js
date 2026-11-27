@@ -124,7 +124,7 @@ function initStartAnimation() {
   let characterNames = {};
   let saveInFlight = null;
   let saveQueued = false;
-  let lastSavedPayload = '';
+  let savedSettings = {};
   let activeStyle = 'classic';
   let styleConfigs = {};
   let pendingSettings = {};
@@ -186,23 +186,22 @@ function initStartAnimation() {
     try {
       while (saveQueued) {
         saveQueued = false;
-        const submitted = pendingSettings;
+        const submitted = Object.fromEntries(Object.entries(pendingSettings)
+          .filter(([key, value]) => value !== savedSettings[key]));
         pendingSettings = {};
         if (!Object.keys(submitted).length) continue;
-        const body = JSON.stringify(submitted);
-        if (body === lastSavedPayload) continue;
         try {
           const response = await fetch(SETTINGS_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body,
+            body: JSON.stringify(submitted),
           });
           if (!response.ok) throw new Error('配置保存失败');
         } catch (error) {
           pendingSettings = { ...submitted, ...pendingSettings };
           throw error;
         }
-        lastSavedPayload = body;
+        Object.assign(savedSettings, submitted);
       }
       setSaveState(Object.keys(pendingSettings).length ? 'pending' : 'saved');
       return true;
@@ -216,11 +215,15 @@ function initStartAnimation() {
     }
   }
 
-  const schedulePersist = () => {
-    if (!hydrated) return;
-    const config = { ...readStartAnimationConfig(root), style: activeStyle };
+  const schedulePersist = (controlId, config) => {
+    // Both style panels reuse the classic control IDs, but own different settings.
+    const field = Object.keys(OPENING_STYLE_SETTING_KEYS.classic)
+      .find(key => OPENING_STYLE_SETTING_KEYS.classic[key] === controlId);
+    const setting = field ? OPENING_STYLE_SETTING_KEYS[activeStyle][field] : controlId;
+    const payload = openingSettingsPayload(config);
+    if (!Object.hasOwn(payload, setting)) return;
     styleConfigs[activeStyle] = { ...styleConfigs[activeStyle], ...config };
-    pendingSettings = { ...pendingSettings, ...openingSettingsPayload(config) };
+    pendingSettings[setting] = payload[setting];
     setSaveState(saveInFlight ? 'saving' : 'pending');
     window.clearTimeout(persistTimer);
     persistTimer = window.setTimeout(persist, 220);
@@ -258,7 +261,7 @@ function initStartAnimation() {
         'pixel-cassette': { ...OPENING_DEFAULTS, style: 'pixel-cassette' } };
       setFormConfig(root, { ...payload.data, ...styleConfigs[activeStyle], style: activeStyle });
       updateMediaConfig(payload.data);
-      lastSavedPayload = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
+      savedSettings = openingSettingsPayload(readStartAnimationConfig(root));
       hydrated = true;
     } catch {
       if (configStatus) configStatus.textContent = '开播配置读取失败，请重新读取后再编辑。';
@@ -273,7 +276,6 @@ function initStartAnimation() {
   const handleConfigChange = (event) => {
     if (!hydrated) return;
     if (event?.target?.id === 'openingStyle' && event.target.value !== activeStyle) {
-      schedulePersist();
       const enabled = root.getElementById('openingEnabled').checked;
       activeStyle = event.target.value;
       setFormConfig(root, { ...styleConfigs[activeStyle], enabled, style: activeStyle });
@@ -281,8 +283,7 @@ function initStartAnimation() {
       if (audioStatus) audioStatus.textContent = '';
       if (characterStatus) characterStatus.textContent = '支持 PNG、JPG、WebP，最大 16 MB。';
     }
-    render();
-    schedulePersist();
+    schedulePersist(event.target.id, render());
   };
   let refreshing = false;
   async function refreshSharedSettings() {
@@ -299,7 +300,7 @@ function initStartAnimation() {
       styleConfigs = payload.data.styles;
       setFormConfig(root, { ...payload.data, ...styleConfigs[activeStyle], style: activeStyle });
       updateMediaConfig(payload.data);
-      lastSavedPayload = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
+      savedSettings = openingSettingsPayload(readStartAnimationConfig(root));
       render();
     } catch { toast('开播设置同步失败，已保留当前输入，请重新切回页面重试。'); }
     finally {
@@ -321,11 +322,16 @@ function initStartAnimation() {
     receivedSettingsSignature = signature;
     void requestSettingsRefresh();
   });
-  picker = mountOpeningStylePicker({ beforeSelect: schedulePersist, onBuiltin(style) {
-    const select = root.getElementById('openingStyle');
-    select.value = style;
-    handleConfigChange({ target: select });
-  } });
+  picker = mountOpeningStylePicker({
+    beforeSelect() {
+      if (Object.keys(pendingSettings).length) void persist();
+    },
+    onBuiltin(style) {
+      const select = root.getElementById('openingStyle');
+      select.value = style;
+      handleConfigChange({ target: select });
+    },
+  });
   form.addEventListener('input', handleConfigChange);
   form.addEventListener('change', handleConfigChange);
   document.getElementById('openingEnabled')?.addEventListener('change', handleConfigChange);

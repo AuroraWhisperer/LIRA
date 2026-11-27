@@ -343,3 +343,134 @@ test('blindbox controls keep a stable IPv4 source URL that follows saved setting
   elements.blindboxHeartBoxOnly.checked = false;
   assert.equal(settings.buildOverlayUrl(), 'http://127.0.0.1:3012/blindbox');
 });
+
+async function createBlindboxAppearanceHarness() {
+  const document = require('../helpers/parameter-dom').createParameterDocument();
+  const field = id => document.getElementById(id);
+  const listeners = new Map();
+  const writes = [];
+  document.defaultView = { addEventListener: (name, listener) => listeners.set(name, listener) };
+  field('blindboxWinnersOnly').type = 'checkbox';
+  field('blindboxOverlayTitle').type = 'text';
+  const { createBlindboxSettings } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/settings-blindbox.js'), { document },
+  );
+  createBlindboxSettings({
+    documentRef: document, toast() {}, getGifts: () => null, getState: () => null,
+    localOverlayOrigin: () => 'http://127.0.0.1',
+    saveSettings(patch) {
+      const request = Promise.withResolvers();
+      writes.push({ patch, ...request });
+      return request.promise;
+    },
+  }).init();
+  return { document, field, writes,
+    receive: settings => listeners.get('app:settings-state')({ detail: settings }),
+    blur(input) { document.activeElement = null; input.listeners.blur?.(); },
+  };
+}
+
+test('blindbox fields catch up with the latest focused snapshot on blur without saving it back', async () => {
+  const { document, field, writes, receive, blur } = await createBlindboxAppearanceHarness();
+  const winners = field('blindboxWinnersOnly');
+  const title = field('blindboxOverlayTitle');
+  receive({ blindboxWinnersOnly: 'true', blindboxOverlayTitle: 'Client' });
+  document.activeElement = winners;
+  receive({ blindboxWinnersOnly: 'false' });
+  blur(winners);
+  assert.equal(winners.checked, false);
+
+  document.activeElement = title;
+  receive({ blindboxOverlayTitle: 'Canvas A' });
+  receive({ blindboxOverlayTitle: 'Canvas B' });
+  assert.equal(title.value, 'Client', 'the snapshot does not interrupt a focused text field');
+  blur(title);
+  assert.equal(title.value, 'Canvas B');
+  assert.equal(writes.length, 0, 'catching up must not submit a stale value');
+});
+
+test('blindbox native change before blur preserves the submitted edit over an earlier snapshot', async () => {
+  const { document, field, writes, receive, blur } = await createBlindboxAppearanceHarness();
+  const title = field('blindboxOverlayTitle');
+  receive({ blindboxOverlayTitle: 'Client' });
+  document.activeElement = title;
+  title.value = 'Client edit';
+  title.listeners.input();
+  receive({ blindboxOverlayTitle: 'Canvas edit' });
+  title.listeners.change();
+  blur(title);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].patch.blindboxOverlayTitle, 'Client edit');
+  assert.equal(title.value, 'Client edit', 'blur cannot replace the pending local submission');
+  receive({ blindboxOverlayTitle: 'Client edit' });
+  writes[0].resolve();
+  await new Promise(setImmediate);
+  assert.equal(title.value, 'Client edit');
+});
+
+test('blindbox castle stepper clamps at zero and respects remaining visibility toggle', async () => {
+  const { field, writes, receive } = await createBlindboxAppearanceHarness();
+  const showRemaining = field('blindboxShowCastlesRemaining');
+  showRemaining.type = 'checkbox';
+  const remaining = field('blindboxCastlesRemaining');
+  remaining.type = 'number';
+  const dec = field('blindboxCastlesDec');
+  const inc = field('blindboxCastlesInc');
+
+  receive({ blindboxHeartBoxOnly: 'true', blindboxShowCastlesRemaining: 'false', blindboxCastlesRemaining: '0' });
+  assert.equal(dec.disabled, true);
+  assert.equal(inc.disabled, true);
+  inc.listeners.click?.();
+  assert.equal(writes.length, 0, 'disabled stepper does not write');
+
+  receive({ blindboxShowCastlesRemaining: 'true', blindboxCastlesRemaining: '0' });
+  assert.equal(dec.disabled, false);
+  assert.equal(inc.disabled, false);
+  dec.listeners.click?.();
+  assert.equal(writes.length, 0, 'clamping at zero skips redundant writes');
+
+  inc.listeners.click?.();
+  assert.equal(remaining.value, '1');
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].patch.blindboxCastlesRemaining, '1');
+
+  dec.listeners.click?.();
+  assert.equal(remaining.value, '0');
+  assert.equal(writes.length, 2);
+  assert.equal(writes[1].patch.blindboxCastlesRemaining, '0');
+});
+
+test('blindbox style buttons save selection, update live preview, and sync incoming snapshots', async () => {
+  const { field, writes, receive } = await createBlindboxAppearanceHarness();
+  const picker = field('blindboxStylePicker');
+  const buttons = picker.children;
+  assert.deepEqual(
+    buttons.map(btn => btn.dataset.blindboxStyleOption),
+    ['classic', 'porcelain', 'layers', 'prism', 'podium'],
+  );
+  const byStyle = Object.fromEntries(buttons.map(btn => [btn.dataset.blindboxStyleOption, btn]));
+  assert.equal(byStyle.classic.getAttribute('aria-pressed'), 'true');
+  assert.equal(byStyle.podium.getAttribute('aria-pressed'), 'false');
+
+  byStyle.podium.listeners.click?.();
+  assert.equal(writes.length, 1);
+  assert.deepEqual({ ...writes[0].patch }, { blindboxStyle: 'podium' });
+  assert.equal(byStyle.podium.getAttribute('aria-pressed'), 'true');
+  assert.equal(byStyle.classic.getAttribute('aria-pressed'), 'false');
+  assert.equal(field('blindboxPreviewCanvas').children[0]?.dataset.blindboxStyle, 'podium');
+  assert.equal(field('blindboxThemeSwatches').hidden, true);
+  assert.match(field('blindboxThemeFontLabel').textContent, /固定亮色适配配色/);
+  writes[0].resolve();
+  await new Promise(setImmediate);
+
+  receive({ blindboxStyle: 'porcelain', overlayFontFamily: 'PingFang SC' });
+  assert.equal(writes.length, 1, 'incoming snapshot must not write back');
+  assert.equal(byStyle.porcelain.getAttribute('aria-pressed'), 'true');
+  assert.equal(byStyle.podium.getAttribute('aria-pressed'), 'false');
+  assert.equal(field('blindboxPreviewCanvas').children[0]?.dataset.blindboxStyle, 'porcelain');
+
+  receive({ blindboxStyle: 'classic' });
+  assert.equal(byStyle.classic.getAttribute('aria-pressed'), 'true');
+  assert.equal(field('blindboxThemeSwatches').hidden, false);
+  assert.match(field('blindboxThemeFontLabel').textContent, /与点歌板共用字体和配色/);
+});

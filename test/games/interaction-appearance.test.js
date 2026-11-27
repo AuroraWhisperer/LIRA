@@ -15,15 +15,13 @@ const {
 const { projectOverlayState, projectWebSocketPayload } = require('../../src/server/overlay-projection');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 
-test('appearance applies drafts against saved settings and reconciles concurrent canvas updates', async () => {
+async function openAppearance(settings = {}) {
   const document = createParameterDocument();
   const clock = createClock();
   const window = new EventTarget();
   const defaults = INTERACTION_APPEARANCE_DEFAULTS;
-  let saved = { ...defaults, interactionTextColor: '#ff0000', interactionFontSize: '24' };
+  const state = { saved: { ...defaults, ...settings }, delayWrite: false, finishWrite: null };
   const writes = [];
-  let delayWrite = false;
-  let finishWrite;
   for (const key of Object.keys(defaults)) {
     document.getElementById(key).type = key.startsWith('interactionShow') ? 'checkbox' : 'text';
   }
@@ -39,21 +37,71 @@ test('appearance applies drafts against saved settings and reconciles concurrent
         if (options.method === 'POST') {
           const patch = JSON.parse(options.body);
           writes.push(patch);
-          saved = { ...saved, ...patch };
+          state.saved = { ...state.saved, ...patch };
         }
-        const payload = { ok: true, data: { settings: { ...saved } } };
+        const payload = { ok: true, data: { settings: { ...state.saved } } };
         const response = { ok: true, status: 200, json: async () => payload, text: async () => JSON.stringify(payload) };
-        if (options.method === 'POST' && delayWrite) return new Promise(resolve => { finishWrite = () => resolve(response); });
+        if (options.method === 'POST' && state.delayWrite) return new Promise(resolve => { state.finishWrite = () => resolve(response); });
         return response;
       },
     },
   );
-  initInteractionAppearance();
+  const view = initInteractionAppearance();
   await new Promise(setImmediate);
+  return { document, clock, window, state, writes, view };
+}
+
+test('appearance concurrency keeps independent canvas fields with poll and rating drafts', async () => {
+  const { document, clock, window, state, view } = await openAppearance();
+  const form = document.getElementById('interactionAppearanceForm');
+  document.getElementById('interactionOverlayTitle').value = '本机投票';
+  form.events.input();
+  state.saved.interactionFontSize = '24';
+  window.dispatchEvent(new CustomEvent('app:settings-state', { detail: state.saved }));
+  clock.tick(650);
+  await new Promise(setImmediate);
+  assert.equal(state.saved.interactionOverlayTitle, '本机投票');
+  assert.equal(state.saved.interactionFontSize, '24');
+  view.setKind('rating');
+  state.saved.interactionCornerRadius = '8';
+  window.dispatchEvent(new CustomEvent('app:settings-state', { detail: state.saved }));
+  document.getElementById('interactionRatingRules').value = '只评本轮';
+  form.events.input();
+  clock.tick(650);
+  await new Promise(setImmediate);
+  assert.equal(state.saved.interactionRatingRules, '只评本轮');
+  assert.equal(state.saved.interactionCornerRadius, '8');
+});
+
+test('appearance concurrency retains input made during autosave when a canvas snapshot arrives', async () => {
+  const { document, clock, window, state } = await openAppearance();
+  const form = document.getElementById('interactionAppearanceForm');
+  state.delayWrite = true;
+  document.getElementById('interactionOverlayTitle').value = '第一版';
+  form.events.input();
+  clock.tick(650);
+  await new Promise(setImmediate);
+  assert.equal(document.getElementById('interactionAppearanceFields').disabled, false);
+  document.getElementById('interactionOverlayTitle').value = '保存中继续输入';
+  form.events.input();
+  state.saved.interactionFontSize = '24';
+  window.dispatchEvent(new CustomEvent('app:settings-state', { detail: state.saved }));
+  state.delayWrite = false;
+  state.finishWrite();
+  await new Promise(setImmediate);
+  clock.tick(1300);
+  await new Promise(setImmediate);
+  assert.equal(state.saved.interactionFontSize, '24');
+  assert.equal(state.saved.interactionOverlayTitle, '保存中继续输入');
+});
+
+test('appearance applies drafts against saved settings and reconciles concurrent canvas updates', async () => {
+  const { document, window, state, writes } = await openAppearance({ interactionTextColor: '#ff0000', interactionFontSize: '24' });
+  const defaults = INTERACTION_APPEARANCE_DEFAULTS;
   try {
     document.getElementById('interactionAppearanceReset').events.click();
     assert.equal(document.getElementById('interactionTextColor').value, defaults.interactionTextColor);
-    assert.equal(saved.interactionTextColor, '#ff0000', 'Reset edits a draft until applied');
+    assert.equal(state.saved.interactionTextColor, '#ff0000', 'Reset edits a draft until applied');
     await document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
     assert.equal(writes[0].interactionTextColor, defaults.interactionTextColor);
     assert.equal(writes[0].interactionFontSize, defaults.interactionFontSize);
@@ -61,14 +109,14 @@ test('appearance applies drafts against saved settings and reconciles concurrent
     document.getElementById('interactionAppearanceForm').events.input();
     await document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
     assert.deepEqual(writes[1], { interactionTextColor: '#123456' });
-    delayWrite = true;
+    state.delayWrite = true;
     document.getElementById('interactionFontSize').value = '24';
     document.getElementById('interactionAppearanceForm').events.input();
     const saving = document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
-    window.dispatchEvent(new CustomEvent('app:settings-state', { detail: saved }));
-    saved = { ...saved, interactionFontSize: '18' };
-    window.dispatchEvent(new CustomEvent('app:settings-state', { detail: saved }));
-    finishWrite();
+    window.dispatchEvent(new CustomEvent('app:settings-state', { detail: state.saved }));
+    state.saved = { ...state.saved, interactionFontSize: '18' };
+    window.dispatchEvent(new CustomEvent('app:settings-state', { detail: state.saved }));
+    state.finishWrite();
     await saving;
     assert.equal(document.getElementById('interactionFontSize').value, '18');
     assert.equal(document.getElementById('interactionAppearanceApply').disabled, true);

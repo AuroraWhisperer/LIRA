@@ -26,7 +26,7 @@ const {
 const { extractBilibiliSuperChatMessage } = require('./parsers/superchat-parser');
 
 // Gift command routing for identity hints and explicit capture diagnostics.
-const { isBilibiliGiftCommand, isBilibiliGiftLikeCommand } = require('./parsers/gift-command-utils');
+const { isBilibiliGiftLikeCommand } = require('./parsers/gift-command-utils');
 
 // ---------------------------------------------------------------------------
 // Packet, message and identity helpers.
@@ -41,6 +41,5 @@ module.exports = {
   extractBilibiliHistoryUserMeta,
   extractBilibiliSuperChatMessage,
   extractBilibiliOnlineRankUserMeta,
-  isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand,
 };

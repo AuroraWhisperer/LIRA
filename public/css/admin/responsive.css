@@ -22,15 +22,6 @@
     grid-template-columns: 1fr;
   }
 
-  .blind-box-form-row {
-    flex-direction: column;
-  }
-
-  .blind-box-form-row input {
-    min-width: 0;
-    width: 100%;
-  }
-
   .topbar {
     align-items: flex-start;
     flex-direction: column;

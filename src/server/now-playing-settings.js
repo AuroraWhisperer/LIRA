@@ -29,4 +29,14 @@ function saveNowPlayingConfig(context, config) {
   return normalized;
 }
 
-module.exports = { NOW_PLAYING_SETTING, readNowPlayingConfig, normalizeNowPlayingSetting, saveNowPlayingConfig };
+function patchNowPlayingConfig(context, patch) {
+  // The desktop owns the default record style; each canvas widget owns its part.
+  if (!patch || typeof patch !== 'object' || Array.isArray(patch)
+    || !Object.keys(patch).length || Object.hasOwn(patch, 'nowPlayingPart')) {
+    throw Object.assign(new Error('歌曲信息外观补丁无效。'), { statusCode: 400 });
+  }
+  const current = readNowPlayingConfig(context.settings.get());
+  return saveNowPlayingConfig(context, { ...current, ...patch });
+}
+
+module.exports = { NOW_PLAYING_SETTING, readNowPlayingConfig, normalizeNowPlayingSetting, saveNowPlayingConfig, patchNowPlayingConfig };

@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { SCENE_TYPES } = require('../../src/shared/scene-component-types');
+const { NOW_PLAYING_DEFAULTS } = require('../../public/js/shared/now-playing-appearance.js');
 const { createClock } = require('../helpers/toast-dom');
 
 const adminPath = path.join(__dirname, '../../public/js/admin');
@@ -126,7 +127,7 @@ test('now playing widgets add separate saved appearances to the canvas without s
     TextEncoder, URL, structuredClone, location: new URL('http://127.0.0.1:3000/admin'),
   });
   const fixture = await loadOwner('now-playing.js', {
-    '../shared/utils.js': { api: async (url, config) => { writes.push(url); return { data: config }; },
+    '../shared/utils.js': { api: async (url, { patch }) => { writes.push(url); return { data: { ...NOW_PLAYING_DEFAULTS, ...patch } }; },
       copyText() {}, localOverlayOrigin: () => 'http://127.0.0.1:3000', toast: message => notices.push(message) },
     '../shared/now-playing-renderer.js': { createNowPlayingRenderer: () => ({ updateConfig() {}, updateState() {}, dispose() {} }) },
     './scene-extra-preview.js': { createSceneExtraPreview: () => ({ createPanel: () => ({ dispose() {} }) }) },

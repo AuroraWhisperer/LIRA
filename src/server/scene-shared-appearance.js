@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeSceneConfig } = require('./scene-components');
+const { normalizeSceneExtraConfig } = require('./scene-extra-config');
 const { createComponentStyleLibrary } = require('./component-style-library');
 const { createComponentStyleStore } = require('../storage/component-style-store');
 const { getClockConfig } = require('./clock-contract');
@@ -8,7 +9,7 @@ const { projectOverlayState } = require('./overlay-projection');
 const { normalizeSettingsPatch } = require('./settings-contract');
 const { DEFAULT_SETTINGS } = require('../storage/settings-store');
 const { getOpeningConfig } = require('./opening-service');
-const { GIFT_DISPLAY_SETTING, readGiftDisplaySettings, validateGiftDisplaySettings } = require('../bilibili/gift/display-settings');
+const { GIFT_DISPLAY_SETTING, readGiftDisplaySettings, patchGiftDisplaySettings } = require('../bilibili/gift/display-settings');
 const { SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-components.js');
 const { GUARD_THANKS_EFFECTS, readGuardThanksEffect } = require('../../public/js/shared/guard-thanks-settings.js');
 const { openingStyleSettingsPatch } = require('../../public/js/shared/opening-settings.js');
@@ -110,9 +111,13 @@ function createSceneSharedAppearance(context) {
     // and remote danmaku settings. This capability never acquires their authority.
     if (!LOCAL_TYPES.includes(type) && !Object.hasOwn(SHARED_SCENE_SETTING_FIELDS, type)
       && !['gift-frame', 'gift-feed', 'guard-thanks', 'opening', 'now-playing'].includes(type)) throw invalid();
-    const nextConfig = { ...config, ...current, ...patch };
-    if (type === 'lyrics') delete nextConfig[ADVANCED_LYRIC_PRESETS_SETTING];
-    const next = type === 'gift-frame' ? null : normalizeSceneConfig(type, nextConfig);
+    let next;
+    if (LOCAL_TYPES.includes(type)) {
+      const { [ADVANCED_LYRIC_PRESETS_SETTING]: _presets, ...fields } = patch;
+      next = normalizeSceneExtraConfig(type, fields, { sharedSettings: true });
+    } else if (type !== 'gift-frame' && type !== 'gift-feed') {
+      next = normalizeSceneConfig(type, { ...config, ...current, ...patch });
+    }
     let values;
     if (type === 'gift-frame') {
       values = patch;
@@ -124,7 +129,11 @@ function createSceneSharedAppearance(context) {
       context.settings.setMany({ [NOW_PLAYING_SETTING]: JSON.stringify(appearance) });
       return createSceneSharedAppearance(context).read(type, config);
     } else if (type === 'gift-feed') {
-      const value = validateGiftDisplaySettings({ ...next, palette: 'bilibili-four', thresholds: [next.threshold1, next.threshold2, next.threshold3] });
+      const fields = normalizeSceneExtraConfig(type, patch, { sharedSettings: true });
+      const changed = Object.fromEntries(Object.keys(patch).map(key => [key, fields[key]]));
+      let value;
+      try { value = patchGiftDisplaySettings(context.settings.get(), changed); }
+      catch (error) { throw Object.assign(error, { statusCode: 400 }); }
       context.settings.setMany({ [GIFT_DISPLAY_SETTING]: JSON.stringify(value) });
       return createSceneSharedAppearance(context).read(type, config);
     } else if (type === 'opening') {

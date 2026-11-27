@@ -33,12 +33,11 @@
 | `api(url, body, {notifyError=true, signal}={})` | POST JSON 便捷封装：设置 `Content-Type: application/json`；仅存在本页 `__API_TOKEN__` 时补 Bearer，Admin 鉴权由主进程加头；HTTP 失败或 `!payload.ok` 抛错；按 `notifyError` 决定是否提示后再抛 |
 | `readJsonResponse(response, fallbackMessage)` | 统一响应解析：空响应返回 `{}`；非 JSON 返回带 HTTP 状态码与内容预览的报错；正常返回 `JSON.parse` 结果 |
 | `showError(error)` / `toast(message)` / `showStackedToast(options)` | 错误与提示：全局 `#toast` 容器，支持 key 去重、点击回调、礼物通知最多 6 条上限 |
-| `escapeHtml` / `escapeAttr` | 渲染前转义（所有模板插值必须经此） |
-| `formatBytes` / `formatMoney` / `formatCompactNumber` / `formatDuration` / `formatSuperChatPrice` | 展示格式化 |
+| `value(id)` / `setValue(id, value)` / `copyText(text)` | 表单读写与剪贴板复制（含非安全上下文 DOM 回退） |
 | `debounce` / `normalizeRangeValue` | 输入防抖与滑块数值归一 |
-| `dangerConfirm` / `logoutConfirm` | 危险操作 / 退出登录的自绘确认弹窗（替代原生 confirm） |
+| `dangerConfirm` / `logoutConfirm` / `showConfirmationDialog` | 危险操作 / 退出登录的自绘确认弹窗（替代原生 confirm） |
 | `localOverlayOrigin(locationLike)` | 以 `127.0.0.1` 规范化叠加层 URL（供管理页生成浏览器源地址） |
-| `withMultilingualFallback(fontFamily)` | 字体栈追加多语言回退 |
+| `withMultilingualFallback(fontFamily)` | 字体栈追加多语言回退（兼容再导出，新代码直导 `font-family.js`） |
 
 ### 2.2 统一响应格式约定
 

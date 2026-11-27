@@ -18,12 +18,13 @@ test('device private key is encrypted at rest and cannot use an unavailable mach
   };
   const store = createDeviceKeyStore({ dataDir, safeStorage });
 
-  const created = store.createNew();
+  const activation = store.prepareActivation();
+  activation.commit();
   const stored = fs.readFileSync(store.keyPath);
 
-  assert.match(created.privateKeyPem, /BEGIN PRIVATE KEY/);
+  assert.match(activation.keyPair.privateKeyPem, /BEGIN PRIVATE KEY/);
   assert.doesNotMatch(stored.toString('utf8'), /BEGIN PRIVATE KEY/);
-  assert.equal(store.loadPrivateKey(), created.privateKeyPem);
+  assert.equal(store.loadPrivateKey(), activation.keyPair.privateKeyPem);
 
   const copiedStore = createDeviceKeyStore({
     dataDir,
@@ -44,7 +45,7 @@ test('device private key is encrypted at rest and cannot use an unavailable mach
     safeStorage: null,
   });
   assert.throws(
-    () => unavailable.createNew(),
+    () => unavailable.prepareActivation(),
     (error) => error.message === 'DEVICE_KEY_UNAVAILABLE',
   );
 });

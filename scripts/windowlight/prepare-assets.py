@@ -1,7 +1,8 @@
 """Derive four aligned 1080p plates and fixed receiver masks from the v6 master.
 
-  python scripts/windowlight/prepare-assets.py --source tmp/output/windowlight-source/windowlight-master-v6.png
+  python scripts/windowlight/prepare-assets.py --source path/to/windowlight-master-v6.png
 
+Place windowlight-v6-generation.json beside the master for provenance.
 The detailed 1374x1145 generated insert is composed onto a 1920x1080 wall.
 Authoring coordinates below use a 1280x720 view of that master.
 """
@@ -59,6 +60,11 @@ def main():
     source = Image.open(args.source).convert('RGB')
     if source.size != (WIDTH, HEIGHT):
         raise ValueError('These masks require the complete 1920x1080 v6 master.')
+    generation = json.loads(args.source.with_name('windowlight-v6-generation.json').read_text(encoding='utf-8'))
+    request_id = generation['requestId']
+    source_hash = hashlib.sha256(args.source.read_bytes()).hexdigest()
+    source_path = args.source.resolve()
+    source_location = source_path.relative_to(ROOT).as_posix() if source_path.is_relative_to(ROOT) else source_path.name
     output = ROOT / 'public/img/overlays/backgrounds/windowlight'
     scratch = ROOT / 'tmp/windowlight-v6'
     output.mkdir(parents=True, exist_ok=True)
@@ -225,9 +231,7 @@ def main():
         sheet.paste(rgb_image(preview).resize((640, 360), Image.Resampling.LANCZOS), (x, y + 26))
     sheet.save(scratch / 'contact-sheet.jpg', quality=97)
 
-    generation = json.loads((ROOT / 'tmp/output/windowlight-source/windowlight-v6-generation.json').read_text(encoding='utf-8'))
-    source_hash = hashlib.sha256(args.source.read_bytes()).hexdigest()
-    provenance = {**generation, 'sourceLocation': args.source.resolve().relative_to(ROOT).as_posix(),
+    provenance = {**generation, 'sourceLocation': source_location,
         'sourceSha256': source_hash, 'sourceSize': [1920, 1080], 'outputSize': [1920, 1080],
         'recipe': ['scripts/windowlight/compose-master.py', 'scripts/windowlight/prepare-assets.py'], 'sceneOrder': list(scenes),
         'transparentLayers': ['dappled-light.webp', 'prismatic-light.webp', 'window-mask.webp', 'lamp-light.webp'],
@@ -236,7 +240,7 @@ def main():
     (output / 'provenance.json').write_text(json.dumps(provenance, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     for asset in output.glob('*.webp'):
         metadata = {'source': provenance['sourceLocation'], 'sourceSha256': source_hash,
-                    'requestId': generation['requestId'], 'provenance': 'provenance.json',
+                    'requestId': request_id, 'provenance': 'provenance.json',
                     'outputSize': [WIDTH, HEIGHT], 'description': f'{asset.name}: aligned v6 scene or fixed light receiver.'}
         asset.with_suffix('.webp.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     print(f'Wrote eight 1920x1080 layers. Master SHA256: {source_hash}')

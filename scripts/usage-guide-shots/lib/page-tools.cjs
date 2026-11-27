@@ -4,6 +4,7 @@
 // 全部为纯函数/源码字符串，通过 Playwright 的 addInitScript / evaluate 注入页面。
 
 const fs = require('node:fs');
+const { version } = require('../../../package.json');
 
 /** 管理页桌面桥桩：模拟 Electron preload 暴露的 window.* 桥，数值均为演示态。 */
 function adminStubSource(token, { suppressTour = true } = {}) {
@@ -11,7 +12,7 @@ function adminStubSource(token, { suppressTour = true } = {}) {
     window.__API_TOKEN__ = ${JSON.stringify(token)};
     ${suppressTour ? "try { localStorage.setItem('liraTourCompleted', '1'); } catch (_) {}" : ''}
     window.songAssistantDesktop = {
-      getInfo: async () => ({ version: '5.0.3', updateState: { status: 'dev-disabled' } }),
+      getInfo: async () => ({ version: ${JSON.stringify(version)}, updateState: { status: 'dev-disabled' } }),
       checkForUpdates: async () => ({ status: 'dev-disabled' }),
       downloadUpdate: async () => ({ status: 'dev-disabled' }),
       installUpdate: async () => ({}),

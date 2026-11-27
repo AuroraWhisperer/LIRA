@@ -6,14 +6,12 @@ import { formatSuperChatPrice } from '../shared/display-format.js';
 export { formatSuperChatPrice };
 import {
   escapeHtml,
-  hexToRgb,
   hexToRgba,
   withMultilingualFallback,
   scrollTravelSeconds,
-  overlayLowPowerEnabled,
 } from './overlay-utils.js';
 
-export { escapeHtml, hexToRgb, hexToRgba, withMultilingualFallback, scrollTravelSeconds, overlayLowPowerEnabled };
+export { escapeHtml, hexToRgba, withMultilingualFallback, scrollTravelSeconds };
 
 export function queueScrollSeconds(settings, settingKey = 'queueScrollSpeed') {
   const urlSpeed = new URLSearchParams(location.search).get('speed');

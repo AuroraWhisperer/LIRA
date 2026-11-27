@@ -122,7 +122,7 @@
 
 | 门面/入口 | 内部模块 | 职责边界 |
 | --- | --- | --- |
-| `queue-render.js` | `queue-theme.js` | `queue-render.js` 负责队列 DOM；`queue-theme.js` 只将设置映射为 CSS 变量并由 render 兼容再导出 |
+| `queue-render.js` | `queue-theme.js` | `queue-render.js` 负责队列 DOM；`queue-theme.js` 将设置映射为 CSS 变量，`queue-render.js` 兼容导出 `applyTheme` |
 | `queue.js` | `queue-request-notice.js` | `queue.js` 接线并交付快照；`queue-request-notice.js` 负责提示 DOM、结果顺序、阅读时间、进出场/文字动画与资源释放 |
 | `gift-effects.js` | `gift-frame-queue.js` / `gift-frame-player.js` / `gift-motion-player.js` / `gift-effect-player.js` / `gift-effects-guard.js` / `gift-effects-component.js` | 固定来源入口管理单一 WebSocket 与消息分发；各队列/播放器负责自身去重、播放和清理；组件适配器只接收父页配置与事件，不另建连接。林间花信由 `gift-effects-frame.js` 播放，掉落物理由共享 `gift-drop-physics.js` 计算 |
 | `danmaku.js` | `danmaku-style-application.js` | 入口负责配置接纳、feed 与数据连接；样式适配器将样式配置映射为 DOM dataset 与 CSS 变量，不维护消息或连接 |
@@ -589,18 +589,18 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 ## 5. 盲盒叠加层(/blindbox)
 
-客户端「组件 → 礼物姬 → 盲盒盈亏榜」和画布共用标题、榜单人数、盈利筛选、心动盲盒筛选、城堡展示、紧凑布局、自动翻页及字体配色设置。字体与配色继续沿用通用主题；画布只显示一个盈利筛选，旧 `hideLoss` 字段仍作兼容别名。新复制的地址不带这些参数，保存后跟随 settings 更新；已有 URL 显式提供的同名参数继续优先。筛选变更会重新读取统计并使场景盲盒缓存失效。
+客户端「组件 → 礼物姬 → 盲盒盈亏榜」和画布共用卡片样式（`blindboxStyle`）、标题、榜单人数、盈利筛选、心动盲盒筛选、城堡展示、紧凑布局、自动翻页及字体配色设置。样式目录由 `shared/blindbox-styles.js` 定义，提供 5 套内置风格（`classic` 经典暗夜、`porcelain` 霜瓷双栏、`layers` 无界切片、`prism` 琉璃雅集、`podium` 浅金席卡），客户端与画布右侧参数栏均提供可视化按钮切换。`classic` 继续沿用点歌板通用字体与配色；其余 4 套面向亮色系直播间背景专门调校对比度、投影与紧凑结构，并沿用点歌板字体与字号比例。画布只显示一个盈利筛选，旧 `hideLoss` 字段仍作兼容别名。新复制的地址不带这些参数，保存后跟随 settings 更新；已有 URL 显式提供的同名参数继续优先。筛选变更会重新读取统计并使场景盲盒缓存失效。
 
 面板最大高度以 `100vh` 减去上下边距为基线，仅在 `@supports (height: 100dvh)` 内改用 `dvh`，避免旧内核让带 `var()` 的 `calc()` 计算失效而丢失视口限制；超出高度的榜单仍可滚动。
 
 [overlays/blindbox.js](../../../public/js/overlays/blindbox.js)：
 
 - **数据**：汇总 + 排行榜来自 `GET /api/gifts/blind-box-stats`，携带 `top`/`hideLoss`（心动盒额外带 `boxName`）；服务端按先过滤再截取的规则裁剪 `perUser`，`top=0` 不返回用户榜。快照 reason 以 `bilibili:gift`/`gift:sprint:reset`/`connect` 触发重取统计；最多一个请求在途，其间多次变化合并为后续一次刷新。所有带 state 的快照立即应用主题及标题；统计与设置独立判断新旧，相同统计内容保留榜单节点和翻页进度，汇总模式不序列化用户榜。同源留存历史激活触发 `gift:source` 时，独立盲盒榜重读统计，保留现有榜单直到新结果返回。显式清空礼物或全部数据，或 `giftSourceEpoch` 改变时，立即清榜并重读，丢弃迟到的旧统计。合并通知也按这些条件处理。独立源与场景都只读取公开汇总和排行。礼物首页可见且「今日盲盒盈亏」展开时，按本机午夜换日，作废前一天的在途响应并读取新一天的汇总。
-- **URL 参数**（短别名 + 长键）：`top/t`（榜单位数，0=仅汇总，-1=全部）、`winners/w`（只看盈利）、`heartBox/hb`、`title/tt`（自定义标题，优先于设置 `blindboxOverlayTitle`）、`compact/c`、`hideLoss/hl`、`refresh/r`（轮询秒数）、`noScroll/ns`；这些显式参数兼容旧链接。管理页「组件 → 礼物姬 → 盲盒盈亏榜」保存公共设置并复制不带参数的 `/blindbox` 地址（见 [app.md](app.md) §6）。
+- **URL 参数**（短别名 + 长键）：`style/s`（卡片样式：`classic`/`porcelain`/`layers`/`prism`/`podium`，优先于 `blindboxStyle`）、`top/t`（榜单位数，0=仅汇总，-1=全部）、`winners/w`（只看盈利）、`heartBox/hb`、`title/tt`（自定义标题，优先于设置 `blindboxOverlayTitle`）、`compact/c`、`hideLoss/hl`、`refresh/r`（轮询秒数）、`noScroll/ns`；这些显式参数兼容旧链接。管理页「组件 → 礼物姬 → 盲盒盈亏榜」保存公共设置并复制不带参数的 `/blindbox` 地址（见 [app.md](app.md) §6）。
 - **紧凑布局与自动翻页**：紧凑布局默认关闭，自动翻页默认开启，由共享设置 `blindboxCompact` / `blindboxAutoPages` 控制，旧 URL 的显式参数优先。盲盒默认隐藏滚动条；`noScroll=1` / `ns=1` 保持隐藏，显式 `0` 恢复细滚动条和手动浏览。隐藏模式超高内容复用 `auto-pages.js` 每 8 秒翻页，保留 32px 阅读重叠并在尾页停留后回到顶部。该模块也服务画猜积分、正确答案、窄布局和游戏结果卡；不使用连续动画，低功耗或开启「减弱动态效果」时仍可阅读全部已选内容。滚轮、指针、触摸或键盘操作暂停 16 秒，焦点留在区域内时持续暂停；页面隐藏不翻页，卸载时清理。
-- **呈现**：独立浏览器源默认宽 720px；画布中新建组件默认 720×640px，尺寸定义由 `shared/scene-extra-components.js` 提供。顶栏第一行并列标题与总盈亏（涨绿跌红），第二行显示开盒数、花费和开出价值；「开出价值」直接使用统计的 `summary.totalValue`。字号比例为 1 时，标题与昵称 32px、盈亏金额 38px，统计、名次、盒数及空提示 30px；字号跟随 `themeFontScale`，全部文字下限为 30px，紧凑布局只收紧间距。容器宽度不超过 539px 时，标题、总盈亏与统计分行排列。榜单每位观众分两行显示昵称及开盒数量/盈亏，较长金额按空间换行；容器达到 600px 时榜单改为单行。前三名显示带数字和绶带的金、银、铜奖牌，第四名起使用普通数字；奖牌由 CSS 绘制，尺寸跟随字号比例。榜首浅金色强调，金额右对齐，不显示额外头衔、重复表头或空白页脚。没有开盒记录时省略汇总，只显示「等待开盒」；已有开盒但盈利筛选结果为空时显示「暂无盈利观众」。仅汇总模式隐藏标题和榜单，保留顶栏统计及零值。`compact/winners-only/summary-only/no-scroll` 类切换形态；主题从快照 settings 经 `applyTheme` 应用（与队列层同套令牌）。
-- **心动盲盒**：勾选后，顶栏下的细分隔栏可显示「今天 N 倍堡」「还有 N 个堡」「已开 X 个盲盒」，文案基准 30px、数字基准 36px，字号缩小时仍不低于 30px，空间不足自动换行。倍数留空隐藏，剩余数与开盒数各有独立开关，剩余数为手动值（0 也显示）；关闭心动筛选后整栏隐藏。自动进度沿用[后端统计规则](../backend/bilibili/gift.md#4-盲盒服务器结果与客户端展示)，只计算今日心动盲盒开出浪漫城堡后的数量。设置更新即刻应用，无需重建相同榜单；画布使用示例开盒数 12，正式浏览器源使用实际统计。字段默认值和范围见[存储设置](../backend/storage.md)。
-- **画布缩放**：组件预览与场景输出使用 720px 设计宽度，按组件实际宽度整体等比缩放文字、奖牌和间距；上述字号及下限均为缩放前的设计尺寸。可用高度换算回设计坐标，继续用于原有翻页；仅调整高度不改变字号。独立 `/blindbox` 浏览器源保留原有自适应重排。
+- **呈现**：共享卡片样式位于 `public/css/shared/blindbox-card.css`（同时用于 `/blindbox` 与客户端实时预览）。独立浏览器源默认宽 720px；画布中新建组件默认 720×640px（内容按实际高度自然收拢，超高时受 `maxHeight` 限制并翻页），尺寸定义由 `shared/scene-extra-components.js` 提供。`classic` 样式保持原版深色主题（基准 30–38px、缎带奖牌与点歌板背景色）；`porcelain`（霜瓷双栏）在宽屏采用左总账右榜单双栏压缩高度；`layers`（无界切片）去大外框，用独立浅色浮片搭配高对比翠绿/绯红实色盈亏主碑；`prism`（琉璃雅集）采用冰晶冷调灰蓝磨砂单板与圆环金属序标；`podium`（浅金席卡）在 1–3 人时采用横向三席荣誉台、4 人及以上自动切换双列细线网格；4 套亮色适配样式在窄容器下均自动折回单列。没有开盒记录时省略汇总，只显示「等待开盒」；已有开盒但盈利筛选结果为空时显示「暂无盈利观众」。仅汇总模式隐藏标题和榜单，保留顶栏统计及零值。`compact/winners-only/summary-only/no-scroll` 类与 `data-blindbox-style` / `data-profit-tone` / `data-user-count` / `data-has-heart` 属性切换形态。
+- **心动盲盒**：勾选后，可显示「今天 N 倍堡」「还有 N 个堡」「已开 X 个盲盒」（经典样式保持 30–36px，4 套紧凑样式按各自版式融为柔粉/玫瑰金铭牌条）。倍数留空隐藏，剩余数与开盒数各有独立开关，剩余数为手动值（0 也显示）；关闭心动筛选后整栏隐藏。自动进度沿用[后端统计规则](../backend/bilibili/gift.md#4-盲盒服务器结果与客户端展示)，只计算今日心动盲盒开出浪漫城堡后的数量。设置更新即刻应用，无需重建相同榜单；画布使用示例数据，正式浏览器源使用实际统计。字段默认值和范围见[存储设置](../backend/storage.md)。
+- **画布缩放**：组件预览与场景输出使用 720px 设计宽度，按组件实际宽度整体等比缩放文字、序标和间距，并按卡片实际内容高度收拢（受 `maxHeight` 限制用于翻页）；独立 `/blindbox` 浏览器源保留自适应容器重排。
 - **数据刷新**：WS reason `bilibili:gift`/`gift:sprint:reset`/`connect` 重取统计，跨本机午夜时更新当天榜单。`refresh/r` 为正数时另启周期刷新，最短 10 秒，省略或传 `0` 时由事件和跨日刷新驱动。
 
 ## 6. 直播歌词页(/lyrics)

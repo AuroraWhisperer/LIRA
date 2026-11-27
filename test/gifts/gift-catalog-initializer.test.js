@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { STATE_FILE_NAME, createGiftCatalogInitializer } = require('../../src/bilibili/gift/gift-catalog-initializer');
+const { createGiftCatalogInitializer } = require('../../src/bilibili/gift/gift-catalog-initializer');
+const { resolveDataPaths } = require('../../src/shared/data-paths');
 
 const QUIET_LOGGER = { debug() {}, warn() {} };
 const COMPLETED_AT = '2026-09-05T00:00:00.000Z';
@@ -78,7 +79,7 @@ test('initializes the catalog and all available images on first login', async ()
     );
     assert.equal(initializer.isInitialized(), true);
 
-    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'));
+    const persisted = JSON.parse(fs.readFileSync(resolveDataPaths(dataDir).giftAssetsStatePath, 'utf8'));
     assert.deepEqual(persisted, {
       schemaVersion: 2,
       catalogVersion: 'v1',
@@ -199,7 +200,7 @@ test('fails first initialization when the catalog is unavailable and no local co
     assert.equal(initializer.isInitialized(), false);
     assert.equal(initializer.getState().status, 'error');
     assert.equal(initializer.getState().phase, 'error');
-    assert.equal(fs.existsSync(path.join(dataDir, 'cache', STATE_FILE_NAME)), false);
+    assert.equal(fs.existsSync(resolveDataPaths(dataDir).giftAssetsStatePath), false);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

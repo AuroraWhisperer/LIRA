@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createHybridGiftSaleCatalogService } = require('../../src/bilibili/gift/hybrid-catalog');
-const { STATE_FILE_NAME } = require('../../src/bilibili/gift/gift-catalog-initializer');
+const { resolveDataPaths } = require('../../src/shared/data-paths');
 const { webpBytes } = require('../helpers/remote-catalog-fixture');
 
 const HOURS_12 = 12 * 60 * 60 * 1000;
@@ -270,7 +270,7 @@ test('identity changes recheck artwork and incremental progress counts only chan
     assert.equal(imageCalls, 3);
     assert.equal(updates.at(-1).gifts[0].name, 'Renamed gift');
     assert.equal(updates.at(-1).gifts[0].priceRaw, 200);
-    const completion = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'));
+    const completion = JSON.parse(fs.readFileSync(resolveDataPaths(dataDir).giftAssetsStatePath, 'utf8'));
     assert.equal(completion.available, 2);
     assert.equal(completion.failed, 1);
 

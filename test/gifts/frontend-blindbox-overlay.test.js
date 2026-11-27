@@ -6,14 +6,16 @@ const test = require('node:test');
 const path = require('node:path');
 const { loadModuleScope } = require('../helpers/frontend-modules');
 
-async function createOverlay(search = '') {
+async function createOverlay(search = '', options = {}) {
   const elements = {
     blindboxTitle: { textContent: '' },
     blindboxSummary: { innerHTML: '' },
     blindboxLeaderboard: { innerHTML: '' },
     blindboxHeartProgress: { innerHTML: '', hidden: true },
   };
-  const panel = { classList: { toggle() {} }, style: {} };
+  const panel = options.withDataset
+    ? { classList: { toggle() {} }, style: {}, dataset: {} }
+    : { classList: { toggle() {} }, style: {} };
   const sandbox = {
     window: {},
     URLSearchParams,
@@ -26,7 +28,7 @@ async function createOverlay(search = '') {
     },
   };
   const evaluate = await loadModuleScope(path.join(__dirname, '../../public/js/overlays/blindbox.js'), sandbox);
-  return { sandbox, elements, evaluate, api: evaluate('({ render, loadStats, connectSocket })') };
+  return { sandbox, elements, panel, evaluate, api: evaluate('({ render, loadStats, connectSocket })') };
 }
 
 test('blindbox overlay renders signed summary and per-user profit text', async (t) => {
@@ -257,4 +259,56 @@ test('blindbox refreshes share one pending request and read the last dirty updat
   pending[1]({ json: async () => ({ ok: true, data: { summary: {}, perUser: [{ userName: 'Latest', totalProfit: 2 }] } }) });
   await first;
   assert.match(elements.blindboxLeaderboard.innerHTML, /Latest/);
+});
+
+test('blindboxStyle applies curated styles, honors URL override, updates panel state attributes, and scopes inline background to classic', async () => {
+  // Saved setting applies style and clears inline classic background for curated light styles
+  const { api, panel, evaluate } = await createOverlay('', { withDataset: true });
+  evaluate('state = { settings: { blindboxStyle: "porcelain", themeBackground: "#181823", themeOpacity: 0.76, blindboxHeartBoxOnly: "true", blindboxCastleMultiplier: "2", blindboxAutoPages: "false" } }; receiveAppearance();');
+  assert.equal(panel.dataset.blindboxStyle, 'porcelain');
+
+  api.render({
+    summary: { boxCount: 5, totalCost: 100, totalValue: 180, totalProfit: 80 },
+    perUser: [
+      { userName: 'A', boxCount: 3, totalProfit: 60 },
+      { userName: 'B', boxCount: 2, totalProfit: 20 },
+    ],
+  });
+  assert.equal(panel.dataset.blindboxStyle, 'porcelain');
+  assert.equal(panel.dataset.profitTone, 'up');
+  assert.equal(panel.dataset.userCount, '2');
+  assert.equal(panel.dataset.hasHeart, 'true');
+  assert.equal(panel.style.backgroundColor, '');
+
+  // Switching back to classic restores inline theme background; loss/empty states update profitTone & userCount
+  evaluate('state = { settings: { blindboxStyle: "classic", themeBackground: "#181823", themeOpacity: 0.76, blindboxAutoPages: "false" } }; receiveAppearance();');
+  api.render({
+    summary: { boxCount: 2, totalCost: 60, totalValue: 20, totalProfit: -40 },
+    perUser: [{ userName: 'C', boxCount: 2, totalProfit: -40 }],
+  });
+  assert.equal(panel.dataset.blindboxStyle, 'classic');
+  assert.equal(panel.dataset.profitTone, 'down');
+  assert.equal(panel.dataset.userCount, '1');
+  assert.equal(panel.dataset.hasHeart, 'false');
+  assert.match(panel.style.backgroundColor, /^rgba\(24,\s*24,\s*35,\s*0\.76\)$/);
+
+  api.render({
+    summary: { boxCount: 0, totalCost: 0, totalValue: 0, totalProfit: 0 },
+    perUser: [],
+  });
+  assert.equal(panel.dataset.profitTone, 'flat');
+  assert.equal(panel.dataset.userCount, '0');
+
+  // Unknown saved style falls back to classic
+  evaluate('state = { settings: { blindboxStyle: "unknown-style", blindboxAutoPages: "false" } }; receiveAppearance();');
+  assert.equal(panel.dataset.blindboxStyle, 'classic');
+
+  // Explicit URL ?style= or ?s= overrides saved settings.blindboxStyle
+  for (const [search, expected] of [['?style=podium', 'podium'], ['?s=layers', 'layers']]) {
+    const overridden = await createOverlay(search, { withDataset: true });
+    overridden.evaluate('state = { settings: { blindboxStyle: "classic", blindboxAutoPages: "false" } }; receiveAppearance();');
+    overridden.api.render({ summary: { boxCount: 1, totalCost: 10, totalValue: 20, totalProfit: 10 }, perUser: [] });
+    assert.equal(overridden.panel.dataset.blindboxStyle, expected, search);
+    assert.equal(overridden.panel.style.backgroundColor, '', search);
+  }
 });

@@ -9,12 +9,6 @@ export const WISH_PERIODS = {
   day: '本日许愿',
   session: '本场直播许愿',
 };
-export const WISH_CATEGORIES = {
-  guard: '大航海',
-  blindBox: '盲盒本体',
-  blindBoxOutput: '盲盒产出',
-  directGift: '礼物',
-};
 export const DEFAULT_WISH_TEXT = '许愿{礼物}（{已收}/{目标}）';
 export const DEFAULT_WISH_TEXT_COLORS = { pending: '#3b6ea8', received: '#21815c' };
 

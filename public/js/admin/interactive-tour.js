@@ -8,7 +8,6 @@
 import {
   TOUR_CONFIG_VERSION,
   TOUR_CONFIG_COMPLETION_CHECK_INTERVAL_MS,
-  TOUR_CONFIG_FIRST_RUN_SHOWN_KEY,
   TOUR_CONFIG_STEPS,
   claimFirstRunTourFromStorage,
 } from './interactive-tour-config.js';
@@ -16,7 +15,6 @@ import { calculateTooltipPositionImpl, clamp } from './interactive-tour-position
 
 export const TOUR_VERSION = TOUR_CONFIG_VERSION;
 export const TOUR_COMPLETION_CHECK_INTERVAL_MS = TOUR_CONFIG_COMPLETION_CHECK_INTERVAL_MS;
-export const TOUR_FIRST_RUN_SHOWN_KEY = TOUR_CONFIG_FIRST_RUN_SHOWN_KEY;
 export const TOUR_STEPS = TOUR_CONFIG_STEPS;
 export const claimFirstRunTour = claimFirstRunTourFromStorage;
 export const calculateTooltipPosition = calculateTooltipPositionImpl;

@@ -83,7 +83,7 @@ test('AI audit retention honors configured days and zero disables deletion', (t)
 test('AI audit retention does not delete configuration, blacklist, quota, cache or context', (t) => {
   const f = fixture(t);
   f.logAt(NOW - 60 * DAY_MS, 'expired');
-  f.store.setBlacklist('blocked', true);
+  f.songDb.prepare('INSERT INTO ai_blacklist (uid, created_at) VALUES (?, ?)').run('blocked', NOW);
   f.store.setCache('query', { text: 'cached' }, 600);
   f.store.setContext('viewer', { answer: 'context' }, 600);
   f.songDb

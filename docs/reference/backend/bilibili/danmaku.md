@@ -1,6 +1,6 @@
 # 弹幕监听管线:BilibiliDanmakuClient 与弹幕机器人
 
-> 涉及文件:[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[danmaku/message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)、[danmaku/feed-buffer.js](../../../../src/bilibili/danmaku/feed-buffer.js)、[danmaku/history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku/online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js)、[danmaku/fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)、[danmaku/live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js)、[danmaku/identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)、[users/user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[users/profile-provider.js](../../../../src/bilibili/users/profile-provider.js)、[danmaku/message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js)、[danmaku/sender-service.js](../../../../src/bilibili/danmaku/sender-service.js)、[danmaku/mention-policy.js](../../../../src/bilibili/danmaku/mention-policy.js)、[danmaku/command-text.js](../../../../src/bilibili/danmaku/command-text.js)、[bilibili-message-handler.js](../../../../src/bilibili/bilibili-message-handler.js)、[custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)、[server.js](../../../../src/server.js) 的装配段、[domain-services.js](../../../../src/server/domain-services.js) 的 messages 段
+> 涉及文件:[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[danmaku/message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)、[danmaku/feed-buffer.js](../../../../src/bilibili/danmaku/feed-buffer.js)、[danmaku/history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku/online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js)、[danmaku/fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)、[danmaku/live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js)、[users/user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[users/profile-provider.js](../../../../src/bilibili/users/profile-provider.js)、[danmaku/message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js)、[danmaku/sender-service.js](../../../../src/bilibili/danmaku/sender-service.js)、[danmaku/mention-policy.js](../../../../src/bilibili/danmaku/mention-policy.js)、[danmaku/command-text.js](../../../../src/bilibili/danmaku/command-text.js)、[bilibili-message-handler.js](../../../../src/bilibili/bilibili-message-handler.js)、[custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)、[server.js](../../../../src/server.js) 的装配段、[domain-services.js](../../../../src/server/domain-services.js) 的 messages 段
 
 本文档是 **Bilibili 弹幕监听管线与机器人行为**的单一事实来源，说明客户端回调契约、轮询与缓存策略、命令解析、云端签到/抽签边界、自定义回复、弹幕发送及诊断快照；云端业务规则见 [云端签到与抽签规格](../../../../specs/cloud-daily-bots.md)。服务端侧的客户端生命周期编排（`configure` / `reconnect` / `_replaceClientChain`）见 [server-core.md](../server-core.md) §6，本文只描述客户端内部行为。底层传输与解析协议（HTTP/WBI/WS）见 [protocol.md](protocol.md)，礼物入库见 [gift.md](gift.md)。
 
@@ -159,7 +159,7 @@ text.startsWith('点歌') || text.startsWith('随机点歌') || text.startsWith(
 
 ### 5.2 parseDanmakuCommand
 
-`parseDanmakuCommand(text, settings)`([bilibili-message-handler.js:105-131](../../../../src/bilibili/bilibili-message-handler.js#L105-L131)):
+`parseDanmakuCommand(message)` 解析下列命令。消息处理层另按 `songRequestRequireSpace` 检查点歌空格。[指令解析](../../../../src/bilibili/bilibili-message-handler.js#L192)
 
 | 输入                                 | 结果                         |
 | ------------------------------------ | ---------------------------- |
@@ -305,11 +305,11 @@ AI 自动接话通过同一 sender 的等待限流、授权与会话断言发送
 
 ## 10. 用户信息门面与房间运行边界
 
-`UserInfoService`([user-info-service.js](../../../../src/bilibili/users/user-info-service.js)) 是 Bilibili 用户资料和当前房间身份的唯一 merge policy owner。解析器只产生 `IdentityHint`；`MessageHandlers`、History/OnlineRank/FansMedal poller 通过注入的 `ingestHint`/`replaceOnlineSnapshot` sink 提交，poller 不访问 `IdentityCache`、profile provider 或 Avatar Proxy。
+`UserInfoService`([user-info-service.js](../../../../src/bilibili/users/user-info-service.js)) 是 Bilibili 用户资料和当前房间身份的唯一 merge policy owner。解析器只产生 `IdentityHint`；`MessageHandlers`、History/OnlineRank/FansMedal poller 通过注入的 `ingestHint`/`replaceOnlineSnapshot` sink 提交，poller 仅提交线索与在线快照，由门面统一处理。
 
 默认服务按 UID 保存一份合并资料，最近观众按房间活动时间排序，在线名单来自最近一次有效的榜单快照。补取头像只更新资料。切房时清空两类名单和旧房身份。粉丝牌轮询提交线索后只统计受理数，订阅者仍按字段变化收到通知。
 
-显式注入 `IdentityCache` 时，门面同步维护其兼容投影。`resolve` 读取最终身份，`remember` 拒绝绕过门面写入。独立构造的旧缓存保留两个方法的签名，旧输入复用门面的昵称、头像和房间来源优先级。见[字段证据规则](../../../../src/bilibili/users/user-info-evidence.js)。
+昵称、头像与房间线索的来源优先级由[字段证据规则](../../../../src/bilibili/users/user-info-evidence.js)定义。
 
 门面公开 `peek`、`ingestHint`、`ensure`、`listRecent`、`listOnline`、`replaceOnlineSnapshot`、`subscribe`、`setRoom`、`beginRoomRun`、`endRoomRun`、`dispose`。`name`/`avatarUrl` 是 UID 全局 profile，`guard`/`fansMedal` 是 `{roomId, ownerUid}` 房间身份；字段投影只返回请求字段和 `uid`，不泄露 evidence、source、generation 或 runToken。粉丝牌非空值必须携带匹配主播 UID，verified absence 与 unknown 分离。
 

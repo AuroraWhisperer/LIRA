@@ -38,6 +38,5 @@ function isBilibiliGiftLikeCommand(cmd) {
 
 module.exports = {
   isBilibiliDuplicateGuardToast,
-  isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand,
 };

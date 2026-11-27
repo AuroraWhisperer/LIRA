@@ -1,8 +1,14 @@
 <section id="liveRankingsFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="liveRankingsFeatureTab" data-other-feature-panel hidden>
   <div class="live-rankings-page">
     <header class="live-rankings-heading">
-      <h2>实时榜单</h2>
-      <p data-rankings="room">跟随当前账号配置的直播间</p>
+      <div class="live-rankings-identity">
+        <h2>实时榜单</h2>
+        <p class="live-rankings-room" data-rankings="room" hidden>
+          <strong data-rankings="name"></strong>
+          <span data-rankings="room-id"></span>
+        </p>
+      </div>
+      <p class="live-rankings-summary" data-rankings="summary" hidden>本房间上榜 <strong data-rankings="count"></strong> 项</p>
       <p class="live-rankings-status" data-rankings="status" role="status">正在连接榜单…</p>
     </header>
     <div data-rankings="boards" aria-label="B 站实时四榜"></div>

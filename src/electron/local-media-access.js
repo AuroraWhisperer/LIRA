@@ -23,10 +23,6 @@ function createLocalMediaAccess(dataDir) {
     }
   }
 
-  function allowPath(filePath) {
-    return allowPaths([filePath])[0];
-  }
-
   function allowPaths(filePaths) {
     const resolvedPaths = [];
     for (const filePath of Array.isArray(filePaths) ? filePaths : []) {
@@ -52,7 +48,7 @@ function createLocalMediaAccess(dataDir) {
     return [...allowedPaths];
   }
 
-  return { allowPath, allowPaths, isAllowed, isCanonicalAllowed, getAllowedPaths };
+  return { allowPaths, isAllowed, isCanonicalAllowed, getAllowedPaths };
 }
 
 // Shared by desktop IPC, permissions and media adapters; compares origins only.

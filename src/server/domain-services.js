@@ -81,7 +81,6 @@ function createDomainServices(options) {
       songStore, songName, settingsStore.getSettings(['songRequestMatchMode']).songRequestMatchMode,
     ),
     listCategories: () => songService.listCategories(songStore),
-    listTags: () => songService.listTags(songStore),
     ensureCategory: (name) => songService.ensureCategory(songStore, name),
     import: (rows) => songService.importSongs(songStore, rows),
     previewImport: (input) => previewSongImport(songStore, input),
@@ -254,7 +253,6 @@ function createDomainServices(options) {
       data,
       playback: playbackStore,
       theme: themeStore,
-      cooldowns: cooldownStore,
     };
   } catch (error) {
     // Factories retain ownership until the complete service bundle is returned.

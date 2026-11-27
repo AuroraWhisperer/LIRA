@@ -176,6 +176,7 @@ const DEFAULT_SETTINGS = {
   overlayRuleFontSize: '10',
   songBoardSyncTheme: 'true',
   clockStyleOptions: '{}',
+  blindboxStyle: 'classic',
   blindboxOverlayTitle: '',
   blindboxOverlayTop: '3',
   blindboxWinnersOnly: 'true',

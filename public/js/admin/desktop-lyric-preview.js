@@ -38,7 +38,11 @@ function init(form, options = {}) {
   document.querySelectorAll('[data-lyric-preview-background]').forEach((button) => {
     button.addEventListener('click', () => {
       const mode = setDesktopLyricBackground(button.dataset.lyricPreviewBackground);
-      try { localStorage.setItem(BG_STORAGE_KEY, mode); } catch { /* ignore storage restrictions */ }
+      try {
+        localStorage.setItem(BG_STORAGE_KEY, mode);
+      } catch (error) {
+        console.warn('无法保存歌词预览背景，当前预览仍然有效。', error);
+      }
     });
   });
   document.getElementById('desktopLyricCopyUrlBtn')?.addEventListener('click', copyDesktopLyricUrl);
@@ -110,7 +114,9 @@ function initPreviewBackground() {
   try {
     const stored = localStorage.getItem(BG_STORAGE_KEY);
     if (stored) saved = normalizeDesktopLyricBackground(stored);
-  } catch { /* ignore storage restrictions */ }
+  } catch (error) {
+    console.warn('无法读取歌词预览背景，使用默认背景。', error);
+  }
   setDesktopLyricBackground(saved);
 }
 

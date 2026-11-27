@@ -35,6 +35,7 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   const root = panel.closest('#otherDanmakuFeature');
   let states = { checkin: fresh(), fortune: fresh() };
   let kind = 'checkin', enabled = false, busy = false, generation = 0;
+  let recheckingSettings = false, readAfterRefresh = false;
   const state = () => states[kind];
   const autosaves = Object.fromEntries(Object.keys(NAMES).map(key => [key, createAutosave({ root: panel, windowRef,
     canSave: () => enabled && !busy && states[key].dirty && !states[key].conflict,
@@ -43,14 +44,15 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     const data = state();
     for (const key of Object.keys(NAMES)) {
       const button = root.querySelector(`[data-fixed-open="${key}"]`);
-      button.disabled = busy || (!enabled && !states[key].items);
+      button.disabled = (busy && !recheckingSettings) || (!enabled && !states[key].items);
     }
     element('Save').disabled = !enabled || busy || !data.dirty || data.conflict;
     element('Refresh').disabled = !enabled || busy;
     element('Reload').disabled = !enabled || busy;
     element('Reload').hidden = !data.conflict;
     element('Add').disabled = !data.items || data.items.length >= 1000;
-    element('Status').textContent = data.notice || data.readError || data.saveError || (data.dirty ? '有未保存的修改' : data.items ? '已与云端确认' : '展开时读取词库');
+    const emptyStatus = readAfterRefresh ? '正在核对云端设置…' : '展开时读取词库';
+    element('Status').textContent = data.notice || data.readError || data.saveError || (data.dirty ? '有未保存的修改' : data.items ? '已与云端确认' : emptyStatus);
     element('Status').parentElement.hidden = Boolean(data.items && !data.readError && !data.saveError && !data.conflict);
   }
   function changed(data) {
@@ -223,16 +225,39 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     element('List').lastElementChild?.querySelector('input')?.focus();
   });
   const select = (event) => {
+    readAfterRefresh = false;
     if (!NAMES[event.detail]) return;
     kind = event.detail;
+    readAfterRefresh = recheckingSettings;
     render();
     revealEditorItem(element('List'), 0);
-    void read();
+    if (!readAfterRefresh) void read();
   };
   root.addEventListener('fixed-reply:select', select);
   windowRef.addEventListener('pagehide', () => { generation++; root.removeEventListener('fixed-reply:select', select); }, { once: true });
   return {
-    availability(next) { enabled = next.enabled; busy = next.busy; controls(); Object.values(autosaves).forEach(save => save.resume()); },
-    reset() { generation++; Object.values(autosaves).forEach(save => save.cancel()); states = { checkin: fresh(), fortune: fresh() }; render(); },
+    availability(next) {
+      enabled = next.enabled;
+      busy = next.busy;
+      recheckingSettings = next.recheckingSettings;
+      if (!busy && readAfterRefresh) {
+        readAfterRefresh = false;
+        const stillOpen = panel.closest('dialog')?.open;
+        if (stillOpen && enabled) {
+          void read();
+          return;
+        }
+        if (stillOpen) state().readError ||= '请关闭面板并刷新云端状态，再读取词库。';
+      }
+      controls();
+      Object.values(autosaves).forEach(save => save.resume());
+    },
+    reset() {
+      generation++;
+      readAfterRefresh = false;
+      Object.values(autosaves).forEach(save => save.cancel());
+      states = { checkin: fresh(), fortune: fresh() };
+      render();
+    },
   };
 }

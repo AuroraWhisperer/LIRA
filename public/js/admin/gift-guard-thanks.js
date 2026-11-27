@@ -43,7 +43,7 @@ export function initGuardThanks() {
     const fromSettings = settings => configFromSettings(effect, settings);
     const controller = createComponentConfigController({
       initial: fromSettings(currentSettings),
-      persist: async draft => fromSettings(await saveComponentSettings(draft)),
+      persist: async (_draft, patch) => fromSettings(await saveComponentSettings(patch)),
       confirm: async () => fromSettings(await confirmComponentSettings()),
     });
     controllers.set(effect.prefix, controller);

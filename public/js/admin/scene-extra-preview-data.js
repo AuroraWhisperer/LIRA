@@ -35,7 +35,7 @@ export function sceneExtraPreviewData(type) {
       poll: { sessionId: 'preview-poll', kind: 'poll', phase: 'active', connected: true, participants: 100, endsAt: Date.now() + 60000, options: [{ text: '流行歌曲', votes: 65, percentage: 65 }, { text: '经典老歌', votes: 35, percentage: 35 }] },
       rating: { sessionId: 'preview-rating', kind: 'rating', phase: 'finished', participants: 100, average: 8.6 },
     } },
-    blindbox: { summary: { boxCount: 12, totalCost: 120, totalValue: 156, totalProfit: 36 }, heartBoxProgress: { openedSinceCastle: 12 }, perUser: [{ userName: '示例观众', boxCount: 8, totalProfit: 42 }, { userName: '另一位观众', boxCount: 4, totalProfit: -6 }] },
+    blindbox: { summary: { boxCount: 16, totalCost: 180, totalValue: 268.5, totalProfit: 88.5 }, heartBoxProgress: { openedSinceCastle: 7 }, perUser: [{ userName: '示例观众', boxCount: 8, totalProfit: 56.5 }, { userName: '雾岛听雨', boxCount: 4, totalProfit: 28 }, { userName: '星川折纸', boxCount: 2, totalProfit: 12 }, { userName: '另一位观众', boxCount: 2, totalProfit: -8 }] },
     'gift-feed': {
       preview: true,
       items: [[0, 0], [1, 1], [2, 2], [0, 1], [1, 2], [2, 0]].map(([viewer, giftIndex], index) => {

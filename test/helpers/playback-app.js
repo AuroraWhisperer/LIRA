@@ -183,12 +183,6 @@ async function createPlaybackApp(initialState, options = {}) {
         data: { lines: [] },
       });
     }
-    if (url === '/api/music/cache') {
-      return response({
-        ok: true,
-        data: { totalBytes: 0, totalFiles: 0 },
-      });
-    }
     if (url === '/api/music/home') {
       return response({
         ok: true,

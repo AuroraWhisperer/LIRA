@@ -1,7 +1,7 @@
 import { toast } from '../shared/utils.js';
 import { bindRangeNumber, formatRangeNumber, initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
 import { theme } from '../shared/theme.js';
-import { syncComponentFieldValue } from './component-preview-panel.js';
+import { syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { renderPresetCards } from './theme-preset-cards.js';
 import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
 
@@ -33,12 +33,15 @@ export function songBoardSettingsPayload(draft, changed = draft) {
   return Object.fromEntries(Object.entries(changed).filter(([key]) => Object.hasOwn(DEFAULTS, key)));
 }
 
-export function collectSongBoardSettings(form) {
-  const node = (id) => form.querySelector(`[id="${id}"]`);
-  const draft = Object.fromEntries(Object.keys(DEFAULTS).map((key) => [key, node(key).value]));
-  draft.songBoardSyncTheme = String(node('songBoardSyncTheme').checked);
-  draft.songBoardSongColor = node('songBoardSongColorMode').value === 'custom' ? node('songBoardSongColor').value : '';
-  return songBoardSettingsPayload(draft);
+export function collectSongBoardSettings(form, keys = Object.keys(DEFAULTS)) {
+  const node = id => form.querySelector(`[id="${id}"]`);
+  const values = {};
+  for (const key of keys) {
+    if (key === 'songBoardSyncTheme') values[key] = String(node(key).checked);
+    else if (key === 'songBoardSongColor' && node('songBoardSongColorMode').value !== 'custom') values[key] = '';
+    else values[key] = node(key).value;
+  }
+  return values;
 }
 
 export function bindSongBoardSettings(form, controller) {
@@ -63,7 +66,13 @@ export function bindSongBoardSettings(form, controller) {
   };
   const edit = (event) => {
     if (event.target.type === 'number' && (!event.target.value || !event.target.checkValidity())) return;
-    controller.edit(collectSongBoardSettings(form));
+    const id = event.target.id;
+    const pair = RANGE_PAIRS.find(([rangeId, numberId]) => id === rangeId || id === numberId);
+    const key = pair ? pair.find(id => Object.hasOwn(DEFAULTS, id))
+      : id === 'songBoardSongColorMode' ? 'songBoardSongColor' : id;
+    if (!Object.hasOwn(DEFAULTS, key)) return;
+    // Focused fields may still display an older value; only this control is an edit.
+    controller.edit(collectSongBoardSettings(form, [key]));
     clearTimeout(timer);
     timer = setTimeout(() => { void save(); }, 180);
   };
@@ -72,7 +81,6 @@ export function bindSongBoardSettings(form, controller) {
   form.addEventListener('change', edit);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    controller.edit(collectSongBoardSettings(form));
     await save();
   });
   node('songBoardPresets').addEventListener('click', async (event) => {
@@ -113,7 +121,7 @@ export function bindSongBoardSettings(form, controller) {
     }
     initParameterRanges(form);
   }
-  const unsubscribe = controller.subscribe(render);
+  const unsubscribe = subscribeComponentFields(form, controller, render);
   return { save, dispose() {
     clearTimeout(timer);
     unsubscribe();

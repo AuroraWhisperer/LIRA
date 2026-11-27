@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -116,7 +115,6 @@ internal sealed class DspSource : ISampleProvider, IDisposable
   float windowInputPeak, windowOutputPeak;
   public volatile float OutputVolume = 0.7f;
   public volatile bool Original;
-  public double WorkMilliseconds { get; private set; }
   public long InputFrames { get; private set; }
   public WaveFormat WaveFormat { get; } = WaveFormat.CreateIeeeFloatWaveFormat(48000, 2);
 
@@ -142,7 +140,6 @@ internal sealed class DspSource : ISampleProvider, IDisposable
 
   int ReadAudio(float[] buffer, int offset, int count)
   {
-    long work = Stopwatch.GetTimestamp();
     int written = 0;
     float inputPeak = 0;
     while (written < count)
@@ -233,7 +230,6 @@ internal sealed class DspSource : ISampleProvider, IDisposable
       windowInputPeak = Math.Max(windowInputPeak, inputPeak);
       windowOutputPeak = Math.Max(windowOutputPeak, outputPeak);
     }
-    WorkMilliseconds += Stopwatch.GetElapsedTime(work).TotalMilliseconds;
     return written;
   }
 

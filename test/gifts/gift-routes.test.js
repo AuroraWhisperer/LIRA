@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { routes } = require('../../src/server/routes/gift-routes');
+const { DEFAULT_GIFT_DISPLAY } = require('../../src/bilibili/gift/display-settings');
 
 test('gift ledger routes pass only allowlisted filters and reject source selectors', () => {
   const calls = [];
@@ -204,6 +205,129 @@ test('gift display settings persist valid cents and leave saved configuration un
   routes['GET /api/gifts/display-settings'](context, {}, read);
   assert.deepEqual(read.payload.data, config);
   assert.deepEqual(broadcasts, ['settings']);
+});
+
+function createDisplayContext() {
+  const settings = { giftDisplayConfig: JSON.stringify(DEFAULT_GIFT_DISPLAY) };
+  const writes = [];
+  const broadcasts = [];
+  return {
+    settings, writes, broadcasts,
+    context: {
+      settings: {
+        get: () => settings,
+        set(key, value) { settings[key] = value; writes.push(key); },
+      },
+      broadcastSnapshot: reason => broadcasts.push(reason),
+    },
+  };
+}
+
+test('legacy gift display POST still replaces the complete configuration after a concurrent write', async () => {
+  const fixture = createDisplayContext();
+  const response = createResponse();
+  let release;
+  const pending = routes['POST /api/gifts/display-settings'](fixture.context, {
+    body: () => new Promise(resolve => { release = resolve; }),
+  }, response);
+  fixture.settings.giftDisplayConfig = JSON.stringify({ ...DEFAULT_GIFT_DISPLAY, scrollSpeed: 34 });
+  release({ ...DEFAULT_GIFT_DISPLAY, thresholds: [3500, 10000, 100000] });
+  await pending;
+  assert.equal(response.status, 200);
+  assert.equal(response.payload.data.thresholds[0], 3500);
+  assert.equal(response.payload.data.scrollSpeed, 12);
+});
+
+test('gift display patches merge against the latest settings in either request-body completion order', async t => {
+  for (const order of [[0, 1], [1, 0]]) {
+    await t.test(`completion order ${order.join(',')}`, async () => {
+      const fixture = createDisplayContext();
+      const requests = [{ threshold1: 3500 }, { scrollSpeed: 34, threshold2: 12000 }].map(patch => {
+        let release;
+        const response = createResponse();
+        const pending = routes['POST /api/gifts/display-settings'](fixture.context, {
+          body: () => new Promise(resolve => { release = resolve; }),
+        }, response);
+        return { response, pending, release: () => release({ patch }) };
+      });
+      for (const index of order) {
+        requests[index].release();
+        await requests[index].pending;
+        assert.equal(requests[index].response.status, 200);
+      }
+      const saved = JSON.parse(fixture.settings.giftDisplayConfig);
+      assert.equal(saved.thresholds[0], 3500);
+      assert.equal(saved.thresholds[1], 12000);
+      assert.equal(saved.scrollSpeed, 34);
+      const receipt = requests[order[1]].response.payload.data;
+      assert.equal(receipt.thresholds[0], 3500);
+      assert.equal(receipt.thresholds[1], 12000);
+      assert.equal(receipt.scrollSpeed, 34);
+      assert.equal(fixture.writes.length, 2);
+      assert.equal(fixture.broadcasts.length, 2);
+    });
+  }
+});
+
+test('gift display patches validate the complete merged thresholds before writing once', async () => {
+  const fixture = createDisplayContext();
+  const rejected = createResponse();
+  let release;
+  const pending = routes['POST /api/gifts/display-settings'](fixture.context, {
+    body: () => new Promise(resolve => { release = resolve; }),
+  }, rejected);
+  fixture.settings.giftDisplayConfig = JSON.stringify({ ...DEFAULT_GIFT_DISPLAY, thresholds: [3000, 3200, 100000] });
+  release({ patch: { threshold1: 3500, scrollSpeed: 34 } });
+  await pending;
+  assert.equal(rejected.status, 400);
+  assert.equal(JSON.parse(fixture.settings.giftDisplayConfig).thresholds[0], 3000);
+  assert.equal(JSON.parse(fixture.settings.giftDisplayConfig).scrollSpeed, 12);
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.broadcasts.length, 0);
+  const accepted = createResponse();
+  await routes['POST /api/gifts/display-settings'](fixture.context, {
+    body: async () => ({ patch: { threshold1: 12000, threshold2: 20000 } }),
+  }, accepted);
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.payload.data.thresholds[0], 12000);
+  assert.equal(accepted.payload.data.thresholds[1], 20000);
+  assert.equal(fixture.writes.length, 1);
+  assert.equal(fixture.broadcasts.length, 1);
+});
+
+test('gift display rejects invalid patch envelopes and preserves body authorization errors', async () => {
+  const fixture = createDisplayContext();
+  for (const body of [
+    { patch: null },
+    { patch: {} },
+    { patch: [] },
+    { patch: { thresholds: [3500, 10000, 100000] } },
+    { patch: { threshold1: 3500.5 } },
+    { patch: { scrollSpeed: 34 }, visibleRows: 5 },
+  ]) {
+    const response = createResponse();
+    await routes['POST /api/gifts/display-settings'](fixture.context, { body: async () => body }, response);
+    assert.equal(response.status, 400);
+  }
+  for (const code of ['REQUEST_AUTHORIZATION_CHANGED', 'REQUEST_BODY_TOO_LARGE']) {
+    await assert.rejects(routes['POST /api/gifts/display-settings'](fixture.context, {
+      body: async () => { throw Object.assign(new Error(code), { code }); },
+    }, createResponse()), { code });
+  }
+  assert.equal(fixture.writes.length, 0);
+  assert.equal(fixture.broadcasts.length, 0);
+});
+
+test('gift display does not acknowledge or broadcast a patch when persistence fails', async () => {
+  const fixture = createDisplayContext();
+  fixture.context.settings.set = () => { throw new Error('synthetic storage failure'); };
+  const response = createResponse();
+  await assert.rejects(routes['POST /api/gifts/display-settings'](fixture.context, {
+    body: async () => ({ patch: { threshold1: 3500 } }),
+  }, response), /synthetic storage failure/);
+  assert.equal(response.status, 0);
+  assert.equal(JSON.parse(fixture.settings.giftDisplayConfig).thresholds[0], 3000);
+  assert.equal(fixture.broadcasts.length, 0);
 });
 
 function createResponse() {

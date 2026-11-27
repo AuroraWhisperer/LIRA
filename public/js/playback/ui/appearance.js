@@ -251,7 +251,10 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
       else field.value = String(settings[key]);
       if (key === 'textAlign') {
         field.disabled = settings.layout === 'vinyl';
-        if (field.disabled) field.value = 'center';
+        if (field.disabled) {
+          if (field.type === 'radio') field.checked = field.value === 'center';
+          else field.value = 'center';
+        }
       }
     }
     panel.querySelector('[data-appearance-background-colors]').hidden = settings.backgroundMode === 'auto';

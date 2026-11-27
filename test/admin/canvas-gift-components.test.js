@@ -285,6 +285,8 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.equal(await page.locator('.scene-editor-item').count(), 2);
   const guardPreview = page.frameLocator('.scene-editor-item.is-selected iframe');
   await guardPreview.locator('.gt-card[data-tier="admiral"].is-live').waitFor({ state: 'visible' });
+  const followTextMode = page.locator('[data-component-parameter="textMode"] option[value="follow"]');
+  assert.equal(await followTextMode.evaluate(option => option.disabled), true, 'classic must not submit scene inheritance to desktop settings');
   const auroraSaved = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/settings'
     && response.request().postDataJSON()?.guardThanksAuroraTextMode === 'en' && response.ok());
   await desktop.locator('#guardThanksAuroraTextMode').selectOption('en');
@@ -293,6 +295,12 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await desktop.locator('#guardThanksAuroraPreviewMonths').fill('9');
   await open('#guardThanksAuroraPlayBtn');
   await guardPreview.locator('.gta-card[data-tier="governor"][data-lang="en"]').waitFor();
+  assert.equal(await followTextMode.evaluate(option => option.disabled), true, 'aurora must not submit scene inheritance to desktop settings');
+  const auroraTextModeSaved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/component-preview/appearance'
+    && response.request().postDataJSON()?.patch?.textMode === 'bilingual' && response.status() === 200);
+  await page.locator('[data-component-parameter="textMode"]').selectOption('bilingual');
+  await auroraTextModeSaved;
+  await guardPreview.locator('.gta-card[data-tier="governor"][data-lang="zh"] .gta-eyebrow[data-lang="en"]').waitFor();
   assert.equal(await page.locator('.scene-editor-item').count(), 3, 'each style preview owns a separate guard component');
   await open('#guardThanksClassicPlayBtn');
   await guardPreview.locator('.gt-card[data-tier="admiral"][data-lang="zh"]').waitFor();
@@ -312,6 +320,9 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await page.locator('[data-component-parameter="textMode"]').selectOption('en');
   await textModeSaved;
   await guardPreview.locator('.gt-card[data-tier="governor"][data-lang="en"]').waitFor();
+  await desktop.evaluate(async () => { const { stateService } = await import('/js/admin/state.js'); await stateService.reloadState(); });
+  assert.equal(await desktop.locator('#guardThanksClassicTextMode').inputValue(), 'en');
+  assert.equal(await desktop.locator('#guardThanksAuroraTextMode').inputValue(), 'bilingual');
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('640');
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');
   await page.getByRole('spinbutton', { name: '高度', exact: true }).fill('540');
@@ -328,7 +339,7 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.equal(saved.document.items[1].appearance.config.style, 'classic');
   assert.equal(fixture.runtime.settings.guardThanksClassicTextMode, 'en');
   assert.equal(saved.document.items[2].appearance.config.style, 'aurora');
-  assert.equal(fixture.runtime.settings.guardThanksAuroraTextMode, 'en');
+  assert.equal(fixture.runtime.settings.guardThanksAuroraTextMode, 'bilingual');
   await desktop.locator('#guardThanksClassicPreviewTier').selectOption('captain');
   await desktop.locator('#guardThanksClassicPreviewUser').fill('新的上舰观众');
   await desktop.locator('#guardThanksClassicPreviewMonths').fill('24');
@@ -356,10 +367,19 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.equal(await auroraOutput.locator('.gt-card, .gta-card').count(), 0, 'aurora does not play classic events');
   fixture.receiveGift({ type: 'gift:guard-thanks', eventId: 'live-guard-2', userName: '辉光观众', tier: 'captain', months: 1,
     textMode: 'zh', style: 'aurora' });
-  await auroraOutput.locator('.gta-card[data-tier="captain"][data-lang="en"]').waitFor({ state: 'visible' });
+  await auroraOutput.locator('.gta-card[data-tier="captain"][data-lang="zh"] .gta-eyebrow[data-lang="en"]').waitFor({ state: 'visible' });
   assert.equal(await guardOutput.locator('.gta-card').count(), 0, 'classic does not play aurora events');
   assert.deepEqual(await frameOutput.evaluate(() => window.receivedGiftEvents.map(event => event.eventId)), ['live-frame-1']);
   assert.deepEqual(await guardOutput.evaluate(() => window.receivedGiftEvents.map(event => event.eventId)), ['live-guard-1', 'live-guard-2']);
+  const liveLanguageSaved = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/settings'
+    && response.request().postDataJSON()?.guardThanksClassicTextMode === 'zh' && response.ok());
+  await desktop.locator('#guardThanksClassicTextMode').selectOption('zh');
+  await liveLanguageSaved;
+  await guardPreview.locator('.gt-card[data-tier="captain"][data-lang="zh"]').waitFor();
+  await guardOutput.locator('.gt-card').waitFor({ state: 'hidden' });
+  fixture.receiveGift({ type: 'gift:guard-thanks', eventId: 'live-guard-3', userName: '更新后观众', tier: 'captain', months: 1,
+    textMode: 'en', style: 'classic' });
+  await guardOutput.locator('.gt-card[data-tier="captain"][data-lang="zh"]').waitFor({ state: 'visible' });
   await output.reload();
   await output.locator('.scene-version:not(.is-staging) iframe').first().waitFor();
   await output.waitForTimeout(1000);

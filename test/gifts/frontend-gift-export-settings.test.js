@@ -195,6 +195,7 @@ test('custom style edits update the current preview and commit valid tier bounda
 test('multi-card spacing previews locally and updates the next export batch on release', async t => {
   const page = await openExport(t, 51);
   const slider = page.getByRole('slider', { name: '词条间距' });
+  const reset = page.getByRole('button', { name: '重置词条间距' });
   const merge = page.getByRole('switch', { name: '合并同种礼物' });
   const ready = () => page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   const gap = () => page.locator('#giftExportPreview').evaluate(el => el.style.rowGap);
@@ -217,6 +218,7 @@ test('multi-card spacing previews locally and updates the next export batch on r
   await page.waitForFunction(() => document.getElementById('giftExportPreview').children.length === 1);
   assert.match(await page.locator('#giftExportFiles').textContent(), /144 px/);
   assert.equal(await slider.isDisabled(), true);
+  assert.equal(await reset.isDisabled(), true);
   const directory = page.locator('#giftExportDirectory');
   assert.equal(await directory.textContent(), 'retry-batch');
   assert.equal(await directory.getAttribute('title'), 'Pictures/LIRA/retry-batch');
@@ -224,6 +226,11 @@ test('multi-card spacing previews locally and updates the next export batch on r
   await ready();
   assert.equal(await slider.isEnabled(), true);
   assert.equal(await gap(), '16px');
+  await reset.click();
+  await ready();
+  assert.equal(await slider.inputValue(), '16');
+  assert.equal(await gap(), '8px');
+  assert.equal(await page.evaluate(() => window.exportDefaults.rowGap), 16);
   await page.getByRole('radio', { name: '每条一张' }).check();
   await ready();
   assert.equal(await slider.isDisabled(), true);

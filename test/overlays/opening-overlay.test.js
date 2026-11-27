@@ -24,7 +24,7 @@ test('opening samples stay outside public assets and Ogg files use the audio MIM
 });
 
 test('opening settings keep payload names, legacy fallbacks and unsaved form drafts', async () => {
-  const { openingSettingsPayload } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/start-animation.js'));
+  const { openingSettingsPayload } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/start-animation.js'), { HTMLElement: class {} });
   assert.equal(openingSettingsPayload({ style: 'classic', trackMotion: 'barber' }).openingTrackMotion, 'barber');
   assert.equal(
     getOpeningConfig({

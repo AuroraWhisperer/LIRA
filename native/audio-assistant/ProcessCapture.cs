@@ -11,7 +11,6 @@ public sealed class ProcessCapture : IDisposable
   // 48 kHz stereo IEEE float bytes; consumers must copy before returning.
   public event Action<byte[], int>? Data;
   public event Action<Exception>? Failed;
-  public long Frames { get; private set; }
 
   // OBS uses this same process-loopback API on Windows 10 2004 and later.
   internal static bool SupportsWindowsVersion(Version version) => version >= new Version(10, 0, 19041);
@@ -45,7 +44,6 @@ public sealed class ProcessCapture : IDisposable
                 if (samples.Length < frames * 8) samples = new byte[frames * 8];
                 if ((flags & AudioClientBufferFlags.Silent) != 0) Array.Clear(samples, 0, frames * 8);
                 else Marshal.Copy(address, samples, 0, frames * 8);
-                Frames += frames;
                 Data?.Invoke(samples, frames);
               }
               finally { capture.ReleaseBuffer(frames); }

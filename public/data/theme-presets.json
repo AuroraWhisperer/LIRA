@@ -22,7 +22,6 @@
     "overlayShowIndex": "true",
     "overlayIndexThreshold": "0",
     "overlayIndexColor": "#fbbf24",
-    "queueFixedSixRows": "true",
     "queueScrollMode": "bounce",
     "queueScrollSpeed": "80"
   },

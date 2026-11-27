@@ -4,7 +4,6 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
 import { bindComponentAutosave } from './settings-autosave.js';
 import { bindOvertimeAppearance, createOvertimePreview, projectOvertimePreviewState } from './overtime-preview-factory.js';
-export { createOvertimePreview, projectOvertimePreviewState } from './overtime-preview-factory.js';
 
 export function createOvertimeAppearance({ initial = {}, onSavedState }) {
   let current = initial;

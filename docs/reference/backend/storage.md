@@ -107,7 +107,7 @@ data/
 共享外观参数变更不批量重写已有场景，读取时以客户端已保存字段覆盖旧副本，布局保持独立：
 
 - 时钟：`clockStyleOptions`（JSON 字符串，默认 `{}`）按内置时钟样式保存白名单外观字段，首次读取从旧标量设置补齐，旧标量写入只更新当前选中样式。
-- 盲盒：`blindboxOverlayTop`（-1–10，默认 3）、`blindboxWinnersOnly`（默认 `true`，旧 `hideLoss` 保留为兼容别名）、`blindboxHeartBoxOnly`（默认 `false`）、`blindboxOverlayTitle`（默认空串，回退“今日盲盒盈亏”）、`blindboxCompact`（默认 `'false'`，对应画布 `compact`）、`blindboxAutoPages`（默认 `'true'`，对应画布 `noScroll`）。心动盲盒专属参数：`blindboxCastleMultiplier`（默认空串隐藏倍数，非空为 0.01–1000、最多两位小数）、`blindboxCastlesRemaining`（默认 `'0'`，0–99999 整数，手动填写不随出堡扣减）、`blindboxShowCastlesRemaining` 与 `blindboxShowOpenedSinceCastle`（默认 `'false'`）；关闭心动盲盒筛选时隐藏专属展示但保留已保存值。字体、字重、字号比例与配色沿用现有通用主题键。以上均复用现有 `settings` 表，无新表或迁移。
+- 盲盒：`blindboxStyle`（默认 `'classic'`，可选 `'classic'` / `'porcelain'` / `'layers'` / `'prism'` / `'podium'`）、`blindboxOverlayTop`（-1–10，默认 3）、`blindboxWinnersOnly`（默认 `true`，旧 `hideLoss` 保留为兼容别名）、`blindboxHeartBoxOnly`（默认 `false`）、`blindboxOverlayTitle`（默认空串，回退“今日盲盒盈亏”）、`blindboxCompact`（默认 `'false'`，对应画布 `compact`）、`blindboxAutoPages`（默认 `'true'`，对应画布 `noScroll`）。心动盲盒专属参数：`blindboxCastleMultiplier`（默认空串隐藏倍数，非空为 0.01–1000、最多两位小数）、`blindboxCastlesRemaining`（默认 `'0'`，0–99999 整数，手动填写不随出堡扣减）、`blindboxShowCastlesRemaining` 与 `blindboxShowOpenedSinceCastle`（默认 `'false'`）；关闭心动盲盒筛选时隐藏专属展示但保留已保存值。字体、字重、字号比例与配色沿用现有通用主题键（其中 `porcelain` / `layers` / `prism` / `podium` 四款亮色背景适配样式使用内置配色，字体、字重与字号比例仍共享主题设置）。以上均复用现有 `settings` 表，无新表或迁移。
 
 [component-style-store.js](../../../src/storage/component-style-store.js) 负责设备本机 `dataDir/component-library/`（不写云设置或礼物库）。`index.json` 格式为 `{version:1, packages:[]}`，写入同目录随机临时文件后原子重命名替换；媒体保存为 `<包 UUID>/<SHA-256>.<扩展名>`，网页保存为 `<包 UUID>/web/<原相对路径>`。场景独立外观配置持有互斥的 `mediaStyle`、`resourceStyle` 或 `cssStyle` 快照；HTML 导入保存为 `browser` 配置（可选 `category` 记录原分类），浏览器地址沿用加密保存与模板脱敏契约。
 
@@ -165,7 +165,7 @@ data/
 | `ai_api_usage` | 第三方 API 月度配额计数 | `PK(category, month_key)`、`request_count`（回收生命周期见 §5） |
 | `ai_viewer_context` | 观众短期多轮对话 | `uid` PK 存可信房间/观众/人格作用域摘要；payload v2 含 `sessionId`/`exchanges`/`truncated`，`expires_at` 为到期时间，详见 [ai.md §3.3](ai.md#33-连续互动与空闲清理) |
 | `ai_query_cache` | 查询缓存 | `cache_key` PK、`expires_at` |
-| `ai_blacklist` | AI 黑名单 | `uid` PK、`reason` |
+| `ai_blacklist` | 历史 AI 黑名单，继续供运行时读取 | `uid` PK、`reason` |
 | `song_categories` | 曲风 | `name` UNIQUE、`sort_order`、`is_enabled` |
 | `songs` | 曲库 | `name`/`name_pinyin`/`name_initial`/`artist`/`category_id`/`tags`/`language`/`source_platform`/`request_price`/`song_clip`/`original_group`；唯一索引 `idx_songs_name_artist(name, artist)`（v3） |
 | `queue` | 当前点歌队列（处理、移除或清空时物理删除） | `song_id`(FK)、`requester_*`、`source`、`status`、`is_pinned`/`pinned_at`、`is_live`（默认 0，部分唯一索引限制至多一条 LIVE）；`idx(status, is_pinned, pinned_at, created_at)` |
@@ -413,10 +413,10 @@ Phase 1 失败且全部事务回滚成功时，仅解除本次请求取得的暂
 | --- | --- |
 | 直播间 | `roomId`、`danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`queueLimit`、`userCooldownSeconds` |
 | 旧引导兼容 | `onboardingVersion`、`onboardingCompletedAt`、`onboardingSkippedOptional`（仅保留历史记录，当前引导见 [交互式引导](../frontend/interactive-tour.md)） |
-| 点歌规则与限制 | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`、`guardPriorityEnabled`（默认 `false`，按账号同步）、`scSongRequestEnabled`（默认 `true`，按账号同步）、`songRequestCancelEnabled`（默认 `true`，按账号同步）、`songRequestMatchMode`（`unique`/`prefix`，按账号同步）、`songRequestRequireSpace`（默认 `false`，按账号同步）、`songCooldownMode`/`songCooldownValue`（按账号同步，入队时间仅存本机）、`userQueueLimit`、`userCooldown*`、`userDaily*`、`songRequestMinMedalLevel`、`songRequestGuardLevel`、`songRequestGuardMedalBypass`、`songRequestUserBlacklist`（JSON 文本，按账号同步）、`songRequestBlacklist`（本机）、`queueRequestRequesterColor`/`queueRequestSongColor`（本机） |
+| 点歌规则与限制 | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`（历史默认键）、`guardPriorityEnabled`（默认 `false`，按账号同步）、`scSongRequestEnabled`（默认 `true`，按账号同步）、`songRequestCancelEnabled`（默认 `true`，按账号同步）、`songRequestMatchMode`（`unique`/`prefix`，按账号同步）、`songRequestRequireSpace`（控制点歌指令是否必须带空格，默认 `false`，按账号同步）、`songCooldownMode`/`songCooldownValue`（按账号同步，入队时间仅存本机）、`userQueueLimit`、`userCooldown*`、`userDaily*`、`songRequestMinMedalLevel`、`songRequestGuardLevel`、`songRequestGuardMedalBypass`、`songRequestUserBlacklist`（JSON 文本，按账号同步）、`songRequestBlacklist`（本机）、`queueRequestRequesterColor`/`queueRequestSongColor`（本机） |
 | 弹幕机器人 | `enableRandomTagReply`、`enableCheckinBot`、`enableFortuneBot`、`enableCustomReplyBot`、`checkinBlessings`、`fortunePool`、`customReplyRules` |
 | 礼物与特效 | `enableGiftSprint`、`giftSprintTargetRmb`、legacy `giftBlindBoxConfig`、云端私有 `giftBlindBoxCustomConfigV2`、`enableGiftNotification`、`giftEffectDanmakuEnabled`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameStyleTriggers`、`giftDrop*`、`giftSwing*`、`guardThanksAurora*`、`guardThanksClassic*`、`guardThanksNauticalEnabled`（旧 `guardThanksEnabled`/`TextMode`/`Style` 兼容保留；已撤销的 `giftFrameRibbon*` 与 `giftFrameTheme`/`MotionMode` 历史行原样保留但不参与运行） |
-| 滚动、字号与主题 | `scrollSeconds`、各队列风格独立的 `*QueueScrollMode`/`*Speed`/`*FontSize`/`*FontFamily`/`*FontWeight`/`*UseCustomTextColor`/`*TextColor`、`songBoard*`、`themePrimary`/`Accent`/`Text`/`Background`/`Opacity`/`Radius`/`FontScale` 及迁移版本键 `*RangeVersion`/`queueStyleSettingsVersion` |
+| 滚动、字号与主题 | `scrollSeconds`、各队列风格独立的 `*QueueScrollMode`/`*Speed`/`*FontSize`/`*FontFamily`/`*FontWeight`/`*UseCustomTextColor`/`*TextColor`、`songBoard*`（歌单板用 `songBoardFontSize` 计算字号倍率，主题预设及其 v2 建库迁移仍收录旧键 `songBoardThemeFontScale`）、`themePrimary`/`Accent`/`Text`/`Background`/`Opacity`/`Radius`/`FontScale` 及迁移版本键 `*RangeVersion`/`queueStyleSettingsVersion` |
 | 叠加层与组件 | `danmakuOverlayStyle`、`danmakuFullscreenDurationSeconds`、`overlayQueueStyle`（遗留 `festival` 按 `identity` 处理）、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6`、`heartBoxCollectionShowRewards`/`BackgroundStyle`、`liveRankingsRange`、`nowPlayingAppearance` |
 | 歌词与 WeSing | `desktopLyric*`、`advancedLyric*`、`weSingCachePath`、`weSingLyricOffsetMs` |
 | 开播动画 | `openingEnabled`、`openingTitle`/`Subtitle`/`Name`/`Footer`、`openingQuality`、`openingTrackMotion`、`openingShowNotes`/`Eq`、`openingAudio*`、`openingCharacter*`、`openingPixel*`（上传素材位于 `opening-music/`、`opening-character/`） |

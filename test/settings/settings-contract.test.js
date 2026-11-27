@@ -371,6 +371,21 @@ test('heart box display settings persist optional multiplier, zero remaining and
   assert.equal(f.store.getSettings().blindboxCastleMultiplier, '');
 });
 
+test('blindbox style validates allowed presets locally and rejects invalid values atomically', async t => {
+  const f = fixture(t);
+  assert.equal(f.store.getSettings().blindboxStyle, 'classic');
+  for (const style of ['porcelain', 'layers', 'prism', 'podium', 'classic']) {
+    assert.equal((await f.post({ blindboxStyle: style })).status, 200, style);
+    assert.equal(createSettingsStore(f.db).getSettings().blindboxStyle, style);
+  }
+  assert.deepEqual(f.dirtyScopes, [], 'blindbox style stays local');
+  for (const invalid of ['unknown', '', 'CLASSIC', null, 123]) {
+    assert.equal((await f.post({ blindboxCompact: true, blindboxStyle: invalid })).status, 400, JSON.stringify(invalid));
+    assert.equal(f.store.getSettings().blindboxStyle, 'classic');
+    assert.equal(f.store.getSettings().blindboxCompact, 'false');
+  }
+});
+
 test('invalid setting batches do not commit earlier valid fields', async (t) => {
   const f = fixture(t);
   const result = await f.post({

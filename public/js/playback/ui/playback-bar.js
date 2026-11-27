@@ -309,33 +309,6 @@ export class PlaybackBar {
       healthBtn.title = message + (healthState?.details ? ` (${healthState.details})` : '');
     }
 
-    // 更新用户名显示
-    const userName = document.getElementById('playbackUserName');
-    if (userName) {
-      userName.textContent = isWeSing
-        ? '本机缓存捕捉，不需要登录'
-        : loggedIn
-          ? `${sourceName} Cookie 已就绪`
-          : authState ? '未连接音乐账户' : '登录状态待确认';
-    }
-
-    // 更新 VIP 状态
-    const vipState = document.getElementById('playbackVipState');
-    if (vipState) {
-      if (isWeSing) {
-        vipState.textContent = '全民 K 歌只读取本地窗口、日志和 QRC 歌词';
-      } else if (authState && authState.desktopUnavailable) {
-        vipState.textContent = '扫码登录验证需要在桌面版里使用';
-      } else if (authState && authState.error) {
-        vipState.textContent = authState.error;
-      } else if (loggedIn) {
-        const keys = Array.isArray(authState.keyCookieNames) ? authState.keyCookieNames.join('、') : '';
-        vipState.textContent = `Cookie ${authState.cookieCount || 0} 个，关键字段：${keys || '待确认'}，加密快照：${authState.encryptedSnapshotExists ? '已保存' : '未保存'}`;
-      } else {
-        vipState.textContent = '账号歌单和推荐将在音乐服务接入后显示';
-      }
-    }
-
     // 更新搜索框的音乐源显示
     const searchKeyword = document.getElementById('playbackSearchKeyword');
     if (searchKeyword) searchKeyword.placeholder = `${sourceName} · 歌名 / 歌手`;

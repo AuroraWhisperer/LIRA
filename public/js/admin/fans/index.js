@@ -14,7 +14,7 @@ const REMINDER_SUMMARY_HIDDEN_KEY = 'liraFanReminderSummaryHidden';
 const CALENDAR_CHANGES = new Set([
   'configure', 'create', 'save', 'save-record', 'resolve-membership', 'reminder-state',
   'suppress', 'unsuppress', 'delete', 'delete-all', 'restore', 'restore-snapshot',
-  'merge', 'import-legacy', 'sync-guard-roster',
+  'merge', 'sync-guard-roster',
 ]);
 
 function createFanUi() {
@@ -103,7 +103,6 @@ function createFanUi() {
     request,
     openForm,
     beginIntent: formEditor.beginIntent,
-    getProfile: () => state.profile,
     onProfile: receiveProfile,
     onReset: async () => {
       state.profile = null;
@@ -674,10 +673,6 @@ function createFanUi() {
       element.textContent = '正在补充…';
       try { await profileActions.handle(name, state.profile, state.selection); }
       finally { element.disabled = false; element.textContent = label; }
-      return;
-    }
-    if (name === 'legacy') {
-      transfer.legacy();
       return;
     }
     if (await profileActions.handle(name, state.profile, state.selection, element.dataset.recordId)) return;
