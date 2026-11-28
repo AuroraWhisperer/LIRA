@@ -87,6 +87,34 @@ export const giftRecent = (() => {
 
   // ── 最近礼物列表 ──
 
+  function isSameComboBatch(left, right) {
+    if (!left?.is_blind_box || !right?.is_blind_box) return false;
+    if (!Number.isFinite(Number(left.id)) || !Number.isFinite(Number(right.id))) return false;
+    if (!left.created_at || left.created_at !== right.created_at) return false;
+    if (left.uid || right.uid) {
+      if (left.uid !== right.uid) return false;
+    } else if (!left.user_name || left.user_name !== right.user_name) return false;
+    if (left.blind_box_id || right.blind_box_id) return left.blind_box_id === right.blind_box_id;
+    return Boolean(left.blind_box_name) && left.blind_box_name === right.blind_box_name;
+  }
+
+  function orderRecentComboItems(items) {
+    if (!Array.isArray(items) || items.length < 2) return items;
+    const ordered = [];
+    for (let start = 0; start < items.length; ) {
+      let end = start + 1;
+      while (end < items.length && isSameComboBatch(items[start], items[end])) end += 1;
+      if (end - start > 1) {
+        const group = items.slice(start, end).sort((a, b) => Number(a.id) - Number(b.id));
+        ordered.push(...group);
+      } else {
+        ordered.push(items[start]);
+      }
+      start = end;
+    }
+    return ordered;
+  }
+
   /**
    * 渲染最近礼物列表
    * @param {Array} items - 礼物列表
@@ -94,7 +122,7 @@ export const giftRecent = (() => {
   function renderGiftRecentList(items) {
     const list = document.getElementById('giftRecentList');
     if (!list) return;
-    latestRecentGiftItems = items;
+    latestRecentGiftItems = orderRecentComboItems(items);
     pending = !visible;
     if (pending) return;
     if (items.length > 0) void loadGiftArtworkCatalog();

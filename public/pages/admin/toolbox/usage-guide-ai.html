@@ -3,8 +3,8 @@
 <p>顶部的「配置状态」「等待队列」「运行模型」显示当前情况。修改后自动保存，正常状态不占用底部空间，失败时显示「重试保存」。</p>
 
 <p>
-        「AI 平台」有八个选项：自动识别（兼容旧设置）、DeepSeek 官方、Kimi / Moonshot 官方、OpenAI 官方、Claude 官方兼容、Gemini
-        官方兼容、豆包（账号登录·实验性）、自定义 / 第三方兼容。选官方 API 平台，地址会自动填好。用第三方服务，就按提供方的说明填「API
+        「AI 平台」有八个选项：「自动识别」（兼容旧设置）、「DeepSeek 官方」「Kimi / Moonshot 官方」「OpenAI 官方」「Claude 官方兼容」「Gemini
+        官方兼容」「豆包（账号登录·实验性）」和「自定义 / 第三方兼容」。选官方 API 平台，地址会自动填好。用第三方服务，就按提供方的说明填「API
         请求地址」和密钥。拿不准「接口协议」时，保持「自动识别」。
       </p>
 <p>
@@ -13,10 +13,10 @@
         使用第三方服务时，请确认该服务支持你选的设置。「模型服务」里的「测试 AI 连接」会先检查表单并保存待提交的设置，再测试当前平台。关闭「启用 AI」也可以测试。
       </p>
 <figure class="usage-guide-figure">
-<img alt="AI 平台菜单展开，包含 Kimi / Moonshot 官方、OpenAI 官方和豆包账号登录等八个选项" class="usage-guide-image" decoding="async" height="960" loading="lazy" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="AI 平台菜单展开，包含 Kimi / Moonshot 官方、OpenAI 官方和豆包账号登录等八个选项" class="usage-guide-image" decoding="async" height="1029" loading="lazy" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" style="--usage-guide-image-width: 1164px" width="1164"/>
 <figcaption>AI 平台选择入口；图中尚未填写接入信息。</figcaption>
 </figure>
-<p>在「百宝箱 → 弹幕互动 → AI 助手」设置。API 模式下粘贴密钥后，点「获取模型」选一个模型，再点「测试 AI 连接」。已保存密钥显示前 6 位加掩码，例如 sk-abc********；较短密钥全部遮住。输入新密钥可替换，留空保留现有密钥。</p>
+<p>在「百宝箱 → 互动娱乐 → 弹幕互动 → AI 助手」设置。API 模式下粘贴密钥后，点「获取模型」选一个模型，再点「测试 AI 连接」。已保存密钥显示前 6 位加掩码，例如 sk-abc********；较短密钥全部遮住。输入新密钥可替换，留空保留现有密钥。</p>
 <p><strong>DeepSeek：</strong>选择「DeepSeek 官方」后，点名问答和自动接话都省去额外的模型输入、输出审核，保留公共规则和本地内容检查，以减少等待。普通无工具问答只需一次生成；缓存命中不请求模型，查询工具或重试可能增加请求。自动接话每次评估也只生成一次。其他平台按各自流程处理。</p>
 <p><strong>Kimi：</strong>选择「Kimi / Moonshot 官方」，通过「打开官方 API 控制台」创建 Moonshot API Key，保存后获取模型并测试。Kimi 会员和 Kimi Code 订阅不用于此处的弹幕回复。</p>
 <p>要使用<strong>ChatGPT 订阅</strong>，在「AI 平台」选「OpenAI 官方」，将「接入方式」设为「ChatGPT 订阅（官方授权）」。点「连接 ChatGPT 订阅」，在系统浏览器里登录并授权。回到 LIRA，等状态更新后点「获取模型」，选好模型再点「测试 AI 连接」。模型、思考档位和额度以当前账号为准，切换账号后请重新获取模型。人格、上下文、审核和可选工具仍按你的设置生效。</p>
@@ -93,7 +93,7 @@
 <strong>6. 选择「DeepSeek 官方」</strong>
 </p>
 <p>
-        回到<strong class="usage-guide-keyword">「百宝箱 → 弹幕互动 → AI 助手」</strong>，在<strong class="usage-guide-keyword">「AI 平台」</strong>里选「DeepSeek 官方」，地址会自动填好。
+        回到<strong class="usage-guide-keyword">「百宝箱 → 互动娱乐 → 弹幕互动 → AI 助手」</strong>，在<strong class="usage-guide-keyword">「AI 平台」</strong>里选「DeepSeek 官方」，地址会自动填好。
       </p>
 </div>
 <div class="usage-guide-example-step">
@@ -119,7 +119,7 @@
           测试通过后，打开<strong class="usage-guide-keyword">「启用 AI」</strong>。发一条带关键词的弹幕，看看有没有回复。
         </li>
 </ol>
-<p>「测试 AI 连接」只检查模型服务。若测试通过却没有弹幕回复，确认已在「账号登录」登录 B 站、房间号正确并开启弹幕监听，再点顶部「重新连接直播间」后重新发送带关键词的弹幕。</p>
+<p>「测试 AI 连接」只检查模型服务。若测试通过却没有弹幕回复，确认已在「点歌 → 账号登录」登录 B 站并填好直播间号、在「组件 → 弹幕姬」开启「监控弹幕」，再点顶部「重新连接直播间」后重新发送带关键词的弹幕。</p>
 <p>
         各个模型的说明见
         <a href="https://api-docs.deepseek.com/zh-cn/" rel="noreferrer" target="_blank">DeepSeek 官方文档</a>。
@@ -163,7 +163,7 @@
 <p>在「互动身份」设置「空闲多久后结束对话（分钟）」，建议 10 分钟。每位观众独立续聊：例如先发“小助手，玩成语接龙”，3–5 分钟后再带关键词接词，仍可继续；猜谜也能接着猜或要提示。确认收到回复后重新计时。自动接话明确回应某位观众时，也会记录该观众的原话和已送达回复；面向全场的接话不写入个人历史，仅被观察的普通弹幕不会续期。</p>
 <p>点名问答的回复未完整显示时，会自动精简为一条弹幕重试，仍回答原来的提问。接龙时等回复完整后再继续接词，每轮都需要带触发关键词。</p>
 <p>超过设置时间自动清空本机历史；发送“小助手，结束对话”或“小助手，清空对话”可立即结束（把“小助手”换成你的关键词）。历史最多保留开场及最近共 20 轮，并限制总长度，较早细节可能省略；清理不删除豆包网页聊天记录。</p>
-<p>关闭「自动接话」只取消尚未发送的自动接话，点名问答继续工作。关闭「启用 AI」后等到显示「已关闭」，两种方式排队中和生成中的回复，以及剩余分段和重试，都会立即取消。已经提交发送的弹幕无法撤回。重新开启只处理之后的新弹幕，不补发旧回复；两个开关都单独保存，其他设置草稿有误也可以关闭。</p>
+<p>关闭「自动接话」只取消尚未发送的自动接话，点名问答继续工作。关闭「启用 AI」后会自动保存（正常不弹提示，仅保存失败时在底部显示原因和「重试保存」），两种方式排队中和生成中的回复，以及剩余分段和重试，都会立即取消。已经提交发送的弹幕无法撤回。重新开启只处理之后的新弹幕，不补发旧回复；两个开关都单独保存，其他设置草稿有误也可以关闭。</p>
 <ul class="usage-guide-bullets">
 <li>「同时处理的提问数」：1–5，默认 3。排队的提问看「等待队列」。</li>
 <li>「同一观众提问间隔（秒）」：0–3600，默认 0。</li>
@@ -171,7 +171,7 @@
 <li>发送间隔由程序控制，在高级设置下方显示说明：不同回复之间随机隔 500–2000 毫秒，同一回复的分段之间随机隔 200–600 毫秒。</li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网搜索、深度思考和强度选择，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="772" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1114px" width="1114"/>
+<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网搜索、深度思考和强度选择，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="710" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1126px" width="1126"/>
 <figcaption>图中选择了支持深度思考的模型，尚未填写密钥或测试连接。思考设置随所选模型显示；可选工具和高级设置展开后保持左右位置，窄窗口下改为上下排列。</figcaption>
 </figure>
 <p>触发关键词没有默认值，必须自定义并保存；未设置时不会触发。先测试连接，再打开「启用 AI」，发一条带关键词的弹幕检查回复。</p>
@@ -211,7 +211,7 @@
         需要天气、地点或路线时，展开「可选工具」，直接启用对应查询。
       </p>
 <p>
-        和风天气填专属 API Host 和密钥；高德地图填 Web 服务 API Host 和 Web 服务 Key。
+        和风天气填「专属 API Host（无需 https://）」和「密钥（API Key）」；高德地图填「Web 服务接口地址（API Host）」和「Web 服务 Key」。
         这些密钥与模型密钥分开，填好后可分别测试。关闭工具会保留已保存配置；没有完整凭据的工具不会被调用。
       </p>
 <p>
@@ -229,7 +229,7 @@
 <details class="usage-guide-foldout">
 <summary>查看展开后的工具配置</summary>
 <figure class="usage-guide-figure">
-<img alt="展开的可选工具设置，天气与地图分为两个圆角卡片，显示查询开关及各自的凭据输入框。" class="usage-guide-image" decoding="async" height="373" loading="lazy" src="/img/usage-guide/E/ai-optional-tools.webp" style="--usage-guide-image-width: 527px" width="527"/>
+<img alt="展开的可选工具设置，天气与地图分为两个圆角卡片，显示查询开关及各自的凭据输入框。" class="usage-guide-image" decoding="async" height="374" loading="lazy" src="/img/usage-guide/E/ai-optional-tools.webp" style="--usage-guide-image-width: 534px" width="534"/>
 <figcaption>按需启用天气、地点或路线查询，再填写对应凭据；图中未填写密钥，也未测试连接。</figcaption>
 </figure>
 </details>

@@ -1,22 +1,22 @@
 <h4 class="usage-guide-subsection-title">7.1 客户端设置与性能</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-client-appearance"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.1 客户端配色与字体</strong></h5></div>
 
-<p>打开「百宝箱 → 设置 → 外观主题」，在「主题色板」上方可按「全部 / 浅色 / 深色」和六大色系分类（暖调大地、玫瑰梅紫、青绿森系、冰青蓝调、极简中性、复合艺彩）联合筛选。点选一套色板，看到「配色已保存」就换好了。保存失败会恢复原选择，可以重新点选。</p>
+<p>打开「百宝箱 → 设置 → 外观主题」，在「主题色板」筛选栏可按「全部 / 浅色 / 深色」和六大色系分类（暖调大地、玫瑰梅紫、青绿森系、冰青蓝调、极简中性、复合艺彩）联合筛选。点选一套色板，看到「配色已保存」就换好了。保存失败会恢复原选择，可以重新点选。</p>
 <p>在顶部外观栏右侧打开「界面字体」，可以按名称搜索，在左侧样字条查看中文、英文和数字的混排效果。思源宋体、荆南麦圆等字体在资源就绪后列出。电脑上已安装的宋体、楷体、仿宋、黑体和等线也可直接选用。选回首项（如「微软雅黑（默认）」）即可恢复默认排版。配色单独保存。</p>
 <p>二十四套主题涵盖 16 套日间浅色与 8 套夜间深色。喜欢清爽冷调可以选择成对的「晴岚 · 冰青」与「沧渊 · 冰青」，或温润通透的「青瓷 · 烟岚」「松墨 · 青玉」；喜欢暖调或极简质感可以选择「蜜珀 · 暖阳」「素墨 · 宣纸」「曜蓝 · 星夜」「炭墨 · 炽橙」。</p>
 <p>喜欢柔和双色渐变或复合艺彩风格，可以选「梅雾」「紫岚」（均含浅色与深色），或在「复合艺彩」分类下体验「玫瑰映光」「云母 · 靛光」「砂岩 · 孔雀釉」「朝霞 · 柿釉」。</p>
 <p>这里设置 LIRA 软件界面的配色和字体。直播画面或观众网页歌单的外观在各自的设置里调整。</p>
 </article>
-<article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.2 性能检测</strong></h5></div>
+<article class="usage-guide-feature" id="ug-performance"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.2 性能检测</strong></h5></div>
 
 <p>打开「百宝箱 → 性能」，点「开始检测」。检测包含 5 秒采样，显卡结果可能稍晚返回，请等页面提示检测完成。</p>
 <p>
     页面上有六张卡：电脑整体和 LIRA 各自的处理器、显卡、内存占用。电脑整体包含其他程序，LIRA
     卡只算这个软件。直播卡顿时，对比一下就知道是谁占的。
   </p>
-<p>「本机信息」顶部会自动显示 Windows 名称、版本号和内部版本，无需先点检测；下面能看硬件型号、核心数、内存条等信息。显存展示专用或预留容量，核显还可按需使用共享系统内存；GPU 温度只在检测时读取。</p>
+<p>「本机信息」顶部会自动显示 Windows 名称、版本号和内部版本，无需先点检测；下面能看硬件型号、核心数、内存条，以及已连接的「显示器」（标注主屏，显示分辨率、系统缩放与刷新率，打开本页或开始检测时更新）。显存展示专用或预留容量，核显还可按需使用共享系统内存；GPU 温度只在检测时读取。</p>
 <figure class="usage-guide-figure">
-<img alt="性能页，上方是开始检测按钮和六张占用卡，下方本机信息顶部显示 Windows 版本" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-performance.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="性能页，上方是开始检测按钮和六张占用卡，下方本机信息顶部显示 Windows 版本" class="usage-guide-image" decoding="async" height="1221" loading="lazy" src="/img/usage-guide/E/toolbox-performance.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>六张占用卡和「本机信息」中的 Windows 版本栏。</figcaption>
 </figure>
 </article>
@@ -25,7 +25,7 @@
 <p>这项设置控制 LIRA 内置播放器的声音。QQ 音乐和网易云音乐客户端仍在各自的设置里选择输出设备。</p>
 <p>列表按电脑实际设备和驱动显示。WASAPI、DirectSound、WaveOut 是不同的播放方式，同一声卡可能有多项；通常先用「系统默认输出」或 WASAPI。安装了 ASIO 驱动时也会出现对应选项，标为「连接待检查」的驱动要成功打开后才显示实际输出声道。接入声卡、安装驱动后点「刷新设备」，列表数量会随电脑变化。</p>
 <p>音频格式自动适配。内置播放器使用 ASIO 时，电音助手需要通过声卡提供的回送通道采集。回送通道、麦克风和线路输入都在<a data-usage-guide-link href="#ug-audio-device-input">电音助手的设备输入</a>中选择。</p>
-<p>配合电音助手时，建议在这里选「系统默认输出」。原声与最终输出的通道接法见下方电音助手说明。要更换播放器的输出，先关闭「当前歌曲」。具体步骤见<a data-usage-guide-link href="#ug-audio-assistant">电音助手</a>。</p>
+<p>配合电音助手时，建议在这里选「系统默认输出」。要更换播放器的输出，先关闭电音助手的「当前歌曲」（若提示待恢复原声，先点「恢复原声」）。原声与最终输出的通道接法及详细步骤见<a data-usage-guide-link href="#ug-audio-assistant">电音助手</a>。</p>
 <p>如果选中的设备被拔掉或暂时不可用，LIRA 会保留原选择并暂停播放。重新接好设备，或在这里换一个可用的输出通道后，再继续播放。</p>
 </article>
 <article class="usage-guide-feature" id="ug-desktop-notifications"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.4 系统通知</strong></h5></div>
@@ -54,18 +54,18 @@
     「启动时自动检查更新」只决定打开 LIRA 时是否检查；手动检查发现新版也会自动下载。下载完成后直接退出程序也会显示安装进度，完成后保持 LIRA 关闭。要反馈问题，在「本地数据与诊断」点「日志目录」那一行的「打开目录」，更新错误详情在 <code>errors/desktop.log</code>，终端警告与错误在 <code>errors/terminal.log</code>。别把「数据目录」当成日志目录。
   </p>
 <figure class="usage-guide-figure">
-<img alt="旧版关于与更新页签截图，示意版本、更新按钮与本地数据入口" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-desktop-update.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>当前入口为「设置 → 系统与关于」，下方为「本地数据与诊断」（图为旧版布局示意）。</figcaption>
+<img alt="设置中的系统与关于页签，上方为版本与检查更新卡片，下方为本地数据与诊断（含客户端资源检查）及协议入口" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-desktop-update.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>「百宝箱 → 设置 → 系统与关于」：上方检查更新，下方为「本地数据与诊断」（图中为示例状态）。</figcaption>
 </figure>
 <details class="usage-guide-foldout">
 <summary>查看下载与重启两种状态</summary>
 <div class="usage-guide-grid">
 <figure class="usage-guide-figure">
-<img alt="发现新版本时，关于与更新页签显示下载进度" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-update-download.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="发现新版本时，系统与关于页签显示下载进度" class="usage-guide-image" decoding="async" height="595" loading="lazy" src="/img/usage-guide/E/toolbox-update-download.webp" style="--usage-guide-image-width: 776px" width="776"/>
 <figcaption>发现新版本后自动下载；下载完成后可重启安装。</figcaption>
 </figure>
 <figure class="usage-guide-figure">
-<img alt="更新下载完成后，关于与更新页签显示重启并安装更新按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-update-ready.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="更新下载完成后，系统与关于页签显示重启并安装更新按钮" class="usage-guide-image" decoding="async" height="541" loading="lazy" src="/img/usage-guide/E/toolbox-update-ready.webp" style="--usage-guide-image-width: 776px" width="776"/>
 <figcaption>下载完成后，点「重启并安装更新」。</figcaption>
 </figure>
 </div>
@@ -85,23 +85,14 @@
 <article class="usage-guide-feature">
 <div class="usage-guide-feature-copy">
 <div class="usage-guide-feature-head">
-<h5 class="usage-guide-task-title"><strong>7.2.3 覆盖重装：下一步</strong></h5>
+<h5 class="usage-guide-task-title"><strong>7.2.3 覆盖重装：安装位置</strong></h5>
 </div>
-<p>安装程序提示已经装过 LIRA 时，保持「仅为我安装」选中，直接点「下一步」。</p>
-</div>
-<img alt="安装程序提示当前用户已经安装过LIRA，下一步按钮位于窗口底部" class="usage-guide-image" decoding="async" height="532" loading="lazy" src="/img/usage-guide/install-existing-user.webp" style="--usage-guide-image-width: 747px" width="747"/>
-</article>
-<article class="usage-guide-feature">
-<div class="usage-guide-feature-copy">
-<div class="usage-guide-feature-head">
-<h5 class="usage-guide-task-title"><strong>7.2.4 覆盖重装：安装位置</strong></h5>
-</div>
-<p>安装位置保持原样，直接点「安装」，就会覆盖成新版本。</p>
+<p>同意协议点「下一步」后，直接进入安装位置页。安装位置保持原样，直接点「安装」，就会覆盖成新版本。</p>
 <p><strong>小提示：</strong>「下一步」和「安装」在窗口底部同一个位置，依次点下去就行。</p>
 </div>
 <img alt="安装位置保持不变，安装按钮位于窗口底部" class="usage-guide-image" decoding="async" height="535" loading="lazy" src="/img/usage-guide/install-existing-location.webp" style="--usage-guide-image-width: 748px" width="748"/>
 </article>
-<article class="usage-guide-feature" id="ug-uninstall"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.2.5 卸载 LIRA</strong></h5></div>
+<article class="usage-guide-feature" id="ug-uninstall"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.2.4 卸载 LIRA</strong></h5></div>
 
 <p>
         先关掉 LIRA，再打开 Windows 的<strong class="usage-guide-keyword">「设置 → 应用」</strong>，找到 LIRA，点「卸载」。

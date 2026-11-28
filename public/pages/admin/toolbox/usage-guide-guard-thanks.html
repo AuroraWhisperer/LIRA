@@ -7,7 +7,7 @@
 <p>礼物摇摇乐每次在图层底部随机出现，优先选择空隙，按礼物、文字及摇晃范围留出间距；礼物较多、空间不足时仍可能重叠。直杆会随机伸缩并左右摇摆，礼物和文字随杆顶上下起伏，大小不变，各张礼物的节奏也不同。新添加到画布的摇摇乐图层默认宽 1920、高 420，并贴齐画布底边；缩短图层高度不会缩小礼物。已有图层可在画布中自行调整位置和尺寸。</p>
 <p>两款效果都使用礼物图片的静态首帧，从收到礼物结算时开始计时。停留时长可调 1–30 秒，默认 20 秒。</p>
 <p><strong>礼物掉落</strong>每条结算记录触发一批，连击也只算一批。「掉落数量」设置每批希望显示的张数（1–100 张，默认 30 张）。画面上和等待中的图片合计最多 400 张，空位少时这批就少掉几张。整批到达时已过期就整批跳过，还在等待的图片到期也会跳过。送礼份数超过这批图片数时，最后一张会标出它代表的份数。礼物大小可调 24–180 px，默认 72 px。还可调掉落速度，弹跳力度设为 0 时只下落。</p>
-<p><strong>礼物摇摇乐</strong>可单独调礼物大小、摆动幅度（默认 36°）和摇摆速度（默认 100%）。速度同时影响摆动和竖杆伸缩。送礼人、礼物名和数量可分别显示，同屏最多 80 张。要同时摆放两款效果，在画布「添加组件 → 礼物姬 → 全屏礼物感谢」中各加一层。点击某款的「预览」会选中画布中已有的同款图层，画布中还没有时才会加入一个未保存的图层。</p>
+<p><strong>礼物摇摇乐</strong>可单独调「立牌大小」（64–280 px，默认 150 px）、「左右摆幅」（5–45 度，默认 36 度）和「运动速度」（50–200%，默认 100%），运动速度同时影响左右摆动和竖杆伸缩。在「显示文字」中可分别勾选送礼人、礼物名和数量，同屏最多 80 张。要同时摆放两款效果，在画布「添加组件 → 礼物姬 → 全屏礼物感谢」中各加一层。点击某款的「预览」会选中画布中已有的同款图层，画布中还没有时才会加入一个未保存的图层。</p>
 <p>
     林间花信等样式需要先导入：点页面最下方的「＋ 添加样式」，选择作者提供的 ZIP 或图片、视频、网页素材，详见<a data-usage-guide-link href="#ug-materials">样式包与套装</a>。没导入时页面不显示林间花信；导入后它作为新的一张卡片排在摇摇乐后面，金额默认 20 元，每次播放 8 秒。
     导入的图片、视频各自一张卡片，有自己的开关和金额（新导入的默认关闭），可填写观众、礼物和数量做预览示例。卡片上的「添加到画布」每次加入一个新图层，默认 1920×1080；「在画布中预览」选中已有的同款图层，没有时加入未保存图层；「移除」只从样式库移除，画布中已有的图层不受影响。网页样式按网页自身内容运行，不使用触发金额。
@@ -22,28 +22,28 @@
 <p>打开「组件 → 礼物姬 → 大航海感谢」。观众开通或续费舰长、提督、总督时，收到上舰消息后就能在直播画面里播感谢动画。</p>
 <ol class="usage-guide-checks">
 <li>选样式：「辉光」显示等级和月数；「经典 · 徽章」还会显示观众头像和昵称。</li>
-<li>在想用的样式上打开「启用」，选中文、英文或中英双语，有效设置自动保存。两种样式各自保存，都开着就依次播放。</li>
+<li>在想用的样式上打开「启用」，在「动画文字」里选中文、英文或中英双语，有效设置自动保存。两种样式各自保存，都开着就依次播放。</li>
 <li>在「画布预览」里选等级、填月数（1–999），再点「在画布中预览」。经典样式还能填示例观众名。画布会选中已有图层，没有时加入未保存图层；点击「保存并应用」后才发布，不会真的送礼。</li>
 <li>打开直播场景的编辑画布，添加大航海感谢组件。摆好位置和大小，点「保存并应用」。复制整个场景地址，或选中组件复制它的直播源地址，再加到 OBS 或直播姬。</li>
 </ol>
 <figure class="usage-guide-figure">
-<img alt="大航海感谢页面，辉光和经典徽章分别有启用、动画语言与画布预览控件，修改后自动保存。" class="usage-guide-image" decoding="async" height="637" loading="lazy" src="/img/usage-guide/E/guard-thanks-settings.webp" style="--usage-guide-image-width: 1377px" width="1377"/>
+<img alt="大航海感谢页面，辉光和经典徽章分别有启用、动画文字与画布预览控件，修改后自动保存。" class="usage-guide-image" decoding="async" height="350" loading="lazy" src="/img/usage-guide/E/guard-thanks-settings.webp" style="--usage-guide-image-width: 1220px" width="1220"/>
 <figcaption>两种内置样式分别启用和保存；画布预览可选择等级和月数，经典样式还可填写观众名。</figcaption>
 </figure>
 
 <p>航海旗帜是大航海感谢组件的一款样式。在本页「＋ 添加样式 → 选择文件」选择「航海旗帜-大航海感谢样式-1.0.1.zip」。添加后与辉光、经典并列显示完整设置条目，可直接独立启用和模拟预览三档上舰效果；展开「外观设置」调整头像、昵称显示及昵称字号。外观修改自动保存样式默认值并同步使用该样式的组件；「在画布中预览」选中当前场景的同款图层，没有时添加，再点「保存并应用」。已有图层可在画布中调整共享参数或更换样式，位置和尺寸仍独立保存。航海旗帜按真实上舰等级播放，同一笔上舰只播一次，无需同时开启辉光或经典。旗帜上的中文来自原素材，不随语言切换。</p>
-<p>先确认礼物监控连着，直播时保持 LIRA 开着。这里管本机画面里的感谢动画；想让服务器发答谢弹幕，要在「百宝箱 → 弹幕互动 → 欢迎答谢」开启「礼物答谢」。</p>
+<p>先确认礼物监控连着，直播时保持 LIRA 开着。这里管本机画面里的感谢动画；想让服务器发答谢弹幕，要在「百宝箱 → 互动娱乐 → 弹幕互动 → 欢迎答谢」开启「礼物答谢」。</p>
 
 <details class="usage-guide-foldout">
 <summary>查看经典样式的模拟效果</summary>
 <figure class="usage-guide-figure">
-<img alt="画布中显示经典舰长感谢动画，右侧可调整风格、语言、预览等级、观众和月数。" class="usage-guide-image" decoding="async" height="900" loading="lazy" src="/img/usage-guide/E/guard-thanks-preview.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="画布中显示经典舰长感谢动画，右侧动画与文字和模拟预览分组可调整动画风格、动画文字及预览等级、观众和月数。" class="usage-guide-image" decoding="async" height="900" loading="lazy" src="/img/usage-guide/E/guard-thanks-preview.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>经典样式的舰长模拟效果，头像和观众名为示例；画布循环预览，不会真的送礼。</figcaption>
 </figure>
 </details>
 </article>
 <article class="usage-guide-feature" id="ug-rolling-gifts"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.4.3 滚动礼物</strong></h5></div>
-<p>在「卡片外观」选择「条带外形」和「条带内部」，下方会显示搭配效果。外形有经典斜切、双色燕尾、折叠飘带和圆角胶囊四种，内部有纯色、丝缎流光、星屑幻彩、几何拼片、菱格织纹、糖纸波点、水波涟漪、蕾丝花边、花瓣浮纹和碎箔微光十种。画布也能调这两项。「白色扫光」可单独开启，光线在样式预览、画布和直播画面中从左向右移动。</p>
+<p>在「卡片外观」选择「条带外形」和「条带内部」，下方会轮播展示四档配色的搭配效果。外形有经典斜切、双色燕尾、折叠飘带和圆角胶囊四种，内部有纯色（原样）、丝缎流光、星屑幻彩、几何拼片、菱格织纹、糖纸波点、水波涟漪、蕾丝花边、花瓣浮纹和碎箔微光十种。「白色扫光」可单独开启，开启后光线会在样式预览、画布和直播画面中从左向右移动。这三项在画布中也能调整。</p>
 <p>
     按四档金额区间设置配色，调整显示行数（1–10）、滚动速度（1–50）和「累计金额超过（元）」（0
     表示不限制）。「本日礼物循环」在零点换日。
@@ -56,8 +56,8 @@
 <details class="usage-guide-foldout">
 <summary>查看滚动礼物设置</summary>
 <figure class="usage-guide-figure">
-<img alt="滚动礼物的金额配色、行数、滚动速率，参数修改后自动保存。" class="usage-guide-image" decoding="async" height="820" loading="lazy" src="/img/usage-guide/E/gift-feed-settings.webp" style="--usage-guide-image-width: 1377px" width="1377"/>
-<figcaption>滚动礼物的金额配色、行数、滚动速度和保存入口。图中「滚动速率」现为「滚动速度」，「最小礼物金额」现为「累计金额超过（元）」，「恢复默认」现为「填入默认值」；新增的「卡片外观」在这两列设置下方。</figcaption>
+<img alt="滚动礼物设置页：顶部为浏览器源地址、打开画布和填入默认值按钮，中间为价格分色和本日礼物循环，下方为卡片外观与样式预览。" class="usage-guide-image" decoding="async" height="723" loading="lazy" src="/img/usage-guide/E/gift-feed-settings.webp" style="--usage-guide-image-width: 1220px" width="1220"/>
+<figcaption>滚动礼物设置：有效参数修改后自动保存，下方「卡片外观」可调整条带外形、条带内部和白色扫光并即时预览。</figcaption>
 </figure>
 </details>
 <p>要恢复默认参数，点「填入默认值」，修改会自动保存并生效。</p></article>
@@ -127,7 +127,7 @@
   </p>
 <figure class="usage-guide-figure">
 <img alt="礼物许愿设置：顶部选择周期，点击网址块复制；下方设置礼物、目标与预览。" class="usage-guide-image" decoding="async" height="541" loading="lazy" src="/img/usage-guide/D/gift-wishes.webp" style="--usage-guide-image-width: 1114px" width="1114"/>
-<figcaption>礼物许愿：周期说明只保留重置规则，点击顶部网址块复制完整地址；图中为示例预览。</figcaption>
+<figcaption>礼物许愿：顶部选择统计周期并点击网址块复制完整地址，下方设置礼物、目标数量并查看实时预览。</figcaption>
 </figure>
 <details class="usage-guide-foldout">
 <summary>查看文字版模板示例</summary>
@@ -137,7 +137,7 @@
 </figure>
 </details>
 <figure class="usage-guide-figure usage-guide-figure--compact">
-<img alt="礼物许愿卡片和文字两种示例输出" class="usage-guide-image" decoding="async" height="340" loading="lazy" src="/img/usage-guide/F/gift-wishes-overlay.webp" style="--usage-guide-image-width: 440px" width="440"/>
+<img alt="礼物许愿卡片和文字两种示例输出" class="usage-guide-image" decoding="async" height="366" loading="lazy" src="/img/usage-guide/F/gift-wishes-overlay.webp" style="--usage-guide-image-width: 480px" width="480"/>
 <figcaption>许愿示例进度，礼物图使用兜底图标。</figcaption>
 </figure>
 <p>切换统计周期只影响面板里的编辑与管理，同一个独立地址展示三个周期。<a data-usage-guide-link href="#ug-sprint-goal">月底冲刺</a>另按金额累计，不使用这里的礼物数量目标。</p></article>
@@ -155,10 +155,10 @@
 </article>
 <article class="usage-guide-feature" id="ug-sprint-overlay"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>5.4.6 月底冲刺文字版</strong></h5></div>
 
-<p>在「组件 → 礼物姬 → 月底冲刺」设置金额目标后，点击「在画布中调整」调整位置和尺寸，保存并应用后复制直播源地址。也可在画布「添加组件 → 礼物姬 → 月底冲刺」中添加。默认尺寸 600 × 80，透明底显示“还差 N 个水晶球”。</p>
+<p>在「组件 → 礼物姬 → 月底冲刺」设好目标金额后，下方「实时画面」会同步预览投屏文字，点击右侧网址框即可直接复制浏览器源地址，添加到 OBS 或哔哩哔哩直播姬。想放进直播场景编排，也可点顶部「在画布中调整」，或在画布「添加组件 → 礼物姬 → 月底冲刺」中加入，调好位置和尺寸后点「保存并应用」。默认尺寸 600 × 80，透明底显示“还差 N 个水晶球”。</p>
 <p>目标、已收金额、剩余进度和「重置本轮」都在本页。文字共用已有的金额目标、收礼进度和「重置本轮」结果，每 100 元剩余金额折合 1 个水晶球，不足 1 个按 1 个计。未设目标时不显示；达标后显示绿色的“还差 0 个水晶球”。</p>
 <p>金额目标与重置的操作见<a data-usage-guide-link href="#ug-sprint-goal">设置冲刺目标</a>。</p></article>
-<article class="usage-guide-feature"><div class="usage-guide-feature-head">
+<article class="usage-guide-feature" id="ug-gift-effects"><div class="usage-guide-feature-head">
 <h5 class="usage-guide-task-title"><strong>5.4.7 礼物特效</strong></h5>
 </div>
 
@@ -170,7 +170,7 @@
       在「直播投屏」里点击网址块复制，加到直播姬的「浏览器」或 OBS 的「浏览器源」。这个地址固定不变。也可以点「预览」，直接在浏览器里看。
     </li>
 </ol>
-<p>这个工具通过手动测试或弹幕命令播放，不会因收到对应礼物而自动播放。平时画面是透明的；它与全屏礼物感谢共用浏览器源地址，无需重复添加。</p>
+<p>这个工具通过手动测试或弹幕命令播放，不会因收到对应礼物而自动播放。平时画面是透明的；它与已启用的全屏礼物感谢、大航海感谢共用同一个浏览器源地址，添加一次即可，无需重复添加。</p>
 <p>
     打开弹幕触发后，观众发这四种写法都行：<code>礼物特效 32132</code>、<code>礼物特效32132</code>、<code>🎁 32132</code>、<code>🎁32132</code>。把 32132 换成你要的礼物 ID。
   </p>
@@ -183,7 +183,7 @@
 <h5 class="usage-guide-task-title"><strong>5.4.8 盲盒盈亏榜投屏</strong></h5>
 </div>
 
-<p>这是给观众看的盲盒盈亏排行榜，默认宽 720px，提供 5 套内置样式（<strong>经典暗夜</strong>、<strong>霜瓷双栏</strong>、<strong>无界切片</strong>、<strong>琉璃雅集</strong>、<strong>浅金席卡</strong>）。后 4 套采用紧凑布局并针对亮色系直播间背景优化配色与对比度，在客户端预览区上方或画布右侧「卡片样式」均可一键切换并双向同步。在「组件 → 礼物姬 → 盲盒盈亏榜」设置：</p>
+<p>这是给观众看的盲盒盈亏排行榜。在独立浏览器源中，<strong>经典暗夜</strong>默认宽 720px，<strong>霜瓷双栏</strong>默认宽 800px。想少占一些直播画面，可以选<strong>无界切片</strong>、<strong>琉璃雅集</strong>或<strong>浅金席卡</strong>，这三款卡片宽 600px。窗口更窄时卡片会跟着收窄，长昵称会显示省略号。后 4 套样式适合亮色直播背景。打开「组件 → 礼物姬 → 盲盒盈亏榜」，在预览区上方或画布右侧点「卡片样式」即可切换，两处会同步更新。</p>
 <p>榜单包含服务器已记录、同步完成的当日盲盒，软件未运行或安装前收到的也会计入。日期按实际送礼时间和电脑本机时间判断，重复同步不会重复累计。</p>
 <ul>
 <li><strong>卡片样式：</strong>在「经典暗夜」与 4 套亮色适配紧凑风格之间一键切换；经典样式沿用点歌板字体与配色，其余 4 套保留专属亮色配色并共用点歌板字体。</li>
@@ -198,7 +198,7 @@
       </p>
 <p>右下方「布局与外观」保留盲盒专属的紧凑布局与自动翻页，修改后自动保存；经典样式与点歌板共用字体和配色，亮色适配样式共用点歌板字体，点「前往点歌板调整 ↗」统一设置。成本和盈亏含义见<a data-usage-guide-link href="#ug-gifts">礼物记录与分析</a>。</p>
 <figure class="usage-guide-figure">
-<img alt="盲盒盈亏榜左侧预览经典暗夜卡片，右侧可调整排行人数、心动盲盒筛选和自动翻页。" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/D/gift-blindbox-leaderboard-settings.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="盲盒盈亏榜左侧预览经典暗夜卡片，右侧可调整排行人数、心动盲盒筛选和自动翻页。" class="usage-guide-image" decoding="async" height="979" loading="lazy" src="/img/usage-guide/D/gift-blindbox-leaderboard-settings.webp" style="--usage-guide-image-width: 1220px" width="1220"/>
 <figcaption>客户端与画布使用同一组盲盒展示参数。</figcaption>
 </figure>
 <figure class="usage-guide-figure usage-guide-figure--compact">

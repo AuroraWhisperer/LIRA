@@ -1,5 +1,6 @@
 import { resolveAdvancedLyricSettings } from '../shared/advanced-lyric-appearance.js';
 import { ADVANCED_LYRIC_CATALOG } from '../shared/advanced-lyric-catalog.js';
+import { getLyricMotionBudget } from '../shared/lyric-line-index.js';
 import { parseHexColor, mixColor as mixColorValues } from '../shared/color-value.js';
 import { createAdvancedLyricText, buildAdvancedLyricLayout } from './advanced-lyric-layouts.js';
 import { advancedLyricKeyframes, advancedLyricWordAnimation, createAdvancedLyricMotion } from './advanced-lyric-motion.js';
@@ -233,6 +234,8 @@ export function createAdvancedLyricRenderer(root) {
     root.setAttribute('aria-label', line.text);
     const window = lineWindow;
     const duration = Math.min(s.advancedLyricMotionDuration, (window.endMs - window.startMs) * 0.3);
+    const enterStart = frame.displayMs ?? window.startMs;
+    const enterDuration = frame.displayMs == null ? duration : Math.min(duration, getLyricMotionBudget(window.startMs, enterStart));
     const units = currentUnits;
     const sungEnd = Math.max(...units.map(unit => unit.startMs + (unit.endMs - unit.startMs) * unit.fillEnd));
     const exitStart = Math.max(window.endMs - duration * 0.55, sungEnd);
@@ -341,10 +344,11 @@ export function createAdvancedLyricRenderer(root) {
           ? { startMs: itemStart, endMs: itemStart + Math.min(180, duration, (item.endMs - itemStart) * 0.15) }
           : { startMs: itemStart - 1, endMs: itemStart, easing: 'steps(1, end)' }));
       if (!reducedMotion && !item.decorative) {
-        const delay = Math.min(duration * 0.3, ordinal * 28);
+        const delay = Math.min(enterDuration * 0.3, ordinal * 28);
         pendingMotion.push(() => {
-          if (!s.advancedLyricHideUnsung) motion.add(enter, advancedLyricKeyframes('enter', item.choreography ? 'fade' : entrance, s.advancedLyricMotionAmount, ordinal),
-            { startMs: window.startMs + delay, endMs: window.startMs + duration, duration: Math.max(1, duration - delay) });
+          if (!s.advancedLyricHideUnsung && enterDuration > 0) motion.add(enter,
+            advancedLyricKeyframes('enter', item.choreography ? 'fade' : entrance, s.advancedLyricMotionAmount, ordinal),
+            { startMs: enterStart + delay, endMs: enterStart + enterDuration });
           if (!item.choreography) motion.add(hold, advancedLyricKeyframes('hold', s.advancedLyricHold, s.advancedLyricMotionAmount, ordinal),
             { startMs: Math.max(window.startMs, itemStart) + duration, endMs: exitStart, duration: 2600 + ordinal * 80, loop: true, easing: 'ease-in-out' });
           if (exitStart < window.endMs) motion.add(exit, advancedLyricKeyframes('exit', item.choreography ? 'rise' : s.advancedLyricExit, s.advancedLyricMotionAmount, ordinal),
@@ -358,8 +362,9 @@ export function createAdvancedLyricRenderer(root) {
 
   function renderFrame(value) {
     if (disposed) return;
+    const cueChanged = frame?.displayMs !== value.displayMs;
     frame = value;
-    if (line !== value.line || nextLine !== value.nextLine || lineIndex !== value.index || trackTitle !== value.trackTitle) {
+    if (cueChanged || line !== value.line || nextLine !== value.nextLine || lineIndex !== value.index || trackTitle !== value.trackTitle) {
       line = value.line; nextLine = value.nextLine; lineIndex = value.index; trackTitle = value.trackTitle;
       lineWindow = advancedLyricLineWindow(line, nextLine);
       currentUnits = createAdvancedLyricText(line ? { ...line, endMs: Number(line.endMs) || lineWindow.endMs } : null);
@@ -368,7 +373,8 @@ export function createAdvancedLyricRenderer(root) {
     if (!visible) return;
     if (dirty) build();
     const { startMs, endMs } = lineWindow;
-    const hasContent = Boolean(line?.text) && value.currentMs >= startMs && value.currentMs < endMs;
+    const visibleStart = settings.advancedLyricHideUnsung ? startMs : value.displayMs ?? startMs;
+    const hasContent = Boolean(line?.text) && value.currentMs >= visibleStart && value.currentMs < endMs;
     if (contentVisible !== hasContent) {
       contentVisible = hasContent;
       art.style.visibility = hasContent ? 'visible' : 'hidden';

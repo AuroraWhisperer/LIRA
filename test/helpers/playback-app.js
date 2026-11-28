@@ -234,6 +234,8 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     window,
   };
+  window.setTimeout = sandbox.setTimeout;
+  window.clearTimeout = sandbox.clearTimeout;
   const context = vm.createContext(sandbox);
   const playbackEntry = path.join(__dirname, '..', '..', 'public', 'js', 'playback', 'index.js');
   const moduleCache = new Map();

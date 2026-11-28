@@ -2,7 +2,9 @@ html[data-scene-component], html[data-scene-component] body { width: 100%; heigh
 html[data-scene-component='songlist'] .overlay-container,
 html[data-scene-component='blindbox'] .overlay-container { width: 100%; height: 100%; padding: 0; }
 html[data-scene-component='songlist'] .overlay-panel,
-html[data-scene-component='blindbox'] .blindbox-panel { width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; }
+html[data-scene-component='blindbox'] .blindbox-panel { width: 100%; height: 100%; max-height: none; margin: 0; }
+html[data-scene-component='songlist'] .overlay-panel { max-width: none; }
+html[data-scene-component='blindbox'] .blindbox-panel { max-width: var(--blindbox-card-width, none); }
 html[data-scene-component='songlist'] .song-board { display: flex; flex-direction: column; }
 html[data-scene-component='songlist'] .overlay-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 html[data-scene-component='songlist'] .song-scroll-window { flex: 1; height: auto; min-height: 0; }

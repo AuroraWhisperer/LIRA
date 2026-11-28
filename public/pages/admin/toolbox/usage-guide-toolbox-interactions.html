@@ -1,9 +1,9 @@
 <h4 class="usage-guide-subsection-title">3.4 小游戏、转盘与投票</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.4.1 数字炸弹</strong></h5></div>
-<p>打开「百宝箱 → 互动娱乐 → 小游戏」。一局结束后再开下一局，<a data-usage-guide-link href="#ug-game-overlays">小游戏与转盘画面</a>说明了输出方式。</p>
+<p>打开「百宝箱 → 互动娱乐 → 小游戏」。一局结束后再开下一局；若「组件」里正在进行弹幕投票或观众评分，需先结束它们才能开始小游戏。<a data-usage-guide-link href="#ug-game-overlays">小游戏与转盘画面</a>说明了输出方式。</p>
 <p id="ug-game-audience">指定观众时，名单会合并 B 站在线榜的贡献值、进房时间两种排序（各最多 100 人，按 UID 去重），再补入本次连接中最近 10 分钟发过弹幕的观众，因此可选人数可以超过 100。“房间观众”总人数不代表接口提供了每个人的身份，两种排序也可能有大量重复。找不到对方时，请让对方发一条弹幕，再点「刷新」。切换直播间后，请等新房间的名单出现，重新选择对手再开局。重新连接后会重新收集弹幕观众。</p>
 <p>
-<strong>数字炸弹：</strong>可以指定 1 位观众，也可以选「不限观众数量」。按面板设好范围，点开始，观众按提示猜数字。
+<strong>数字炸弹：</strong>范围固定为 1–100。选好「观众模式」（指定 1 位观众，或选「不限观众数量」），点「开始数字炸弹」后，你和观众按画面提示轮流猜数字；安全数字会不断缩小范围，猜中炸弹的一方落败。
     </p>
 <figure class="usage-guide-figure">
 <img alt="直播间互动页，右上角有复制地址和打开预览按钮，下方是本局状态、观众名单和游戏设置" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-games.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
@@ -13,8 +13,8 @@
 <p><strong>五子棋：</strong>你执黑先下，直接点棋盘。指定的观众执白，发 B2 这样的坐标弹幕落子。</p></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.4.3 你画我猜</strong></h5></div>
 <p>
-<strong>你画我猜：</strong>选回合数（1–12）、每局时长（15–300
-      秒）和本场词库（可多选），再开始。如果词库首次加载失败，客户端重新连上游戏服务后会自动重试。客户端会弹出选词窗，按分类列出本场全部可用题词，也可搜索词或分类；选中后点击「选定并开始作画」，才正式开始本局和倒计时。你在游戏网页上画，观众发弹幕猜。按需要点「结束作画」「公布答案」「开始下一题」，下一题也由你挑选。
+<strong>你画我猜：</strong>点开「你画我猜」卡片，选回合数（1–12）、每局时长（15–300
+      秒）和本场词库（可多选），再点「开始你画我猜」。如果词库首次加载失败，客户端重新连上游戏服务后会自动重试。客户端会弹出选词窗，按分类列出本场全部可用题词，也可搜索词或分类；选中后点击「选定并开始作画」，才正式开始本局和倒计时。你在游戏网页上画，观众发弹幕猜。按需要点「结束作画」「公布答案」「开始下一题」，下一题也由你挑选。
     </p>
 <p>画板快捷键：B 画笔、E 橡皮、L 直线、R 矩形、O 圆形、I 取色，Ctrl + Z 撤销，[ / ] 调整粗细。清空画布前会二次确认。</p>
 <p>答案支持简体和繁体等价识别，例如题词是「苹果」，发送「蘋果」也能猜中，不需要另加繁体别名。</p>
@@ -23,46 +23,45 @@
 <summary>查看你画我猜设置与主持区</summary>
 <div class="usage-guide-grid">
 <figure class="usage-guide-figure">
-<img alt="你画我猜设置，有回合数、每局时长和本场词库" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-draw-guess.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="你画我猜设置，有回合数、每局时长和本场词库" class="usage-guide-image" decoding="async" height="867" loading="lazy" src="/img/usage-guide/E/toolbox-draw-guess.webp" style="--usage-guide-image-width: 1088px" width="1088"/>
 <figcaption>设回合、时长和词库。</figcaption>
 </figure>
 <figure class="usage-guide-figure">
-<img alt="你画我猜主持区，有本局题词、画板快捷键和结束作画、公布答案、开始下一题按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-draw-board.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="你画我猜主持区，有本局题词、画板快捷键和结束作画、公布答案、开始下一题按钮" class="usage-guide-image" decoding="async" height="236" loading="lazy" src="/img/usage-guide/E/toolbox-draw-board.webp" style="--usage-guide-image-width: 1082px" width="1082"/>
 <figcaption>主持区：题词和主持按钮。</figcaption>
 </figure>
 </div>
 </details></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.4.4 转转盘</strong></h5></div>
 <p>
-    转盘有自己的地址。填至少两个选项，给每项设份数，点「保存设置」后就能开始转。某项被抽中的概率，就是该项份数占总份数的比例。
+    转盘有自己的地址，可独立使用。点「展开配置」，填写 2–12 个不重复的选项（每项最多 40 字），给每项设 1–100 份、总份数不超过 300，点「保存设置」后再点「开始转动」。某项被抽中的概率，就是该项份数占总份数的比例。
   </p>
 <details class="usage-guide-foldout">
 <summary>查看转盘设置</summary>
 <figure class="usage-guide-figure">
-<img alt="转盘设置，有转盘网页链接、转盘内容与份数、保存设置和开始转动按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-wheel.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="转盘设置，有转盘网页链接、转盘内容与份数、保存设置和开始转动按钮" class="usage-guide-image" decoding="async" height="822" loading="lazy" src="/img/usage-guide/E/toolbox-wheel.webp" style="--usage-guide-image-width: 1126px" width="1126"/>
 <figcaption>转盘的地址和份数设置。</figcaption>
 </figure>
 </details></article>
 <article class="usage-guide-feature" id="ug-voting"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.4.5 弹幕投票</strong></h5></div>
-<p>打开「组件 → 弹幕投票」。投票和评分一次只能进行一场，输出地址见<a data-usage-guide-link href="#ug-vote-overlay">投票与评分画面</a>。</p>
+<p>打开「组件 → 弹幕投票」。投票和评分一次只能进行一场，也不能与正在进行的小游戏同时开；输出地址见<a data-usage-guide-link href="#ug-vote-overlay">投票与评分画面</a>。</p>
 <p>
-<strong>弹幕投票：</strong>填投票主题（选填，最多 60 字符）和选项（每项最多 10 字符）。设好投票时长（分钟和秒），或点一个时长预设，再点「开始投票」。观众按画面提示用弹幕发送选项。
+<strong>弹幕投票：</strong>填投票主题（选填，最多 60 字符）和选项（1–6 项，每项最多 10 字符）。设好投票时长（分钟和秒），或点一个时长预设，再点「开始投票」。观众按画面提示用弹幕发送选项，每个账号只计首次有效投票。
     </p>
 <p>选项支持简繁等价识别，例如「音乐」也接受「音樂」。如果同时设了仅简繁写法不同的选项，请按画面原文发送；无法唯一确定选项的其他写法不会计票。</p>
 <figure class="usage-guide-figure">
-<img alt="弹幕投票设置，有投票主题、投票选项、投票时长和开始投票按钮" class="usage-guide-image" decoding="async" height="696" loading="lazy" src="/img/usage-guide/E/toolbox-voting.webp" style="--usage-guide-image-width: 1426px" width="1426"/>
+<img alt="弹幕投票设置，有投票主题、投票选项、投票时长和开始投票按钮" class="usage-guide-image" decoding="async" height="977" loading="lazy" src="/img/usage-guide/E/toolbox-voting.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>弹幕投票：填主题和选项，设好时长。</figcaption>
 </figure></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.4.6 观众评分</strong></h5></div>
 <p>
-<strong>观众评分：</strong>打开「组件 → 观众评分」，填主题，点「开始评分」。观众发 1–10
-      的整数，平均分要等你结束后才公布。
+<strong>观众评分：</strong>打开「组件 → 观众评分」，可按需填写评分主题（选填，最多 60 字符），点「开始评分」。系统只识别纯数字 1–10 的弹幕（带其他文字或小数不算）；在你结束前，同一观众再发新分数会覆盖之前的打分。平均分要等你结束后才公布。
     </p>
-<p>进行中可以看状态。投票到设定时间后会自动结束，也可提前结束；评分时，点击「停止并公布平均分」后查看结果。关闭结果后可开始另一场。</p>
+<p>进行中可以在面板查看实时状态。投票到设定时间后会自动结束，也可点「提前结束投票」；评分需手动点「停止并公布平均分」查看结果。两者进行中都可点「取消本场」（确认后会清除本场票数或评分）；结束后点「关闭结果」即可开始下一场。</p>
 <details class="usage-guide-foldout">
 <summary>查看评分设置</summary>
 <figure class="usage-guide-figure">
-<img alt="观众评分设置，有评分主题、1 到 10 分的评分规则和开始评分按钮" class="usage-guide-image" decoding="async" height="696" loading="lazy" src="/img/usage-guide/E/toolbox-rating.webp" style="--usage-guide-image-width: 1426px" width="1426"/>
+<img alt="观众评分设置，有评分主题、1 到 10 分的评分规则和开始评分按钮" class="usage-guide-image" decoding="async" height="474" loading="lazy" src="/img/usage-guide/E/toolbox-rating.webp" style="--usage-guide-image-width: 1220px" width="1220"/>
 <figcaption>观众评分：1–10 分。</figcaption>
 </figure>
 </details></article></div>
@@ -95,7 +94,7 @@
 <article class="usage-guide-feature" id="ug-public-games"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.6.1 网页小游戏怎么玩</strong></h5></div>
 <p>在「百宝箱 → 设置 → 账号与连接」的「关联服务」中找到「网页小游戏」，点「进入小游戏」即可游玩，无需登录 LIRA 账号。任选「成名之路」「玲珑宝斋」「星座回响」「盲盒模拟器」「唤灵契约」或「秘宝合成」，先看规则，再按提示开始。</p>
 <p>盲盒模拟器先选盒子和倍率，再开盒。其他游戏按各自的规则点亮、开容器、召唤、翻牌或合成，到结算时再看结果。页面里的电池、收支和礼物都是模拟的，不花真实电池，也不会收到真实礼物。这些游戏不连接直播间。</p>
-<p>想让直播间观众发弹幕一起玩，要用客户端「百宝箱 → 小游戏」里的互动功能，和这里的网页游戏分开。</p>
+<p>想让直播间观众发弹幕一起玩，要用客户端「百宝箱 → 互动娱乐 → 小游戏」里的互动功能，和这里的网页游戏分开。</p>
 </article>
 <article class="usage-guide-feature" id="ug-public-game-records"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.6.2 看背包、查记录和清除数据</strong></h5></div>
 
@@ -110,6 +109,10 @@
 <div class="usage-guide-feature-list">
 <article class="usage-guide-feature" id="ug-pk-score">
 <div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.7.1 按目标加分或预算估算</strong></h5></div>
-<p>打开「百宝箱 → 互动娱乐 → PK 算分」。默认「按 PK 分」，输入目标主播加分即可查看至少需要多少元、多少电池。选「按金额」可输入人民币预算，最多两位小数。每 0.10 元计 1 电池，不足 1 电池的余额留在预算内。</p>
+<p>打开「百宝箱 → 互动娱乐 → PK 算分」。默认「按 PK 分」，在「目标 PK 加分」输入非负整数，即可查看至少需要多少元、多少电池以及实际可得加分。切到「按金额」可在「人民币预算」输入金额（最多两位小数），查看可得 PK 加分、可用电池和 PK 条得分；每 0.10 元计 1 电池，不足 1 电池的余额留在预算内。下方「换算规则」会随当前条件同步显示详细算式。</p>
 <p>默认开启「双倍时段」。当天首胜可打开「本场首胜」，活动期间若本场属于当天前 3 场获胜 PK，再打开「逐胜加冕」计入 10% 加成。三项都开启时，100.00 元可换 1000 电池，PK 条得 2000 分，主播加分正好是 88 分。主播加分只计整分，例如同样条件下用 101.00 元算得 88.88 分，计 88 分。</p>
+<figure class="usage-guide-figure">
+<img alt="PK 算分按金额模式：输入 100.00 元并开启本场首胜、双倍时段与逐胜加冕，右侧显示 88 分、1000 电池、2000 分 PK 条得分，下方为实时换算规则" class="usage-guide-image" decoding="async" height="607" loading="lazy" src="/img/usage-guide/E/toolbox-pk-score.webp" style="--usage-guide-image-width: 996px" width="996"/>
+<figcaption>按金额估算示例：下方「换算规则」会随所选加成实时更新算式。</figcaption>
+</figure>
 </article></div>

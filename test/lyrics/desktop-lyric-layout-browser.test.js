@@ -314,9 +314,10 @@ test('long interludes use the finished line without moving the next lyric in lim
   await seek(9500);
   assert.equal(await countdown.isVisible(), true);
   assert.equal(await page.locator('.desktop-lyric-preview-row:visible').count(), 1);
-  await seek(12000);
+  await seek(11750);
   assert.equal(await countdown.isVisible(), false);
   assert.equal(await page.locator('.desktop-lyric-preview-row.is-interlude').count(), 0);
+  assert.equal(await nextRow.isVisible(), true, 'the final countdown beat yields to the upcoming lyric');
 
   await page.evaluate(() => window.testLyricRenderer.applySettings({ desktopLyricVisibleLines: '0' }));
   await seek(9000);
@@ -348,7 +349,7 @@ test('whole-song playback retargets an interrupted line after reflow and follows
     const renderer = window.testLyricRenderer;
     const viewport = document.getElementById('desktopLyricPreviewViewport');
     const lines = Array.from({ length: 150 }, (_, i) => ({
-      startMs: i * 10000, text: i === 61 ? '歌词换行后需要按实际显示高度重新定位下一句' : `第 ${i} 句`,
+      startMs: i * 10000, endMs: i * 10000 + 9000, text: i === 61 ? '歌词换行后需要按实际显示高度重新定位下一句' : `第 ${i} 句`,
     }));
     const sample = (currentMs, playing, discontinuity) => renderer.updateLyricState({
       currentMs, playing, discontinuity, durationMs: 1500000, status: 'ready',
@@ -363,7 +364,7 @@ test('whole-song playback retargets an interrupted line after reflow and follows
     await document.fonts.ready;
     await new Promise(requestAnimationFrame);
     const start = viewport.scrollTop;
-    sample(609900, true, true);
+    sample(609400, true, true);
     const timeout = AbortSignal.timeout(5000);
     while (!rows[61].classList.contains('is-active')) {
       timeout.throwIfAborted();
@@ -376,7 +377,7 @@ test('whole-song playback retargets an interrupted line after reflow and follows
     rows[61].style.maxWidth = '220px';
     const tall = rows[61].offsetHeight;
     const before = rows[62].getBoundingClientRect().top;
-    sample(620000, true, false);
+    sample(619500, true, false);
     const drift = Math.abs(rows[62].getBoundingClientRect().top - before);
     const second = motion(rows[62]);
     sample(30000, false, true);

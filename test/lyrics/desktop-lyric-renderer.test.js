@@ -518,6 +518,7 @@ test('basic word bounce can be switched mid-word independently of highlighting',
 for (const mode of ['continuous', 'discrete']) {
   test(`${mode} karaoke starts the next line before its sampled state arrives`, async () => {
     const { renderer, elements, animations, advance, state } = await createLiveRenderer();
+    const lastWord = { ...state.words[0], endMs: 4500 };
     const nextWords = [
       { text: '第', startMs: 5000, endMs: 5100 },
       { text: '二', startMs: 5100, endMs: 5200 },
@@ -525,13 +526,16 @@ for (const mode of ['continuous', 'discrete']) {
     ];
     renderer.applySettings({ desktopLyricKaraokeMode: mode });
     renderer.updateLyricTimeline({ status: 'ready', lines: [
-      { startMs: 0, text: '第一句', words: state.words },
+      { startMs: 0, text: '第一句', words: [lastWord] },
       { startMs: 5000, text: '第二句', words: nextWords },
     ] });
-    renderer.updateLyricState({ ...state, currentMs: 4900 });
-    advance(150);
+    renderer.updateLyricState({ ...state, words: [lastWord], currentMs: 4900 });
     const row = elements.get('desktopLyricPreviewTimeline').children[1];
     const wordNodes = row.querySelector('.desktop-lyric-preview-row-text').children;
+    assert.ok(row.classList.contains('is-active'), 'the upcoming line is readable during the breath');
+    if (mode === 'continuous') assert.equal(wordNodes[0].children[1].style.clipPath, 'inset(0 100% 0 0)');
+    else assert.equal(wordNodes[0].dataset.wordState, 'upcoming');
+    advance(150);
     assert.equal(wordNodes.length, 3, 'the first word must exist 50 ms into the new line, before the next 500 ms sample');
     if (mode === 'continuous') {
       assert.equal(animations.at(-1).currentTime, 50);
@@ -551,7 +555,7 @@ for (const mode of ['continuous', 'discrete']) {
       assert.equal(animations.at(-1).currentTime, 50);
       assert.equal(animations.at(-1).playState, 'paused');
     } else assert.equal(wordNodes[1].dataset.wordState, 'upcoming');
-    renderer.updateLyricState({ ...state, currentMs: 4900, generation: 2, playing: false });
+    renderer.updateLyricState({ ...state, currentMs: 4400, generation: 2, playing: false });
     assert.equal(row.querySelector('.desktop-lyric-preview-row-text').children.length, 0,
       'seeking backwards releases the next line and restores its plain text');
   });
@@ -570,6 +574,31 @@ test('desktop karaoke retains the visible line when a sample is already on the n
   });
   assert.equal(animation.cancelled, true, 'a real line change still releases the previous animation');
   assert.equal(animations.at(-1).currentTime, 50);
+});
+
+test('a repeated upcoming lyric can be read in the gap without borrowing the previous words', async t => {
+  const { renderer, elements, state } = await createLiveRenderer({ advanced: true });
+  t.after(() => renderer.dispose());
+  const text = '再唱一遍';
+  const words = [{ text, startMs: 0, endMs: 4500 }];
+  renderer.applySettings({ desktopLyricVisibleLines: '1', advancedLyricEnabled: 'true', advancedLyricHideUnsung: 'false' });
+  renderer.updateLyricTimeline({ status: 'ready', lines: [
+    { startMs: 0, endMs: 5000, text, words }, { startMs: 5000, endMs: 8000, text },
+  ] });
+  renderer.updateLyricState({ ...state, lineText: text, words, currentMs: 4800, playing: false });
+  const row = elements.get('desktopLyricPreviewTimeline').querySelector('.is-active');
+  const lyric = row.querySelector('.desktop-lyric-preview-row-text');
+  assert.equal(row.dataset.lyricIndex, '1');
+  assert.equal(lyric.textContent, text);
+  assert.equal(lyric.children.length, 0);
+  const art = elements.get('advancedLyricPreviewStage').querySelector('.advanced-lyric-art');
+  assert.equal(art.style.visibility, 'visible');
+  renderer.applySettings({ advancedLyricHideUnsung: 'true' });
+  assert.equal(art.style.visibility, 'hidden');
+  renderer.updateLyricState({ ...state, lineText: text, words: [{ text, startMs: 5000, endMs: 8000 }],
+    currentMs: 5010, playing: false, sequence: 2 });
+  assert.equal(art.style.visibility, 'visible');
+  assert.equal(lyric.children.length, 1);
 });
 
 test('preloaded words wait for the matching track state during a timeline handoff', async () => {

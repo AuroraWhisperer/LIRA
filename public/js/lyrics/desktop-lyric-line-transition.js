@@ -88,7 +88,7 @@ export function createLyricLineTransition(viewport, timeline) {
     return positions;
   }
 
-  function play(rows, positions, visibleRange) {
+  function play(rows, positions, visibleRange, budget = Infinity) {
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const { scrollTop, clientHeight } = viewport;
     const entering = [];
@@ -109,7 +109,7 @@ export function createLyricLineTransition(viewport, timeline) {
       }
       entering.push({ index, frames: [from, to] });
     }
-    for (const { index, frames } of entering) animate(rows[index], frames, reducedMotion ? 140 : 360, { index });
+    for (const { index, frames } of entering) animate(rows[index], frames, Math.min(budget, reducedMotion ? 140 : 360), { index });
     for (const { top, opacity, ghost } of positions.values()) {
       if (!ghost) continue;
       ghost.style.top = `${top + scrollTop}px`;
@@ -117,7 +117,7 @@ export function createLyricLineTransition(viewport, timeline) {
       animate(ghost, [
         { translate: '0 0', opacity },
         { translate: reducedMotion ? '0 0' : '0 -18px', opacity: 0 },
-      ], reducedMotion ? 140 : 180, { ghost });
+      ], Math.min(budget, reducedMotion ? 140 : 180), { ghost });
     }
   }
 

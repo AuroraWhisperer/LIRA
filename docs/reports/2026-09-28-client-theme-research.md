@@ -61,7 +61,7 @@ Radix 特别区分纯灰与带色相的灰：`slate` 偏蓝，`sand` 偏黄。�
 | [登录页](../../public/css/license.css) | 已有自身的颜色变量与 `prefers-color-scheme: dark` 分支。 | 并非全项目都没有深色；应协调已有登录页与客户端偏好，而非另写第二套登录页方案。 |
 | [点歌板主题工具](../../public/js/shared/theme.js) | 加载的是经典点歌板、歌单展示板等预设。 | 它不是客户端换肤控制器，不宜直接把桌面主题塞入其中。 |
 
-现有截图[客户端主页](../../public/img/usage-guide/A/client-main-first-open.webp)用于确认总体视觉语境；现状判断以当前代码为准。截图不是本次启动 Electron 获得的运行证据。
+现有截图[客户端主页](../images/usage-guide/A/client-main-first-open.webp)用于确认总体视觉语境；现状判断以当前代码为准。截图不是本次启动 Electron 获得的运行证据。
 
 当前黄绿是同一套界面里的功能配色，不是两个已实现的客户端主题。公共界面还混有红色主操作、粉色下拉变体、蓝色提示等。本次新增主题聚焦这些普通界面颜色的协调，功能分类色不因此全部归为待替换的装饰色。
 
@@ -75,9 +75,9 @@ Radix 特别区分纯灰与带色相的灰：`slate` 偏蓝，`sand` 偏黄。�
 | SC 与点歌双队列 | [队列样式](../../public/css/admin/workspace/song-layout.css)包含分类侧标、数量标签、行操作和队列专属按钮。 | 适配普通背景与正文；保留分类与队列按钮的识别色，检查换底色后密集列表与标签是否清晰。 |
 | 播放器及其浮层 | [真实底栏](../../public/img/usage-guide/C/playback-player-bar.webp)有圆形播放键、进度轨道、音质入口；[音量控件](../../public/css/playback/volume-control.css)自行定义面板、轨道、滑块色，[队列弹层](../../public/css/playback/queue-modal.css)另有布局。 | 音量滑块不能当成已由 `parameter-range` 覆盖。分别检查封面、时间、播放状态、音量与队列浮层，保留已有行为。 |
 | 礼物与盲盒卡片（保留项） | [礼物截图](../images/usage-guide/D/gift-page-overview.webp)显示分类卡片与盈亏；[盲盒主题](../../public/css/admin/gifts/blindbox-themes.css)按 `data-blind-box-theme` 定义局部颜色。 | 保留卡片专属配色；只检查公共主题是否通过继承或变量别名误改卡片内部。外层页面和普通工具栏可随公共主题变化。 |
-| 加班机控制台与规则编辑器（保留项） | [实际界面](../../public/img/usage-guide/E/toolbox-overtime-controls.webp)在浅色页面中已有深色控制台；[控制台](../../public/css/admin/overtime/console.css)与[规则编辑器](../../public/css/admin/overtime/rule-editor.css)有专属按钮、状态与局部样式。 | 延续现有专属颜色，检查全局文字或控件变量是否造成意外变化，不为新增客户端主题重设计控制台。 |
-| 粉丝档案 | [实际界面](../../public/img/usage-guide/E/toolbox-fan-profiles.webp)包含分栏、筛选、提醒和档案操作；[样式](../../public/css/admin/toolbox/fan-profiles.css)由模块管理，另有编辑器样式。 | 验证档案列表、详情、编辑器、提醒和空状态；一个设置表单无法代表这些表面。 |
-| 主播工作台日历 | [实际界面](../../public/img/usage-guide/E/toolbox-planner.webp)包含日期格、日程、便签与待办；[日历样式](../../public/css/admin/toolbox/streamer-planner/calendar.css)区分直播、工作、个人事件。 | 保留事件分类，分别适配今天、选中日期、跨月日期和事件文字。选择状态不等同于事件类型。 |
+| 加班机控制台与规则编辑器（保留项） | [实际界面](../images/usage-guide/E/toolbox-overtime-controls.webp)在浅色页面中已有深色控制台；[控制台](../../public/css/admin/overtime/console.css)与[规则编辑器](../../public/css/admin/overtime/rule-editor.css)有专属按钮、状态与局部样式。 | 延续现有专属颜色，检查全局文字或控件变量是否造成意外变化，不为新增客户端主题重设计控制台。 |
+| 粉丝档案 | [实际界面](../images/usage-guide/E/toolbox-fan-profiles.webp)包含分栏、筛选、提醒和档案操作；[样式](../../public/css/admin/toolbox/fan-profiles.css)由模块管理，另有编辑器样式。 | 验证档案列表、详情、编辑器、提醒和空状态；一个设置表单无法代表这些表面。 |
+| 主播工作台日历 | [实际界面](../images/usage-guide/E/toolbox-planner.webp)包含日期格、日程、便签与待办；[日历样式](../../public/css/admin/toolbox/streamer-planner/calendar.css)区分直播、工作、个人事件。 | 保留事件分类，分别适配今天、选中日期、跨月日期和事件文字。选择状态不等同于事件类型。 |
 | 小游戏及直播画面预览 | [实际界面](../images/usage-guide/E/toolbox-games.webp)包含游戏海报、玩法卡片与配置；[页面结构](../../public/pages/admin/toolbox/games.html)按游戏分区。其他投屏设置也有独立预览内容。 | 配置界面随客户端主题适配；游戏识别视觉和观众侧预览按各自契约处理，不能用全局换色替代。 |
 
 公共主题的适配单元应是现有颜色规则和实际使用它们的组件。页面数多不意味着每页都要重新设计，但不同导航形态、普通控件的局部覆盖与动态浮层仍需覆盖。保留项主要验证不受误改，无须为其另做三套配色。

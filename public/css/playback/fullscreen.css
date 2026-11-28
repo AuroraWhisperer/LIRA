@@ -175,7 +175,7 @@
   display: flex;
   align-items: center;
   padding: var(--player-lyric-line-padding, 14px) 0;
-  transition: all 300ms ease;
+  transition: all min(300ms, var(--lyric-line-budget, 300ms)) ease;
   cursor: pointer;
 }
 
@@ -240,7 +240,7 @@
   font-weight: var(--player-lyric-weight, 700);
   line-height: var(--player-lyric-line-height, 1.4);
   color: var(--player-lyric-color, var(--color-text-muted));
-  transition: all 300ms ease;
+  transition: all min(300ms, var(--lyric-line-budget, 300ms)) ease;
 }
 
 .player-fs-lyric-line.active .lyric-text {
@@ -261,7 +261,7 @@
   font-weight: 500;
   line-height: var(--player-lyric-line-height, 1.5);
   color: var(--player-lyric-color, var(--color-text-muted));
-  transition: all 300ms ease;
+  transition: all min(300ms, var(--lyric-line-budget, 300ms)) ease;
 }
 
 .player-fs-lyric-line.active .lyric-trans {

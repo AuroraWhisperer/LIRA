@@ -57,6 +57,26 @@ test('client lyric lookup preserves consumer-specific timestamp handling', async
   assert.equal(service.findLyricLine({ lyrics: { lines: untimed } }, 0), null);
 });
 
+test('visual cues use the silent gap while publication stays on the sung line', async () => {
+  const { findActiveLyricIndex } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-timeline.js'));
+  const { LyricService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/lyric-service.js'));
+  const lines = [
+    { startMs: 0, endMs: 2000, text: '尾音', words: [{ text: '尾音', startMs: 0, endMs: 1800 }] },
+    { startMs: 2000, text: '合唱一' }, { startMs: 2000, endMs: 2600, text: '合唱二' },
+    { startMs: 8000, endMs: 8150, text: '还在唱', words: [{ text: '唱', startMs: 8010, endMs: 8500 }] },
+    { startMs: 8400, endMs: 10000, text: '只有前半句有定时', words: [{ text: '只有', startMs: 8400, endMs: 8750 }] },
+    { startMs: 10000, text: '末句' },
+  ];
+  // 200 ms of silence leaves 20 ms on the tail. Both duet parts share one display cue.
+  assert.equal(findActiveLyricIndex(lines, 1819), 0);
+  assert.equal(findActiveLyricIndex(lines, 1820), 2);
+  assert.equal(new LyricService().findLyricLine({ lyrics: { lines } }, 1999), lines[0]);
+  assert.equal(findActiveLyricIndex(lines, 7499), 2);
+  assert.equal(findActiveLyricIndex(lines, 7500), 3);
+  assert.equal(findActiveLyricIndex(lines, 8399), 3, 'overlapping vocals have no silence to borrow');
+  assert.equal(findActiveLyricIndex(lines, 9999), 4, 'partial word timing cannot cut off the rest of the lyric');
+});
+
 test('playback publishes a complete timeline only when the lyric identity changes', async () => {
   const requests = [];
   const playback = await loadModuleExports(

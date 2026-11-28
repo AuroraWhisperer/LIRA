@@ -4,6 +4,7 @@
 import { LyricWordRenderer } from '../shared/lyric-word-renderer.js';
 import { LyricWordAnimator } from '../shared/lyric-word-animator.js';
 import { createLyricPerformanceProfile } from '../shared/lyric-performance.js';
+import { getLyricDisplayCues, getLyricMotionBudget } from '../shared/lyric-line-index.js';
 import {
   resolveLyricTime,
   resolveNoLyricText as resolveNoLyricTextValue,
@@ -85,6 +86,7 @@ let followPosition = 0;
 let followVelocity = 0;
 let followTarget = 0;
 let followFrameAt = 0;
+let followDeadline = Infinity;
 let lineTransition = null;
 let immediateLineChange = false;
 let currentDisplaySettings = resolveDesktopLyricSettings();
@@ -359,8 +361,10 @@ function renderTimelineFrame(currentMs) {
   }
 
   if (nextActiveIndex !== activeIndex) {
+    const budget = getLyricMotionBudget(Number(lines[nextActiveIndex]?.startMs) || 0, lyricTime, latestState?.playbackRate);
+    timelineElement.style.setProperty('--lyric-line-budget', `${budget}ms`);
     const canTransition = activeIndex >= 0 && nextActiveIndex === activeIndex + 1
-      && !immediateLineChange && latestState?.playing === true && Date.now() >= manualFollowUntil;
+      && budget > 0 && !immediateLineChange && latestState?.playing === true && Date.now() >= manualFollowUntil;
     const positions = canTransition ? lineTransition?.capture(rowElements,
       getVisibleLyricRange(nextActiveIndex, currentDisplaySettings.visibleLines, rowElements.length), visibleLineRange) : null;
     if (!positions) lineTransition?.clear();
@@ -384,14 +388,20 @@ function renderTimelineFrame(currentMs) {
     resetActiveWords();
     renderActiveWords();
     updateCountdown(lyricTime);
-    followActiveLyric();
-    if (positions) lineTransition.play(rowElements, positions, visibleLineRange);
+    followActiveLyric(budget);
+    if (positions) lineTransition.play(rowElements, positions, visibleLineRange, budget);
   } else {
     updateCountdown(lyricTime);
   }
 
   updateActiveWordProgress(lyricTime);
   renderAdvancedFrame(lyricTime);
+}
+
+function stateMatchesLine(line) {
+  if (latestState?.lineText !== line.text) return false;
+  const nextLine = renderedLines[activeIndex + 1];
+  return latestState.currentMs >= line.startMs && (!nextLine || latestState.currentMs < nextLine.startMs);
 }
 
 function renderAdvancedFrame(currentMs) {
@@ -402,7 +412,7 @@ function renderAdvancedFrame(currentMs) {
     && !['loading', 'empty'].includes(latestTimeline.status);
   let line = available ? renderedLines[activeIndex]
     || (!renderedLines.length ? fallbackLine : null) : null;
-  if (line && !line.words?.length && latestState?.lineText === line.text && latestState.words?.length) {
+  if (line && !line.words?.length && latestState?.words?.length && stateMatchesLine(line)) {
     if (advancedLineCache?.source !== line || advancedLineCache.words !== latestWordSignature) {
       advancedLineCache = { source: line, words: latestWordSignature, line: { ...line, words: latestState.words } };
     }
@@ -410,6 +420,7 @@ function renderAdvancedFrame(currentMs) {
   }
   advancedRenderer?.renderFrame({
     currentMs, line, index: activeIndex,
+    displayMs: activeIndex > 0 ? getLyricDisplayCues(renderedLines)[activeIndex].displayMs : undefined,
     nextLine: available ? renderedLines[activeIndex + 1] : null,
     playing: latestState?.playing === true, playbackRate: latestState?.playbackRate,
     discontinuity: immediateLineChange,
@@ -427,7 +438,7 @@ function renderActiveWords() {
   const line = renderedLines[activeIndex] || {};
   const timelineWords = Array.isArray(line.words) && line.words.length > 0 ? line.words : null;
   const words = timelineWords || (Array.isArray(latestState?.words) ? latestState.words : []);
-  const matchesCurrentLine = latestState?.lineText === line.text;
+  const matchesCurrentLine = stateMatchesLine(line);
   // Preloaded timing lets the local clock cross a line before the next state sample.
   if (!timelineWords && !matchesCurrentLine && activeWordIndex === activeIndex) return;
   const signature = timelineWords || `${activeIndex}:${matchesCurrentLine ? latestWordSignature : ''}`;
@@ -547,7 +558,7 @@ function updateCountdown(currentMs) {
   if (activeIndex < 0) followActiveLyric();
 }
 
-function followActiveLyric() {
+function followActiveLyric(budget) {
   if (!basicVisible || renderer?.isVisible() === false || Date.now() < manualFollowUntil) return;
   const activeRow = rowElements[activeIndex] || (countdownElement?.hidden === false ? countdownElement : null);
   if (!activeRow || !viewport) return;
@@ -562,7 +573,8 @@ function followActiveLyric() {
     currentDisplaySettings.alignAnchor,
   );
   const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (!currentDisplaySettings.springAnimation || reducedMotion || typeof requestAnimationFrame !== 'function') {
+  if (Number.isFinite(budget)) followDeadline = performance.now() + budget;
+  if (!currentDisplaySettings.springAnimation || reducedMotion || budget === 0 || typeof requestAnimationFrame !== 'function') {
     stopFollowAnimation();
     followPosition = followTarget;
     followVelocity = 0;
@@ -586,8 +598,11 @@ function animateLyricFollow(now) {
   const elapsedMs = followFrameAt > 0 ? now - followFrameAt : 16;
   followFrameAt = now;
   const next = stepSpringScroll(followPosition, followVelocity, followTarget, elapsedMs);
-  followPosition = next.position;
-  followVelocity = next.velocity;
+  // Close the spring's remaining distance over the available frames, even during a short breath.
+  const remainingMs = Math.max(0, followDeadline - now);
+  const catchUp = remainingMs > 0 ? elapsedMs / (remainingMs + elapsedMs) : 1;
+  followPosition = catchUp === 1 ? followTarget : next.position + (followTarget - next.position) * catchUp;
+  followVelocity = next.velocity * (1 - catchUp);
   viewport.scrollTop = followPosition;
 
   if (followPosition === followTarget && followVelocity === 0) {
@@ -603,6 +618,7 @@ function stopFollowAnimation() {
   }
   followAnimationFrame = 0;
   followFrameAt = 0;
+  followDeadline = Infinity;
   viewport?.classList.remove('is-following');
 }
 

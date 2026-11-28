@@ -11,23 +11,23 @@
           直播间号、弹幕监控和礼物监控。点歌规则包括点歌接收状态、接受 SC 点歌、指令必须带空格、允许观众取消点歌、歌名匹配方式、总队列与个人排队上限、不同身份的点歌间隔与每日上限、粉丝牌与大航海资格、单首歌曲冷却、大航海优先插队、只允许歌库歌曲和禁止同名点歌。
         </li>
 <li>点歌用户黑名单按观众的 B 站 UID 拦截，随 LIRA 账号同步。</li>
-<li>B 站直播账号的登录状态、盲盒配置、网页歌单背景图。</li>
-<li>弹幕触发礼物特效、自动答谢礼物、弹幕查询礼物统计这三个开关。</li>
+<li>B 站直播账号和大航海到期同步的登录状态、盲盒配置、网页歌单设置与背景图，以及服务器上的礼物账本。</li>
+<li>弹幕触发礼物特效开关，以及云端互动的开关、规则与词库（包括礼物答谢、查询回复、签到与抽签、进场欢迎、开播连接提示、PK 播报与欢迎、点赞／分享／关注感谢、完整匹配回复、定时／随机弹幕和昵称管理）。</li>
 </ul>
 <p>同步歌库会整份覆盖。两台电脑都改过歌库时，请先备份要保留的版本。</p>
 <p class="usage-guide-inline-title">只保存在本机：换机前单独保存</p>
 <ul>
 <li>点歌屏蔽词只保存在这台电脑，按「点歌」后面的内容完整匹配。换机前请另存词表。</li>
 <li>点歌队列、播放队列、LIRA 里的播放历史。</li>
-<li>点歌板、展示板、直播歌词、歌曲信息、实时榜单、开播动画、时钟、全屏礼物感谢、大航海感谢、滚动礼物、礼物许愿、心动盲盒和盲盒盈亏榜的画面设置，以及投票与评分的外观。</li>
+<li>点歌板、展示板、直播歌词、歌曲信息、实时榜单、加班机（含初始时长、礼物规则与画面设置）、开播动画、时钟、全屏礼物感谢、大航海感谢、滚动礼物、礼物许愿、心动盲盒和盲盒盈亏榜的画面设置，以及大播放器外观、投票与评分的外观。</li>
 <li>直播场景、文本框和导入的素材库。</li>
 <li>弹幕姬外观：按当前账号保存在本机，包括样式、参数和区域随机弹幕的停留时间。完整修改自动保存，失败时保留输入并提供重试入口；只改预览不会保存。</li>
 <li>礼物导出目录、月底冲刺目标、礼物提示开关。</li>
 <li>QQ 音乐和网易云的登录状态、全民 K 歌缓存路径。换电脑后要重新登录音乐平台，重新选缓存位置。</li>
-<li>日历、备忘、待办、粉丝档案、周表生成器模板与素材、世界地图城市列表、电音助手与客户端设置、小游戏历史，以及动态抽奖最新的一场活动和所有未结束活动。</li>
+<li>关键词回复规则、点歌回复开关、AI 互动助手配置（平台、API Key、模型与人设）、日历、备忘、待办、粉丝档案、周表生成器模板与素材、世界地图城市列表、电音助手与客户端设置、小游戏历史，以及动态抽奖最新的一场活动和所有未结束活动。</li>
 </ul>
 <p>QQ 音乐和网易云的「我喜欢」「收藏歌单」存在音乐平台账号里，不在 LIRA。重新登录对应平台就能看到。</p>
-<p>服务器记录与持续运行的功能见<a data-usage-guide-link href="#ug-monitor">关闭客户端后的运行范围</a>。网页模拟游戏的进度保存在当前浏览器中，不随 LIRA 账号同步；清除网站数据会丢失游戏进度。登录同一账号不是整机备份。</p></article>
+<p>服务器记录与持续运行的功能见<a data-usage-guide-link href="#ug-cloud-runtime">关闭客户端后的运行范围</a>。网页模拟游戏的进度保存在当前浏览器中，不随 LIRA 账号同步；清除网站数据会丢失游戏进度。登录同一账号不是整机备份。</p></article>
 <article class="usage-guide-feature" id="ug-fan-backup"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.3.2 粉丝档案备份与恢复</strong></h5></div>
 <p>打开「百宝箱 → 主播工具 → 粉丝档案 → 设置」。</p>
 <p>
@@ -39,15 +39,15 @@
 <article class="usage-guide-feature" id="ug-material-backup"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.3.3 素材和场景备份与恢复</strong></h5></div>
 <ol class="usage-guide-checks"><li>先保存样式参数和场景，在「组件 → 素材管理」点「导出素材与场景备份」，另外保留作者原始 ZIP。</li><li>在新电脑的「素材管理」中选择「从备份恢复为副本」，核对清单后恢复素材和参数，并将场景恢复为副本。</li><li>重新填写外部浏览器源、选择本地加班机背景，检查布局后「保存并应用」。没有专用备份时，可重新导入作者 ZIP 并手动调整布局。</li></ol>
 <figure class="usage-guide-figure">
-<img alt="素材管理窗口的已安装套装清单，以及导出素材与场景备份和恢复备份按钮。" class="usage-guide-image" decoding="async" height="446" loading="lazy" src="/img/usage-guide/E/material-backup-manager.webp" style="--usage-guide-image-width: 640px" width="640"/>
-<figcaption>从「素材管理」导出备份，换机后在同一窗口选择「从备份恢复为副本」。图中「恢复备份」现为「从备份恢复为副本」。</figcaption>
+<img alt="素材管理窗口：上方为已导入素材列表，下方左右两卡分别为存储空间与备份与恢复（含导出素材与场景备份、从备份恢复为副本按钮）。" class="usage-guide-image" decoding="async" height="400" loading="lazy" src="/img/usage-guide/E/material-backup-manager.webp" style="--usage-guide-image-width: 640px" width="640"/>
+<figcaption>从「素材管理」导出备份，换机后在同一窗口选择「从备份恢复为副本」。</figcaption>
 </figure>
 
 <p>备份不包含未保存草稿、外部浏览器源及本地加班机背景路径。歌库表格另用<a data-usage-guide-link href="#ug-web-sync">导出歌库 Excel</a>保存。</p>
 <details class="usage-guide-foldout">
 <summary>查看恢复前的确认清单</summary>
 <figure class="usage-guide-figure">
-<img alt="素材备份恢复确认，列出素材包、场景布局数量、体积和恢复为副本的说明。" class="usage-guide-image" decoding="async" height="568" loading="lazy" src="/img/usage-guide/E/material-backup-restore.webp" style="--usage-guide-image-width: 640px" width="640"/>
+<img alt="素材备份恢复确认，列出素材包、场景布局数量、体积和恢复为副本的说明。" class="usage-guide-image" decoding="async" height="460" loading="lazy" src="/img/usage-guide/E/material-backup-restore.webp" style="--usage-guide-image-width: 640px" width="640"/>
 <figcaption>确认前核对数量和恢复说明；图中为演示备份的检查结果，尚未执行恢复。</figcaption>
 </figure>
 </details>
@@ -59,9 +59,10 @@
 <strong>别把旧电脑的整个数据文件夹复制到新电脑。</strong>里面有这台电脑的授权和本机状态。歌库导出和粉丝档案备份只包含各自的内容，替代不了全部数据。
       </p>
 </article></div>
-<h4 class="usage-guide-subsection-title">7.5 数据目录与日志入口</h4>
-<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-directories"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.5.1 打开数据目录与日志目录</strong></h5></div>
-<p>打开「百宝箱 → 设置 → 系统与关于」，在「本地数据与诊断」点数据目录或日志目录旁的「打开目录」。两者用途不同，反馈报错时按<a data-usage-guide-link href="#ug-feedback">问题反馈</a>准备提示原文、时间和日志。</p>
-<p>页面示意见<a data-usage-guide-link href="#ug-reinstall">关于与更新</a>。</p></article></div>
+<h4 class="usage-guide-subsection-title">7.5 数据目录、日志与资源检查</h4>
+<div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-directories"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.5.1 数据目录、日志目录与资源检查</strong></h5></div>
+<p>打开「百宝箱 → 设置 → 系统与关于」，在「本地数据与诊断」里点「数据目录」或「日志目录」旁的「打开目录」。两者用途不同，反馈报错时按<a data-usage-guide-link href="#ug-feedback">问题反馈</a>准备提示原文、时间和日志。</p>
+<p>怀疑程序文件缺失或损坏时，在同一区域点「客户端资源检查」旁的「开始检查」。若检出异常，请先备份重要数据并关闭客户端，再从官方渠道（或点结果下方的「前往官方项目页面」）下载安装包覆盖重装。</p>
+<p>页面示意见<a data-usage-guide-link href="#ug-reinstall">更新、重装与卸载</a>（设置 → 系统与关于）。</p></article></div>
 <!-- admin-fragment: pages/admin/toolbox/usage-guide-shortcuts.html -->
 </section>

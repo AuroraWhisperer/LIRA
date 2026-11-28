@@ -3,15 +3,10 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
-import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
-import { findLyricLineIndex } from '../../shared/lyric-line-index.js';
+import { findLyricLineIndex, getLyricDisplayCues, getLyricMotionBudget } from '../../shared/lyric-line-index.js';
 import { initPlayerAppearance } from './appearance.js';
+import { renderCurrentCover, renderLyricLineContent } from './components.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
-
-function renderLyricText(text) {
-  // CJK fonts can give curly apostrophes a full-em width inside English words.
-  return escapeHtml((text || '').replace(/([A-Za-z])[\u2018\u2019\uFF07](?=[A-Za-z])/g, "$1'"));
-}
 
 const TONEARM_SVG = `
   <svg viewBox="0 0 240 440" data-player-tonearm="curved" aria-hidden="true">
@@ -69,6 +64,7 @@ export class FullscreenPlayer {
     this.bgEl = null;
     this.vinylDiscEl = null;
     this.tonearmEl = null;
+    this.vinylPlaying = null;
     this.lyricsContainer = null;
     this.lyricTogglesEl = null;
     this.romaToggleBtn = null;
@@ -79,6 +75,8 @@ export class FullscreenPlayer {
     this.lyricNodes = null;
     this._extraLyricLines = undefined;
     this.lyricOffsetMs = 0;
+    this.lyricCueTimer = 0;
+    this.scrollDeadlineMs = Infinity;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
     this._lastLyricTrackId = null;
     this.manualBrowsing = false;
@@ -138,7 +136,10 @@ export class FullscreenPlayer {
    * @param {HTMLAudioElement} audio - 音频元素
    */
   render(track, audio) {
-    const isPlaying = audio && !audio.paused;
+    if (this.lyricCueTimer) {
+      window.clearTimeout(this.lyricCueTimer);
+      this.lyricCueTimer = 0;
+    }
 
     // 无论全屏是否打开，始终更新封面、歌曲信息和背景主题
     // 这样退出重进后打开全屏时，唱片机上已经有缓存的信息展示
@@ -146,10 +147,10 @@ export class FullscreenPlayer {
     this.renderArtwork(track);
     this.applyBackgroundTheme(track);
 
-    if (!this.fsEl || !this.fsEl.classList.contains('open')) return;
-
-    // 唱片和唱针动画
-    this.updateVinylAnimation(isPlaying);
+    if (!this.fsEl) return;
+    // 外观预览在大播放器收起时也跟随唱片与唱臂的播放状态。
+    this.updateVinylAnimation(Boolean(audio && !audio.paused));
+    if (!this.fsEl.classList.contains('open')) return;
 
     const lyricTrackId = track?.id ?? '';
     if (this._lastLyricTrackId !== lyricTrackId) {
@@ -194,17 +195,7 @@ export class FullscreenPlayer {
     const coverUrl = track && track.coverUrl ? track.coverUrl : '';
     if (coverUrl === this.artworkUrl) return;
     this.artworkUrl = coverUrl;
-
-    this.artEl.classList.toggle('has-image', Boolean(coverUrl));
-
-    if (coverUrl) {
-      const existing = this.artEl.querySelector('img');
-      if (!existing || existing.src !== coverUrl) {
-        this.artEl.innerHTML = `<img src="${escapeAttr(coverUrl)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.classList.remove('has-image');this.remove();">`;
-      }
-    } else if (!this.artEl.querySelector('svg')) {
-      this.artEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
-    }
+    renderCurrentCover(this.artEl, track);
   }
 
   /**
@@ -231,14 +222,13 @@ export class FullscreenPlayer {
    * @param {boolean} isPlaying - 是否正在播放
    */
   updateVinylAnimation(isPlaying) {
+    if (this.vinylPlaying === isPlaying) return;
+    this.vinylPlaying = isPlaying;
+
     // 唱片旋转动画：播放时旋转，暂停时保持当前角度
     if (this.vinylDiscEl) {
       this.vinylDiscEl.classList.add('spinning');
-      if (isPlaying) {
-        this.vinylDiscEl.classList.remove('paused');
-      } else {
-        this.vinylDiscEl.classList.add('paused');
-      }
+      this.vinylDiscEl.classList.toggle('paused', !isPlaying);
     }
 
     // 唱针状态：播放时落下，暂停时抬起
@@ -282,16 +272,33 @@ export class FullscreenPlayer {
     if (lyricsChanged || existingCount !== lines.length) {
       this.renderLyricLines(lines);
       this.lastActiveLyricIndex = -1; // 歌词列表变化，重置索引以触发初始滚动
+      this.scrollDeadlineMs = Infinity;
     }
 
-    // 更新当前行高亮
-    this.updateLyricHighlight(currentIndex);
-
-    // 只有在当前歌词索引发生变化时才滚动（无论播放还是暂停）
-    // 播放时会持续跟随，暂停时只在手动拖动进度条时滚动一次
-    if (currentIndex !== this.lastActiveLyricIndex && currentIndex >= 0) {
-      this.scrollToActiveLyric();
+    const rate = audio?.playbackRate || 1;
+    if (currentIndex !== this.lastActiveLyricIndex) {
+      const budget = getLyricMotionBudget(Number(lines[currentIndex]?.startMs) || 0, currentMs, rate);
+      this.lyricsContainer.style?.setProperty('--lyric-line-budget', `${budget}ms`);
+      this.updateLyricHighlight(currentIndex);
+      this.scrollDeadlineMs = budget > 0 ? currentMs + budget * rate : Infinity;
+      if (currentIndex >= 0) this.scrollToActiveLyric(budget === 0);
       this.lastActiveLyricIndex = currentIndex;
+    } else if (currentMs >= this.scrollDeadlineMs) {
+      this.scrollToActiveLyric(true);
+      this.scrollDeadlineMs = Infinity;
+    }
+
+    // Native timeupdate can miss a short breath. Wake only for the next cue or scroll deadline.
+    const nextCue = getLyricDisplayCues(lines)[currentIndex + 1];
+    const nextMs = Math.min(nextCue?.displayMs ?? Infinity, this.scrollDeadlineMs);
+    if (audio && !audio.paused && this.fsEl?.classList.contains('open') && Number.isFinite(nextMs)) {
+      const sampledTime = audio.currentTime;
+      this.lyricCueTimer = window.setTimeout(() => {
+        this.lyricCueTimer = 0;
+        if (!audio.paused && audio.currentTime > sampledTime && this.fsEl.classList.contains('open')) {
+          this.renderLyrics(track, audio);
+        }
+      }, Math.max(16, Math.ceil((nextMs - currentMs) / rate)));
     }
   }
 
@@ -302,7 +309,7 @@ export class FullscreenPlayer {
    * @returns {number} 当前行索引
    */
   findCurrentLyricIndex(lines, currentMs) {
-    return findLyricLineIndex(lines, currentMs, line => line.startMs);
+    return findLyricLineIndex(getLyricDisplayCues(lines), currentMs, cue => cue.displayMs);
   }
 
   /**
@@ -320,16 +327,7 @@ export class FullscreenPlayer {
       .map(
         (line, i) => `
       <div class="player-fs-lyric-line" data-lyric-index="${i}" data-lyric-start-ms="${line.startMs || 0}">
-        <button class="lyric-seek-btn" type="button" aria-label="从此处播放" title="从此处播放">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-        </button>
-        <div class="lyric-content">
-          <span class="lyric-text">${renderLyricText(line.text)}</span>
-          ${showTrans && line.translation ? `<span class="lyric-trans">${renderLyricText(line.translation)}</span>` : ''}
-          ${showRoma && line.roma ? `<span class="lyric-trans">${renderLyricText(line.roma)}</span>` : ''}
-        </div>
+        ${renderLyricLineContent(line.text, (showTrans && line.translation) || (showRoma && line.roma))}
       </div>
     `,
       )
@@ -359,12 +357,12 @@ export class FullscreenPlayer {
   /**
    * 滚动到当前歌词行
    */
-  scrollToActiveLyric() {
+  scrollToActiveLyric(instant = false) {
     if (!this.lyricsContainer || this.manualBrowsing) {
       return;
     }
 
-    scrollActiveLyricIntoView(this.lyricsContainer, { center: this.fsEl?.dataset.playerLayout === 'lyrics' });
+    scrollActiveLyricIntoView(this.lyricsContainer, { center: this.fsEl?.dataset.playerLayout === 'lyrics', instant });
   }
 
   setManualBrowsing(manual) {

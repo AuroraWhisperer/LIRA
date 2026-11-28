@@ -99,14 +99,14 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 
 | 编号 | 当前图片 | 判断 | 要处理的内容 |
 | --- | --- | --- | --- |
-| A1 | [查看原图](../../public/img/usage-guide/A/client-login-window.webp) | 可保留 | 注册页、字段、主按钮齐全；发布时解释 1–4 对应步骤。 |
-| A2 | [查看原图](../../public/img/usage-guide/A/client-login-existing-mode.webp) | 可保留 | 登录已有账号选中态及短效登录码清楚。 |
+| A1 | [查看原图](../images/usage-guide/A/client-login-window.webp) | 可保留 | 注册页、字段、主按钮齐全；发布时解释 1–4 对应步骤。 |
+| A2 | [查看原图](../images/usage-guide/A/client-login-existing-mode.webp) | 可保留 | 登录已有账号选中态及短效登录码清楚。 |
 | A3 | [查看原图](../images/usage-guide/A/client-login-username-help.webp) | 放大重点 | 浮层已拍到；整窗留白较多，手册缩放后规则文字偏小。 |
 | A4 | [查看原图](../images/usage-guide/A/client-login-password-help.webp) | 放大重点 | 密码规则浮层完整；建议保留注册标题并放大规则区。 |
 | A5 | [查看原图](../images/usage-guide/A/client-login-activation-code.webp) | 可保留 | 局部仍有注册 LIRA 标题；激活码框与说明已突出。 |
-| A6 | [查看原图](../../public/img/usage-guide/A/client-login-preparing.webp) | 演示可用 | 准备中与进度可辨；保留演示标记，不称为真实初始化验证。 |
-| A7 | [查看原图](../../public/img/usage-guide/A/client-login-failed-retry.webp) | 演示可用 | 错误信息与重试连接齐全；属于连接错误。 |
-| A7b | [查看原图](../../public/img/usage-guide/A/client-preparation-failed.webp) | 演示可用 | 准备未完成与重试/返回登录齐全；应与 A7 区分。 |
+| A6 | [查看原图](../images/usage-guide/A/client-login-preparing.webp) | 演示可用 | 准备中与进度可辨；保留演示标记，不称为真实初始化验证。 |
+| A7 | [查看原图](../images/usage-guide/A/client-login-failed-retry.webp) | 演示可用 | 错误信息与重试连接齐全；属于连接错误。 |
+| A7b | [查看原图](../images/usage-guide/A/client-preparation-failed.webp) | 演示可用 | 准备未完成与重试/返回登录齐全；应与 A7 区分。 |
 | A8 | [查看原图](../images/usage-guide/A/client-main-first-open.webp) | 可复用 | 与 B1 完全相同；这是有示例数据的主界面，不是未配置的首次空态。 |
 | A9 | [查看原图](../images/usage-guide/A/client-tour-bubble.webp) | 可保留 | 高亮、气泡、进度、下一步均存在。 |
 | A10 | [查看原图](../images/usage-guide/A/client-topbar-status.webp) | 修正文案 | 有导航和 ×；没有文字退出程序按钮，状态为未设置直播间。 |
@@ -124,7 +124,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | B12 | [查看原图](../images/usage-guide/B/song-import-export.webp) | 需补结果 | 有导入表单，云端歌曲显示读取失败；补导入结果/同步成功，入口页签需保留。 |
 | B13 | [查看原图](../images/usage-guide/B/desktop-lyric-appearance.webp) | 需补下半部 | 只显示基础字体部分；描边、透明度、逐字等未覆盖。 |
 | C1 | [查看原图](../images/usage-guide/C/playback-platform-tabs.webp) | 仅入口 | 三个平台与登录按钮清楚；没有音乐平台成功登录状态。 |
-| C2 | [查看原图](../../public/img/usage-guide/C/playback-search.webp) | 补上下文 | 搜索框、数量、搜索/清除齐全；有需要再补搜索结果。 |
+| C2 | [查看原图](../images/usage-guide/C/playback-search.webp) | 补上下文 | 搜索框、数量、搜索/清除齐全；有需要再补搜索结果。 |
 | C3 | [查看原图](../images/usage-guide/C/playback-wesing-cache.webp) | 仅配置入口 | 缓存路径和检测/时间调整可见；实际歌词与播放状态未验证，路径可改为通用示例。 |
 | C4 | [查看原图](../../public/img/usage-guide/C/playback-player-bar.webp) | 补标签/上下文 | 未播放控制栏；图标需说明，折叠入口不在此局部图中。 |
 | C6 | [查看原图](../images/usage-guide/C/playback-queue-drawer.webp) | 可保留 | 队列、导入、清空、移除可见；拖动操作仍需文字说明；不能替代播放内容抽屉。 |
@@ -132,12 +132,12 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | D1 | [查看原图](../images/usage-guide/D/gift-page-overview.webp) | 改范围名称 | 只拍礼物页上半部；下半部可用 D9/D10 接续。 |
 | D2 | [查看原图](../images/usage-guide/D/gift-auto-thanks.webp) | 演示/补上下文 | 开关和服务器运行提示齐全；无可编辑答谢模板。 |
 | D3 | [查看原图](../images/usage-guide/D/gift-danmaku-query.webp) | 演示/可合并 | 与 D2 范围高度重复，主要增加标注；明确礼物页入口。 |
-| D4 | [查看原图](../../public/img/usage-guide/D/gift-recent-and-all.webp) | 补上下文 | 最近礼物和查看全部完整；说明来自礼物页。 |
-| D5 | [查看原图](../../public/img/usage-guide/D/gift-history-drawer.webp) | 补选中态 | 筛选和列表齐全，但选中 0 条、导出按钮未启用；最好展示选中后的下一步。 |
+| D4 | [查看原图](../images/usage-guide/D/gift-recent-and-all.webp) | 补上下文 | 最近礼物和查看全部完整；说明来自礼物页。 |
+| D5 | [查看原图](../images/usage-guide/D/gift-history-drawer.webp) | 补选中态 | 筛选和列表齐全，但选中 0 条、导出按钮未启用；最好展示选中后的下一步。 |
 | D6 | [查看原图](../images/usage-guide/D/gift-export-workspace.webp) | 未完成成功验收 | 仅预览与保存设置；没有真实保存/打开文件夹结果，原文已披露运行错误。 |
 | D7 | [查看原图](../images/usage-guide/D/gift-wishes.webp) | 需配 D7b | 周期、样式、进度可见，底部复制地址未入镜；完整流程需搭配 D7b。 |
 | D7b | [查看原图](../images/usage-guide/D/gift-wishes-text.webp) | 补上下文 | 动态占位符、文字预览及底部地址可见；注明百宝箱→礼物姬→礼物许愿。 |
-| D8 | [查看原图](../../public/img/usage-guide/D/gift-blindbox-analysis.webp) | 需补视图 | 只展示按观众看；按盲盒看、开盒记录及有效分页未覆盖。 |
+| D8 | [查看原图](../images/usage-guide/D/gift-blindbox-analysis.webp) | 需补视图 | 只展示按观众看；按盲盒看、开盒记录及有效分页未覆盖。 |
 | D9 | [查看原图](../images/usage-guide/D/gift-blindbox-leaderboard-settings.webp) | 可复用 | 参数齐全；与 D10 完全相同，按重点配说明。 |
 | D10 | [查看原图](../images/usage-guide/D/gift-blindbox-leaderboard-settings.webp) | 可复用 | 冲刺数据和重置本轮齐全；与 D9 共用。 |
 | E1 | [查看原图](../images/usage-guide/E/toolbox-nav.webp) | 需补拍 | 四组导航不全，软件与帮助四项未显示。 |
@@ -149,24 +149,24 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | E7 | [查看原图](../images/usage-guide/E/ai-assistant-config.webp) | 需补关键状态 | 配置表单存在；六个平台下拉选项未展开，没有正常测试结果。 |
 | E8 | [查看原图](../images/usage-guide/E/dynamic-lottery-setup.webp) | 需补拍 | 桌面专用功能不可用的错误状态，不宜作为正常设置截图。 |
 | E10 | [查看原图](../images/usage-guide/E/toolbox-games.webp) | 需补下半部 | 只有数字炸弹/五子棋；你画我猜和转盘未入镜。 |
-| E10b | [查看原图](../../public/img/usage-guide/E/toolbox-voting.webp) | 演示/补上下文 | 投票表单和内置预览齐全；标明小游戏→投票与评分。 |
-| E10c | [查看原图](../../public/img/usage-guide/E/toolbox-rating.webp) | 演示/补上下文 | 评分范围和结果示例齐全；不能当实际评分成功证据。 |
+| E10b | [查看原图](../images/usage-guide/E/toolbox-voting.webp) | 演示/补上下文 | 投票表单和内置预览齐全；标明小游戏→投票与评分。 |
+| E10c | [查看原图](../images/usage-guide/E/toolbox-rating.webp) | 演示/补上下文 | 评分范围和结果示例齐全；不能当实际评分成功证据。 |
 | E11 | [查看原图](../images/usage-guide/E/toolbox-overtime-rule.webp) | 补定位/主控制区 | 规则编辑清楚；图内无加班机页面定位，未覆盖计时器主控制。 |
 | E12 | [查看原图](../images/usage-guide/E/toolbox-gift-effects.webp) | 可保留 | 导航、礼物 ID、测试、投屏地址、触发示例齐全。 |
-| E13 | [查看原图](../../public/img/usage-guide/E/toolbox-planner.webp) | 建议补示例内容 | 页面位置清楚，但日程、备忘、待办全空，勾选/分类结果看不到。 |
+| E13 | [查看原图](../images/usage-guide/E/toolbox-planner.webp) | 建议补示例内容 | 页面位置清楚，但日程、备忘、待办全空，勾选/分类结果看不到。 |
 | E13b | [查看原图](../images/usage-guide/E/toolbox-planner-event.webp) | 可保留 | 新建日程字段与保存齐全；配 E13 使用。 |
-| E14 | [查看原图](../../public/img/usage-guide/E/toolbox-desktop-update.webp) | 演示可用 | 等待检查状态、自动更新、目录入口一致。 |
-| E14b | [查看原图](../../public/img/usage-guide/E/toolbox-update-download.webp) | 需补拍 | 下载更新按钮与等待检查更新状态冲突。 |
-| E14c | [查看原图](../../public/img/usage-guide/E/toolbox-update-ready.webp) | 需补拍 | 重启并更新按钮与等待检查更新状态冲突。 |
+| E14 | [查看原图](../images/usage-guide/E/toolbox-desktop-update.webp) | 演示可用 | 等待检查状态、自动更新、目录入口一致。 |
+| E14b | [查看原图](../images/usage-guide/E/toolbox-update-download.webp) | 需补拍 | 下载更新按钮与等待检查更新状态冲突。 |
+| E14c | [查看原图](../images/usage-guide/E/toolbox-update-ready.webp) | 需补拍 | 重启并更新按钮与等待检查更新状态冲突。 |
 | E15 | [查看原图](../images/usage-guide/E/gift-frame-settings.webp) | 可复用 | 设置与预览按钮可见；与 E1 完全相同，不等于已展示动效。 |
 | E16 | [查看原图](../images/usage-guide/E/gift-feed-settings.webp) | 可保留 | 选中页签、四档金额、行数/速度/最低金额、预览与地址齐全。 |
 | E17 | [查看原图](../images/usage-guide/E/toolbox-clock.webp) | 可保留 | 导航、六种样式、预览、时间选项和地址齐全。 |
 | E18 | [查看原图](../images/usage-guide/E/toolbox-opening.webp) | 需补下半部 | 音乐上传/音量等未完整入镜；预览处于暂停状态。 |
-| E19 | [查看原图](../../public/img/usage-guide/E/toolbox-fan-profiles.webp) | 需补详情/提醒 | 入口、列表、筛选齐全；无选中档案详情，没有提醒页。 |
-| E19b | [查看原图](../../public/img/usage-guide/E/fan-profiles-settings.webp) | 需补下半部/定位 | 档案管理只有标题，三项管理操作未显示；设置页签也被裁掉。 |
+| E19 | [查看原图](../images/usage-guide/E/toolbox-fan-profiles.webp) | 需补详情/提醒 | 入口、列表、筛选齐全；无选中档案详情，没有提醒页。 |
+| E19b | [查看原图](../images/usage-guide/E/fan-profiles-settings.webp) | 需补下半部/定位 | 档案管理只有标题，三项管理操作未显示；设置页签也被裁掉。 |
 | E19c | [查看原图](../images/usage-guide/E/fan-profiles-create.webp) | 需补表单内容 | 基本信息底部标签区被裁切，生日偏好/提醒页签内容未拍。 |
-| E20 | [查看原图](../../public/img/usage-guide/E/toolbox-settings.webp) | 可保留 | 账户与网站、登录、找回密码提示及导航清楚。 |
-| E21 | [查看原图](../../public/img/usage-guide/E/toolbox-performance.webp) | 仅检测入口 | 六张卡片均等待检测；不能说明检测后数据，且没有两视图切换。 |
+| E20 | [查看原图](../images/usage-guide/E/toolbox-settings.webp) | 可保留 | 账户与网站、登录、找回密码提示及导航清楚。 |
+| E21 | [查看原图](../images/usage-guide/E/toolbox-performance.webp) | 仅检测入口 | 六张卡片均等待检测；不能说明检测后数据，且没有两视图切换。 |
 | F1 | [查看原图](../../public/img/usage-guide/F/public-song-page.webp) | 可保留 | 移动端标题、歌曲、搜索和筛选入口齐全；未展开筛选或复制结果。 |
 | F2 | [查看原图](../../public/img/usage-guide/F/public-song-page-qr.webp) | 补上下文 | 分享与二维码完整；局部无法直接看出网页主播中心，配 S5 定位。 |
 | F2a | [查看原图](../../public/img/usage-guide/F/client-song-page-link.webp) | 仅入口/补成功态 | 显示暂时无法读取、尚未同步；需客户端→点歌→导入导出路径。 |
@@ -174,7 +174,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | F3a | [查看原图](../images/usage-guide/F/client-song-page-background.webp) | 需补背景状态 | 默认背景导致恢复默认背景按钮隐藏；补已上传示例背景后的状态。 |
 | F4 | [查看原图](../images/usage-guide/F/public-overlay-blindbox.webp) | 示例效果可用 | 排行、金额、布局完整；图注注明透明背景及示例记录。 |
 | F5 | [查看原图](../images/usage-guide/F/public-overlay-danmaku-before-20261112.webp) | 内置预览可用 | 含样式选择侧栏，是预览页；不要当作实际 OBS 纯投屏截图。 |
-| F6 | [查看原图](../../public/img/usage-guide/F/gift-wishes-overlay.webp) | 示例效果可用 | 卡片和文字状态齐全；兜底图标使礼物难区分，正式示例可补礼物名/正常图片。 |
+| F6 | [查看原图](../images/usage-guide/F/gift-wishes-overlay.webp) | 示例效果可用 | 卡片和文字状态齐全；兜底图标使礼物难区分，正式示例可补礼物名/正常图片。 |
 | S1 | [查看原图](../images/usage-guide/S/server-manage-login.webp) | 修正入口文案 | 实际链接是使用重置码；图内无浏览器地址栏，图注要明确网页登录入口。 |
 | S1b | [查看原图](../../public/img/usage-guide/S/server-password-reset.webp) | 可保留 | 重置字段及返回登录齐全；修正“忘记密码按钮”说法。 |
 | S2 | [查看原图](../images/usage-guide/S/server-manage-overview.webp) | 可保留 | 主播中心标题、四个分区与退出登录均可辨。 |
@@ -187,7 +187,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | S7b | [查看原图](../images/usage-guide/S/admin-short-login-code.webp) | 仅维护者 | 短效登录码入口可用；不纳入主播手册。 |
 | S8 | [查看原图](../images/usage-guide/S/admin-device-list.webp) | 仅维护者 | 设备状态与撤销入口可用；没有执行撤销。 |
 | S9 | [查看原图](../images/usage-guide/S/admin-reset-code.webp) | 仅维护者 | 授权与重置码入口可用；没有生成码的结果。 |
-| R1 | [查看原图](../../public/img/usage-guide/install-existing-user.webp) | 旧版需替换 | 显示点歌助手 3.2.5 与当前 LIRA 不同；不宜作为当前安装器主图。 |
+| R1 | [查看原图](../images/usage-guide/install-existing-user.webp) | 旧版需替换 | 显示点歌助手 3.2.5 与当前 LIRA 不同；不宜作为当前安装器主图。 |
 | R2 | [查看原图](../../public/img/usage-guide/install-existing-location.webp) | 旧版需替换 | 同为旧产品名/版本；安装路径还包含个人 Windows 用户名。 |
 | R3 | [查看原图](../../public/img/usage-guide/uninstall-lira.webp) | 补上下文 | 只显示 Uninstall LIRA.exe 文件名，无法告诉小白从哪里找到它。 |
 | R4 | [查看原图](../../public/img/usage-guide/deepseek-login.webp) | 第三方旧素材 | 可解释登录大致位置；未复核线上当前界面，二维码不应引导读者扫描截图登录。 |

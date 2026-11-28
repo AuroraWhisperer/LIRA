@@ -430,7 +430,7 @@
   --blindbox-scale: 0.88;
   --overlay-font-scale: 1;
   width: 100%;
-  max-width: 100%;
+  max-width: var(--blindbox-card-width, 100%);
   margin: 0;
   max-height: none;
   overflow: visible;

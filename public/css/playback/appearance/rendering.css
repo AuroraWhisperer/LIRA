@@ -130,7 +130,7 @@
 
 [data-player-layout='lyrics'] .player-fs-lyric-line {
   opacity: 0.28;
-  transition: opacity 400ms ease;
+  transition: opacity min(400ms, var(--lyric-line-budget, 400ms)) ease;
 }
 
 [data-player-layout='lyrics'] .player-fs-lyric-line:has(+ .active),

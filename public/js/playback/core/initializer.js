@@ -79,6 +79,7 @@ export function createInitializer(deps) {
     window.addEventListener('pagehide', disposeAssistantSpeed, { once: true });
     audio.addEventListener('ratechange', () => {
       updatePlaybackMediaSession();
+      renderFullscreenPlayer();
       syncPlaybackLyricWindow(true);
     });
     audio.addEventListener('loadedmetadata', () => {

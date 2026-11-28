@@ -290,3 +290,90 @@ test('gift artwork lifecycle subscribes once and discards pending reads after di
   eventBus.emit('gift:catalog_updated', { snapshot: { gifts: [] } });
   assert.equal(changes, 1);
 });
+
+test('recent blind-box combo batch renders cards in first-seen ascending id order while preserving outer descending order', async () => {
+  const list = { innerHTML: '', classList: { toggle() {} }, querySelectorAll: () => [] };
+  const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), {
+    window: { getComputedStyle: () => ({ gridTemplateColumns: '1fr 1fr 1fr 1fr' }) },
+    document: { getElementById: () => list },
+  });
+  const comboTime = '2026-11-28T06:10:41.000Z';
+  giftRecent.renderGiftRecentList([
+    {
+      id: 200,
+      gift_name: '粉丝团灯牌',
+      user_name: '示例观众',
+      num: 4,
+      total_price: 0.4,
+      is_blind_box: false,
+      created_at: '2026-11-28T06:11:25.000Z',
+    },
+    {
+      id: 104,
+      uid: '2002',
+      user_name: '示例观众',
+      gift_name: '花束',
+      num: 1,
+      is_blind_box: true,
+      blind_box_id: '35206',
+      created_at: comboTime,
+    },
+    {
+      id: 103,
+      gift_name: '花园',
+      uid: '1001',
+      user_name: '示例观众',
+      num: 1,
+      total_price: 5.2,
+      is_blind_box: true,
+      blind_box_id: '35206',
+      blind_box_name: '幸运盲盒',
+      blind_profit: 0.2,
+      created_at: comboTime,
+    },
+    {
+      id: 102,
+      gift_name: '柚叶',
+      uid: '1001',
+      user_name: '示例观众',
+      num: 1,
+      total_price: 5.2,
+      is_blind_box: true,
+      blind_box_id: '35206',
+      blind_box_name: '幸运盲盒',
+      blind_profit: 0.2,
+      created_at: comboTime,
+    },
+    {
+      id: 101,
+      gift_name: '星光铃铛',
+      uid: '1001',
+      user_name: '示例观众',
+      num: 2,
+      total_price: 10.4,
+      is_blind_box: true,
+      blind_box_id: '35206',
+      blind_box_name: '幸运盲盒',
+      blind_profit: 0.4,
+      created_at: comboTime,
+    },
+    {
+      id: 90,
+      gift_name: '人气票',
+      user_name: '另一位观众',
+      num: 1,
+      total_price: 0.1,
+      is_blind_box: false,
+      created_at: '2026-11-28T05:53:21.000Z',
+    },
+  ]);
+  const titles = [...list.innerHTML.matchAll(/<div class="gift-name"[^>]*>([^<]+)<\/div>/g)].map((m) => m[1]);
+  assert.deepEqual(titles, [
+    '粉丝团灯牌 x4',
+    '花束 x1',
+    '星光铃铛 x2',
+    '柚叶 x1',
+    '花园 x1',
+    '人气票 x1',
+  ]);
+});

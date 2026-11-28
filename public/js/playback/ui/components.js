@@ -28,6 +28,23 @@ export function renderCurrentCover(coverElement, track) {
   }
 }
 
+function renderLyricText(text) {
+  // CJK fonts can give curly apostrophes a full-em width inside English words.
+  return escapeHtml((text || '').replace(/([A-Za-z])[\u2018\u2019\uFF07](?=[A-Za-z])/g, "$1'"));
+}
+
+export function renderLyricLineContent(text, secondary) {
+  return `<button class="lyric-seek-btn" type="button" aria-label="从此处播放" title="从此处播放">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3"/>
+    </svg>
+  </button>
+  <div class="lyric-content">
+    <span class="lyric-text">${renderLyricText(text)}</span>
+    ${secondary ? `<span class="lyric-trans">${renderLyricText(secondary)}</span>` : ''}
+  </div>`;
+}
+
 /**
  * 更新音量 UI
  * @param {number} volume - 音量值 (0-1)

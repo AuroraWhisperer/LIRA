@@ -297,6 +297,37 @@ test('fullscreen lyric lookup preserves boundaries and selects the last simultan
   assert.equal(player.findCurrentLyricIndex([], 1000), -1);
 });
 
+test('fullscreen follows a short gap between media updates and leaves no wakeup on pause', async () => {
+  const pending = new Map();
+  let timer = 0;
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'), {
+    window: {
+      setTimeout(callback, delay) { pending.set(++timer, { callback, delay }); return timer; },
+      clearTimeout(id) { pending.delete(id); },
+    },
+  });
+  const player = new FullscreenPlayer();
+  player.fsEl = { classList: { contains: () => true } };
+  player.lyricsContainer = { classList: { toggle() {} } };
+  player.renderLyricLines = () => { player.lyricNodes = [{}, {}]; };
+  player.updateLyricHighlight = () => {};
+  player.scrollToActiveLyric = () => {};
+  const track = { lyrics: { lines: [{ startMs: 0, endMs: 1000 }, { startMs: 1100 }] } };
+  const audio = { currentTime: 0.95, paused: false, playbackRate: 2 };
+  player.renderLyrics(track, audio);
+  const wake = pending.get(timer);
+  assert.equal(wake.delay, 30);
+  pending.delete(timer);
+  audio.currentTime = 1.011;
+  wake.callback();
+  assert.equal(player.lastActiveLyricIndex, 1, 'the display can change without another timeupdate');
+  audio.currentTime = 0.95;
+  player.renderLyrics(track, audio);
+  audio.paused = true;
+  player.render(track, audio);
+  assert.equal(pending.size, 0);
+});
+
 test('fullscreen lyric mode changes preserve paused current-line navigation and manual browsing', async () => {
   const audio = { paused: true, currentTime: 6 };
   const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'), {
@@ -311,6 +342,7 @@ test('fullscreen lyric mode changes preserve paused current-line navigation and 
     addEventListener() {},
     querySelectorAll: () => rows,
     querySelector: () => rows.find(row => row.active) || null,
+    scrollTo({ top }) { this.scrollTop = top; },
     set scrollTop(value) { scrollWrites++; },
     set innerHTML(markup) {
       rows = [...markup.matchAll(/data-lyric-index="(\d+)"/g)].map(([, index]) => {
@@ -342,7 +374,7 @@ test('fullscreen lyric mode changes preserve paused current-line navigation and 
 test('reopening fullscreen refreshes same-track lyrics and seek times', async () => {
   const audio = { currentTime: 1.8, duration: 180, paused: false };
   const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'), {
-    document: { getElementById: () => audio },
+    document: { getElementById: () => audio }, window: { setTimeout: () => 1, clearTimeout() {} },
   });
   const { createPlaybackStateActions } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/state/actions.js'));
   const player = new FullscreenPlayer();

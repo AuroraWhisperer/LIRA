@@ -1,5 +1,5 @@
 // Shared positioning for the full player and its scaled appearance preview.
-export function scrollActiveLyricIntoView(container, { center = false } = {}) {
+export function scrollActiveLyricIntoView(container, { center = false, instant = false } = {}) {
   const line = container.querySelector('.player-fs-lyric-line.active');
   if (!line) return;
   const height = container.clientHeight;
@@ -19,5 +19,6 @@ export function scrollActiveLyricIntoView(container, { center = false } = {}) {
       if (center) target -= height * 0.18;
     }
   }
-  container.scrollTop = Math.max(0, target);
+  if (instant) container.scrollTo({ top: Math.max(0, target), behavior: 'instant' });
+  else container.scrollTop = Math.max(0, target);
 }

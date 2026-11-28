@@ -13,10 +13,14 @@ body.blindbox-overlay-body {
 }
 
 .blindbox-panel {
-  width: 720px;
+  width: var(--blindbox-card-width, 720px);
   max-width: calc(100vw - (2 * var(--overlay-edge)));
   margin: var(--overlay-edge);
   max-height: calc(100vh - (2 * var(--overlay-edge)));
+}
+
+.blindbox-panel[data-blindbox-style='porcelain'] {
+  width: 800px;
 }
 
 @supports (height: 100dvh) {
@@ -27,5 +31,5 @@ body.blindbox-overlay-body {
 
 .overlay-body.blindbox-viewport-resized .blindbox-panel {
   width: calc(100vw - (2 * var(--overlay-edge)));
-  max-width: none;
+  max-width: var(--blindbox-card-width, none);
 }

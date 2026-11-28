@@ -7,10 +7,10 @@
       </p>
 <ul>
 <li>
-<strong>查找：</strong>搜索框能搜歌名、歌手、曲风或标签，支持简繁等价查找。还能按曲风、语言、歌手、标签筛选，或选「只看可点」。曲风和标签各自可多选，命中组内任一项即可；不同组的条件需同时满足。例如曲风选「儿歌」「流行」、语言选「国语」，会显示国语儿歌和国语流行歌。列表显示全部歌曲或筛选结果，不分页，向下滚动即可继续查看；搜索和筛选覆盖整个歌库。歌手、曲风、标签和语言固定显示；点歌价格和核对备注在当前结果中整列为空时自动隐藏，有内容时恢复显示。
+<strong>查找：</strong>搜索框能搜歌名、歌手、曲风或标签，支持简繁等价查找。还能按曲风、语言、歌手、标签筛选，或在「可点状态」里选「只看可点」。曲风和标签各自可多选，命中组内任一项即可；不同组的条件需同时满足。例如曲风选「儿歌」「流行」、语言选「国语」，会显示国语儿歌和国语流行歌。列表显示全部歌曲或筛选结果，不分页，向下滚动即可继续查看；搜索和筛选覆盖整个歌库。歌手、曲风、标签和语言固定显示；点歌价格和核对备注在当前结果中整列为空时自动隐藏，有内容时恢复显示。
         </li>
 <li>
-<strong>修改与删除：</strong>点歌曲行最右边的「更多」按钮，选「编辑」或「删除」。表单会显示「正在编辑」的歌名；要改为添加新歌，先点「取消编辑」。把「是否可点」设为「否」，歌就会停用：不公开，也不会被随机点歌抽到。
+<strong>编辑、手动入队与删除：</strong>点歌曲行最右边的「更多」按钮，可选「编辑」、「加入点歌队列」（以主播身份直接入队，不计入观众额度）或「删除」。点「编辑」后，表单上方会显示「正在编辑」的歌名；要改回添加新歌，先点「取消编辑」。把「是否可点」设为「否」，歌就会停用：不公开，也不会被随机点歌抽到。
 编辑期间收到导入或同步的歌库更新时，没改过的字段会跟着更新，已改过的字段保留你的输入；保存前请核对这些修改。
         </li>
 <li>
@@ -21,13 +21,13 @@
         </li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="歌库的编辑表单显示正在编辑的歌名和取消编辑：歌曲名字、歌手、曲风、是否可点、标签、语言、歌切和点歌价格，右下角是保存歌曲按钮" class="usage-guide-image" decoding="async" height="429" loading="lazy" src="/img/usage-guide/B/song-library-edit.webp" style="--usage-guide-image-width: 1362px" width="1362"/>
+<img alt="歌库的编辑表单显示正在编辑的歌名和取消编辑：歌曲名字、歌手、曲风、是否可点、标签、语言、歌切和点歌价格，右下角是保存歌曲按钮" class="usage-guide-image" decoding="async" height="457" loading="lazy" src="/img/usage-guide/B/song-library-edit.webp" style="--usage-guide-image-width: 1406px" width="1406"/>
 <figcaption>编辑时显示歌曲名；点「取消编辑」返回添加歌曲。</figcaption>
 </figure>
 <details class="usage-guide-foldout">
 <summary>查看歌库列表和筛选</summary>
 <figure class="usage-guide-figure">
-<img alt="歌库列表上方的搜索框和曲风、语言、歌手、标签、只看可点筛选，下方是歌曲表格" class="usage-guide-image" decoding="async" height="414" loading="lazy" src="/img/usage-guide/B/song-library-list.webp" style="--usage-guide-image-width: 1396px" width="1396"/>
+<img alt="歌库列表上方的搜索框和曲风、语言、歌手、标签、可点状态筛选，下方是歌曲表格" class="usage-guide-image" decoding="async" height="668" loading="lazy" src="/img/usage-guide/B/song-library-list.webp" style="--usage-guide-image-width: 1406px" width="1406"/>
 <figcaption>「点歌 → 歌库」表单下方：搜索、筛选和歌曲列表。每首歌右侧的「更多」展开编辑等操作。</figcaption>
 </figure>
 </details>
@@ -37,7 +37,7 @@
 <ol class="usage-guide-checks">
 <li>
           打开「点歌 →
-          歌单导入导出」，点「下载导入模板」。模板只保留表头，从第二行开始填写自己的歌曲。「标签」列的表头附有「怀旧、抒情、治愈」示例，可按歌曲的风格或情绪填写。
+          歌单导入导出」，点「下载导入模板」。模板只保留表头，从第二行开始填写自己的歌曲。「歌曲标签」列的表头附有「怀旧、抒情、治愈」示例，可按歌曲的风格或情绪填写。
         </li>
 <li>
           选择 XLSX、CSV 或 TSV 文件，或者从 Excel
@@ -60,7 +60,7 @@
 <details class="usage-guide-foldout">
 <summary>查看导入结果提示</summary>
 <figure class="usage-guide-figure">
-<img alt="确认替换后显示本地歌库的新增、更新、删除和未改变数量" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/B/song-import-result.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="确认替换后显示本地歌库的新增、更新、删除和未改变数量" class="usage-guide-image" decoding="async" height="512" loading="lazy" src="/img/usage-guide/B/song-import-result.webp" style="--usage-guide-image-width: 1406px" width="1406"/>
 <figcaption>替换后，检查入口下方显示新增、更新、删除和未改变数量；网页以云同步结果为准。</figcaption>
 </figure>
 </details>
@@ -69,7 +69,8 @@
 <article class="usage-guide-feature" id="ug-web-sync"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>2.1.3 导出与账号同步</strong></h5></div>
 <p>登录 LIRA 并联网后，歌库会自动同步到同一账号的其他电脑。以下操作用于导出备份或手动覆盖同步。</p>
 <p>想备份表格，点「导出歌库 Excel」。导出的表格一首歌一行，可以拿来检查，也能再导入。</p>
-<p>「清空歌库及使用记录」会按确认框列出的范围删除数据。数据库和本机播放数据都清理成功后，页面会重新加载并停止当前播放。若提示音乐缓存或本机播放状态清理失败，页面会保留，请核对提示中的项目。数据库部分提交时，可在提示中查看「已清空」「清空失败」和「状态待核对」的项目，再查看日志。</p>
+<p>「清空歌库」只清除歌曲、曲风和歌单导入记录，保留点歌队列、点歌记录、直播间号和各项设置。「清空歌库及使用记录」还会按确认框列出的范围清除点歌、SC、礼物、播放和签到等记录以及音乐缓存，并关闭加班机、归零时长，但保留加班机规则、粉丝档案和各项设置。两种清空都会触发歌库同步，可能影响网页歌单和同账号的其他电脑。</p>
+<p>执行「清空歌库及使用记录」后，数据库和本机播放数据都清理成功时，页面会重新加载并停止当前播放。若提示音乐缓存或本机播放状态清理失败，页面会保留，请核对提示中的项目。数据库部分提交时，可在提示中查看「已清空」「清空失败」和「状态待核对」的项目，再查看日志。</p>
 
 <p>
         网页主播中心只能看歌，不能改歌。
@@ -91,11 +92,8 @@
 <p>点歌支持简体、繁体和混合写法，例如「點歌 後來」「隨機點歌 國語＋懷舊」「取消點歌 聽海」。歌名、歌手和随机条件会按简繁等价识别，仍保留歌库与弹幕原文；黑名单、重复点歌和歌曲冷却也按同样规则判断。</p>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-song-queues"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>2.2.1 SC 队列 + 点歌队列</strong></h5></div>
 
-<p>单条删除 SC 后，可在 10 秒内点击「清空 SC 记录」左侧的「撤销」；连续删除合并为一批，最后一次删除重新计时。撤销恢复原留言和已处理状态；清空 SC、平台撤回不可撤销。收到 B 站的 SC 下线通知后，对应留言会自动移除；标记「已处理」的留言仍保留在队列中。</p>
-<p>
-        「点歌」页上方左边是 SC 队列，右边是点歌队列。SC（醒目留言）是观众付费发的留言。观众发「点歌
-        歌名」就能点歌，歌名不完整也会尝试匹配歌库。
-      </p>
+<p>「点歌」页上方左边是 SC 队列，右边是点歌队列。SC（醒目留言）是观众付费发的留言，每条留言右侧可标记「已处理」、复制或删除。观众发「点歌 歌名」就能点歌，歌名不完整也会尝试匹配歌库。</p>
+<p>单条删除 SC 后，可在 10 秒内点击「清空 SC 记录」左侧的「撤销」；连续删除合并为一批，最后一次删除重新计时。撤销会恢复原留言和已处理状态；清空 SC 或平台撤回不可撤销。收到 B 站的 SC 下线通知后，对应留言会自动移除；标记「已处理」的留言仍保留在队列中。</p>
 <p>滚动浏览 SC 或点歌队列时，到底后会短暂缓冲，避免外层页面马上跟着移动；继续滚动满 0.75 秒，或稍作停顿再滚动，即可接着向下浏览页面。</p>
 <ul>
 <li><strong>置顶 / 取消置顶：</strong>最近置顶的歌排到最前面；有 LIVE 时排第 2 位。取消置顶后恢复身份优先或点歌顺序。每首歌旁边还有「复制歌名」和「删除」。</li>
@@ -121,8 +119,8 @@
 <details class="usage-guide-foldout">
 <summary>查看点歌请求通知的样子</summary>
 <figure class="usage-guide-figure">
-<img alt="旧版点歌确认通知，显示歌名、匹配结果和点歌人，标号 1 和 2 对应设为下一首和跳过" class="usage-guide-image" decoding="async" height="168" loading="lazy" src="/img/usage-guide/B/song-request-confirmation.webp" style="--usage-guide-image-width: 346px" width="346"/>
-<figcaption>图中为旧版通知。当前标题是「点歌匹配待确认」，①「设为下一首」，②「跳过」。</figcaption>
+<img alt="点歌匹配待确认通知，显示歌名、匹配结果和点歌人，下方为设为下一首和跳过按钮" class="usage-guide-image" decoding="async" height="168" loading="lazy" src="/img/usage-guide/B/song-request-confirmation.webp" style="--usage-guide-image-width: 346px" width="346"/>
+<figcaption>「点歌匹配待确认」通知：核对匹配结果后点「设为下一首」或「跳过」。</figcaption>
 </figure>
 </details>
 </article>
@@ -178,5 +176,5 @@
 <li><strong>按标签</strong>：国风、小甜歌、影视OST、K-Pop 等</li>
 <li><strong>组合示例</strong>：「随机点歌 日语+流行」「随机点歌 说唱 苦情」</li>
 </ul>
-<p>随机点歌需要先登录 B 站账号，歌曲须可点。多个条件要同时满足，可先减少条件核对。在「百宝箱 → 弹幕互动 → 互动回复」打开「点歌回复」后，没有符合条件的歌曲、歌曲仍在冷却、队列已满、歌曲已在队列或被仅歌库规则拦截时，会自动 @ 提醒观众；点击「说明」可查看示例，无需设置词库。随机点歌会排除冷却歌曲，候选全部冷却时会单独说明。关闭回复不影响点歌规则拦截，点歌回复需保持客户端在线。</p>
+<p>随机点歌需要先登录 B 站账号，歌曲须可点。多个条件要同时满足，可先减少条件核对。在「百宝箱 → 互动娱乐 → 弹幕互动 → 互动回复」打开「点歌回复」后，没有符合条件的歌曲、歌曲仍在冷却、队列已满、歌曲已在队列或被仅歌库规则拦截时，会自动 @ 提醒观众；点击「说明」可查看示例，无需设置词库。随机点歌会排除冷却歌曲，候选全部冷却时会单独说明。关闭回复不影响点歌规则拦截，点歌回复需保持客户端在线。</p>
 <p>点歌队列中的「随机点歌」按钮使用当前登录账号。等待结果时切换账号、退出登录或更换房间，会取消这次操作并提示重试；已成功加入队列的歌曲保留。账号续期和同房间重连不会取消。</p></article></div>

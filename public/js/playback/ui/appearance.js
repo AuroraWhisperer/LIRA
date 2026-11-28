@@ -3,6 +3,7 @@
 import { initParameterRanges } from '../../shared/parameter-range.js';
 import { ensureSavedFontOption, registerFontSelect } from '../../shared/font-library.js';
 import { SHARED_FONTS } from '../../shared/font-catalog.js';
+import { renderCurrentCover, renderLyricLineContent } from './components.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
 import { dangerConfirm } from '../../shared/confirmation-dialog.js';
 
@@ -56,6 +57,15 @@ const FONTS = {
     .map(font => [font.playerValue, `${font.value}, "Microsoft YaHei", sans-serif`])),
 };
 const initializedPanels = new WeakSet();
+
+const PREVIEW_SONG = {
+  title: '勾指起誓',
+  artist: 'hanser',
+  coverUrl: '/img/playback/pinky-promise-preview.webp',
+  credits: ['词曲：ilem', '原唱：洛天依'],
+  opening: ['你是信的开头', '诗的内容', '童话的结尾'],
+  translation: "You're the opening of a letter, the words of a poem, and the ending of a fairy tale.",
+};
 
 function normalizeFont(value, fallback) {
   if (typeof value !== 'string') return fallback;
@@ -169,38 +179,22 @@ function clonePlayerVisual(source, suffix) {
 
 function renderPreviewLyrics(canvas, longSample) {
   const lyrics = canvas.querySelector('.player-fs-lyrics');
-  const samples = longSample ? [
-    ['把今天唱成一首歌，让每一个平凡的瞬间都值得被记得', 'Turn the day into a song, and keep every little moment.'],
-    ['让喜欢的旋律慢慢响起，陪你走过热闹街角和安静的漫长夜晚', 'Let the melody stay with you, through busy streets and quiet nights.'],
-    ['下一句，留给此刻的你', 'The next line is yours.'],
-  ] : [
-    ['把今天唱成一首歌'], ['让喜欢的旋律慢慢响起'], ['下一句，留给此刻的你'],
-  ];
-  lyrics.replaceChildren(...samples.map(([text, translation], index) => {
-    const line = document.createElement('div');
-    line.className = `player-fs-lyric-line${index === 1 ? ' active' : ''}`;
-    const body = document.createElement('div');
-    body.className = 'lyric-content';
-    const primary = document.createElement('span');
-    primary.className = 'lyric-text';
-    primary.textContent = text;
-    body.append(primary);
-    if (translation) {
-      const secondary = document.createElement('span');
-      secondary.className = 'lyric-trans';
-      secondary.textContent = translation;
-      body.append(secondary);
-    }
-    line.append(body);
-    return line;
-  }));
+  const { credits, opening, translation } = PREVIEW_SONG;
+  const lines = longSample ? [opening.join('，')] : opening;
+  lyrics.innerHTML = [...credits, ...lines].map((text, index) => {
+    const active = index === credits.length;
+    return `<div class="player-fs-lyric-line${active ? ' active' : ''}">
+      ${renderLyricLineContent(text, longSample && active ? translation : '')}
+    </div>`;
+  }).join('');
 }
 
 function createAppearancePreview(playerRoot, canvas) {
   const content = clonePlayerVisual(playerRoot.querySelector('.player-fs-content'), 'Preview');
   content.querySelectorAll('button, .player-fs-lyric-toggles').forEach((node) => node.remove());
-  content.querySelector('.player-fs-title').textContent = '此刻，听见喜欢';
-  content.querySelector('.player-fs-artist').textContent = '歌手名字';
+  content.querySelector('.player-fs-title').textContent = PREVIEW_SONG.title;
+  content.querySelector('.player-fs-artist').textContent = PREVIEW_SONG.artist;
+  renderCurrentCover(content.querySelector('.player-fs-art'), PREVIEW_SONG);
   const background = playerRoot.querySelector('.player-fs-bg').cloneNode(false);
   background.removeAttribute('id');
   canvas.append(background, content);
@@ -234,10 +228,11 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
     }, 320);
   }
   createAppearancePreview(playerRoot, canvas);
+  const previewVinyl = canvas.querySelector('.player-fs-vinyl');
   for (const thumbnail of panel.querySelectorAll('[data-appearance-thumbnail]')) {
     thumbnail.dataset.playerStyle = thumbnail.dataset.appearanceThumbnail;
     thumbnail.dataset.playerRotation = 'false';
-    thumbnail.append(clonePlayerVisual(playerRoot.querySelector('.player-fs-vinyl'), thumbnail.dataset.playerStyle));
+    thumbnail.append(clonePlayerVisual(previewVinyl, thumbnail.dataset.playerStyle));
   }
 
   function render() {

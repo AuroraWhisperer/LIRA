@@ -45,7 +45,25 @@ async function capture(electronApp, shot) {
   );
   const page = electronApp.windows().find((candidate) => !candidate.isClosed());
   page.setDefaultTimeout(4500);
-  const componentFeatures = ['liveDanmakuFeature', 'otherGiftFeature', 'otherTextBoxFeature', 'otherOvertimeMachineFeature', 'otherStartAnimationFeature', 'otherClockFeature'];
+  const componentFeatures = [
+    'liveDanmakuFeature',
+    'otherGiftFeature',
+    'giftDisplayFeature',
+    'giftWishesFeature',
+    'heartBoxCollectionFeature',
+    'giftSprintFeature',
+    'giftBlindboxFeature',
+    'guardThanksFeature',
+    'desktopLyricPage',
+    'nowPlayingPage',
+    'liveRankingsFeature',
+    'otherTextBoxFeature',
+    'otherOvertimeMachineFeature',
+    'otherStartAnimationFeature',
+    'otherClockFeature',
+    'livePollFeature',
+    'liveRatingFeature',
+  ];
   if (kind === 'admin') {
     await page.locator('#queueList .queue-row').first().waitFor();
     await tools.applyCovers(page, [

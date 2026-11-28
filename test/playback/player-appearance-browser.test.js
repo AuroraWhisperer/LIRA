@@ -52,7 +52,7 @@ test('failed fullscreen artwork is not retried by progress renders and a changed
   assert.equal(recovered.hasImage, true);
 });
 
-test('player appearance preview follows playback while respecting rotation and cover settings', async t => {
+test('player appearance preview follows playback with fullscreen closed and respects rotation and cover settings', async t => {
   const browser = openBrowser();
   t.after(() => browser.close());
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html><meta charset="utf-8">
@@ -70,8 +70,10 @@ test('player appearance preview follows playback while respecting rotation and c
   await page.evaluate(async () => {
     document.getElementById('playerAppearance').inert = false;
     const { FullscreenPlayer } = await import('/js/playback/ui/fullscreen.js');
-    window.appearancePlayer = new FullscreenPlayer();
-    window.appearancePlayer.init();
+    const player = new FullscreenPlayer();
+    player.init();
+    const track = { id: 'appearance-track', title: 'Preview' };
+    window.renderAppearancePlayback = audio => player.render(track, audio);
   });
   await page.locator('[name="playerAppearanceStyle"][value="vinyl-arm"]').check();
 
@@ -89,13 +91,26 @@ test('player appearance preview follows playback while respecting rotation and c
     });
   }
 
+  assert.equal(await page.locator('#playerFullscreen').isVisible(), false);
   assert.equal((await visualState()).preview.animation, 'none');
-  await page.evaluate(() => window.appearancePlayer.updateVinylAnimation(true));
+  await page.evaluate(() => window.renderAppearancePlayback({ paused: false }));
   let state = await visualState();
   assert.notEqual(state.player.animation, 'none');
   assert.deepEqual(state.preview, state.player);
   assert.equal(state.preview.playState, 'running');
   assert.equal(state.preview.armPlaying, true);
+
+  const progressClassWrites = await page.evaluate(() => {
+    const observer = new MutationObserver(() => {});
+    for (const node of document.querySelectorAll('#playerFsVinylDisc, #playerFsTonearm')) {
+      observer.observe(node, { attributeFilter: ['class'] });
+    }
+    window.renderAppearancePlayback({ paused: false, currentTime: 1 });
+    const writes = observer.takeRecords().length;
+    observer.disconnect();
+    return writes;
+  });
+  assert.equal(progressClassWrites, 0);
 
   await page.getByLabel('播放时旋转唱片').uncheck();
   state = await visualState();
@@ -104,14 +119,19 @@ test('player appearance preview follows playback while respecting rotation and c
   await page.getByLabel('播放时旋转唱片').check();
   assert.equal((await visualState()).preview.playState, 'running');
 
-  await page.evaluate(() => window.appearancePlayer.updateVinylAnimation(false));
+  await page.evaluate(() => window.renderAppearancePlayback({ paused: true }));
   state = await visualState();
   assert.deepEqual(state.preview, state.player);
   assert.equal(state.preview.playState, 'paused');
   assert.equal(state.preview.armPlaying, false);
 
   await page.locator('[name="playerAppearanceStyle"][value="cover"]').check();
-  await page.evaluate(() => window.appearancePlayer.updateVinylAnimation(true));
+  await page.evaluate(() => window.renderAppearancePlayback({ paused: false }));
+  const localPreviewCover = await page.locator('.player-appearance-canvas .player-fs-art img').evaluate(async image => {
+    await image.decode();
+    return new URL(image.currentSrc).origin === location.origin;
+  });
+  assert.ok(localPreviewCover, 'the cover style has local sample art even when the playing track has none');
   state = await visualState();
   assert.deepEqual(state.preview, state.player);
   assert.equal(state.preview.animation, 'none');

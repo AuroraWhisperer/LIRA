@@ -14,7 +14,9 @@
 const path = require('node:path');
 
 const OUT_ROOT = path.resolve(__dirname, '../../tmp/screenshots/usage-guide');
-const DATA_DIR = path.join(OUT_ROOT, 'data');
+const DATA_DIR = process.env.USAGE_SHOTS_DATA_DIR
+  ? path.resolve(process.env.USAGE_SHOTS_DATA_DIR)
+  : path.join(OUT_ROOT, 'data');
 
 const SHOTS = [
   // ── Phase 0 样张 ──

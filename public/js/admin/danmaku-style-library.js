@@ -63,35 +63,41 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
   const empty = document.getElementById('danmakuStyleEmpty');
   const cards = new Map(buttons.map(button => [button.dataset.danmakuStyle, button]));
   let account;
-  let history = [];
+  let savedHistory = [];
+  let recentStyles = [];
+  let renderedStyles;
   let previous;
-  let recentSignature = '';
+
+  function uniqueRecentStyles(styles) {
+    return [...new Set(styles.filter(style => cards.has(style)))].slice(0, RECENT_LIMIT);
+  }
 
   function readHistory() {
     if (!account) return [];
     try {
       const saved = JSON.parse(localStorage.getItem(`${HISTORY_PREFIX}${encodeURIComponent(account)}`));
-      return Array.isArray(saved) ? [...new Set(saved.filter(style => cards.has(style)))].slice(0, RECENT_LIMIT) : [];
+      return Array.isArray(saved) ? uniqueRecentStyles(saved) : [];
     } catch { return []; }
   }
 
-  function remember(style) {
+  function rememberSavedStyle(style, previousStyle) {
     if (!account || !cards.has(style)) return;
-    history = [style, ...history.filter(value => value !== style)].slice(0, RECENT_LIMIT);
+    savedHistory = uniqueRecentStyles([style, previousStyle, ...savedHistory]);
     try {
-      localStorage.setItem(`${HISTORY_PREFIX}${encodeURIComponent(account)}`, JSON.stringify(history));
+      localStorage.setItem(`${HISTORY_PREFIX}${encodeURIComponent(account)}`, JSON.stringify(savedHistory));
     } catch (error) {
       console.warn('[DanmakuStyleLibrary] Failed to save recent styles:', error);
     }
   }
 
   function renderRecent(state) {
-    const styles = [...new Set([state.draft.style, state.saved.style, ...history])]
-      .filter(style => cards.has(style)).slice(0, RECENT_LIMIT);
-    const signature = JSON.stringify(styles);
-    if (signature !== recentSignature) {
-      recentSignature = signature;
-      recentList.replaceChildren(...styles.map(style => {
+    // An older save may finish after several picks. Only the current draft moves to the front.
+    if (state.loaded && state.draft.style !== recentStyles[0]) {
+      recentStyles = uniqueRecentStyles([state.draft.style, ...recentStyles]);
+    }
+    if (recentStyles !== renderedStyles) {
+      renderedStyles = recentStyles;
+      recentList.replaceChildren(...recentStyles.map(style => {
         const source = cards.get(style);
         const card = source.cloneNode(true);
         card.removeAttribute('data-danmaku-style');
@@ -107,7 +113,7 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
       }));
     }
     for (const card of recentList.children) {
-      card.setAttribute('aria-pressed', String(card.dataset.recentDanmakuStyle === state.draft.style));
+      card.setAttribute('aria-pressed', String(state.loaded && card.dataset.recentDanmakuStyle === state.draft.style));
       card.disabled = !state.loaded;
     }
   }
@@ -157,14 +163,15 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
     if (account !== nextAccount) {
       account = nextAccount;
       setDanmakuStyleFavoritesAccount(account);
-      history = readHistory();
+      savedHistory = readHistory();
+      recentStyles = savedHistory;
       previous = null;
       if (dialog.open) dialog.close();
     }
     if (previous?.saving && !state.saving && previous.generation === state.generation
-      && state.applied && !state.error) remember(state.saved.style);
+      && state.applied && !state.error) rememberSavedStyle(state.saved.style, previous.saved.style);
     for (const [style, card] of cards) {
-      card.setAttribute('aria-pressed', String(style === state.draft.style));
+      card.setAttribute('aria-pressed', String(state.loaded && style === state.draft.style));
       card.disabled = !state.loaded;
     }
     renderRecent(state);

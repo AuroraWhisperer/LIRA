@@ -217,6 +217,7 @@ app
         getCloudSyncIdentity: () => ({ streamerId: 'demo', accountName: 'demo' }),
         getRemoteBaseUrl: () => 'https://api.example.test',
         getAuthorizationEpoch: () => 1,
+        getAuthorizationGeneration: () => 1,
         onStateChanged: () => () => {},
       },
     });

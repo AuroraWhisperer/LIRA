@@ -196,11 +196,11 @@
   transform: translateX(0) scale(1);
   transform-origin: var(--preview-row-origin) center;
   transition:
-    opacity 260ms ease,
-    filter 320ms ease,
-    transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 220ms ease,
-    box-shadow 260ms ease;
+    opacity min(260ms, var(--lyric-line-budget, 260ms)) ease,
+    filter min(320ms, var(--lyric-line-budget, 320ms)) ease,
+    transform min(460ms, var(--lyric-line-budget, 460ms)) cubic-bezier(0.22, 1, 0.36, 1),
+    background-color min(220ms, var(--lyric-line-budget, 220ms)) ease,
+    box-shadow min(260ms, var(--lyric-line-budget, 260ms)) ease;
   content-visibility: auto;
   contain-intrinsic-size: 0 76px;
 }
@@ -267,11 +267,9 @@
 }
 
 .desktop-lyric-preview-card:not(.is-spring-enabled) .desktop-lyric-preview-row {
-  transition:
-    opacity 160ms ease,
-    filter 160ms ease,
-    background-color 160ms ease,
-    box-shadow 160ms ease;
+  transition-property: opacity, filter, background-color, box-shadow;
+  transition-duration: min(160ms, var(--lyric-line-budget, 160ms));
+  transition-timing-function: ease;
 }
 
 .desktop-lyric-preview-row-text {
@@ -444,9 +442,9 @@
 .desktop-lyric-preview-stage.is-low-power .desktop-lyric-preview-row.is-near {
   filter: none;
   transform: none;
-  transition:
-    opacity 160ms ease,
-    background-color 160ms ease;
+  transition-property: opacity, background-color;
+  transition-duration: min(160ms, var(--lyric-line-budget, 160ms));
+  transition-timing-function: ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

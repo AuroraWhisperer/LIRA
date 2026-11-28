@@ -354,15 +354,15 @@ test('danmaku panel saves toggles, previews a selected style and discards failed
   assert.equal(await page.locator('[data-recent-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
 });
 
-test('style library combines filters and keeps only confirmed recent styles for each account', async (t) => {
+test('style library combines filters, orders recent picks immediately and restores applied styles per account', async (t) => {
   const page = await fixture(t, 'danmaku');
-  const mount = async () => {
-    await page.evaluate((html) => {
+  const mount = async (firstStyle = 'ripploid') => {
+    await page.evaluate(({ html, firstStyle }) => {
       document.body.innerHTML = html;
       document.getElementById('liveDanmakuFeature').hidden = false;
       window.activeAppearanceAccount = 'first';
       window.appearanceConfigs = {
-        first: { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: { signal: { fontSize: 34 } } },
+        first: { style: firstStyle, fullscreenDurationSeconds: 6, styleOptions: { signal: { fontSize: 34 } } },
         second: { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {} },
       };
       window.appearanceSnapshot = (accountName) => ({
@@ -386,7 +386,7 @@ test('style library combines filters and keeps only confirmed recent styles for 
           previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
         }, message => window.messages.push(message));
       });
-    }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+    }, { html: readAdminFragmentHtml('pages/admin/live-components/danmaku.html'), firstStyle });
     await page.waitForFunction(() => window.appearanceController?.getState().loaded);
   };
   await mount();
@@ -400,6 +400,7 @@ test('style library combines filters and keeps only confirmed recent styles for 
   };
   const save = page.locator('#danmakuApplyOverlayBtn');
   const library = page.locator('#danmakuStyleLibrary');
+  const recentOrder = () => page.locator('[data-recent-danmaku-style]').evaluateAll(cards => cards.map(card => card.dataset.recentDanmakuStyle));
   await page.locator('#danmakuAllStylesBtn').click();
   const styleOrder = () => library.locator('[data-danmaku-style]').evaluateAll(cards => cards.map(card => card.dataset.danmakuStyle));
   const originalOrder = await styleOrder();
@@ -443,7 +444,7 @@ test('style library combines filters and keeps only confirmed recent styles for 
   assert.equal(await library.locator('[data-danmaku-style]:visible').count(), 0);
   assert.equal(await page.locator('#danmakuStyleEmpty').isVisible(), true);
   await page.locator('#danmakuClearStyleFilters').click();
-  await library.locator('[data-danmaku-style="cream"]').click();
+  await library.locator('[data-danmaku-style="bubble"]').click();
   assert.equal(await library.isVisible(), false);
   assert.deepEqual(await history('first'), [], 'Browsing and selecting do not record usage.');
 
@@ -452,16 +453,22 @@ test('style library combines filters and keeps only confirmed recent styles for 
   await page.waitForFunction(() => !window.appearanceController.getState().saving);
   assert.deepEqual(await history('first'), [], 'A failed save does not record usage.');
   await save.click();
-  await choose('bubble');
+  await page.locator('[data-recent-danmaku-style="ripploid"]').click();
+  assert.deepEqual(await recentOrder(), ['ripploid', 'bubble'], 'Returning to the applied style keeps the pending pick in second place.');
+  await choose('outline');
+  await choose('floating');
+  await choose('cream');
+  await page.locator('[data-recent-danmaku-style="cream"]').click();
   await page.evaluate(() => {
     const request = window.pendingSaves.at(-1);
     window.appearanceConfigs.first = structuredClone(request.body.config);
     request.resolve({ data: { binding: request.body.binding, config: request.body.config } });
   });
   await page.waitForFunction(() => !window.appearanceController.getState().saving);
-  assert.equal(await page.evaluate(() => window.appearanceController.getState().draft.style), 'bubble');
+  assert.deepEqual(await recentOrder(), ['cream', 'floating', 'outline', 'ripploid'], 'An older save cannot reorder the four most recent picks.');
+  assert.equal(await page.evaluate(() => window.appearanceController.getState().draft.style), 'cream');
   assert.equal(await page.evaluate(() => window.appearanceController.getState().saved.styleOptions.signal.fontSize), 34);
-  assert.deepEqual(await history('first'), ['cream'], 'Record the saved style, not the newer draft.');
+  assert.deepEqual(await history('first'), ['bubble', 'ripploid'], 'Keep the newly applied style and its confirmed predecessor.');
 
   await page.waitForFunction(() => window.appearanceController.getState().saving);
   await page.evaluate(() => {
@@ -476,22 +483,22 @@ test('style library combines filters and keeps only confirmed recent styles for 
     await window.previousAccountSave;
   });
   assert.deepEqual(await history('second'), []);
-  assert.deepEqual(await history('first'), ['cream']);
+  assert.deepEqual(await history('first'), ['bubble', 'ripploid']);
   await page.locator('#danmakuAllStylesBtn').click();
   assert.deepEqual(await styleOrder(), originalOrder, 'Another account has its own favorites.');
   await page.locator('#danmakuCloseStyleLibraryBtn').click();
-  assert.equal(await page.locator('[data-recent-danmaku-style="cream"]').count(), 0);
+  assert.deepEqual(await recentOrder(), ['signal']);
   await page.evaluate(() => {
     window.activeAppearanceAccount = 'first';
     window.appearanceAccountChanged(window.appearanceSnapshot('first'));
   });
   await page.waitForFunction(() => window.appearanceController.getState().loaded);
-  assert.equal(await page.locator('[data-recent-danmaku-style="cream"]').count(), 1);
+  assert.deepEqual(await recentOrder(), ['bubble', 'ripploid']);
+  const savedStyle = await page.evaluate(() => window.appearanceConfigs.first.style);
   await page.reload();
-  await mount();
+  await mount(savedStyle);
   await page.locator('#danmakuAllStylesBtn').click();
   assert.equal((await styleOrder())[0], 'cream', 'Favorites survive a page reload.');
   assert.equal(await favorite('cream').getAttribute('aria-pressed'), 'true');
-  assert.equal(await page.locator('[data-recent-danmaku-style="cream"]').count(), 1, 'History is restored after reload.');
-  assert.equal(await page.locator('[data-recent-danmaku-style="bubble"]').count(), 0);
+  assert.deepEqual(await recentOrder(), ['bubble', 'ripploid'], 'Reload restores only applied styles, in order.');
 });
